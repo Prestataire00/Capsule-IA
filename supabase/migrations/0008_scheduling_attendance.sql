@@ -32,8 +32,9 @@ CREATE TABLE app.session_participants (
   participant_kind TEXT NOT NULL CHECK (participant_kind IN ('learner', 'trainer')),
   learner_id UUID REFERENCES app.learners(id) ON DELETE CASCADE,
   trainer_id UUID REFERENCES app.trainers(id) ON DELETE CASCADE,
+  participant_id UUID GENERATED ALWAYS AS (COALESCE(learner_id, trainer_id)) STORED,
   is_required BOOLEAN NOT NULL DEFAULT true,
-  PRIMARY KEY (session_id, participant_kind, COALESCE(learner_id, trainer_id)),
+  PRIMARY KEY (session_id, participant_kind, participant_id),
   CHECK (
     (participant_kind = 'learner' AND learner_id IS NOT NULL AND trainer_id IS NULL)
     OR
@@ -64,6 +65,7 @@ CREATE TABLE app.attendance_signatures (
   participant_kind TEXT NOT NULL CHECK (participant_kind IN ('learner', 'trainer')),
   learner_id UUID REFERENCES app.learners(id) ON DELETE RESTRICT,
   trainer_id UUID REFERENCES app.trainers(id) ON DELETE RESTRICT,
+  participant_id UUID GENERATED ALWAYS AS (COALESCE(learner_id, trainer_id)) STORED,
   status app.attendance_status NOT NULL,
   signature_image_path TEXT,
   signed_at TIMESTAMPTZ,
@@ -78,7 +80,7 @@ CREATE TABLE app.attendance_signatures (
     OR
     (participant_kind = 'trainer' AND trainer_id IS NOT NULL AND learner_id IS NULL)
   ),
-  UNIQUE (attendance_sheet_id, participant_kind, COALESCE(learner_id, trainer_id))
+  UNIQUE (attendance_sheet_id, participant_kind, participant_id)
 );
 
 CREATE INDEX ix_sessions_org_dossier ON app.sessions(organization_id, dossier_id);

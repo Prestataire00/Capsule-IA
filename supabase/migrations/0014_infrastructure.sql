@@ -107,12 +107,13 @@ CREATE INDEX ix_notifications_aggregate
 CREATE TABLE app.feature_flags (
   id UUID PRIMARY KEY DEFAULT uuidv7(),
   organization_id UUID REFERENCES app.organizations(id) ON DELETE CASCADE,
+  org_scope UUID GENERATED ALWAYS AS (COALESCE(organization_id, '00000000-0000-0000-0000-000000000000'::uuid)) STORED,
   key TEXT NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT false,
   config JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (COALESCE(organization_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+  UNIQUE (org_scope, key)
 );
 
 CREATE TABLE audit.audit_log (
