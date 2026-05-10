@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "corepack"]
+
+[phases.install]
+cmds = ["corepack enable", "corepack prepare pnpm@9.12.0 --activate", "pnpm install --frozen-lockfile=false"]
+
+[phases.build]
+cmds = ["pnpm --filter web build"]
+
+[start]
+cmd = "pnpm --filter web start -p $PORT"
