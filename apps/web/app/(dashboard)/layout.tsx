@@ -1,8 +1,9 @@
 // ARCHETYPE: command (shell)
-// Justification: shell global de l'espace OF — sidebar rail icônes + topbar avec Cmd+K.
+// Justification: shell global de l'espace OF — sidebar + topbar + assistant IA flottant.
 
 import { SidebarRail } from '@/shared/components/layout/sidebar-rail';
 import { Topbar } from '@/shared/components/layout/topbar';
+import { AiAssistant } from '@/shared/components/ai/ai-assistant';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Topbar />
         <main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
       </div>
+      <AiAssistant />
     </div>
   );
 }
