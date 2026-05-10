@@ -70,7 +70,7 @@ export default function FormationsPage() {
           return (
             <li key={f.id} className="relative">
               <Link
-                href="#"
+                href={`/formations/${f.id}`}
                 className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
               >
                 <div className="flex items-start justify-between mb-4">
