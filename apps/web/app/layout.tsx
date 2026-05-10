@@ -1,7 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
-import { ThemeProvider } from '@/shared/components/theme/theme-provider';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
@@ -12,10 +11,17 @@ const themeInitScript = `
 (function() {
   try {
     var stored = localStorage.getItem('i-a-infinity-theme');
-    var theme = (stored === 'light' || stored === 'dark' || stored === 'system') ? stored : 'system';
-    var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var isDark;
+    if (stored === 'light') {
+      isDark = false;
+    } else if (stored === 'dark') {
+      isDark = true;
+    } else {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
     var root = document.documentElement;
     if (isDark) root.classList.add('dark');
+    else root.classList.remove('dark');
     root.style.colorScheme = isDark ? 'dark' : 'light';
   } catch (e) {}
 })();
@@ -32,9 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="font-sans antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }

@@ -3,19 +3,55 @@
 
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
-import { useTheme } from './theme-provider';
+
+const STORAGE_KEY = 'i-a-infinity-theme';
 
 export function ThemeToggle() {
-  const { resolved, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const [theme, setThemeState] = useState<'light' | 'dark' | null>(null);
 
+  // Lit le thème actuel depuis le DOM au mount (la classe 'dark' a déjà été
+  // appliquée par le script anti-FOUC dans <head>).
   useEffect(() => {
-    setMounted(true);
+    const isDark = document.documentElement.classList.contains('dark');
+    setThemeState(isDark ? 'dark' : 'light');
   }, []);
 
-  const isDark = mounted && resolved === 'dark';
-  const toggle = () => setTheme(isDark ? 'light' : 'dark');
+  const toggle = () => {
+    const root = document.documentElement;
+    const current = root.classList.contains('dark') ? 'dark' : 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
 
+    if (next === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    root.style.colorScheme = next;
+
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      /* localStorage indisponible */
+    }
+
+    setThemeState(next);
+  };
+
+  // Avant le mount, on rend un placeholder neutre pour éviter le mismatch
+  // d'hydratation (le serveur ne connaît pas la préférence du user).
+  if (theme === null) {
+    return (
+      <button
+        type="button"
+        aria-label="Changer le thème"
+        className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400"
+      >
+        <Sun className="w-4 h-4 opacity-50" />
+      </button>
+    );
+  }
+
+  const isDark = theme === 'dark';
   return (
     <button
       type="button"
