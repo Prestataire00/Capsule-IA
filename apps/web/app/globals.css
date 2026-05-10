@@ -29,10 +29,11 @@
     border-radius: 3px;
   }
 
-  /* Animations utilitaires (tailwindcss-animate-like) */
+  /* Animations utilitaires (subset de tailwindcss-animate, sans conflit avec duration-X) */
   .animate-in {
-    animation-duration: 200ms;
+    animation-duration: 220ms;
     animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
   .fade-in {
     animation-name: ai-fade-in;
@@ -40,8 +41,6 @@
   .slide-in-from-bottom-2 {
     animation-name: ai-slide-from-bottom;
   }
-  .duration-200 { animation-duration: 200ms; }
-  .duration-300 { animation-duration: 300ms; }
 }
 
 @keyframes ai-fade-in {

@@ -7,71 +7,60 @@ import { Sun, Moon } from 'lucide-react';
 const STORAGE_KEY = 'i-a-infinity-theme';
 
 export function ThemeToggle() {
-  const [theme, setThemeState] = useState<'light' | 'dark' | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
-  // Lit le thème actuel depuis le DOM au mount (la classe 'dark' a déjà été
-  // appliquée par le script anti-FOUC dans <head>).
+  // Sync avec le DOM après hydratation (le script anti-FOUC dans <head>
+  // a déjà appliqué la bonne classe avant le rendu).
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark');
-    setThemeState(isDark ? 'dark' : 'light');
+    setIsDark(document.documentElement.classList.contains('dark'));
+    setMounted(true);
   }, []);
 
-  const toggle = () => {
-    const root = document.documentElement;
-    const current = root.classList.contains('dark') ? 'dark' : 'light';
-    const next = current === 'dark' ? 'light' : 'dark';
+  const handleToggle = () => {
+    const html = document.documentElement;
+    const wasDark = html.classList.contains('dark');
 
-    if (next === 'dark') {
-      root.classList.add('dark');
+    if (wasDark) {
+      html.classList.remove('dark');
+      html.style.colorScheme = 'light';
     } else {
-      root.classList.remove('dark');
+      html.classList.add('dark');
+      html.style.colorScheme = 'dark';
     }
-    root.style.colorScheme = next;
 
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      localStorage.setItem(STORAGE_KEY, wasDark ? 'light' : 'dark');
     } catch {
       /* localStorage indisponible */
     }
 
-    setThemeState(next);
+    setIsDark(!wasDark);
   };
 
-  // Avant le mount, on rend un placeholder neutre pour éviter le mismatch
-  // d'hydratation (le serveur ne connaît pas la préférence du user).
-  if (theme === null) {
+  // Avant le mount : icône inerte (évite le mismatch d'hydratation).
+  if (!mounted) {
     return (
       <button
         type="button"
         aria-label="Changer le thème"
+        suppressHydrationWarning
         className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400"
       >
-        <Sun className="w-4 h-4 opacity-50" />
+        <Sun className="w-4 h-4" />
       </button>
     );
   }
 
-  const isDark = theme === 'dark';
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={handleToggle}
       aria-label={isDark ? 'Activer le mode clair' : 'Activer le mode sombre'}
-      title={isDark ? 'Mode clair' : 'Mode sombre'}
-      className="relative w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+      title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+      className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
     >
-      <Sun
-        className={
-          'w-4 h-4 absolute transition-all duration-300 ' +
-          (isDark ? 'rotate-0 scale-100 opacity-100' : 'rotate-90 scale-0 opacity-0')
-        }
-      />
-      <Moon
-        className={
-          'w-4 h-4 absolute transition-all duration-300 ' +
-          (isDark ? '-rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100')
-        }
-      />
+      {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
     </button>
   );
 }
