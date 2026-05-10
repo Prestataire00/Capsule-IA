@@ -21,7 +21,7 @@ export default function QualiopiOrgPage() {
       <header className="flex items-end justify-between mb-6">
         <div>
           <SectionLabel className="mb-1">Conformité</SectionLabel>
-          <h1 className="text-2xl font-medium">Qualiopi</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Qualiopi</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
             État de conformité de l'organisme et des dossiers en cours.
           </p>

@@ -65,7 +65,7 @@ export default function DossierLayout({
             {dossier.status === 'completed' && (
               <button
                 type="button"
-                className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition"
+                className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm"
               >
                 Clôturer
               </button>

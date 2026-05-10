@@ -51,7 +51,7 @@ export default function SignerPage() {
           <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
             <Check className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-medium">Merci, c'est signé.</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Merci, c'est signé.</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             Une copie vous a été envoyée par email à <span className="font-mono">alice.martin@acme-sas.fr</span>.
           </p>
@@ -69,7 +69,7 @@ export default function SignerPage() {
       <div className="flex-1 flex flex-col items-center px-4 py-12">
         <div className="w-full max-w-[480px]">
           <div className="text-center mb-7">
-            <h1 className="text-2xl font-medium">Signez ci-dessous</h1>
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Signez ci-dessous</h1>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
               Utilisez votre doigt ou votre stylet pour signer dans le cadre.
             </p>
@@ -108,7 +108,7 @@ export default function SignerPage() {
               type="button"
               disabled={!hasDrawn}
               onClick={() => setStep('done')}
-              className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition disabled:opacity-40 disabled:pointer-events-none"
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm disabled:opacity-40 disabled:pointer-events-none"
             >
               Valider ma signature
             </button>
@@ -125,7 +125,7 @@ export default function SignerPage() {
           <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">
             Bonjour Alice
           </p>
-          <h1 className="text-2xl font-medium">Convention de formation</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Convention de formation</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             Vous êtes invitée à signer le document ci-dessous.
           </p>

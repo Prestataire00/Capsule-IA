@@ -29,7 +29,7 @@ export default function MesSessionsPage() {
     <div className="max-w-md w-full mx-auto px-4 py-6">
       <header className="mb-6">
         <SectionLabel className="mb-1">Marc Dupont</SectionLabel>
-        <h1 className="text-2xl font-medium">Mes sessions</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Mes sessions</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           {sessions.length} session{sessions.length > 1 ? 's' : ''} à venir ou en cours
         </p>

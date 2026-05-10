@@ -10,7 +10,7 @@ export default function ParametresPage() {
     <div className="max-w-3xl w-full mx-auto px-6 py-8 space-y-8">
       <header>
         <SectionLabel className="mb-1">Configuration</SectionLabel>
-        <h1 className="text-2xl font-medium">Paramètres</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Paramètres</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           Réglages de l'organisation, des membres et des intégrations.
         </p>

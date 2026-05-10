@@ -19,14 +19,14 @@ export default function ReclamationsPage() {
       <header className="flex items-end justify-between mb-6">
         <div>
           <SectionLabel className="mb-1">Qualité</SectionLabel>
-          <h1 className="text-2xl font-medium">Réclamations</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Réclamations</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
             {open.length} ouverte{open.length > 1 ? 's' : ''} · {complaints.length} au total · indicateur Qualiopi I31
           </p>
         </div>
         <Link
           href="#"
-          className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition inline-flex items-center gap-2"
+          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
         >
           <Plus className="w-3.5 h-3.5" />
           Nouvelle réclamation

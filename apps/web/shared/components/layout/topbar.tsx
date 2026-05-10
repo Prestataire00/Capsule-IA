@@ -17,7 +17,7 @@ export function Topbar() {
         type="button"
         className="flex items-center gap-2.5 text-[13px] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2 py-1.5 rounded-md transition"
       >
-        <span className="w-6 h-6 rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center text-[10px] font-medium">
+        <span className="w-6 h-6 rounded-md bg-orange-500 text-white flex items-center justify-center text-[10px] font-medium shadow-sm">
           {currentOrg.name.split(' ').map((s) => s[0]).slice(0, 2).join('')}
         </span>
         <span className="font-medium">{currentOrg.name}</span>

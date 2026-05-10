@@ -1,5 +1,5 @@
 ---
-description: UI charter — command/workflow archetypes, strict palette, no font-semibold
+description: UI charter v2 — assouplie, plus chaleureuse mais cohérente
 globs:
   - apps/web/app/**
   - apps/web/features/**/ui/**
@@ -7,13 +7,11 @@ globs:
   - apps/web/shared/components/**
 ---
 
-# UI Charter — Command-driven + Workflow guidé
+# UI Charter v2 — Esthétique, intuitive, conviviale
 
-**This charter is mandatory for ALL UI produced. It overrides shadcn/ui defaults.**
+**Cette charte assouplit la v1 (trop austère) tout en gardant une cohérence forte. Elle est mandatory pour toute UI.**
 
-## 2 archetypes — declare in file header
-
-Every screen belongs to ONE of these archetypes. Declare at the top of the file:
+## 2 archétypes — déclarer en commentaire en haut du fichier
 
 ```tsx
 // ARCHETYPE: command
@@ -21,130 +19,132 @@ Every screen belongs to ONE of these archetypes. Declare at the top of the file:
 // ARCHETYPE: workflow
 ```
 
-And justify in 1 sentence in chat.
+Justifier en 1 phrase dans le chat. Si l'écran ne rentre dans aucun archétype (marketing, error, modal isolée), demander avant de coder.
 
-### `command` — listes, dashboards, fiches, paramètres, exploration
-Density, speed, keyboard shortcuts, little chrome, lots of info on screen. Cmd+K palette. Tableaux plats avec dividers (PAS de cards arrondies en grille). Pills monospace pour IDs. Statuts = point coloré + texte. Footer raccourcis bas d'écran.
+### `command` — listes, dashboards, fiches, paramètres
+Densité contrôlée, clavier-friendly, Cmd+K palette, pills monospace pour IDs, statuts colorés, actions au hover.
 
-### `workflow` — formulaires multi-étapes, onboarding, signature, paiement
-Focus extrême, 1 seule chose par écran, beaucoup de blanc, anti-erreur. Stepper horizontal max 580px. Contenu max 480px centré. UN SEUL focus visuel. UN SEUL bouton primaire "Suivant".
+### `workflow` — formulaires multi-étapes, signature, paiement
+Focus extrême, 1 chose par écran, beaucoup de blanc, stepper, max 480px centré.
 
-If a screen fits neither archetype (marketing, error, isolated modal), **ask before coding**.
+## Palette
 
-## Hard rules (red lines)
+### Couleurs neutres (base)
+- Backgrounds : `white` / `zinc-50` / `zinc-100` / dark `zinc-950` / `zinc-900`
+- Texte : `zinc-900` / `zinc-700` / `zinc-500` / `zinc-400` / dark variants
+- Bordures : `zinc-200/60` / dark `zinc-800` (toujours opacité)
 
-### Palette
-- Backgrounds: `white` / `zinc-50` / `zinc-100` (+ dark equivalents `zinc-950` / `zinc-900`)
-- Texte: `zinc-900` / `zinc-600` / `zinc-400` (+ dark)
-- Bordures: `zinc-200/60` (toujours opacité, jamais pleines), dark `zinc-800`
-- Primaire: `zinc-900` (dark: `zinc-100`)
-- Sémantique : `emerald` / `amber` / `red` / `blue` (texte 600 sur fond 50)
+### Couleur d'accent — **orange** (brand i-a-infinity)
+- `orange-500` / `orange-600` pour les CTA principaux et accents brand
+- `orange-50` / `orange-100` / dark `orange-950/40` pour fonds doux
+- `orange-700` / dark `orange-400` pour texte sur fond doux
+- Utilisée pour : CTA hero, état actif sidebar, logo brand, callouts d'engagement
+- Pas en décoration arbitraire — toujours porteuse de sens (action, focus, identité)
 
-**Banned**: violet/indigo/teal en accent décoratif, gradients, sémantique en déco (un bouton bleu juste pour faire joli est interdit).
+### Couleurs sémantiques (statuts)
+- Success : `emerald-50/700` light, `emerald-950/40 emerald-400` dark
+- Warning : `amber-50/700` light, `amber-950/40 amber-400` dark
+- Danger : `red-50/700` light, `red-950/40 red-400` dark
+- Info : `blue-50/700` light, `blue-950/40 blue-400` dark
+- Réservées aux statuts et messages — jamais en accent décoratif gratuit
 
-### Typo
-- 1 seule famille principale : Inter (par défaut sur ce projet via `next/font`)
-- 1 seule famille mono pour IDs/codes/raccourcis
-- **Tailles autorisées** : `text-[11px]`, `text-xs` (12), `text-[13px]`, `text-[15px]`, `text-[17px]`, `text-xl` (20), `text-2xl` (24). **Rien d'autre.** Notamment `text-sm` (14), `text-base` (16), `text-lg` (18), `text-3xl+` sont **interdits**.
-- **Poids autorisés** : `font-normal` (400), `font-medium` (500). **`font-semibold` et `font-bold` sont interdits** sans exception.
-- Casse : phrase case partout. ALL CAPS uniquement en `text-[10px] tracking-wider uppercase text-zinc-400`.
-- Pas de bold mid-sentence.
+### Banni
+- Violet/indigo/teal en accent décoratif (utilisable seulement dans les avatars)
+- Couleurs néon, gradients criards
+- Mode sombre obligatoire — chaque couleur a son équivalent dark
 
-### Espacements
-- Multiples de 4 par défaut (4/8/12/16/24/32/48). Les `0.5` Tailwind (2px, 10px) sont tolérés à l'intérieur des composants (pills, badges) — voir composants standards plus bas.
-- Border radius : `rounded-md` (6) ou `rounded-lg` (8). `rounded-full` pour pills/avatars uniquement. Jamais `rounded-2xl+`.
-- Bordures : `border-zinc-200/60` (light) / `border-zinc-800` (dark). Toujours opacité.
+## Typographie
 
-### Iconographie
-- 1 seule librairie d'icônes (Lucide par défaut sur ce projet).
-- Tailles : 16px par défaut (`w-4 h-4`), 14px en compact (`w-3.5 h-3.5`), 20px en mise en avant (`w-5 h-5`). Jamais 24px+ sauf illustration.
-- Style outline uniquement.
-- **Aucun emoji dans l'UI fonctionnelle.**
+- 1 famille principale : **Inter** (déjà via `next/font`)
+- 1 famille mono : **JetBrains Mono** (IDs, codes, raccourcis)
+- **Tailles autorisées** : 11, 12 (text-xs), 13, 15, 17, 20 (text-xl), 24 (text-2xl), 30 (text-3xl pour hero only)
+- **Poids autorisés** :
+  - `font-normal` (400) : texte de body
+  - `font-medium` (500) : labels, valeurs importantes
+  - `font-semibold` (600) : **autorisé sur les titres hero (h1, h2 de page) uniquement**
+  - `font-bold` reste interdit
+- Casse : phrase case partout. ALL CAPS uniquement pour mini-labels en `text-[10px] tracking-wider uppercase text-zinc-400`
+- Pas de bold mid-sentence dans le contenu
 
-### Effets bannis
-- `shadow-lg` / `shadow-xl` interdits. `shadow-sm` toléré, `shadow-none` préféré.
-- Pas de glassmorphism, blur décoratif, neon, glow.
-- Pas d'animations décoratives — uniquement transitions fonctionnelles 150-200ms.
-- Pas de cards arrondies en grille pour tout — utiliser listes plates avec dividers.
-- **Maximum 1 bouton primaire `bg-zinc-900` par écran.**
-- Pas de breadcrumbs longs (max "Section / Page").
+## Espacements & formes
 
-### Mode sombre obligatoire
-Chaque couleur a son équivalent dark via `dark:` prefix. Tailwind config en `darkMode: 'media'` par défaut.
+- Multiples de 4 par défaut (4/8/12/16/24/32/48/64)
+- Tolérés à l'intérieur des composants (pills, badges) : 0.5 (2px), 2.5 (10px), 1.5 (6px)
+- Border radius : `rounded-md` (6) ou `rounded-lg` (8). `rounded-xl` (12) autorisé sur hero cards. `rounded-full` pour pills/avatars
+- Bordures : opacité (`zinc-200/60` light, `zinc-800` dark)
 
-## Composants standards (à réutiliser, ne pas réinventer)
+## Effets visuels — assouplis
+
+- **Shadows** : `shadow-sm` autorisé partout. `shadow-md` sur hover des cards interactives. **`shadow-lg+` reste interdit**.
+- **Gradients** : autorisés en **subtils** (max 5% différence de luminosité) sur :
+  - Fond du hero d'accueil
+  - Card CTA principale
+  - Pas plus de 2 gradients par écran
+- **Animations** : transitions 150-200ms. Hover scale (1.01-1.02) autorisé. Subtle motion sur mount autorisé.
+- **Backdrop-blur** : autorisé sur topbar sticky et modales
+- **Glassmorphism extrême** : interdit
+
+## Boutons
 
 ```tsx
-// Pill ID monospace
-<span className="font-mono text-[10px] bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 px-1.5 py-0.5 rounded">DOS-247</span>
-
-// Statut avec point coloré
-<span className="text-xs text-amber-600 dark:text-amber-500 inline-flex items-center gap-1.5">
-  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-  En cours
-</span>
-
-// Bouton primaire (max 1 par écran)
-<button className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition">
+// Primary (action principale du flux)
+<button className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm">
   Action principale
 </button>
 
-// Bouton secondaire
+// Neutral primary (action standard)
+<button className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition">
+  Action neutre
+</button>
+
+// Secondary
 <button className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-4 py-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
   Action secondaire
 </button>
-
-// Métrique compacte
-<div className="bg-zinc-50 dark:bg-zinc-900 rounded-md px-3 py-2.5">
-  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Label</p>
-  <p className="text-xl font-medium mt-0.5">21<span className="text-xs text-zinc-400 font-normal">/35</span></p>
-</div>
-
-// Encart info
-<div className="bg-blue-50 dark:bg-blue-950/30 border-l-2 border-blue-400 rounded-md px-4 py-3 flex gap-2.5">
-  <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-  <p className="text-xs text-blue-900 dark:text-blue-200">Message d'information.</p>
-</div>
-
-// Cmd+K trigger
-<div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 flex items-center gap-2 max-w-md cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition">
-  <Search className="w-3.5 h-3.5 text-zinc-400" />
-  <span className="text-[13px] text-zinc-400 flex-1">Rechercher, naviguer, agir…</span>
-  <kbd className="font-mono text-[10px] bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 px-1.5 py-0.5 rounded text-zinc-500">⌘K</kbd>
-</div>
-
-// Footer raccourcis (command uniquement)
-<div className="border-t border-zinc-200/60 dark:border-zinc-800 px-6 py-2 text-[10px] text-zinc-400 font-mono flex justify-between">
-  <span>↑↓ naviguer · ⏎ ouvrir · ⌘N nouveau</span>
-  <span>v1.0</span>
-</div>
-
-// Filtre chip
-<span className="inline-flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-full px-2.5 py-0.5 text-xs text-zinc-700 dark:text-zinc-300">
-  Statut: en cours <X className="w-3 h-3 cursor-pointer" />
-</span>
 ```
 
-## Inspirations
+**Règle** : 1 seule action principale par écran. Choisir entre `bg-orange-500` (engagement / brand) OU `bg-zinc-900` (action neutre standard). Mixer les deux sur le même écran est ok si hiérarchie claire.
 
-**À imiter** : Linear, Raycast, Stripe Dashboard, Vercel Dashboard, Stripe Checkout, Notion Calendar, Superhuman.
-**À NE PAS imiter** : shadcn/ui par défaut, Tailwind UI templates, Material, Bootstrap, DaisyUI/Flowbite.
+## Composants standards (réutiliser)
+
+```tsx
+// Logo brand
+<span className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center font-mono text-[13px] font-medium">
+  ia
+</span>
+
+// Pill ID monospace (inchangé)
+<span className="font-mono text-[10px] bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 px-1.5 py-0.5 rounded">
+  DOS-247
+</span>
+
+// Status pill avec fond (utiliser StatusPill)
+<StatusPill tone="success">en cours</StatusPill>
+
+// Card interactive
+<div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition">
+  ...
+</div>
+
+// Hero card (avec subtle gradient autorisé)
+<div className="bg-gradient-to-br from-orange-50 to-amber-50/50 dark:from-orange-950/30 dark:to-amber-950/20 border border-orange-100/60 dark:border-orange-950/40 rounded-xl p-6">
+  ...
+</div>
+```
 
 ## Validation avant livraison
 
-Pour chaque écran, valide mentalement :
+- [ ] Archétype déclaré
+- [ ] Palette respectée (zinc + orange brand + sémantique only)
+- [ ] `font-bold` interdit ; `font-semibold` UNIQUEMENT sur titres h1/h2 hero
+- [ ] Tailles : 11/12/13/15/17/20/24/(30 hero only)
+- [ ] Max 1 bouton primaire par écran (orange OU zinc-900)
+- [ ] `shadow-lg+` interdit
+- [ ] Mode sombre couvert
+- [ ] Aucun emoji dans l'UI fonctionnelle
+- [ ] Gradients : subtils, max 2 par écran
 
-- [ ] Archétype déclaré et cohérent
-- [ ] Aucune couleur hors palette neutre + sémantique
-- [ ] Aucun `font-bold`, `font-semibold` (grep le fichier)
-- [ ] Aucun `text-sm`, `text-base`, `text-lg`, `text-3xl+`
-- [ ] Maximum 1 bouton `bg-zinc-900` sur l'écran
-- [ ] Aucune ombre `shadow-lg+`
-- [ ] Aucun emoji
-- [ ] Aucun gradient
-- [ ] Espacements multiples de 4 (sauf composants standards)
-- [ ] Mode sombre couvert (`dark:` sur chaque couleur)
-- [ ] Si command : Cmd+K + raccourcis visibles
-- [ ] Si workflow : stepper + 1 focus + max 480px
+## Inspirations
 
-Si non-conforme → refais avant de livrer.
+**À imiter** : Linear (densité), Stripe Dashboard (sobriété), Vercel (typo), Notion (chaleur), Stripe Checkout (workflow), Lovable (warmth dans la sobriété).
+**À NE PAS imiter** : shadcn par défaut, Tailwind UI templates, Material, Bootstrap, DaisyUI.

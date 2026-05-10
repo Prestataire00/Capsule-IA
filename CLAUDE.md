@@ -44,9 +44,9 @@ Contexte projet pour les sessions Claude Code (et autres agents IA).
 - **Charte UI (impérative pour tout écran)** : `.cursor/rules/70-ui-charter.mdc`
 - Windsurf : `.windsurfrules`
 
-## Charte UI (résumé)
+## Charte UI v2 (résumé)
 
-Chaque écran est `command` ou `workflow` — déclaré en commentaire en haut du fichier. Palette : zinc + sémantique uniquement. Tailles autorisées : 11/12/13/15/17/20/24px. **Poids autorisés : `font-normal` et `font-medium` uniquement** (pas de `font-semibold`/`font-bold`). Max 1 bouton primaire `bg-zinc-900` par écran. Mode sombre obligatoire. Pas d'emoji, pas de gradient, pas de `shadow-lg+`. Détails complets dans la rule.
+Chaque écran est `command` ou `workflow` — déclaré en commentaire en haut du fichier. Palette : zinc neutre + **orange-500/600 accent brand** + sémantique (emerald/amber/red/blue) pour statuts. Tailles : 11/12/13/15/17/20/24px (+ 30px hero only). **Poids** : `font-normal` (body), `font-medium` (labels), `font-semibold` autorisé sur titres h1/h2 hero uniquement, `font-bold` interdit. Max 1 bouton primaire par écran (orange OU zinc-900). `shadow-sm` autorisé, `shadow-md` au hover, `shadow-lg+` interdit. Gradients subtils autorisés sur hero (max 2/écran). Pas d'emoji. Mode sombre obligatoire. Détails complets dans `.cursor/rules/70-ui-charter.mdc`.
 
 ## Ordre de développement d'une feature
 

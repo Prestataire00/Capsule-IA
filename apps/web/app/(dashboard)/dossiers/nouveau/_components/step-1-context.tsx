@@ -7,7 +7,7 @@ export function Step1Context() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-2xl font-medium">Pour qui et quelle formation ?</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Pour qui et quelle formation ?</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
           Sélectionnez l'apprenant, la formation et la période. Tout sera personnalisable ensuite.
         </p>
@@ -79,7 +79,7 @@ export function Step1Context() {
       <div className="flex items-center justify-end pt-4">
         <Link
           href="/dossiers/nouveau?step=2"
-          className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition inline-flex items-center gap-2"
+          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
         >
           Suivant
           <ArrowRight className="w-3.5 h-3.5" />

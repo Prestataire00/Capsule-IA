@@ -12,7 +12,7 @@ export default function LoginPage() {
         <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">
           i-a-infinity OF
         </p>
-        <h1 className="text-2xl font-medium">Se connecter</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Se connecter</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
           Entrez votre email pour recevoir un lien magique.
         </p>

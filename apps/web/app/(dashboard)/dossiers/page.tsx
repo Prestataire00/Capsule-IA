@@ -34,7 +34,7 @@ export default function DossiersPage({ searchParams }: { searchParams: SearchPar
       <header className="flex items-end justify-between mb-8">
         <div>
           <SectionLabel className="mb-2">Tous les dossiers</SectionLabel>
-          <h1 className="text-2xl font-medium text-zinc-900 dark:text-zinc-100">Dossiers</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Dossiers</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
             {filtered.length !== dossiers.length && (
@@ -44,7 +44,7 @@ export default function DossiersPage({ searchParams }: { searchParams: SearchPar
         </div>
         <Link
           href="/dossiers/nouveau"
-          className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition inline-flex items-center gap-2"
+          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
         >
           <Plus className="w-3.5 h-3.5" />
           Nouveau dossier

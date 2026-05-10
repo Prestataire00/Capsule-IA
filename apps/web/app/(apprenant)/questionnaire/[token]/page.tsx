@@ -23,7 +23,7 @@ export default function QuestionnairePage() {
           <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
             <Check className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-medium">Merci pour vos réponses.</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Merci pour vos réponses.</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             Votre formateur les consultera avant le démarrage de la formation pour adapter le parcours.
           </p>
@@ -39,7 +39,7 @@ export default function QuestionnairePage() {
           <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">
             Questionnaire de positionnement
           </p>
-          <h1 className="text-2xl font-medium">Avant de commencer la formation</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Avant de commencer la formation</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             5 minutes maximum · vos réponses servent à personnaliser le parcours.
           </p>
@@ -104,7 +104,7 @@ export default function QuestionnairePage() {
           <div className="flex justify-end pt-4">
             <button
               type="submit"
-              className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition inline-flex items-center gap-2"
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
             >
               Envoyer mes réponses
               <ArrowRight className="w-3.5 h-3.5" />

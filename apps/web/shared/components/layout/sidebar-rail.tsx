@@ -52,7 +52,7 @@ export function SidebarRail() {
       <Link
         href="/"
         aria-label="Accueil"
-        className="w-9 h-9 mb-4 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center font-mono text-[13px] font-medium"
+        className="w-9 h-9 mb-4 rounded-lg bg-orange-500 text-white shadow-sm flex items-center justify-center font-mono text-[13px] font-medium hover:bg-orange-600 transition"
       >
         ia
       </Link>
@@ -70,7 +70,7 @@ export function SidebarRail() {
                   className={cn(
                     'group relative w-9 h-9 rounded-lg flex items-center justify-center transition',
                     active
-                      ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                      ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400'
                       : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100',
                   )}
                 >

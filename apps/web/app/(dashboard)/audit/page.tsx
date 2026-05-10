@@ -17,7 +17,7 @@ export default function AuditPage() {
     <div className="max-w-6xl w-full mx-auto px-6 py-8">
       <header className="mb-6">
         <SectionLabel className="mb-1">Sécurité</SectionLabel>
-        <h1 className="text-2xl font-medium">Audit log</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Audit log</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           Toutes les modifications sensibles tracées avec acteur, IP et user-agent.
         </p>

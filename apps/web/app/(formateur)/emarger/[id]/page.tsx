@@ -55,7 +55,7 @@ export default function EmargerPage() {
         <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">
           {format(parseISO(session.startsAt), 'EEEE d MMMM', { locale: fr })}
         </p>
-        <h1 className="text-2xl font-medium">{session.formation}</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{session.formation}</h1>
         <div className="flex items-center gap-3 text-[13px] text-zinc-500 dark:text-zinc-400 mt-1.5">
           <span className="font-mono">{format(parseISO(session.startsAt), 'HH:mm')} – {format(parseISO(session.endsAt), 'HH:mm')}</span>
           <span>·</span>
