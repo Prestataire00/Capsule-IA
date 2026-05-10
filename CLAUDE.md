@@ -41,7 +41,12 @@ Contexte projet pour les sessions Claude Code (et autres agents IA).
 - Architecture détaillée : `docs/architecture/01-09-*.md`
 - Prompts opérationnels : `docs/prompts/`
 - Rules Cursor (auto-attachées) : `.cursor/rules/*.mdc`
+- **Charte UI (impérative pour tout écran)** : `.cursor/rules/70-ui-charter.mdc`
 - Windsurf : `.windsurfrules`
+
+## Charte UI (résumé)
+
+Chaque écran est `command` ou `workflow` — déclaré en commentaire en haut du fichier. Palette : zinc + sémantique uniquement. Tailles autorisées : 11/12/13/15/17/20/24px. **Poids autorisés : `font-normal` et `font-medium` uniquement** (pas de `font-semibold`/`font-bold`). Max 1 bouton primaire `bg-zinc-900` par écran. Mode sombre obligatoire. Pas d'emoji, pas de gradient, pas de `shadow-lg+`. Détails complets dans la rule.
 
 ## Ordre de développement d'une feature
 
