@@ -1,0 +1,13 @@
+---
+description: Infrastructure layer rules
+globs:
+  - apps/web/features/**/infrastructure/**
+---
+
+# Infrastructure layer
+
+- Implements ports declared in `application/ports/`. One adapter per port.
+- File name: `supabase-<port-name>.ts`.
+- Mappers in `infrastructure/mappers.ts`: row → domain (`hydrateXFromRows`), domain → row (`serializeX`).
+- The repository's `save()` method calls a Postgres RPC that performs UPSERT + outbox INSERT in a single transaction. NEVER do multi-statement saves from JS.
+- Repository receives a `SupabaseClient` (RLS-bound). NEVER use `supabaseAdmin` here unless explicitly justified for an admin-only repository.

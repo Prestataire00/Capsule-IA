@@ -1,0 +1,33 @@
+---
+description: Coding conventions
+alwaysApply: true
+---
+
+# Conventions
+
+## Files & naming
+- File names: kebab-case. `dossier-status.ts`, NOT `DossierStatus.ts`.
+- Class names: PascalCase. Functions/vars: camelCase.
+- Branded IDs: `DossierId`, `LearnerId` etc. via `shared/lib/branded.ts`.
+- React components: PascalCase, one per file when ≥ 30 lines, else colocated.
+- No barrel `index.ts` files except for explicit public APIs of a feature (`features/<x>/index.ts` may re-export the application use cases).
+
+## TypeScript
+- `tsconfig` has strict + `noUncheckedIndexedAccess` enabled. Respect it.
+- No `default exports` for app code (only for Next.js pages).
+- Use `Result<T, E>` (in `shared/lib/result.ts`) for expected business errors. Throw only for programmer errors.
+- Imports sorted: external → `@/shared/*` → `@/features/*` → relative.
+
+## Comments
+- Default: NO comments. Code should explain itself.
+- Add a comment ONLY when WHY is non-obvious (constraint, invariant, workaround). Never WHAT.
+- Never reference current task, ticket number, or "added for X".
+
+## Schemas Zod
+- Live in `features/<context>/ui/schemas.ts` and are SHARED between Server Actions and forms.
+- Single source of truth. Do not duplicate.
+
+## Errors
+- Domain errors: typed union, lives in `features/<x>/domain/<x>.errors.ts`.
+- UI mapping: `shared/lib/errors.ts` translates each error code to a user-facing French message.
+- Never include technical details (stack, SQL state) in user messages.

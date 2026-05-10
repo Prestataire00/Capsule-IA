@@ -1,0 +1,30 @@
+# i-a-infinity OF — global rules (Windsurf)
+
+# Stack: Next.js 14 App Router + TS strict + Supabase + Tailwind + shadcn/ui + RHF + Zod
+# Architecture: modular monolith, DDD light, multi-tenant via organization_id + RLS,
+#               event-driven via outbox pattern in Postgres.
+
+# Bounded contexts: identity, crm, catalog, dossier (root), scheduling, attendance,
+#                   documents, qualiopi, questionnaire, complaint, billing, automation, notification
+
+# Hard rules:
+# 1. Never bypass RLS from client. service_role only in Edge Fns + webhooks.
+# 2. Every new table → enable+force RLS, add policies, add pgTAP test.
+# 3. Domain layer is pure TypeScript. No imports from next/supabase/react/zod.
+# 4. Server Components by default. Server Actions wrapped via authActionClient.
+# 5. Zod schemas shared between forms and Server Actions.
+# 6. No `any`, no silent try/catch, no comments stating WHAT.
+# 7. Use Result<T, E> for expected business errors. Throw only for bugs.
+# 8. Branded UUIDs (DossierId, LearnerId, ...) — never raw `string` for IDs.
+
+# When implementing a feature, follow this order:
+# 1. Migration SQL (table, indexes, RLS enable)
+# 2. Domain (entities, VO, events, errors, invariants + tests)
+# 3. Application (ports + commands + queries)
+# 4. Infrastructure (Supabase repository + mappers)
+# 5. RLS policies + pgTAP tests
+# 6. UI schemas + Server Actions + queries
+# 7. Pages + components
+# 8. E2E test of the golden path
+
+# When in doubt, refer to docs/architecture/01-09-*.md and .cursor/rules/*.mdc.

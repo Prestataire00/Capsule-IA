@@ -1,0 +1,31 @@
+{
+  "name": "i-a-infinity-of",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "lint": "pnpm --filter web lint",
+    "typecheck": "pnpm --filter web typecheck",
+    "test": "pnpm --filter web test",
+    "test:e2e": "pnpm --filter web test:e2e",
+    "db:reset": "supabase db reset --local",
+    "db:diff": "supabase db diff --local",
+    "db:types": "supabase gen types typescript --local > apps/web/shared/types/database.ts",
+    "db:test": "supabase test db",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "supabase": "^1.200.0"
+  },
+  "engines": {
+    "node": ">=20.18.0",
+    "pnpm": ">=9.12.0"
+  }
+}

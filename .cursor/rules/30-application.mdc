@@ -1,0 +1,24 @@
+---
+description: Application layer rules
+globs:
+  - apps/web/features/**/application/**
+---
+
+# Application layer
+
+## Use cases
+- One file per command, in `application/commands/<command-name>.ts`.
+- Export a curried function: `(deps) => async (input) => Promise<Result<Output, Error>>`.
+- Validate inputs minimally (the Server Action did Zod validation already, here we adapt to domain VOs).
+- Pattern: load aggregate via repo → call domain method → repo.save → return Result.
+- NEVER call Supabase directly from a use case. Always through a repository port.
+
+## Ports
+- Interfaces in `application/ports/`. NO implementations here.
+- Names end with `.repository.ts`, `.port.ts`, etc.
+
+## Queries
+- Read-only operations live in `application/queries/`. They MAY call Supabase directly via the server client (for reads that don't fit the aggregate, e.g. dashboard projections). Justified case-by-case.
+
+## Errors
+- Either return the domain `XError`, or `{ code: 'not_found' }`. Never invent new error shapes here.

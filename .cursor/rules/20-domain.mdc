@@ -1,0 +1,40 @@
+---
+description: Domain layer rules
+globs:
+  - apps/web/features/**/domain/**
+  - apps/web/shared/lib/result.ts
+  - apps/web/shared/lib/branded.ts
+---
+
+# Domain layer
+
+## Purity
+- Pure TypeScript. ZERO imports from `next`, `@supabase/*`, `react`, or `zod`.
+- Receives ports as parameters; never imports infrastructure.
+- All side effects come via injected functions (`now`, `newEventId`, etc.).
+
+## Aggregates
+- Constructor private. Static `create()` returns `Result<T, DomainError>`.
+- Static `hydrate()` skips validation (used by repository on load).
+- Methods return `Result<void, DomainError>` for commands.
+- `pullEvents()` returns recorded events and clears the buffer.
+- Children entities live in `domain/entities/`, value objects in `domain/value-objects/`.
+
+## Value objects
+- Immutable. Constructor private. Static `create()` returns Result.
+- Add public getters only when needed by mappers/serialization.
+
+## Events
+- Past tense, kebab-case, `<context>.<aggregate>.<verb>`. Defined in `domain/<x>.events.ts`.
+- Always include eventId, organizationId, aggregateId, occurredAt, version, actorUserId, payload.
+- Mirrors registry definitions in `apps/web/features/_events/`.
+
+## Invariants
+- Encoded as guards in command methods. Use `Result.err({ code, ... })` for breach.
+- NEVER throw exceptions for expected business rule violations.
+
+## When adding a method
+1. State the invariant in plain French in the conversation.
+2. Add the unit test FIRST (TDD on aggregates is non-negotiable).
+3. Then implement.
+4. Verify event is recorded.

@@ -1,0 +1,41 @@
+---
+description: Architecture core principles for i-a-infinity OF
+alwaysApply: true
+---
+
+# i-a-infinity OF — Architecture invariants
+
+This is a French SaaS for training organizations (organismes de formation) with strict Qualiopi compliance. NEVER violate the following:
+
+## Stack imposed
+- Next.js 14 App Router, TypeScript strict
+- Supabase (Postgres + Auth + Storage + RLS + Edge Functions + pg_cron + Realtime)
+- TailwindCSS + shadcn/ui + React Hook Form + Zod + TanStack Query
+- next-safe-action for server actions
+
+## Architecture
+- **Modular monolith**, NOT microservices. Bounded contexts are folders, not services.
+- Multi-tenant via `organization_id` column + RLS policies. NEVER one-schema-per-tenant.
+- Event-driven via **outbox pattern** in Postgres (`infra.domain_events`). NO external broker.
+- Server Components for read paths, Server Actions for writes. API routes ONLY for webhooks and signed-URL streaming.
+
+## Bounded contexts
+identity, crm, catalog, dossier (root), scheduling, attendance, documents, qualiopi, questionnaire, complaint, billing, automation, notification.
+
+## The aggregate root is `Dossier`
+Every business artefact (modules, sessions, attendances, documents, questionnaires, invoices, qualiopi proofs) is scoped to a `dossier_id` OR to an `organization_id` for org-level concerns. NEVER add cross-dossier sharing without explicit user request.
+
+## Hard rules (red lines)
+- Never bypass RLS from client code. service_role only in Edge Functions and webhooks (with explicit guard).
+- Never write Postgres without a versioned migration in `supabase/migrations/`.
+- Never expose `auth.uid()` data without going through RLS-bound clients.
+- Never return errors with internal stack traces to UI; map domain errors via `mapDomainErrorToMessage`.
+- Never add a feature flag, env var or settings without updating `env.mjs`.
+- Never use `any` in TS. Use `unknown` + narrowing or branded types.
+- Never use `try/catch` to swallow errors silently.
+- Never write code outside the `features/<context>/` boundaries that contains business logic.
+
+## When unsure
+- Read the relevant deliverable in `docs/architecture/` (01 vision, 02 SQL, 03 domain, 04 events, 05 RLS, 06 frontend, 07 edge fns, 08 workflows, 09 wireframes).
+- Ask before introducing a new pattern, library, or abstraction.
+- Prefer explicit over clever. Three similar lines beat a premature abstraction.

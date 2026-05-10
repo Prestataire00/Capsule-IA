@@ -1,0 +1,33 @@
+---
+description: Supabase migrations, RLS, Edge Functions
+globs:
+  - supabase/**
+---
+
+# Supabase rules
+
+## Migrations
+- One file per logical change. Filename: `NNNN_short_description.sql` where NNNN is the next 4-digit sequence.
+- Include comments at top: section header.
+- Idempotent where possible (`CREATE OR REPLACE`, `IF NOT EXISTS`). Migrations may be replayed in dev.
+- Add `ALTER TABLE ... ENABLE ROW LEVEL SECURITY; ALTER TABLE ... FORCE ROW LEVEL SECURITY;` for any new table.
+- Update `apps/web/shared/types/database.ts` after migration via `pnpm db:types`.
+
+## RLS policies
+- One policy per (table, operation, role-pattern). NO `FOR ALL`.
+- All policies filter on `organization_id = app.current_organization_id()`.
+- Use helpers from `0018_rls_helpers.sql`: `app.is_org_member()`, `app.has_role()`, `app.is_admin_or_owner()`, `app.is_staff()`, `app.is_dossier_trainer()`.
+- For each new table, add a pgTAP test in `supabase/tests/rls_<context>.sql`.
+- Cross-tenant test (`rls_cross_tenant.sql`) MUST include the new table.
+
+## Edge Functions
+- Live in `supabase/functions/<name>/index.ts`. Deno runtime.
+- Auth: validate `CRON_SECRET` for cron-triggered, or JWT scope for token-driven.
+- All side effects through `supabaseAdmin()` from `_shared/`.
+- Idempotent via `processed_events(event_id, handler_name)` UNIQUE.
+- Log structured JSON via `_shared/logger.ts`.
+- Validate inputs with Zod.
+
+## Triggers
+- Generic ones (`set_updated_at`, audit) already exist. NEVER duplicate.
+- Domain triggers (state guards) live in the migration that creates the table.

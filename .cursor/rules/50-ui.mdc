@@ -1,0 +1,42 @@
+---
+description: UI layer rules
+globs:
+  - apps/web/app/**
+  - apps/web/features/**/ui/**
+  - apps/web/shared/ui/**
+  - apps/web/shared/components/**
+---
+
+# UI rules
+
+## Server vs Client components
+- Default: Server Component. Add `'use client'` only at the deepest necessary leaf.
+- NEVER import `supabaseBrowser` in a Server Component, NEVER `supabaseServer` in a Client Component.
+- Use `'server-only'` package on modules that must never bundle to client.
+
+## Server Actions
+- File: `features/<x>/ui/actions.ts`, marked `'use server'`.
+- Use `authActionClient` or `requireRoles(...)` from `shared/lib/safe-action.ts`. NEVER raw server actions without auth wrapper.
+- Validate inputs with Zod schemas from `features/<x>/ui/schemas.ts`.
+- After a write, call `revalidateTag('<tag>')` for the affected views.
+
+## Forms
+- React Hook Form + Zod resolver, with shadcn `Form` components.
+- Schemas shared with the Server Action — same Zod object on both sides.
+
+## Permissions UI
+- `<Can role="..." />` or `<Can anyOf={[...]} />` to hide UI conditionally.
+- Reminder: UI hiding is convenience. The actual security is in RLS + Server Action role check.
+
+## Caching
+- Server Components: `unstable_cache` with explicit tags + revalidate.
+- Client cache (TanStack Query) ONLY for live views (realtime tabs, live dashboards). NOT a default.
+
+## Routing
+- Route groups for audiences: `(public)`, `(auth)`, `(dashboard)`, `(formateur)`, `(apprenant)`.
+- Dynamic segments accept only branded UUIDs in URL.
+- searchParams are URL state — sync with `useSearchParams` + `router.push`.
+
+## i18n
+- All user-facing strings in `shared/i18n/fr.json`. Access via helper `t('namespace.key')`.
+- Single locale fr-FR for V1.
