@@ -1,9 +1,11 @@
 // ARCHETYPE: workflow
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { submitProspect } from './actions';
+import type { ProspectFields } from './schema';
 import {
   ArrowLeft,
   ArrowRight,
@@ -108,6 +110,8 @@ export default function InscriptionPage() {
 
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const [identity, setIdentity] = useState({
     civility: 'mme' as 'm' | 'mme',
@@ -156,6 +160,52 @@ export default function InscriptionPage() {
 
   const selectedFormation = formations.find((f) => f.id === formation.formationId);
   const selectedFunder = FUNDERS.find((f) => f.value === funding.funder);
+
+  const handleSubmit = () => {
+    if (!funding.funder) return;
+    setSubmitError(null);
+
+    const payload: ProspectFields = {
+      civility: identity.civility,
+      firstName: identity.firstName,
+      lastName: identity.lastName,
+      email: identity.email,
+      phone: identity.phone,
+      birthDate: identity.birthDate,
+      rqth: identity.rqth,
+      formationId: formation.formationId,
+      preferredModality: formation.preferredModality as ProspectFields['preferredModality'],
+      preferredStartDate: formation.preferredStart,
+      message: formation.message,
+      situation: funding.status,
+      companyName: funding.companyName,
+      funderKind: funding.funder,
+    };
+
+    const fd = new FormData();
+    fd.set('payload', JSON.stringify(payload));
+    for (const [key, file] of Object.entries(files)) {
+      if (file) fd.set(`file_${key}`, file, file.name);
+    }
+
+    startTransition(async () => {
+      const result = await submitProspect(fd);
+      if (result.ok) {
+        setSubmitted(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setSubmitError(
+          result.error === 'file_too_large'
+            ? 'Un fichier dépasse 10 Mo. Merci de le compresser.'
+            : result.error === 'invalid_file_type'
+            ? 'Format de fichier non accepté (PDF, JPG, PNG uniquement).'
+            : result.error === 'invalid_input'
+            ? 'Certains champs sont invalides. Merci de vérifier votre saisie.'
+            : "Impossible d'envoyer la demande pour le moment. Réessayez dans quelques instants.",
+        );
+      }
+    });
+  };
 
   if (submitted) {
     return (
@@ -261,19 +311,23 @@ export default function InscriptionPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => {
-                  setSubmitted(true);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                disabled={!requiredFilled}
+                onClick={handleSubmit}
+                disabled={!requiredFilled || pending}
                 className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
               >
                 <Check className="w-3.5 h-3.5" />
-                Envoyer ma pré-inscription
+                {pending ? 'Envoi en cours…' : 'Envoyer ma pré-inscription'}
               </button>
             )}
           </div>
         </div>
+
+        {submitError && (
+          <div className="mt-4 flex items-start gap-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-200 rounded-lg px-4 py-3 text-[13px]">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p>{submitError}</p>
+          </div>
+        )}
 
         <p className="text-center text-[12px] text-zinc-500 dark:text-zinc-400 mt-6 inline-flex items-center justify-center gap-1.5 w-full">
           <ShieldCheck className="w-3 h-3" />
