@@ -58,10 +58,13 @@ export default function DocumentsPage() {
               className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-[13px] w-72 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
             />
           </div>
-          <button className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2">
+          <Link
+            href="/dossiers/d-1/documents"
+            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+          >
             <Plus className="w-3.5 h-3.5" />
             Générer un document
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -70,18 +73,19 @@ export default function DocumentsPage() {
           <ul className="flex items-center gap-1 overflow-x-auto">
             {tabs.map((t) => (
               <li key={t.id}>
-                <button
+                <Link
+                  href={`/documents?tab=${t.id}`}
                   className={
                     t.active
-                      ? 'text-[13px] font-medium text-violet-700 dark:text-violet-400 border-b-2 border-violet-600 px-3 py-2 -mb-px transition whitespace-nowrap'
-                      : 'text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 transition whitespace-nowrap'
+                      ? 'text-[13px] font-medium text-violet-700 dark:text-violet-400 border-b-2 border-violet-600 px-3 py-2 -mb-px transition whitespace-nowrap inline-block'
+                      : 'text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 transition whitespace-nowrap inline-block'
                   }
                 >
                   {t.label}
                   <span className={t.active ? 'ml-1.5 text-[11px] bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 px-1.5 py-0.5 rounded' : 'ml-1.5 text-[11px] text-zinc-400'}>
                     {counts[t.id as keyof typeof counts]}
                   </span>
-                </button>
+                </Link>
               </li>
             ))}
           </ul>
@@ -99,24 +103,26 @@ export default function DocumentsPage() {
 
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {allDocs.slice(0, 8).map((d, i) => (
-            <li
-              key={d.id + i}
-              className="grid grid-cols-[28px_1.5fr_140px_1.2fr_120px_120px_100px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group"
-            >
-              <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">
-                <FileText className="w-3.5 h-3.5" />
-              </span>
-              <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.title}</span>
-              {d.dossier ? <IdPill className="!text-[10px]">{d.dossier.reference}</IdPill> : <span className="text-zinc-400">—</span>}
-              <span className="text-zinc-700 dark:text-zinc-300 truncate">{d.learner}</span>
-              <span className="text-zinc-500 dark:text-zinc-400 truncate capitalize">{d.kind.replace('_', ' ')}</span>
-              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusStyles[d.statusLabel] ?? 'bg-zinc-100'}`}>
-                {d.statusLabel}
-              </span>
-              <button className="text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition text-right inline-flex items-center gap-1 justify-end">
-                {d.statusLabel === 'À signer' ? 'Signer' : d.statusLabel === 'À transmettre' ? 'Envoyer' : 'Télécharger'}
-                {d.statusLabel === 'Généré' && <Download className="w-3 h-3" />}
-              </button>
+            <li key={d.id + i}>
+              <Link
+                href={d.dossier ? `/dossiers/${d.dossier.id}/documents` : '/dossiers'}
+                className="grid grid-cols-[28px_1.5fr_140px_1.2fr_120px_120px_100px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group"
+              >
+                <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-3.5 h-3.5" />
+                </span>
+                <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.title}</span>
+                {d.dossier ? <IdPill className="!text-[10px]">{d.dossier.reference}</IdPill> : <span className="text-zinc-400">—</span>}
+                <span className="text-zinc-700 dark:text-zinc-300 truncate">{d.learner}</span>
+                <span className="text-zinc-500 dark:text-zinc-400 truncate capitalize">{d.kind.replace('_', ' ')}</span>
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusStyles[d.statusLabel] ?? 'bg-zinc-100'}`}>
+                  {d.statusLabel}
+                </span>
+                <span className="text-[12px] font-medium text-violet-600 dark:text-violet-400 group-hover:text-violet-700 dark:group-hover:text-violet-300 transition text-right inline-flex items-center gap-1 justify-end group-hover:underline">
+                  {d.statusLabel === 'À signer' ? 'Signer' : d.statusLabel === 'À transmettre' ? 'Envoyer' : 'Télécharger'}
+                  {d.statusLabel === 'Généré' && <Download className="w-3 h-3" />}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

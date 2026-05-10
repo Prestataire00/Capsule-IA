@@ -1,5 +1,7 @@
 // ARCHETYPE: shared
+import Link from 'next/link';
 import { cn } from '@/shared/lib/cn';
+import { ArrowUpRight } from 'lucide-react';
 
 type Accent = 'violet' | 'orange' | 'rose' | 'blue' | 'purple' | 'emerald' | 'amber' | 'zinc';
 
@@ -21,6 +23,7 @@ export function StatCard({
   hintTone,
   icon: Icon,
   accent = 'zinc',
+  href,
   className,
 }: {
   label: string;
@@ -29,6 +32,7 @@ export function StatCard({
   hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
   icon?: React.ComponentType<{ className?: string }>;
   accent?: Accent;
+  href?: string;
   className?: string;
 }) {
   const hintColors = {
@@ -38,19 +42,17 @@ export function StatCard({
     danger: 'text-red-600 dark:text-red-500',
   };
   const a = accentStyles[accent];
-  return (
-    <div
-      className={cn(
-        'group bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md transition',
-        a.ring,
-        className,
-      )}
-    >
+
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-3">
         {Icon && (
           <span className={cn('w-9 h-9 rounded-lg flex items-center justify-center', a.iconBg)}>
             <Icon className={cn('w-4 h-4', a.iconText)} />
           </span>
+        )}
+        {href && (
+          <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition" />
         )}
       </div>
       <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mt-3">
@@ -62,6 +64,17 @@ export function StatCard({
       {hint && (
         <p className={cn('text-[11px] mt-1.5', hintColors[hintTone ?? 'neutral'])}>{hint}</p>
       )}
-    </div>
+    </>
   );
+
+  const baseClass = cn(
+    'group bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md transition block',
+    a.ring,
+    className,
+  );
+
+  if (href) {
+    return <Link href={href} className={baseClass}>{content}</Link>;
+  }
+  return <div className={baseClass}>{content}</div>;
 }

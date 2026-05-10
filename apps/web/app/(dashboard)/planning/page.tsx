@@ -11,19 +11,20 @@ type Event = {
   title: string;
   learner: string;
   tone: 'violet' | 'blue' | 'emerald' | 'amber' | 'rose';
+  dossierId: string;
 };
 
 const events: Event[] = [
-  { day: 0, startHour: 10, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet' },
-  { day: 0, startHour: 14, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet' },
-  { day: 1, startHour: 10, duration: 2, title: 'Prompt Engineering', learner: 'Sophie Bernard', tone: 'blue' },
-  { day: 1, startHour: 14, duration: 2, title: 'Prompt Engineering', learner: 'Sophie Bernard', tone: 'blue' },
-  { day: 2, startHour: 10, duration: 2, title: 'Data Analyse', learner: 'Julien Moreau', tone: 'emerald' },
-  { day: 2, startHour: 14, duration: 2, title: 'Data Analyse', learner: 'Julien Moreau', tone: 'emerald' },
-  { day: 3, startHour: 10, duration: 2, title: 'Automatisation', learner: 'Camille Petit', tone: 'amber' },
-  { day: 3, startHour: 14, duration: 2, title: 'Automatisation', learner: 'Camille Petit', tone: 'amber' },
-  { day: 4, startHour: 10, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet' },
-  { day: 4, startHour: 14, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet' },
+  { day: 0, startHour: 10, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
+  { day: 0, startHour: 14, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
+  { day: 1, startHour: 10, duration: 2, title: 'Prompt Engineering', learner: 'Sophie Bernard', tone: 'blue', dossierId: 'd-3' },
+  { day: 1, startHour: 14, duration: 2, title: 'Prompt Engineering', learner: 'Sophie Bernard', tone: 'blue', dossierId: 'd-3' },
+  { day: 2, startHour: 10, duration: 2, title: 'Data Analyse', learner: 'Julien Moreau', tone: 'emerald', dossierId: 'd-2' },
+  { day: 2, startHour: 14, duration: 2, title: 'Data Analyse', learner: 'Julien Moreau', tone: 'emerald', dossierId: 'd-2' },
+  { day: 3, startHour: 10, duration: 2, title: 'Automatisation', learner: 'Camille Petit', tone: 'amber', dossierId: 'd-4' },
+  { day: 3, startHour: 14, duration: 2, title: 'Automatisation', learner: 'Camille Petit', tone: 'amber', dossierId: 'd-4' },
+  { day: 4, startHour: 10, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
+  { day: 4, startHour: 14, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
 ];
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17];
@@ -68,14 +69,20 @@ export default function PlanningPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2">
+          <Link
+            href="/formateurs"
+            className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
+          >
             <Filter className="w-3.5 h-3.5" />
             Formateur
-          </button>
-          <button className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2">
+          </Link>
+          <Link
+            href="/dossiers/d-1/sessions"
+            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+          >
             <Plus className="w-3.5 h-3.5" />
             Nouvelle session
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -83,18 +90,18 @@ export default function PlanningPage() {
         {/* Sélecteur Mois / Semaine / Jour */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/60 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <button aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+            <Link href="/planning?week=prev" aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
               <ChevronLeft className="w-4 h-4" />
-            </button>
+            </Link>
             <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Mai 2026</p>
-            <button aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+            <Link href="/planning?week=next" aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
           <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5">
-            <button className="text-[12px] text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded hover:text-zinc-900 dark:hover:text-zinc-100 transition">Jour</button>
-            <button className="text-[12px] bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-medium px-3 py-1 rounded shadow-sm">Semaine</button>
-            <button className="text-[12px] text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded hover:text-zinc-900 dark:hover:text-zinc-100 transition">Mois</button>
+            <Link href="/planning?view=day" className="text-[12px] text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded hover:text-zinc-900 dark:hover:text-zinc-100 transition">Jour</Link>
+            <Link href="/planning?view=week" className="text-[12px] bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-medium px-3 py-1 rounded shadow-sm">Semaine</Link>
+            <Link href="/planning?view=month" className="text-[12px] text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded hover:text-zinc-900 dark:hover:text-zinc-100 transition">Mois</Link>
           </div>
         </div>
 
@@ -137,14 +144,15 @@ export default function PlanningPage() {
                     const top = (e.startHour - HOURS[0]!) * 64;
                     const height = e.duration * 64 - 4;
                     return (
-                      <div
+                      <Link
                         key={i}
-                        className={`absolute left-1.5 right-1.5 rounded-md border px-2.5 py-1.5 pointer-events-auto cursor-pointer hover:shadow-sm transition ${toneStyles[e.tone]}`}
+                        href={`/dossiers/${e.dossierId}`}
+                        className={`absolute left-1.5 right-1.5 rounded-md border px-2.5 py-1.5 pointer-events-auto cursor-pointer hover:shadow-md transition block ${toneStyles[e.tone]}`}
                         style={{ top, height }}
                       >
                         <p className="text-[12px] font-medium leading-tight truncate">{e.title}</p>
                         <p className="text-[11px] opacity-75 truncate mt-0.5">{e.learner}</p>
-                      </div>
+                      </Link>
                     );
                   })}
               </div>

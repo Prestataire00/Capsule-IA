@@ -84,10 +84,10 @@ export default function Home() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Dossiers actifs" value={128} icon={FolderOpen} accent="purple" hint="+12 ce mois" hintTone="success" />
-        <StatCard label="Heures réalisées" value="1 248 h" icon={Clock} accent="emerald" hint="+8% vs mois dernier" hintTone="success" />
-        <StatCard label="Formations en cours" value={24} icon={GraduationCap} accent="blue" hint="+3 cette semaine" hintTone="success" />
-        <StatCard label="Taux de complétion" value="87%" icon={BarChart3} accent="amber" hint="+5% vs mois dernier" hintTone="success" />
+        <StatCard href="/dossiers" label="Dossiers actifs" value={128} icon={FolderOpen} accent="purple" hint="+12 ce mois" hintTone="success" />
+        <StatCard href="/planning" label="Heures réalisées" value="1 248 h" icon={Clock} accent="emerald" hint="+8% vs mois dernier" hintTone="success" />
+        <StatCard href="/formations" label="Formations en cours" value={24} icon={GraduationCap} accent="blue" hint="+3 cette semaine" hintTone="success" />
+        <StatCard href="/qualiopi" label="Taux de complétion" value="87%" icon={BarChart3} accent="amber" hint="+5% vs mois dernier" hintTone="success" />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
@@ -260,19 +260,23 @@ function DocumentsSection() {
     <section className="lg:col-span-7 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Documents</h2>
-        <button className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-3.5 py-1.5 rounded-lg transition shadow-sm inline-flex items-center gap-1.5">
+        <Link
+          href="/documents"
+          className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-3.5 py-1.5 rounded-lg transition shadow-sm inline-flex items-center gap-1.5"
+        >
           <span aria-hidden="true">+</span> Générer un document
-        </button>
+        </Link>
       </div>
       <div className="px-5 pt-3 border-b border-zinc-200/60 dark:border-zinc-800">
         <ul className="flex items-center gap-1">
           {tabs.map((t) => (
             <li key={t.id}>
-              <button
+              <Link
+                href={`/documents?tab=${t.id}`}
                 className={
                   t.active
-                    ? 'text-[13px] font-medium text-violet-700 dark:text-violet-400 border-b-2 border-violet-600 px-3 py-2 -mb-px transition'
-                    : 'text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 transition'
+                    ? 'text-[13px] font-medium text-violet-700 dark:text-violet-400 border-b-2 border-violet-600 px-3 py-2 -mb-px transition inline-block'
+                    : 'text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 transition inline-block'
                 }
               >
                 {t.label}
@@ -281,27 +285,32 @@ function DocumentsSection() {
                     {t.count}
                   </span>
                 )}
-              </button>
+              </Link>
             </li>
           ))}
         </ul>
       </div>
       <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {docs.map((d, i) => (
-          <li key={i} className="grid grid-cols-[24px_1fr_120px_100px_100px_120px_90px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
-            <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">
-              <FileText className="w-3.5 h-3.5" />
-            </span>
-            <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.name}</span>
-            <IdPill className="!text-[10px]">{d.dossier}</IdPill>
-            <span className="text-zinc-700 dark:text-zinc-300 truncate">{d.learner}</span>
-            <span className="text-zinc-500 dark:text-zinc-400 truncate">{d.type}</span>
-            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusStyles[d.status] ?? 'bg-zinc-100 text-zinc-700'}`}>
-              {d.status}
-            </span>
-            <button className={`text-[12px] font-medium text-right transition ${actionStyles[d.actionTone]}`}>
-              {d.action}
-            </button>
+          <li key={i}>
+            <Link
+              href={`/dossiers/d-1/documents`}
+              className="grid grid-cols-[24px_1fr_120px_100px_100px_120px_90px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group"
+            >
+              <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-3.5 h-3.5" />
+              </span>
+              <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.name}</span>
+              <IdPill className="!text-[10px]">{d.dossier}</IdPill>
+              <span className="text-zinc-700 dark:text-zinc-300 truncate">{d.learner}</span>
+              <span className="text-zinc-500 dark:text-zinc-400 truncate">{d.type}</span>
+              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusStyles[d.status] ?? 'bg-zinc-100 text-zinc-700'}`}>
+                {d.status}
+              </span>
+              <span className={`text-[12px] font-medium text-right transition ${actionStyles[d.actionTone]} group-hover:underline`}>
+                {d.action}
+              </span>
+            </Link>
           </li>
         ))}
       </ul>
@@ -328,8 +337,11 @@ function ParcoursSection() {
   ];
   return (
     <section className="lg:col-span-5 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800">
-        <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Parcours apprenant en cours</p>
+      <Link href="/dossiers/d-3" className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800 block hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Parcours apprenant en cours</p>
+          <ArrowUpRight className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 group-hover:text-violet-600 transition" />
+        </div>
         <div className="flex items-center gap-3 mt-2">
           <span className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-medium text-[12px] flex items-center justify-center flex-shrink-0">SB</span>
           <div className="flex-1 min-w-0">
@@ -354,7 +366,7 @@ function ParcoursSection() {
             <p className="text-zinc-900 dark:text-zinc-100 font-medium">14h <span className="text-zinc-400 font-normal">/ 35h</span></p>
           </div>
         </div>
-      </div>
+      </Link>
       <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {modules.map((m) => (
           <li key={m.num}>
