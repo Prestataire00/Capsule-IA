@@ -3,12 +3,34 @@
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { sendEmail } from '@/shared/lib/email/resend';
+import {
+  prospectConfirmationEmail,
+  prospectInternalNotificationEmail,
+} from '@/shared/lib/email/templates';
+import { formations } from '@/shared/mock/data';
 import {
   prospectFieldsSchema,
   MAX_FILE_SIZE,
   ALLOWED_FILE_TYPES,
   type ProspectFields,
 } from './schema';
+
+const FUNDER_LABELS: Record<ProspectFields['funderKind'], string> = {
+  opco: 'OPCO',
+  cpf: 'CPF',
+  pole_emploi: 'France Travail',
+  region: 'Région',
+  entreprise: 'Plan entreprise',
+  autofinancement: 'Autofinancement',
+};
+
+const SITUATION_LABELS: Record<ProspectFields['situation'], string> = {
+  salarie: 'Salarié(e)',
+  demandeur: "Demandeur d'emploi",
+  independant: 'Indépendant(e)',
+  particulier: 'Particulier',
+};
 
 export type SubmitResult =
   | { ok: true; prospectId: string }
@@ -145,6 +167,59 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     if (updateErr) {
       console.error('[submitProspect] documents update failed', updateErr);
     }
+  }
+
+  // Notifications email — non bloquantes. Si pas de RESEND_API_KEY,
+  // sendEmail renvoie { ok:false, reason:'no_api_key' } silencieusement.
+  const formationTitle =
+    formations.find((f) => f.id === fields.formationId)?.title ?? null;
+  const funderLabel = FUNDER_LABELS[fields.funderKind];
+
+  const baseEmailData = {
+    firstName: fields.firstName,
+    lastName: fields.lastName,
+    email: fields.email,
+    formationTitle,
+    funderLabel,
+    prospectId,
+  };
+
+  const confirmation = prospectConfirmationEmail(baseEmailData);
+  void sendEmail({
+    to: fields.email,
+    subject: confirmation.subject,
+    html: confirmation.html,
+    replyTo: env.OF_NOTIFICATION_EMAIL,
+  }).then((r) => {
+    if (!r.ok && r.reason !== 'no_api_key') {
+      console.error('[submitProspect] confirmation email failed', r);
+    }
+  });
+
+  if (env.OF_NOTIFICATION_EMAIL) {
+    const dashboardUrl = env.PUBLIC_APP_URL
+      ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/prospects/${prospectId}`
+      : null;
+    const notif = prospectInternalNotificationEmail({
+      ...baseEmailData,
+      situation: SITUATION_LABELS[fields.situation],
+      companyName: nullify(fields.companyName),
+      message: nullify(fields.message),
+      phone: nullify(fields.phone),
+      rqth: fields.rqth,
+      documentsCount: uploaded.length,
+      dashboardUrl,
+    });
+    void sendEmail({
+      to: env.OF_NOTIFICATION_EMAIL,
+      subject: notif.subject,
+      html: notif.html,
+      replyTo: fields.email,
+    }).then((r) => {
+      if (!r.ok && r.reason !== 'no_api_key') {
+        console.error('[submitProspect] internal notif email failed', r);
+      }
+    });
   }
 
   return { ok: true, prospectId };
