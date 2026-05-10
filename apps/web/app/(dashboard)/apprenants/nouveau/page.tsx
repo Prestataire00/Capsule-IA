@@ -1,0 +1,137 @@
+// ARCHETYPE: workflow
+// Justification: création d'un apprenant — formulaire focalisé, pas de sidebar.
+
+import Link from 'next/link';
+import { ArrowLeft, Check, User, Mail, Phone, Building2, Accessibility } from 'lucide-react';
+import { FormField, inputClass } from '@/shared/ui/form-field';
+import { companies } from '@/shared/mock/data';
+
+export default function NouvelApprenantPage() {
+  return (
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="max-w-2xl w-full mx-auto px-8 py-10">
+        <Link
+          href="/apprenants"
+          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Retour aux apprenants
+        </Link>
+
+        <header className="mb-8">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-950/60 dark:to-rose-950/30 text-rose-700 dark:text-rose-300 flex items-center justify-center shadow-sm">
+              <User className="w-5 h-5" />
+            </span>
+            <div>
+              <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                Nouvel apprenant
+              </h1>
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Ajoutez un apprenant à votre carnet pour pouvoir l'inscrire à un dossier.
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <form action="/apprenants" method="get" className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          {/* Identité */}
+          <section className="p-6 space-y-4">
+            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Identité</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Prénom" required>
+                <input type="text" name="firstName" required placeholder="Alice" className={inputClass} />
+              </FormField>
+              <FormField label="Nom" required>
+                <input type="text" name="lastName" required placeholder="Martin" className={inputClass} />
+              </FormField>
+            </div>
+            <FormField label="Email" required>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="alice.martin@email.com"
+                  className={`${inputClass} pl-9`}
+                />
+              </div>
+            </FormField>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Téléphone">
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <input type="tel" name="phone" placeholder="06 12 34 56 78" className={`${inputClass} pl-9`} />
+                </div>
+              </FormField>
+              <FormField label="Date de naissance">
+                <input type="date" name="birthDate" className={inputClass} />
+              </FormField>
+            </div>
+          </section>
+
+          {/* Contexte pro */}
+          <section className="p-6 space-y-4">
+            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Contexte professionnel</p>
+            <FormField label="Entreprise" hint="Laissez vide si l'apprenant est indépendant ou en autofinancement.">
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <select name="companyId" defaultValue="" className={`${inputClass} pl-9 appearance-none bg-no-repeat bg-right pr-8`}>
+                  <option value="">— Aucune (indépendant) —</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </FormField>
+            <FormField label="Poste / fonction">
+              <input type="text" name="position" placeholder="Comptable, Manager, Développeur…" className={inputClass} />
+            </FormField>
+          </section>
+
+          {/* Accessibilité */}
+          <section className="p-6 space-y-4">
+            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Accessibilité</p>
+            <label className="flex items-start gap-3 cursor-pointer p-3 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
+              <input type="checkbox" name="rqth" className="mt-0.5 accent-violet-600" />
+              <div>
+                <span className="text-[13px] text-zinc-900 dark:text-zinc-100 font-medium inline-flex items-center gap-1.5">
+                  <Accessibility className="w-3.5 h-3.5 text-blue-500" />
+                  Reconnaissance de la qualité de travailleur handicapé (RQTH)
+                </span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block mt-0.5">
+                  Active la prise en compte d'adaptations pédagogiques au moment de la planification.
+                </span>
+              </div>
+            </label>
+            <FormField label="Notes d'accessibilité ou besoins spécifiques">
+              <textarea
+                name="accessibilityNotes"
+                rows={3}
+                placeholder="Salle au RDC, support visuel, prise de notes, etc."
+                className={inputClass}
+              />
+            </FormField>
+          </section>
+
+          <div className="px-6 py-4 bg-zinc-50/40 dark:bg-zinc-950/40 flex items-center justify-between gap-3">
+            <Link
+              href="/apprenants"
+              className="text-[13px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+            >
+              Annuler
+            </Link>
+            <button
+              type="submit"
+              className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+            >
+              <Check className="w-3.5 h-3.5" />
+              Créer l'apprenant
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
