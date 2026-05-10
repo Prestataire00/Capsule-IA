@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Bell, Mail, Search } from 'lucide-react';
 import { currentUser } from '@/shared/mock/data';
+import { ThemeToggle } from '@/shared/components/theme/theme-toggle';
 
 export function Topbar() {
   const initials = currentUser.full_name.split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2);
@@ -21,6 +22,7 @@ export function Topbar() {
       </form>
 
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Link
           href="/audit"
           aria-label="Notifications"

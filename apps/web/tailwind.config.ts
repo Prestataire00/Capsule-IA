@@ -6,7 +6,7 @@ export default {
     './features/**/*.{ts,tsx}',
     './shared/**/*.{ts,tsx}',
   ],
-  darkMode: 'media',
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
