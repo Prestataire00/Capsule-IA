@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Clock, Video, MapPin, Users as UsersIcon, ArrowUpRight } from 'lucide-react';
 import { formations, dossiers } from '@/shared/mock/data';
 import { StatCard } from '@/shared/ui/stat-card';
+import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 
 const modalityStyles = {
   presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
@@ -67,7 +68,7 @@ export default function FormationsPage() {
           const Icon = m.icon;
           const enrolled = dossiers.filter((d) => d.formationId === f.id && (d.status === 'active' || d.status === 'scheduled')).length;
           return (
-            <li key={f.id}>
+            <li key={f.id} className="relative">
               <Link
                 href="#"
                 className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
@@ -115,6 +116,7 @@ export default function FormationsPage() {
                   )}
                 </div>
               </Link>
+              <CopyInscriptionLink formationId={f.id} className="absolute top-3 right-12 z-10" />
             </li>
           );
         })}
