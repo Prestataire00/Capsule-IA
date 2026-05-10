@@ -47,6 +47,3 @@ file_size_limit = "50MiB"
 enabled = true
 policy = "oneshot"
 inspector_port = 8083
-
-[experimental]
-webhooks.enabled = false
