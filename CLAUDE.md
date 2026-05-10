@@ -44,9 +44,11 @@ Contexte projet pour les sessions Claude Code (et autres agents IA).
 - **Charte UI (impérative pour tout écran)** : `.cursor/rules/70-ui-charter.mdc`
 - Windsurf : `.windsurfrules`
 
-## Charte UI v2 (résumé)
+## Charte UI v3 — chaleureuse, conviviale (résumé)
 
-Chaque écran est `command` ou `workflow` — déclaré en commentaire en haut du fichier. Palette : zinc neutre + **orange-500/600 accent brand** + sémantique (emerald/amber/red/blue) pour statuts. Tailles : 11/12/13/15/17/20/24px (+ 30px hero only). **Poids** : `font-normal` (body), `font-medium` (labels), `font-semibold` autorisé sur titres h1/h2 hero uniquement, `font-bold` interdit. Max 1 bouton primaire par écran (orange OU zinc-900). `shadow-sm` autorisé, `shadow-md` au hover, `shadow-lg+` interdit. Gradients subtils autorisés sur hero (max 2/écran). Pas d'emoji. Mode sombre obligatoire. Détails complets dans `.cursor/rules/70-ui-charter.mdc`.
+Direction : Notion / Lovable (chaleureux, illustré, multi-couleur, rond).
+
+Chaque écran est `command` ou `workflow` — déclaré en haut du fichier. Palette : zinc neutre + **orange-500 brand** + accents fonctionnels (rose pour humains, blue pour sessions, purple pour Qualiopi, emerald/amber/red pour statuts). Tailles : 11/12/13/15/17/20/24px (+ 30px hero). **Poids** : font-normal/medium par défaut, font-semibold autorisé sur titres hero h1/h2, font-bold interdit. Max 1 bouton primaire orange par écran. shadow-sm partout, shadow-md hover, shadow-lg sur hero unique, xl+ interdit. Gradients chaleureux autorisés sur hero. **Illustrations SVG encouragées** (empty states, hero). **Emoji autorisé en décoration ponctuelle** quand porteur de sens (1-2/écran max). Border-radius rounded-2xl autorisé sur hero cards. Mode sombre obligatoire. Détails dans `.cursor/rules/70-ui-charter.mdc`.
 
 ## Ordre de développement d'une feature
 

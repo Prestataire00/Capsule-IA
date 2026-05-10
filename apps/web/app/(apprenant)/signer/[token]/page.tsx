@@ -108,7 +108,7 @@ export default function SignerPage() {
               type="button"
               disabled={!hasDrawn}
               onClick={() => setStep('done')}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm disabled:opacity-40 disabled:pointer-events-none"
+              className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm disabled:opacity-40 disabled:pointer-events-none"
             >
               Valider ma signature
             </button>

@@ -68,7 +68,7 @@ export function Step3Finance() {
         </Link>
         <Link
           href="/dossiers/d-1"
-          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
+          className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
         >
           <Check className="w-3.5 h-3.5" />
           Créer le dossier

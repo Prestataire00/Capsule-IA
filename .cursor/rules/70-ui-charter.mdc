@@ -1,5 +1,5 @@
 ---
-description: UI charter v2 — assouplie, plus chaleureuse mais cohérente
+description: UI charter v3 — chaleureuse, multi-accent, illustrée
 globs:
   - apps/web/app/**
   - apps/web/features/**/ui/**
@@ -7,7 +7,9 @@ globs:
   - apps/web/shared/components/**
 ---
 
-# UI Charter v2 — Esthétique, intuitive, conviviale
+# UI Charter v3 — Chaleureuse, intuitive, conviviale
+
+**v3 (mai 2026)** : on quitte le style "Linear strict" pour tendre vers **Notion / Lovable / Vercel marketing** — chaleureux, illustré, multi-couleur, rond.
 
 **Cette charte assouplit la v1 (trop austère) tout en gardant une cohérence forte. Elle est mandatory pour toute UI.**
 
@@ -34,12 +36,21 @@ Focus extrême, 1 chose par écran, beaucoup de blanc, stepper, max 480px centr�
 - Texte : `zinc-900` / `zinc-700` / `zinc-500` / `zinc-400` / dark variants
 - Bordures : `zinc-200/60` / dark `zinc-800` (toujours opacité)
 
-### Couleur d'accent — **orange** (brand i-a-infinity)
-- `orange-500` / `orange-600` pour les CTA principaux et accents brand
-- `orange-50` / `orange-100` / dark `orange-950/40` pour fonds doux
-- `orange-700` / dark `orange-400` pour texte sur fond doux
-- Utilisée pour : CTA hero, état actif sidebar, logo brand, callouts d'engagement
-- Pas en décoration arbitraire — toujours porteuse de sens (action, focus, identité)
+### Couleurs d'accent — multi-tons cohérents
+
+**Brand principal (action) : orange**
+- `orange-500/600` : CTA principal, logo brand, état actif sidebar
+- `orange-50/100` light, `orange-950/40` dark : fonds chaleureux
+
+**Palette d'accents pour catégoriser les contenus** (autorisée — pas en décoration aléatoire mais en *signal sémantique cohérent*) :
+- `rose-500` / `rose-50` : éléments humains (apprenants, contacts, gens)
+- `purple-500` / `purple-50` : conformité / Qualiopi (non bloquant)
+- `blue-500` / `blue-50` : information, calendrier, sessions
+- `emerald-500` / `emerald-50` : success, validation
+- `amber-500` / `amber-50` : warning, à traiter
+- `red-500` / `red-50` : danger, urgent
+
+**Règle** : chaque famille fonctionnelle de l'app a *sa* couleur. Les apprenants apparaissent toujours en rose (ex: avatar par défaut), les sessions en bleu, etc. C'est le code couleur du produit, pas de la décoration.
 
 ### Couleurs sémantiques (statuts)
 - Success : `emerald-50/700` light, `emerald-950/40 emerald-400` dark
@@ -49,8 +60,9 @@ Focus extrême, 1 chose par écran, beaucoup de blanc, stepper, max 480px centr�
 - Réservées aux statuts et messages — jamais en accent décoratif gratuit
 
 ### Banni
-- Violet/indigo/teal en accent décoratif (utilisable seulement dans les avatars)
-- Couleurs néon, gradients criards
+- Indigo/teal pur en accent décoratif sans signification
+- Couleurs néon (lime-400, fuchsia-500…)
+- Gradients criards (saturés ou contrastés)
 - Mode sombre obligatoire — chaque couleur a son équivalent dark
 
 ## Typographie
@@ -70,19 +82,27 @@ Focus extrême, 1 chose par écran, beaucoup de blanc, stepper, max 480px centr�
 
 - Multiples de 4 par défaut (4/8/12/16/24/32/48/64)
 - Tolérés à l'intérieur des composants (pills, badges) : 0.5 (2px), 2.5 (10px), 1.5 (6px)
-- Border radius : `rounded-md` (6) ou `rounded-lg` (8). `rounded-xl` (12) autorisé sur hero cards. `rounded-full` pour pills/avatars
-- Bordures : opacité (`zinc-200/60` light, `zinc-800` dark)
+- Border radius :
+  - `rounded-md` (6) : inputs, petits boutons
+  - `rounded-lg` (8) : cards et boutons standards
+  - `rounded-xl` (12) : cards mises en avant
+  - `rounded-2xl` (16) : **hero cards et bandeaux d'accueil — autorisé**
+  - `rounded-full` : pills, avatars, badges ronds
+- Bordures : opacité (`zinc-200/60` light, `zinc-800` dark) — préférer toujours opacité
+- Padding généreux sur cards interactives : `px-5 py-4` minimum, `px-6 py-5` sur hero
 
-## Effets visuels — assouplis
+## Effets visuels (chaleureux)
 
-- **Shadows** : `shadow-sm` autorisé partout. `shadow-md` sur hover des cards interactives. **`shadow-lg+` reste interdit**.
-- **Gradients** : autorisés en **subtils** (max 5% différence de luminosité) sur :
-  - Fond du hero d'accueil
-  - Card CTA principale
-  - Pas plus de 2 gradients par écran
-- **Animations** : transitions 150-200ms. Hover scale (1.01-1.02) autorisé. Subtle motion sur mount autorisé.
-- **Backdrop-blur** : autorisé sur topbar sticky et modales
-- **Glassmorphism extrême** : interdit
+- **Shadows** : `shadow-sm` partout, `shadow-md` au hover. `shadow-lg` autorisé sur hero card unique de la page d'accueil. `shadow-xl+` interdit.
+- **Gradients chaleureux** autorisés :
+  - Hero d'accueil : `from-orange-50 via-amber-50 to-rose-50` (très doux)
+  - Cards CTA importantes : gradient subtil de la couleur de famille
+  - Backgrounds zébrés autorisés sur sections (alternance white/zinc-50)
+- **Illustrations SVG** : encouragées en empty states et hero. Style outline ou flat coloré subtil. Pas de stock photos.
+- **Emoji** : autorisé en **décoration ponctuelle** quand il porte du sens (ex: 👋 dans la salutation, ✨ pour célébrer). Maximum 1-2 par écran. Jamais en remplacement d'icônes fonctionnelles.
+- **Animations** : transitions 150-300ms. Hover scale (1.01-1.02). Mount fade-in autorisé. Spring-like easing préféré (`ease-out`).
+- **Backdrop-blur** : topbar sticky, modales, popovers.
+- **Patterns subtils** : grilles ou dot-patterns en background sont autorisés (opacité ≤ 8%).
 
 ## Boutons
 
