@@ -68,7 +68,7 @@ export default function FinanceursPage() {
 
       <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {fundedByFunder.map((f) => {
-          const k = kindStyles[f.kind] ?? kindStyles.autre;
+          const k = kindStyles[f.kind] ?? kindStyles.autre!;
           const Icon = k.icon;
           return (
             <li key={f.id}>
