@@ -1,28 +1,23 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { cookies } from 'next/headers';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 
-// Script anti-FOUC : applique la classe `dark` au <html> AVANT l'hydratation React.
-// Lit le choix de l'utilisateur (localStorage) ou retombe sur prefers-color-scheme.
+const COOKIE_KEY = 'i-a-infinity-theme';
+
+// Anti-FOUC pour les visiteurs SANS cookie (premier accès) :
+// applique 'dark' avant l'hydratation si l'OS est en mode sombre.
 const themeInitScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('i-a-infinity-theme');
-    var isDark;
-    if (stored === 'light') {
-      isDark = false;
-    } else if (stored === 'dark') {
-      isDark = true;
-    } else {
-      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (document.cookie.indexOf('${COOKIE_KEY}=') !== -1) return;
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
     }
-    var root = document.documentElement;
-    if (isDark) root.classList.add('dark');
-    else root.classList.remove('dark');
-    root.style.colorScheme = isDark ? 'dark' : 'light';
   } catch (e) {}
 })();
 `;
@@ -33,8 +28,19 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Lit le cookie côté serveur — la classe 'dark' est posée dans le HTML SSR.
+  // → pas de mismatch d'hydratation, pas de risque que React l'écrase.
+  const themeCookie = cookies().get(COOKIE_KEY)?.value;
+  const isDark = themeCookie === 'dark';
+  const htmlClass = `${inter.variable} ${mono.variable}${isDark ? ' dark' : ''}`;
+
   return (
-    <html lang="fr" className={`${inter.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html
+      lang="fr"
+      className={htmlClass}
+      style={{ colorScheme: isDark ? 'dark' : 'light' }}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

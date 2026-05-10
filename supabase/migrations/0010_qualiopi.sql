@@ -26,10 +26,8 @@ CREATE TABLE app.qualiopi_proofs (
   description TEXT,
   valid_from DATE,
   valid_until DATE,
-  is_valid BOOLEAN GENERATED ALWAYS AS (
-    (valid_until IS NULL OR valid_until >= CURRENT_DATE)
-    AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
-  ) STORED,
+  -- is_valid : non-stockable car CURRENT_DATE n'est pas immutable.
+  -- Calculer côté requête : (valid_until IS NULL OR valid_until >= CURRENT_DATE) AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
