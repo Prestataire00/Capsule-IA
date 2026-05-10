@@ -1,0 +1,38 @@
+// ARCHETYPE: shared
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/shared/lib/cn';
+import * as React from 'react';
+
+const buttonVariants = cva(
+  'inline-flex items-center justify-center gap-2 text-[13px] font-medium px-4 py-2 rounded-md transition disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700',
+  {
+    variants: {
+      variant: {
+        primary:
+          'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200',
+        secondary:
+          'border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900',
+        ghost:
+          'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900',
+        danger:
+          'border border-red-200/60 dark:border-red-900/60 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30',
+      },
+      size: {
+        sm: 'text-xs px-2.5 py-1',
+        md: 'text-[13px] px-4 py-2',
+      },
+    },
+    defaultVariants: { variant: 'primary', size: 'md' },
+  },
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, ...props }, ref) => (
+    <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+  ),
+);
+Button.displayName = 'Button';
