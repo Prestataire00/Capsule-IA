@@ -1,9 +1,10 @@
 // ARCHETYPE: shared
 import { cn } from '@/shared/lib/cn';
 
-type Accent = 'orange' | 'rose' | 'blue' | 'purple' | 'emerald' | 'amber' | 'zinc';
+type Accent = 'violet' | 'orange' | 'rose' | 'blue' | 'purple' | 'emerald' | 'amber' | 'zinc';
 
 const accentStyles: Record<Accent, { iconBg: string; iconText: string; ring: string }> = {
+  violet: { iconBg: 'bg-violet-100 dark:bg-violet-950/40', iconText: 'text-violet-700 dark:text-violet-400', ring: 'group-hover:border-violet-200 dark:group-hover:border-violet-900/40' },
   orange: { iconBg: 'bg-violet-100 dark:bg-violet-950/40', iconText: 'text-violet-700 dark:text-violet-400', ring: 'group-hover:border-violet-200 dark:group-hover:border-violet-900/40' },
   rose: { iconBg: 'bg-rose-100 dark:bg-rose-950/40', iconText: 'text-rose-600 dark:text-rose-400', ring: 'group-hover:border-rose-200 dark:group-hover:border-rose-900/40' },
   blue: { iconBg: 'bg-blue-100 dark:bg-blue-950/40', iconText: 'text-blue-600 dark:text-blue-400', ring: 'group-hover:border-blue-200 dark:group-hover:border-blue-900/40' },
