@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { learners } from '@/shared/mock/data';
+import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 
 const COMPLAINT_CATEGORIES = [
   'pedagogie',
@@ -68,67 +69,118 @@ export async function submitComplaint(formData: FormData): Promise<void> {
   }
   const { token, category, subject, description } = parsed.data;
 
-  // VF : tous les tokens mappent à Alice (l-1). En prod, ce sera un JWT signé
-  // avec TOKEN_SIGNING_KEY contenant learner_id + dossier_id + org_id.
-  const learner = learners.find((l) => l.id === 'l-1');
-  const reporterName = learner ? `${learner.firstName} ${learner.lastName}` : null;
-  const reporterEmail = learner?.email ?? null;
-
   const supabase = admin();
-
-  const { data: orgRow, error: orgErr } = await supabase
-    .schema('app')
-    .from('organizations')
-    .select('id, name')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (orgErr || !orgRow) {
-    console.error('[submitComplaint] no organization found', orgErr);
-    redirect(`/espace/${token}#reclamation?error=no_organization`);
-  }
-  const org = orgRow as { id: string; name: string };
-
   const h = headers();
-  const reference = generateReference();
+  const ipAddress = h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
+  const userAgent = h.get('user-agent') ?? null;
 
-  const insertRow = {
-    organization_id: org.id,
-    reference,
-    learner_id: null,
-    dossier_id: null,
-    company_id: null,
-    source: 'questionnaire',
-    channel: 'espace_apprenant',
-    reporter_name: reporterName,
-    reporter_email: reporterEmail,
-    subject,
-    description,
-    severity: 'medium',
-    status: 'open',
-    metadata: {
-      category,
-      category_label: CATEGORY_LABELS[category],
-      submitted_from: 'espace_apprenant',
-      token_preview: token.slice(0, 8),
-      ip_address: h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
-      user_agent: h.get('user-agent') ?? null,
-    },
-  };
+  let complaint: { id: string; reference: string };
+  let orgName: string;
+  let reporterName: string | null;
+  let reporterEmail: string | null;
 
-  const { data: created, error: insertErr } = await supabase
-    .schema('app')
-    .from('complaints')
-    .insert(insertRow)
-    .select('id, reference')
-    .single();
+  // Voie privilégiée : token JWT apprenant valide → vrai learner + dossier + org
+  const verified = await verifyApprenantToken(token);
+  if (verified.ok) {
+    const { learnerId, organizationId, dossierId } = verified.value;
 
-  if (insertErr || !created) {
-    console.error('[submitComplaint] insert failed', insertErr);
-    redirect(`/espace/${token}#reclamation?error=db_error`);
+    const { data: learnerRow } = await supabase
+      .schema('app')
+      .from('learners')
+      .select('first_name, last_name, email')
+      .eq('id', learnerId)
+      .maybeSingle();
+    const lr = learnerRow as { first_name: string; last_name: string; email: string } | null;
+    reporterName = lr ? `${lr.first_name} ${lr.last_name}` : null;
+    reporterEmail = lr?.email ?? null;
+
+    const { data: orgRow } = await supabase
+      .schema('app')
+      .from('organizations')
+      .select('name')
+      .eq('id', organizationId)
+      .maybeSingle();
+    orgName = (orgRow as { name: string } | null)?.name ?? 'OF';
+
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('submit_learner_complaint' as never, {
+      p_learner_id: learnerId,
+      p_organization_id: organizationId,
+      p_dossier_id: dossierId,
+      p_subject: subject,
+      p_description: description,
+      p_category: category,
+      p_category_label: CATEGORY_LABELS[category],
+      p_reporter_name: reporterName,
+      p_reporter_email: reporterEmail,
+      p_ip: ipAddress,
+      p_user_agent: userAgent,
+    } as never);
+
+    if (rpcErr || !rpcData) {
+      console.error('[submitComplaint] RPC submit_learner_complaint failed', rpcErr);
+      redirect(`/espace/${token}#reclamation?error=db_error`);
+    }
+    complaint = rpcData as unknown as { id: string; reference: string };
+  } else {
+    // Fallback legacy (token non-JWT pour démo) : insert direct, learner_id null
+    const learner = learners.find((l) => l.id === 'l-1');
+    reporterName = learner ? `${learner.firstName} ${learner.lastName}` : null;
+    reporterEmail = learner?.email ?? null;
+
+    const { data: orgRow, error: orgErr } = await supabase
+      .schema('app')
+      .from('organizations')
+      .select('id, name')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (orgErr || !orgRow) {
+      console.error('[submitComplaint] no organization found', orgErr);
+      redirect(`/espace/${token}#reclamation?error=no_organization`);
+    }
+    const org = orgRow as { id: string; name: string };
+    orgName = org.name;
+    const reference = generateReference();
+
+    const insertRow = {
+      organization_id: org.id,
+      reference,
+      learner_id: null,
+      dossier_id: null,
+      company_id: null,
+      source: 'questionnaire',
+      channel: 'espace_apprenant',
+      reporter_name: reporterName,
+      reporter_email: reporterEmail,
+      subject,
+      description,
+      severity: 'medium',
+      status: 'open',
+      metadata: {
+        category,
+        category_label: CATEGORY_LABELS[category],
+        submitted_from: 'espace_apprenant',
+        token_preview: token.slice(0, 8),
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      },
+    };
+
+    const { data: created, error: insertErr } = await supabase
+      .schema('app')
+      .from('complaints')
+      .insert(insertRow)
+      .select('id, reference')
+      .single();
+
+    if (insertErr || !created) {
+      console.error('[submitComplaint] insert failed', insertErr);
+      redirect(`/espace/${token}#reclamation?error=db_error`);
+    }
+    complaint = created as { id: string; reference: string };
   }
-  const complaint = created as { id: string; reference: string };
+  const org = { name: orgName };
 
   // Notif interne (best effort)
   if (env.OF_NOTIFICATION_EMAIL) {

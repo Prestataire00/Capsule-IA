@@ -29,9 +29,57 @@ import {
 } from 'lucide-react';
 import { learners, dossiers, formations, trainers, sessionsByDossier, modulesByDossier } from '@/shared/mock/data';
 import { submitComplaint } from './actions';
+import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 
-// Mock: tous les tokens mappent à l'apprenant l-1 (Alice Martin) pour la VF
-function resolveLearner(token: string) {
+export const dynamic = 'force-dynamic';
+
+// Données réelles depuis RPC (si JWT valide), mappées au format mock pour
+// laisser l'UI inchangée. Si JWT invalide → fallback mock Alice (legacy démo).
+type RealDashboard = {
+  learner: { id: string; first_name: string; last_name: string; email: string };
+  organization: { id: string; name: string };
+  dossier: {
+    id: string; reference: string; status: string; modality: string;
+    start_date: string; end_date: string; total_hours: number;
+    formation: { id: string; title: string; summary: string | null; description: string | null; objectives: string[] };
+  };
+  sessions: Array<{ id: string; starts_at: string; ends_at: string; status: string; modality: string; location: string | null; remote_url: string | null; title: string | null }>;
+  modules: Array<{ id: string; title: string; position: number; duration_hours: number; start_date: string | null }>;
+  trainer: { first_name: string; last_name: string; email: string } | null;
+};
+
+type RealComplaint = {
+  id: string;
+  reference: string;
+  subject: string;
+  description: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  severity: string;
+  category: string;
+  created_at: string;
+  resolved_at: string | null;
+  resolution: string | null;
+  events: Array<{ kind: string; occurred_at: string; payload: Record<string, unknown> }>;
+};
+
+async function loadRealData(token: string): Promise<{ dashboard: RealDashboard; complaints: RealComplaint[] } | null> {
+  const verified = await verifyApprenantToken(token);
+  if (!verified.ok) return null;
+  const sb = supabaseServer();
+  const [dash, comp] = await Promise.all([
+    sb.rpc('get_apprenant_dashboard' as never, { p_learner_id: verified.value.learnerId } as never),
+    sb.rpc('get_learner_complaints' as never, { p_learner_id: verified.value.learnerId } as never),
+  ]);
+  if (dash.error || !dash.data) return null;
+  const dashboard = dash.data as unknown as RealDashboard;
+  if (!dashboard.learner || !dashboard.dossier) return null;
+  const complaints = (comp.data ?? []) as unknown as RealComplaint[];
+  return { dashboard, complaints };
+}
+
+// Mock fallback : tous les tokens non-JWT mappent à Alice (l-1) pour la VF
+function resolveLearnerMock(token: string) {
   if (!token || token.length < 3) return null;
   return learners.find((l) => l.id === 'l-1') ?? null;
 }
@@ -52,17 +100,68 @@ function formatSessionTime(iso: string) {
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function EspaceApprenantPage({ params }: { params: { token: string } }) {
-  const learner = resolveLearner(params.token);
-  if (!learner) return notFound();
+export default async function EspaceApprenantPage({ params }: { params: { token: string } }) {
+  const real = await loadRealData(params.token);
 
-  const dossier = dossiers.find((d) => d.learnerId === learner.id);
-  if (!dossier) return notFound();
+  // Mode dynamique (JWT valide + dossier en DB) — sinon fallback mock pour démo
+  let learner: { id: string; firstName: string; lastName: string; email: string };
+  let dossier: {
+    id: string; reference: string; learnerId: string; formationId: string;
+    startDate: string; endDate: string; totalHours: number;
+    modality: string; trainerIds: string[];
+  };
+  let formation: { id: string; title: string } | undefined;
+  let trainer: { id: string; firstName: string; lastName: string; email: string } | undefined;
+  let sessions: Array<{ id: string; status: string; startsAt: string; endsAt: string; location?: string | null }>;
+  let modules: Array<{ id: string; title: string; position: number; durationHours: number }>;
 
-  const formation = formations.find((f) => f.id === dossier.formationId);
-  const trainer = trainers.find((t) => dossier.trainerIds.includes(t.id));
-  const sessions = sessionsByDossier[dossier.id] ?? [];
-  const modules = modulesByDossier[dossier.id] ?? [];
+  if (real) {
+    learner = {
+      id: real.dashboard.learner.id,
+      firstName: real.dashboard.learner.first_name,
+      lastName: real.dashboard.learner.last_name,
+      email: real.dashboard.learner.email,
+    };
+    dossier = {
+      id: real.dashboard.dossier.id,
+      reference: real.dashboard.dossier.reference,
+      learnerId: learner.id,
+      formationId: real.dashboard.dossier.formation.id,
+      startDate: real.dashboard.dossier.start_date,
+      endDate: real.dashboard.dossier.end_date,
+      totalHours: real.dashboard.dossier.total_hours,
+      modality: real.dashboard.dossier.modality,
+      trainerIds: real.dashboard.trainer ? ['live-trainer'] : [],
+    };
+    formation = { id: real.dashboard.dossier.formation.id, title: real.dashboard.dossier.formation.title };
+    trainer = real.dashboard.trainer
+      ? { id: 'live-trainer', firstName: real.dashboard.trainer.first_name, lastName: real.dashboard.trainer.last_name, email: real.dashboard.trainer.email }
+      : undefined;
+    sessions = real.dashboard.sessions.map((s) => ({
+      id: s.id,
+      status: s.status === 'completed' ? 'done' : s.status === 'in_progress' ? 'in_progress' : 'scheduled',
+      startsAt: s.starts_at,
+      endsAt: s.ends_at,
+      location: s.location,
+    }));
+    modules = real.dashboard.modules.map((m) => ({
+      id: m.id,
+      title: m.title,
+      position: m.position,
+      durationHours: m.duration_hours,
+    }));
+  } else {
+    const learnerMock = resolveLearnerMock(params.token);
+    if (!learnerMock) return notFound();
+    const dossierMock = dossiers.find((d) => d.learnerId === learnerMock.id);
+    if (!dossierMock) return notFound();
+    learner = { id: learnerMock.id, firstName: learnerMock.firstName, lastName: learnerMock.lastName, email: learnerMock.email };
+    dossier = dossierMock;
+    formation = formations.find((f) => f.id === dossierMock.formationId);
+    trainer = trainers.find((t) => dossierMock.trainerIds.includes(t.id));
+    sessions = sessionsByDossier[dossierMock.id] ?? [];
+    modules = modulesByDossier[dossierMock.id] ?? [];
+  }
 
   const sessionsDone = sessions.filter((s) => s.status === 'done').length;
   const progress = sessions.length ? Math.round((sessionsDone / sessions.length) * 100) : 0;
@@ -97,10 +196,9 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
     { id: 'ex-4', title: 'QCM TVA déductible', dueDate: '2026-10-12', status: 'todo' as const, moduleTitle: 'TVA & cas spéciaux' },
   ];
 
-  // Mock historique réclamations — V1.5 : vraie query Supabase avec learner_id du JWT
   type ComplaintStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
   type ComplaintEvent = { kind: 'created' | 'comment' | 'status_change' | 'resolution'; at: string; by: string; text: string };
-  const myComplaints: Array<{
+  type ComplaintItem = {
     id: string;
     reference: string;
     subject: string;
@@ -108,7 +206,49 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
     status: ComplaintStatus;
     createdAt: string;
     events: ComplaintEvent[];
-  }> = [
+  };
+
+  const orgLabel = real?.dashboard.organization.name ?? 'votre OF';
+
+  // Mapper les events RPC (kind: 'comment' | 'status_change' | 'assignment' | 'resolution')
+  // vers le format UI attendu, et préfixer avec un événement 'created'.
+  const mapRealComplaints = (cs: RealComplaint[]): ComplaintItem[] =>
+    cs.map((c) => {
+      const events: ComplaintEvent[] = [
+        { kind: 'created', at: c.created_at, by: 'Vous', text: 'Réclamation envoyée' },
+        ...c.events.map((e) => {
+          const payload = e.payload as { by?: string; text?: string; from_learner?: boolean };
+          const isFromLearner = payload.from_learner === true;
+          const by = isFromLearner ? 'Vous' : (payload.by as string) ?? orgLabel;
+          let text = (payload.text as string) ?? '';
+          if (e.kind === 'status_change') {
+            const to = (payload as { to?: string }).to;
+            text = text || (to ? `Statut → ${to}` : 'Changement de statut');
+          }
+          if (e.kind === 'resolution' && !text && c.resolution) {
+            text = c.resolution;
+          }
+          const kind: ComplaintEvent['kind'] =
+            e.kind === 'status_change' ? 'status_change'
+            : e.kind === 'resolution' ? 'resolution'
+            : 'comment';
+          return { kind, at: e.occurred_at, by, text };
+        }),
+      ];
+      // Dédupe : si l'événement initial RPC ressemble au 'created' artificiel, on l'enlève
+      const filtered = events.filter((ev, i) => !(i === 1 && ev.by === 'Vous' && ev.kind === 'comment' && ev.text.toLowerCase().includes('envoy')));
+      return {
+        id: c.id,
+        reference: c.reference,
+        subject: c.subject,
+        category: c.category,
+        status: c.status,
+        createdAt: c.created_at,
+        events: filtered,
+      };
+    });
+
+  const mockComplaints: ComplaintItem[] = [
     {
       id: 'rec-1',
       reference: 'REC-2026-A4F2K9',
@@ -118,9 +258,9 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
       createdAt: '2026-09-16T09:12:00Z',
       events: [
         { kind: 'created', at: '2026-09-16T09:12:00Z', by: 'Vous', text: 'Réclamation envoyée' },
-        { kind: 'comment', at: '2026-09-16T14:30:00Z', by: 'Acme Formation', text: 'Bonjour, nous avons bien reçu votre signalement. Nous investiguons côté équipement audio.' },
-        { kind: 'status_change', at: '2026-09-17T10:00:00Z', by: 'Acme Formation', text: 'Statut → En cours de traitement' },
-        { kind: 'resolution', at: '2026-09-19T16:45:00Z', by: 'Acme Formation', text: 'Le micro de la salle 3 a été remplacé. Une session de rattrapage de 30 min vous est offerte le 22/09. Merci de votre signalement.' },
+        { kind: 'comment', at: '2026-09-16T14:30:00Z', by: orgLabel, text: 'Bonjour, nous avons bien reçu votre signalement. Nous investiguons côté équipement audio.' },
+        { kind: 'status_change', at: '2026-09-17T10:00:00Z', by: orgLabel, text: 'Statut → En cours de traitement' },
+        { kind: 'resolution', at: '2026-09-19T16:45:00Z', by: orgLabel, text: 'Le micro de la salle 3 a été remplacé. Une session de rattrapage de 30 min vous est offerte le 22/09.' },
       ],
     },
     {
@@ -132,11 +272,13 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
       createdAt: '2026-10-02T11:30:00Z',
       events: [
         { kind: 'created', at: '2026-10-02T11:30:00Z', by: 'Vous', text: 'Réclamation envoyée' },
-        { kind: 'comment', at: '2026-10-02T15:00:00Z', by: 'Acme Formation', text: 'Merci pour votre demande. Notre référente handicap, Marie Durand, vous contacte sous 48h.' },
-        { kind: 'status_change', at: '2026-10-03T09:15:00Z', by: 'Acme Formation', text: 'Statut → En cours de traitement · Assignée à Marie Durand' },
+        { kind: 'comment', at: '2026-10-02T15:00:00Z', by: orgLabel, text: 'Merci pour votre demande. Notre référente handicap vous contacte sous 48h.' },
+        { kind: 'status_change', at: '2026-10-03T09:15:00Z', by: orgLabel, text: 'Statut → En cours de traitement · Assignée à la référente handicap' },
       ],
     },
   ];
+
+  const myComplaints: ComplaintItem[] = real ? mapRealComplaints(real.complaints) : mockComplaints;
 
   const complaintStatusConfig: Record<ComplaintStatus, { label: string; tone: string; icon: React.ComponentType<{ className?: string }> }> = {
     open: {
