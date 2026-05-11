@@ -4293,4 +4293,1940 @@ git commit -m "feat(attendance): PDF renderer (@react-pdf/renderer) + pgsodium c
 git push origin main
 ```
 
-<!-- PLAN_CONTINUES_AT_PHASE_6 -->
+---
+
+## Phase 6 — Server Actions & wiring (~J5)
+
+### Task 6.1: Setup safe-action (authActionClient + tokenActionClient)
+
+**Files:**
+- Create: `apps/web/shared/lib/safe-action.ts`
+
+- [ ] **Step 1: Code**
+
+```ts
+import 'server-only';
+import { createSafeActionClient } from 'next-safe-action';
+import { createClient } from '@/shared/lib/supabase/server';
+
+class AuthError extends Error {}
+class ForbiddenError extends Error {}
+
+export const baseActionClient = createSafeActionClient({
+  handleServerError(e) {
+    if (e instanceof AuthError) return 'unauthenticated';
+    if (e instanceof ForbiddenError) return 'forbidden';
+    console.error('[action]', e);
+    return 'internal_error';
+  },
+});
+
+/** Pour actions appelées depuis UI authentifiée (admin/staff/formateur) */
+export const authActionClient = baseActionClient.use(async ({ next }) => {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) throw new AuthError('unauthenticated');
+
+  // Récupérer member + organization + role via une query unique
+  const { data: member } = await sb
+    .schema('app')
+    .from('memberships')
+    .select('id, organization_id, role')
+    .eq('user_id', user.id)
+    .single();
+  if (!member) throw new ForbiddenError('no_membership');
+
+  return next({
+    ctx: {
+      userId: user.id,
+      memberId: member.id,
+      organizationId: member.organization_id,
+      role: member.role as 'owner' | 'admin' | 'gestionnaire' | 'formateur' | 'comptable',
+    },
+  });
+});
+
+/** Pour action /signer/[token] : pas d'auth, JWT validé dans l'action elle-même */
+export const tokenActionClient = baseActionClient;
+```
+
+> Si la table `app.memberships` a un autre nom (à vérifier dans `0003_identity.sql`), ajuster. Le client est compatible avec next-safe-action v7.
+
+- [ ] **Step 2: Vérif + commit**
+
+```bash
+cd apps/web && pnpm typecheck
+git add apps/web/shared/lib/safe-action.ts
+git commit -m "feat(shared): safe-action clients (authActionClient + tokenActionClient)"
+git push origin main
+```
+
+### Task 6.2: Server Actions générer-token + record-signature
+
+**Files:**
+- Create: `apps/web/features/attendance/ui/actions/generate-signer-token.action.ts`
+- Create: `apps/web/features/attendance/ui/actions/record-signature.action.ts`
+- Create: `apps/web/features/attendance/ui/schemas/attendance.schemas.ts`
+- Create: `apps/web/features/attendance/infrastructure/composition.ts` (DI factory)
+
+- [ ] **Step 1: attendance.schemas.ts**
+
+```ts
+import { z } from 'zod';
+
+export const generateSignerTokenSchema = z.object({
+  sheetId: z.string().uuid(),
+  learnerId: z.string().uuid(),
+  purpose: z.enum(['qr_live', 'email_link', 'trainer_override']).default('qr_live'),
+});
+
+export const recordSignatureSchema = z.object({
+  token: z.string().min(20),
+  signatureDataUrl: z.string().startsWith('data:image/png;base64,'),
+});
+
+export const overrideAttendanceSchema = z.object({
+  sheetId: z.string().uuid(),
+  signatureId: z.string().uuid(),
+  status: z.enum(['present', 'absent', 'late', 'excused']),
+  notes: z.string().max(500).nullable(),
+});
+
+export const importZoomCsvSchema = z.object({
+  sheetId: z.string().uuid(),
+  csvContent: z.string().min(10),
+  csvFilename: z.string().min(1).max(200),
+});
+
+export const resolveUnmatchedSchema = z.object({
+  unmatchedId: z.string().uuid(),
+  learnerId: z.string().uuid(),
+});
+
+export const finalizeSheetSchema = z.object({
+  sheetId: z.string().uuid(),
+});
+
+export const connectZoomSchema = z.object({
+  accountId: z.string().min(1),
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+});
+```
+
+- [ ] **Step 2: composition.ts (factories DI)**
+
+```ts
+import 'server-only';
+import { createClient } from '@/shared/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { env } from '@/env.mjs';
+import { createSupabaseAttendanceSheetRepository } from './repositories/supabase-attendance-sheet.repository';
+import { createJoseTokenSigner } from './adapters/jose-token-signer';
+import { createHeadersIpResolver } from './adapters/headers-ip-resolver';
+import { createCsvZoomImporter } from './adapters/csv-zoom-importer';
+import { createFetchZoomApiClient } from './adapters/fetch-zoom-api-client';
+import { createReactPdfRenderer } from './adapters/react-pdf-renderer';
+import { createPgsodiumSecretCipher } from './adapters/pgsodium-secret-cipher';
+
+export const adminSupabase = () =>
+  createAdminClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+export const attendanceComposition = async () => {
+  const sbUser = await createClient();
+  const sbAdmin = adminSupabase();
+  return {
+    repo: createSupabaseAttendanceSheetRepository(sbUser),
+    adminRepo: createSupabaseAttendanceSheetRepository(sbAdmin),
+    signer: createJoseTokenSigner(),
+    ipResolver: createHeadersIpResolver(),
+    csvImporter: createCsvZoomImporter(),
+    zoomApi: createFetchZoomApiClient(),
+    pdf: createReactPdfRenderer(),
+    cipher: createPgsodiumSecretCipher(sbAdmin),
+    sbUser,
+    sbAdmin,
+  };
+};
+```
+
+- [ ] **Step 3: generate-signer-token.action.ts**
+
+```ts
+'use server';
+
+import { authActionClient } from '@/shared/lib/safe-action';
+import { generateSignerTokenSchema } from '../schemas/attendance.schemas';
+import { attendanceComposition } from '../../infrastructure/composition';
+import { generateSignerToken } from '../../application/commands/generate-signer-token';
+import { AttendanceSheetId } from '../../domain/ids';
+
+export const generateSignerTokenAction = authActionClient
+  .schema(generateSignerTokenSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const c = await attendanceComposition();
+    const cmd = generateSignerToken({ repo: c.repo, signer: c.signer });
+    const r = await cmd({
+      sheetId: AttendanceSheetId(parsedInput.sheetId),
+      signerId: parsedInput.learnerId,
+      signerKind: 'learner',
+      purpose: parsedInput.purpose,
+    });
+    if (!r.ok) throw new Error(r.error.code);
+
+    // Insertion du JTI dans attendance_token_jtis (admin client)
+    await c.sbAdmin.schema('app').from('attendance_token_jtis').insert({
+      jti: r.value.jti,
+      organization_id: ctx.organizationId,
+      attendance_sheet_id: parsedInput.sheetId,
+      signer_id: parsedInput.learnerId,
+      signer_kind: 'learner',
+      status: 'issued',
+      expires_at: r.value.expiresAt.toISOString(),
+    });
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    return { url: `${baseUrl}/signer/${r.value.token}`, expiresAt: r.value.expiresAt.toISOString() };
+  });
+```
+
+- [ ] **Step 4: record-signature.action.ts**
+
+```ts
+'use server';
+
+import { createHash } from 'node:crypto';
+import { tokenActionClient } from '@/shared/lib/safe-action';
+import { recordSignatureSchema } from '../schemas/attendance.schemas';
+import { attendanceComposition, adminSupabase } from '../../infrastructure/composition';
+import { recordSignature } from '../../application/commands/record-signature';
+import type { SignaturePersistencePort } from '../../application/commands/record-signature';
+import { SignatureId, AttendanceSheetId } from '../../domain/ids';
+import { ok, err } from '@/shared/lib/result';
+
+const PNG_PREFIX = 'data:image/png;base64,';
+
+const persistenceImpl = (): SignaturePersistencePort => {
+  const sb = adminSupabase();
+  return {
+    async recordPresent(args) {
+      const path = `${args.sheetId}/${args.signerKind}/${args.signerId}.png`;
+      const upload = await sb.storage.from('signatures').upload(path, args.pngBytes, {
+        contentType: 'image/png',
+        upsert: true,
+      });
+      if (upload.error) {
+        return err({ code: 'persistence_error', detail: upload.error.message });
+      }
+      const signedAt = new Date().toISOString();
+      const hash = createHash('sha256')
+        .update(args.pngBytes)
+        .update('|')
+        .update(args.signerIp)
+        .update('|')
+        .update(args.signerUserAgent ?? 'unknown')
+        .update('|')
+        .update(signedAt)
+        .update('|')
+        .update(args.tokenJti)
+        .digest('hex');
+
+      const { data, error } = await sb.rpc('record_attendance_signature' as never, {
+        p_attendance_sheet_id: args.sheetId,
+        p_signer_id: args.signerId,
+        p_signer_kind: args.signerKind,
+        p_image_path: path,
+        p_signature_hash: hash,
+        p_signer_ip: args.signerIp,
+        p_signer_user_agent: args.signerUserAgent ?? 'unknown',
+        p_signer_country: args.signerCountry,
+        p_token_jti: args.tokenJti,
+        p_evidence_source: 'qr',
+        p_evidence_payload: null,
+      } as never) as { data: string | null; error: { code?: string; message: string } | null };
+
+      if (error) {
+        const msg = error.message ?? '';
+        if (msg.includes('token_already_consumed') || msg.includes('token_already_expired')) {
+          return err({ code: 'token_replay' });
+        }
+        return err({ code: 'persistence_error', detail: msg });
+      }
+      return ok({
+        signatureId: SignatureId(data as string),
+        hash,
+        signedAt,
+      });
+    },
+  };
+};
+
+export const recordSignatureAction = tokenActionClient
+  .schema(recordSignatureSchema)
+  .action(async ({ parsedInput }) => {
+    const c = await attendanceComposition();
+    const b64 = parsedInput.signatureDataUrl.slice(PNG_PREFIX.length);
+    const bytes = Uint8Array.from(Buffer.from(b64, 'base64'));
+
+    const cmd = recordSignature({
+      signer: c.signer,
+      ipResolver: c.ipResolver,
+      persistence: persistenceImpl(),
+    });
+    const r = await cmd({ token: parsedInput.token, pngBytes: bytes });
+    if (!r.ok) throw new Error(r.error.code);
+    return r.value;
+  });
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd apps/web && pnpm typecheck
+git add apps/web/features/attendance/ui/ apps/web/features/attendance/infrastructure/composition.ts
+git commit -m "feat(attendance): server actions generateToken + recordSignature + composition root"
+git push origin main
+```
+
+### Task 6.3: Actions override + finalize + import-zoom-csv + resolve-unmatched
+
+**Files:**
+- Create: `apps/web/features/attendance/ui/actions/override-attendance.action.ts`
+- Create: `apps/web/features/attendance/ui/actions/finalize-sheet.action.ts`
+- Create: `apps/web/features/attendance/ui/actions/import-zoom-csv.action.ts`
+- Create: `apps/web/features/attendance/ui/actions/resolve-unmatched.action.ts`
+
+- [ ] **Step 1: override-attendance.action.ts**
+
+```ts
+'use server';
+
+import { authActionClient } from '@/shared/lib/safe-action';
+import { overrideAttendanceSchema } from '../schemas/attendance.schemas';
+import { attendanceComposition, adminSupabase } from '../../infrastructure/composition';
+import { overrideAttendance } from '../../application/commands/override-attendance';
+import { AttendanceSheetId, SignatureId } from '../../domain/ids';
+import { ok, err } from '@/shared/lib/result';
+
+export const overrideAttendanceAction = authActionClient
+  .schema(overrideAttendanceSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const sbAdmin = adminSupabase();
+    const c = await attendanceComposition();
+
+    const cmd = overrideAttendance({
+      repo: c.repo,
+      overridePersistence: {
+        async update(args) {
+          const { error } = await sbAdmin
+            .schema('app')
+            .from('attendance_signatures')
+            .update({
+              status: args.status,
+              notes: args.notes,
+              evidence_source: 'trainer_override',
+              signed_at: new Date().toISOString(),
+            })
+            .eq('id', args.signatureId)
+            .eq('organization_id', ctx.organizationId);
+          if (error) return err({ code: 'persistence_error', detail: error.message });
+          return ok(undefined);
+        },
+      },
+    });
+    const r = await cmd({
+      sheetId: AttendanceSheetId(parsedInput.sheetId),
+      signatureId: SignatureId(parsedInput.signatureId),
+      status: parsedInput.status,
+      notes: parsedInput.notes,
+    });
+    if (!r.ok) throw new Error(r.error.code);
+    return { ok: true };
+  });
+```
+
+- [ ] **Step 2: import-zoom-csv.action.ts**
+
+```ts
+'use server';
+
+import { createHash } from 'node:crypto';
+import { authActionClient } from '@/shared/lib/safe-action';
+import { importZoomCsvSchema } from '../schemas/attendance.schemas';
+import { attendanceComposition, adminSupabase } from '../../infrastructure/composition';
+import { importZoomCsv } from '../../application/commands/import-zoom-csv';
+import type { ZoomImportPersistence, ParticipantLookup } from '../../application/commands/import-zoom-csv';
+import { AttendanceSheetId } from '../../domain/ids';
+import { ok, err } from '@/shared/lib/result';
+
+const lookupImpl = (organizationId: string): ParticipantLookup => {
+  const sb = adminSupabase();
+  return {
+    async forSession(sheetId) {
+      const { data: sheet } = await sb.schema('app').from('attendance_sheets')
+        .select('session_id').eq('id', sheetId).single();
+      if (!sheet) return new Map();
+      const { data: parts } = await sb.schema('app').from('session_participants')
+        .select('learner_id, learners(email)').eq('session_id', sheet.session_id);
+      const map = new Map<string, { learnerId: string }>();
+      for (const p of parts ?? []) {
+        const email = (p as { learners: { email: string } | null }).learners?.email;
+        if (email && p.learner_id) map.set(email.toLowerCase().trim(), { learnerId: p.learner_id });
+      }
+      return map;
+    },
+  };
+};
+
+const persistenceImpl = (organizationId: string): ZoomImportPersistence => {
+  const sb = adminSupabase();
+  return {
+    async apply(args) {
+      // Upload CSV raw si présent
+      if (args.csvContent) {
+        await sb.storage.from('zoom_imports').upload(
+          `${args.sheetId}/${Date.now()}-${args.csvFilename}`,
+          args.csvContent,
+          { contentType: 'text/csv', upsert: false },
+        );
+      }
+      // Pour chaque matched → record_attendance_signature avec evidence_source='zoom_csv'
+      for (const m of args.matched) {
+        const { error } = await sb.rpc('record_attendance_signature' as never, {
+          p_attendance_sheet_id: args.sheetId,
+          p_signer_id: m.learnerId,
+          p_signer_kind: 'learner',
+          p_image_path: null,
+          p_signature_hash: m.hash,
+          p_signer_ip: `zoom://${m.row.email ?? 'unknown'}`,
+          p_signer_user_agent: 'zoom-csv-importer',
+          p_signer_country: null,
+          p_token_jti: null,
+          p_evidence_source: args.csvContent ? 'zoom_csv' : 'zoom_api',
+          p_evidence_payload: {
+            join: m.row.joinTime?.toISOString() ?? null,
+            leave: m.row.leaveTime?.toISOString() ?? null,
+            durationMinutes: m.row.durationMinutes,
+            rawLine: m.row.rawLine,
+            statusComputed: m.status,
+          },
+        } as never);
+        if (error) {
+          console.warn('[zoom-import]', m.learnerId, error.message);
+        }
+      }
+      // Unmatched
+      if (args.unmatched.length > 0) {
+        const rows = args.unmatched.map((u) => ({
+          organization_id: organizationId,
+          attendance_sheet_id: args.sheetId,
+          source: args.csvContent ? 'zoom_csv' : 'zoom_api',
+          raw_email: u.email,
+          raw_name: u.name,
+          join_time: u.joinTime?.toISOString() ?? null,
+          leave_time: u.leaveTime?.toISOString() ?? null,
+          duration_minutes: u.durationMinutes,
+        }));
+        await sb.schema('app').from('zoom_import_unmatched').insert(rows);
+      }
+      return ok(undefined);
+    },
+  };
+};
+
+export const importZoomCsvAction = authActionClient
+  .schema(importZoomCsvSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const c = await attendanceComposition();
+    const cmd = importZoomCsv({
+      repo: c.repo,
+      importer: c.csvImporter,
+      lookup: lookupImpl(ctx.organizationId),
+      persistence: persistenceImpl(ctx.organizationId),
+      sha256: (s) => createHash('sha256').update(s).digest('hex'),
+      sessionDurationMinutes: async (sheetId) => {
+        const sbAdmin = adminSupabase();
+        const { data } = await sbAdmin.schema('app').from('attendance_sheets')
+          .select('session_id, sessions(starts_at, ends_at)')
+          .eq('id', sheetId).single();
+        const s = (data as { sessions: { starts_at: string; ends_at: string } | null } | null)?.sessions;
+        if (!s) return 0;
+        return Math.round((new Date(s.ends_at).getTime() - new Date(s.starts_at).getTime()) / 60_000);
+      },
+    });
+
+    const r = await cmd({
+      sheetId: AttendanceSheetId(parsedInput.sheetId),
+      csvContent: parsedInput.csvContent,
+      csvFilename: parsedInput.csvFilename,
+    });
+    if (!r.ok) throw new Error(r.error.code);
+    return r.value;
+  });
+```
+
+- [ ] **Step 3: resolve-unmatched.action.ts + finalize-sheet.action.ts**
+
+```ts
+// resolve-unmatched.action.ts
+'use server';
+
+import { authActionClient } from '@/shared/lib/safe-action';
+import { resolveUnmatchedSchema } from '../schemas/attendance.schemas';
+import { adminSupabase } from '../../infrastructure/composition';
+
+export const resolveUnmatchedAction = authActionClient
+  .schema(resolveUnmatchedSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const sb = adminSupabase();
+    const { data: unmatched } = await sb.schema('app').from('zoom_import_unmatched')
+      .update({
+        resolved_learner_id: parsedInput.learnerId,
+        resolved_at: new Date().toISOString(),
+        resolved_by: ctx.userId,
+      })
+      .eq('id', parsedInput.unmatchedId)
+      .eq('organization_id', ctx.organizationId)
+      .select('attendance_sheet_id, duration_minutes, raw_email, join_time, leave_time')
+      .single();
+    if (!unmatched) throw new Error('unmatched_not_found');
+
+    // Re-run le mapping pour ce learner uniquement
+    // (réutilise persistence avec un seul matched row → simplifier en INSERT direct)
+    const { data: sheet } = await sb.schema('app').from('attendance_sheets')
+      .select('session_id, sessions(starts_at, ends_at)').eq('id', unmatched.attendance_sheet_id).single();
+    const s = (sheet as { sessions: { starts_at: string; ends_at: string } | null } | null)?.sessions;
+    const durationMin = s ? Math.round((new Date(s.ends_at).getTime() - new Date(s.starts_at).getTime()) / 60_000) : 0;
+    const status = unmatched.duration_minutes && unmatched.duration_minutes >= 0.75 * durationMin ? 'present' : 'late';
+
+    await sb.rpc('record_attendance_signature' as never, {
+      p_attendance_sheet_id: unmatched.attendance_sheet_id,
+      p_signer_id: parsedInput.learnerId,
+      p_signer_kind: 'learner',
+      p_image_path: null,
+      p_signature_hash: 'resolved-unmatched',
+      p_signer_ip: 'zoom://resolved',
+      p_signer_user_agent: 'unmatched-resolver',
+      p_signer_country: null,
+      p_token_jti: null,
+      p_evidence_source: 'zoom_csv',
+      p_evidence_payload: { resolvedFrom: parsedInput.unmatchedId, statusComputed: status },
+    } as never);
+    return { ok: true };
+  });
+```
+
+```ts
+// finalize-sheet.action.ts
+'use server';
+
+import { createHash } from 'node:crypto';
+import { authActionClient } from '@/shared/lib/safe-action';
+import { finalizeSheetSchema } from '../schemas/attendance.schemas';
+import { attendanceComposition, adminSupabase } from '../../infrastructure/composition';
+import { finalizeSheet } from '../../application/commands/finalize-sheet';
+import type { FinalizePersistencePort } from '../../application/commands/finalize-sheet';
+import { AttendanceSheetId } from '../../domain/ids';
+import { UserId } from '@/features/dossier/domain/ids';
+import { ok, err } from '@/shared/lib/result';
+
+const persistenceImpl = (organizationId: string): FinalizePersistencePort => {
+  const sb = adminSupabase();
+  return {
+    async loadRenderContext(sheetId) {
+      const { data } = await sb.schema('app').from('attendance_sheets')
+        .select(`
+          dossier_id, session_id,
+          dossiers(reference, formations(title)),
+          sessions(starts_at, ends_at),
+          organizations(name, logo_url)
+        `)
+        .eq('id', sheetId).single();
+      const d = data as { dossiers: { reference: string; formations: { title: string } | null } | null; sessions: { starts_at: string; ends_at: string } | null; organizations: { name: string; logo_url: string | null } | null } | null;
+      const { data: sigs } = await sb.schema('app').from('attendance_signatures')
+        .select('signature_image_path').eq('attendance_sheet_id', sheetId);
+      const signedUrls = new Map<string, string>();
+      for (const s of sigs ?? []) {
+        if (!s.signature_image_path) continue;
+        const { data: u } = await sb.storage.from('signatures').createSignedUrl(s.signature_image_path, 300);
+        if (u?.signedUrl) signedUrls.set(s.signature_image_path, u.signedUrl);
+      }
+      return {
+        dossierReference: d?.dossiers?.reference ?? '?',
+        formationTitle: d?.dossiers?.formations?.title ?? '?',
+        organizationName: d?.organizations?.name ?? '?',
+        organizationLogoUrl: d?.organizations?.logo_url ?? null,
+        sessionStartsAt: d?.sessions ? new Date(d.sessions.starts_at) : new Date(),
+        sessionEndsAt: d?.sessions ? new Date(d.sessions.ends_at) : new Date(),
+        signatureSignedUrls: signedUrls,
+      };
+    },
+    async persistFinalization(args) {
+      const documentId = crypto.randomUUID();
+      const path = `${organizationId}/emargements/${args.sheetId}.pdf`;
+      const up = await sb.storage.from('documents').upload(path, args.pdfBytes, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+      if (up.error) return err({ code: 'persistence_error', detail: up.error.message });
+
+      const { error: docErr } = await sb.schema('app').from('documents').insert({
+        id: documentId,
+        organization_id: organizationId,
+        dossier_id: null, // récupéré ailleurs si nécessaire
+        kind: 'feuille_emargement_signee',
+        path,
+        content_hash: args.pdfHash,
+      });
+      if (docErr) return err({ code: 'persistence_error', detail: docErr.message });
+
+      const { error: sheetErr } = await sb.schema('app').from('attendance_sheets')
+        .update({
+          status: 'finalized',
+          finalized_at: new Date().toISOString(),
+          finalized_by: args.finalizedBy,
+          document_id: documentId,
+        })
+        .eq('id', args.sheetId);
+      if (sheetErr) return err({ code: 'persistence_error', detail: sheetErr.message });
+
+      return ok({ documentId, documentPath: path });
+    },
+  };
+};
+
+export const finalizeSheetAction = authActionClient
+  .schema(finalizeSheetSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const c = await attendanceComposition();
+    const cmd = finalizeSheet({
+      repo: c.repo,
+      pdf: c.pdf,
+      persistence: persistenceImpl(ctx.organizationId),
+      clock: { now: () => new Date() },
+      ids: { newUuidV7: () => crypto.randomUUID() },
+      sha256: (bytes) => createHash('sha256').update(bytes).digest('hex'),
+    });
+    const r = await cmd({
+      sheetId: AttendanceSheetId(parsedInput.sheetId),
+      actorUserId: UserId(ctx.userId),
+    });
+    if (!r.ok) throw new Error(r.error.code);
+    return r.value;
+  });
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+cd apps/web && pnpm typecheck
+git add apps/web/features/attendance/ui/actions/
+git commit -m "feat(attendance): server actions override + import-zoom + resolve + finalize"
+git push origin main
+```
+
+---
+
+## Phase 7 — UI : câblage des routes (~J5-6)
+
+### Task 7.1: Route /(apprenant)/signer/[token] — refonte
+
+**Files:**
+- Modify: `apps/web/app/(apprenant)/signer/[token]/page.tsx` (remplace mock)
+- Delete: `apps/web/app/(apprenant)/signer/[token]/actions.ts` (remplacé par `features/attendance/ui/actions/record-signature.action.ts`)
+
+- [ ] **Step 1: page.tsx (server component preview + client component signature)**
+
+Garder l'UI canvas existant mais brancher sur `recordSignatureAction`.
+
+```tsx
+import { redirect } from 'next/navigation';
+import { adminSupabase } from '@/features/attendance/infrastructure/composition';
+import { verifySignatureToken } from '@/shared/lib/signature-token';
+import { SignaturePad } from './signature-pad.client';
+
+export default async function SignerPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const v = await verifySignatureToken(token);
+  if (!v.ok) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-12 text-center">
+        <h1 className="text-xl font-semibold">Lien expiré ou invalide</h1>
+        <p className="text-zinc-500 mt-2 text-[13px]">Demandez un nouveau lien à votre formateur.</p>
+      </div>
+    );
+  }
+  const sb = adminSupabase();
+  const { data: ctx } = await sb.rpc('get_signature_context' as never, {
+    p_attendance_sheet_id: v.value.attendanceSheetId,
+    p_signer_id: v.value.signerId,
+    p_signer_kind: v.value.signerKind,
+  } as never) as { data: Array<{
+    signer_full_name: string; formation_title: string;
+    session_starts_at: string; session_ends_at: string;
+    organization_name: string;
+  }> | null };
+  if (!ctx || ctx.length === 0) return redirect('/');
+
+  return <SignaturePad token={token} context={ctx[0]!} />;
+}
+```
+
+- [ ] **Step 2: signature-pad.client.tsx (extraire le client component)**
+
+Reprendre la version existante (`apps/web/app/(apprenant)/signer/[token]/page.tsx` mocks) et brancher sur `recordSignatureAction` au lieu de l'action locale supprimée.
+
+```tsx
+'use client';
+
+import { useRef, useState } from 'react';
+import { Check } from 'lucide-react';
+import { useAction } from 'next-safe-action/hooks';
+import { recordSignatureAction } from '@/features/attendance/ui/actions/record-signature.action';
+
+export function SignaturePad({ token, context }: {
+  token: string;
+  context: {
+    signer_full_name: string; formation_title: string;
+    session_starts_at: string; session_ends_at: string;
+    organization_name: string;
+  };
+}) {
+  const [step, setStep] = useState<'preview' | 'sign' | 'done'>('preview');
+  const [hash, setHash] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { execute, status } = useAction(recordSignatureAction, {
+    onSuccess: ({ data }) => {
+      setHash(data?.hash ?? null);
+      setStep('done');
+    },
+  });
+
+  const submit = async () => {
+    if (!canvasRef.current) return;
+    const dataUrl = canvasRef.current.toDataURL('image/png');
+    execute({ token, signatureDataUrl: dataUrl });
+  };
+
+  // ... (réutiliser le markup existant des 3 steps preview/sign/done)
+  return <div>{/* canvas + preview + done — voir mock existant */}</div>;
+}
+```
+
+- [ ] **Step 3: Tester en dev + commit**
+
+```bash
+cd apps/web && pnpm dev
+# Ouvrir http://localhost:3000/signer/<token-test>, signer, vérifier persistence
+git add apps/web/app/(apprenant)/signer/[token]/page.tsx apps/web/app/(apprenant)/signer/[token]/signature-pad.client.tsx
+git rm apps/web/app/(apprenant)/signer/[token]/actions.ts
+git commit -m "feat(attendance): route /signer/[token] branchée sur recordSignatureAction"
+git push origin main
+```
+
+### Task 7.2: Route /(formateur)/emarger/[id] — refonte + Realtime
+
+**Files:**
+- Modify: `apps/web/app/(formateur)/emarger/[id]/page.tsx`
+- Create: `apps/web/features/attendance/ui/components/qr-modal.tsx`
+- Create: `apps/web/features/attendance/ui/components/participant-row.tsx`
+- Create: `apps/web/features/attendance/ui/components/zoom-import-panel.tsx`
+- Create: `apps/web/features/attendance/ui/components/finalize-button.tsx`
+
+- [ ] **Step 1: page.tsx (server component + realtime client)**
+
+```tsx
+import { notFound } from 'next/navigation';
+import { attendanceComposition } from '@/features/attendance/infrastructure/composition';
+import { AttendanceSheetId } from '@/features/attendance/domain/ids';
+import { EmargerClient } from './emarger.client';
+
+export default async function EmargerPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const c = await attendanceComposition();
+  const sheet = await c.repo.findById(AttendanceSheetId(id));
+  if (!sheet) notFound();
+  return <EmargerClient sheet={sheet.snapshot} />;
+}
+```
+
+- [ ] **Step 2: emarger.client.tsx + composants enfants**
+
+Réutiliser le mock existant comme base UI ; brancher chaque interaction sur les Server Actions ; ajouter abonnement Realtime sur `app.attendance_signatures` filtré par `attendance_sheet_id`.
+
+```tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import { useAction } from 'next-safe-action/hooks';
+import { generateSignerTokenAction } from '@/features/attendance/ui/actions/generate-signer-token.action';
+import { overrideAttendanceAction } from '@/features/attendance/ui/actions/override-attendance.action';
+import { finalizeSheetAction } from '@/features/attendance/ui/actions/finalize-sheet.action';
+import { QrModal } from '@/features/attendance/ui/components/qr-modal';
+import { ZoomImportPanel } from '@/features/attendance/ui/components/zoom-import-panel';
+
+export function EmargerClient({ sheet }: { sheet: { id: string; signatures: Array<{ props: unknown }> } }) {
+  const [signatures, setSignatures] = useState(sheet.signatures);
+  const [tab, setTab] = useState<'qr' | 'zoom' | 'override'>('qr');
+  const [activeQrLearnerId, setActiveQrLearnerId] = useState<string | null>(null);
+
+  const genToken = useAction(generateSignerTokenAction);
+
+  useEffect(() => {
+    const sb = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+    const channel = sb.channel(`attendance:${sheet.id}`)
+      .on('postgres_changes',
+          { event: '*', schema: 'app', table: 'attendance_signatures', filter: `attendance_sheet_id=eq.${sheet.id}` },
+          (payload) => {
+            setSignatures((prev) => {
+              const next = [...prev];
+              const i = next.findIndex((s) => (s.props as { id: string }).id === (payload.new as { id: string }).id);
+              if (i >= 0) next[i] = { props: payload.new } as unknown as typeof prev[number];
+              else next.push({ props: payload.new } as unknown as typeof prev[number]);
+              return next;
+            });
+          })
+      .subscribe();
+    return () => { sb.removeChannel(channel); };
+  }, [sheet.id]);
+
+  return (
+    <div>
+      {/* Réutiliser markup mock existant (header, list, tabs, finalize button) */}
+      {/* Câbler:
+          - bouton "Afficher QR" → genToken.execute({ sheetId, learnerId, purpose: 'qr_live' }) → setActiveQrLearnerId
+          - bouton "Absent" → overrideAttendanceAction.execute(...)
+          - tab Zoom → <ZoomImportPanel sheetId={sheet.id} />
+          - finalize → <FinalizeButton sheetId={sheet.id} disabled={hasMissing} />
+      */}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: qr-modal.tsx (génère QR PNG côté serveur, affiche en modal)**
+
+```tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+
+export function QrModal({ url, learnerName, onClose }: { url: string; learnerName: string; onClose: () => void }) {
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  useEffect(() => {
+    // QR rendering client-side via lib qrcode (browser API)
+    import('qrcode').then(async (QRCode) => {
+      const svg = await QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 1 });
+      setQrSvg(svg);
+    });
+  }, [url]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-sm bg-white dark:bg-zinc-950 rounded-lg p-6" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} aria-label="Fermer" className="absolute top-3 right-3"><X className="w-4 h-4" /></button>
+        <p className="text-[13px] font-medium mb-4">Demandez à {learnerName} de scanner ce QR</p>
+        {qrSvg ? <div className="flex justify-center" dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <div>Chargement…</div>}
+        <p className="font-mono text-[10px] text-zinc-400 break-all mt-4">{url}</p>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: zoom-import-panel.tsx (drop CSV)**
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { useAction } from 'next-safe-action/hooks';
+import { importZoomCsvAction } from '@/features/attendance/ui/actions/import-zoom-csv.action';
+
+export function ZoomImportPanel({ sheetId }: { sheetId: string }) {
+  const [result, setResult] = useState<{ matched: number; unmatched: number } | null>(null);
+  const { execute, status } = useAction(importZoomCsvAction, {
+    onSuccess: ({ data }) => setResult(data ?? null),
+  });
+
+  const onDrop = async (file: File) => {
+    const text = await file.text();
+    execute({ sheetId, csvContent: text, csvFilename: file.name });
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="block border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg p-8 text-center cursor-pointer">
+        <input type="file" accept=".csv,text/csv" className="hidden"
+               onChange={(e) => e.target.files?.[0] && onDrop(e.target.files[0])} />
+        <p className="text-[13px]">Glissez le CSV Zoom ici ou cliquez pour parcourir</p>
+        <p className="text-[11px] text-zinc-500 mt-2">Compatible Zoom, Teams, Meet, Webex</p>
+      </label>
+      {status === 'executing' && <p>Import en cours…</p>}
+      {result && (
+        <p className="text-[13px]">{result.matched} matchés, {result.unmatched} à résoudre.</p>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 5: finalize-button.tsx**
+
+```tsx
+'use client';
+
+import { useAction } from 'next-safe-action/hooks';
+import { finalizeSheetAction } from '@/features/attendance/ui/actions/finalize-sheet.action';
+
+export function FinalizeButton({ sheetId, disabled }: { sheetId: string; disabled: boolean }) {
+  const { execute, status, result } = useAction(finalizeSheetAction);
+  return (
+    <button
+      type="button"
+      disabled={disabled || status === 'executing'}
+      onClick={() => execute({ sheetId })}
+      className="w-full bg-orange-500 text-white text-[13px] font-medium px-4 py-3 rounded-lg disabled:opacity-40"
+    >
+      {status === 'executing' ? 'Finalisation…' : 'Finaliser la feuille'}
+    </button>
+  );
+}
+```
+
+- [ ] **Step 6: Tester en dev + commit**
+
+```bash
+cd apps/web && pnpm dev
+# Ouvrir /emarger/<sheet_id> en tant que formateur, tester QR + Zoom import + finalize
+git add apps/web/app/\(formateur\)/emarger/ apps/web/features/attendance/ui/components/
+git commit -m "feat(attendance): route /emarger/[id] câblée (QR + Zoom + Realtime + finalize)"
+git push origin main
+```
+
+### Task 7.3: Route /(dashboard)/emargements — câbler liste
+
+**Files:**
+- Modify: `apps/web/app/(dashboard)/emargements/page.tsx`
+
+- [ ] **Step 1: Server Component**
+
+```tsx
+import Link from 'next/link';
+import { attendanceComposition } from '@/features/attendance/infrastructure/composition';
+import { createClient } from '@/shared/lib/supabase/server';
+import { OrganizationId } from '@/features/dossier/domain/ids';
+
+export default async function EmargementsPage() {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return null;
+  const { data: member } = await sb.schema('app').from('memberships')
+    .select('organization_id').eq('user_id', user.id).single();
+  if (!member) return null;
+
+  const c = await attendanceComposition();
+  const sheets = await c.repo.listPending(OrganizationId(member.organization_id));
+
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-6">
+      <h1 className="text-2xl font-semibold mb-4">Émargements à compléter</h1>
+      <ul className="space-y-1">
+        {sheets.map((s) => {
+          const snap = s.snapshot;
+          return (
+            <li key={snap.id}>
+              <Link href={`/emarger/${snap.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-lg">
+                <span className="font-mono text-[13px]">{snap.id.slice(0, 8)}…</span>
+                <span className="text-[11px]">{snap.halfDay} · {snap.status}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add apps/web/app/\(dashboard\)/emargements/page.tsx
+git commit -m "feat(attendance): /emargements câblée sur listPending"
+git push origin main
+```
+
+### Task 7.4: Route /(dashboard)/dossiers/[id]/emargements (création)
+
+**Files:**
+- Create: `apps/web/app/(dashboard)/dossiers/[id]/emargements/page.tsx`
+
+- [ ] **Step 1: Page** — affiche la liste des sheets du dossier + lien download PDF si finalized.
+
+```tsx
+import { attendanceComposition } from '@/features/attendance/infrastructure/composition';
+import { DossierId } from '@/features/dossier/domain/ids';
+
+export default async function DossierEmargementsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const c = await attendanceComposition();
+  const sheets = await c.repo.findByDossier(DossierId(id));
+
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-6">
+      <h1 className="text-2xl font-semibold mb-4">Émargements du dossier</h1>
+      <ul className="space-y-2">
+        {sheets.map((s) => {
+          const snap = s.snapshot;
+          return (
+            <li key={snap.id} className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[13px] font-medium">{snap.halfDay}</p>
+                <p className="text-[11px] text-zinc-500">{snap.status}</p>
+              </div>
+              {snap.status === 'finalized' && snap.documentId ? (
+                <a href={`/api/documents/${snap.documentId}/download`} className="text-[11px] underline">Télécharger PDF</a>
+              ) : (
+                <a href={`/emarger/${snap.id}`} className="text-[11px] underline">Compléter</a>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add apps/web/app/\(dashboard\)/dossiers/\[id\]/emargements/
+git commit -m "feat(attendance): /dossiers/[id]/emargements list + download finalized PDF"
+git push origin main
+```
+
+---
+
+## Phase 8 — Zoom S2S API (Edge Function + cron + réglages) (~J7)
+
+### Task 8.1: Edge Function zoom-sync
+
+**Files:**
+- Create: `supabase/functions/zoom-sync/index.ts`
+- Create: `supabase/functions/zoom-sync/deno.json`
+
+- [ ] **Step 1: deno.json**
+
+```json
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2.45.0"
+  }
+}
+```
+
+- [ ] **Step 2: index.ts**
+
+```ts
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+type Creds = { accountId: string; clientId: string; clientSecret: string };
+
+const tokenCache = new Map<string, { token: string; exp: number }>();
+const getToken = async (c: Creds): Promise<string> => {
+  const key = `${c.accountId}:${c.clientId}`;
+  const hit = tokenCache.get(key);
+  if (hit && hit.exp > Date.now() + 30_000) return hit.token;
+  const basic = btoa(`${c.clientId}:${c.clientSecret}`);
+  const r = await fetch(
+    `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${encodeURIComponent(c.accountId)}`,
+    { method: 'POST', headers: { Authorization: `Basic ${basic}` } },
+  );
+  if (!r.ok) throw new Error(`zoom_auth ${r.status}`);
+  const j = await r.json() as { access_token: string; expires_in: number };
+  tokenCache.set(key, { token: j.access_token, exp: Date.now() + j.expires_in * 1000 });
+  return j.access_token;
+};
+
+const fetchParticipants = async (token: string, meetingId: string) => {
+  const all: Array<{ user_email?: string; name?: string; join_time?: string; leave_time?: string; duration?: number }> = [];
+  let next: string | undefined;
+  do {
+    const u = new URL(`https://api.zoom.us/v2/past_meetings/${encodeURIComponent(meetingId)}/participants`);
+    u.searchParams.set('page_size', '300');
+    if (next) u.searchParams.set('next_page_token', next);
+    const r = await fetch(u, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.status === 404) return { kind: 'not_found' as const };
+    if (!r.ok) return { kind: 'error' as const, status: r.status };
+    const body = await r.json() as { participants: typeof all; next_page_token?: string };
+    all.push(...body.participants);
+    next = body.next_page_token && body.next_page_token.length > 0 ? body.next_page_token : undefined;
+  } while (next);
+  return { kind: 'ok' as const, list: all };
+};
+
+const sha256 = async (s: string) => {
+  const data = new TextEncoder().encode(s);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+};
+
+Deno.serve(async () => {
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+
+  // Sessions terminées sans sync success
+  const { data: sessions } = await sb.schema('app').from('sessions')
+    .select(`id, organization_id, zoom_meeting_id, starts_at, ends_at,
+             attendance_sheets(id, status)`)
+    .lt('ends_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+    .eq('modality', 'distanciel')
+    .not('zoom_meeting_id', 'is', null)
+    .limit(20);
+
+  for (const session of sessions ?? []) {
+    const sheets = (session as { attendance_sheets: Array<{ id: string; status: string }> | null }).attendance_sheets ?? [];
+    if (sheets.length === 0 || sheets.every((s) => s.status === 'finalized')) continue;
+
+    // Check log existant
+    const { count } = await sb.schema('app').from('zoom_sync_logs')
+      .select('*', { head: true, count: 'exact' })
+      .eq('session_id', session.id).eq('status', 'success');
+    if ((count ?? 0) > 0) continue;
+
+    // Load creds
+    const { data: integ } = await sb.schema('app').from('tenant_integrations')
+      .select('config_encrypted, config_nonce, config_key_id')
+      .eq('organization_id', session.organization_id).eq('kind', 'zoom_s2s').maybeSingle();
+    if (!integ) continue;
+
+    // Decrypt via RPC (pgsodium)
+    const { data: plaintext, error: decErr } = await sb.rpc('pgsodium_decrypt_v2', {
+      p_ciphertext: '\\x' + Buffer.from(integ.config_encrypted as ArrayBuffer).toString('hex'),
+      p_nonce: '\\x' + Buffer.from(integ.config_nonce as ArrayBuffer).toString('hex'),
+      p_key_id: integ.config_key_id,
+    });
+    if (decErr || !plaintext) continue;
+    const creds = JSON.parse(plaintext as string) as Creds;
+
+    const token = await getToken(creds).catch(() => null);
+    if (!token) continue;
+
+    const r = await fetchParticipants(token, session.zoom_meeting_id!);
+    if (r.kind !== 'ok') {
+      await sb.schema('app').from('zoom_sync_logs').insert({
+        organization_id: session.organization_id, session_id: session.id,
+        meeting_id: session.zoom_meeting_id, status: 'error',
+        error_detail: JSON.stringify(r), participants_count: 0, matched_count: 0, unmatched_count: 0,
+      });
+      continue;
+    }
+
+    // Pour chaque sheet, applique le pipeline (assume 1 sheet pour l'instant ; multi-sheet itère)
+    for (const sheet of sheets) {
+      if (sheet.status === 'finalized') continue;
+
+      const sessionMin = Math.round((new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()) / 60_000);
+      const { data: parts } = await sb.schema('app').from('session_participants')
+        .select('learner_id, learners(email)').eq('session_id', session.id);
+      const lookup = new Map<string, string>();
+      for (const p of parts ?? []) {
+        const e = (p as { learners: { email: string } | null }).learners?.email?.toLowerCase().trim();
+        if (e && p.learner_id) lookup.set(e, p.learner_id);
+      }
+
+      let matched = 0, unmatched = 0;
+      for (const row of r.list) {
+        const e = row.user_email?.toLowerCase().trim();
+        const learnerId = e ? lookup.get(e) : null;
+        const durMin = row.duration ? Math.round(row.duration / 60) : 0;
+        if (!learnerId) {
+          unmatched++;
+          await sb.schema('app').from('zoom_import_unmatched').insert({
+            organization_id: session.organization_id, attendance_sheet_id: sheet.id,
+            source: 'zoom_api', raw_email: row.user_email ?? null, raw_name: row.name ?? null,
+            join_time: row.join_time ?? null, leave_time: row.leave_time ?? null,
+            duration_minutes: durMin,
+          });
+          continue;
+        }
+        const status = durMin >= 0.75 * sessionMin ? 'present' : 'late';
+        const hash = await sha256(JSON.stringify(row));
+        await sb.rpc('record_attendance_signature', {
+          p_attendance_sheet_id: sheet.id, p_signer_id: learnerId, p_signer_kind: 'learner',
+          p_image_path: null, p_signature_hash: hash,
+          p_signer_ip: `zoom://${row.user_email ?? 'unknown'}`, p_signer_user_agent: 'zoom-api-sync',
+          p_signer_country: null, p_token_jti: null, p_evidence_source: 'zoom_api',
+          p_evidence_payload: { ...row, statusComputed: status },
+        });
+        matched++;
+      }
+
+      await sb.schema('app').from('zoom_sync_logs').insert({
+        organization_id: session.organization_id, session_id: session.id,
+        attendance_sheet_id: sheet.id, meeting_id: session.zoom_meeting_id!,
+        participants_count: r.list.length, matched_count: matched, unmatched_count: unmatched,
+        status: unmatched > 0 ? 'partial' : 'success',
+      });
+    }
+  }
+
+  return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json' } });
+});
+```
+
+- [ ] **Step 3: Deploy + test manuel**
+
+```bash
+cd /Users/anissa/i-a-infinity-of && supabase functions deploy zoom-sync --no-verify-jwt
+# Test invocation manuelle
+curl -X POST "$(supabase status | grep 'API URL' | awk '{print $3}')/functions/v1/zoom-sync"
+```
+Expected: `{"ok": true}` ou erreur explicite
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add supabase/functions/zoom-sync/
+git commit -m "feat(attendance): Edge Function zoom-sync (OAuth + paginated participants + record)"
+git push origin main
+```
+
+### Task 8.2: pg_cron schedule pour zoom-sync
+
+**Files:**
+- Create: `supabase/migrations/0033_zoom_sync_cron.sql`
+
+- [ ] **Step 1: Migration**
+
+```sql
+-- ============================================================================
+-- 0033 — Schedule pg_cron pour Edge Function zoom-sync (hourly)
+-- ============================================================================
+
+SELECT cron.schedule(
+  'zoom_sync_hourly',
+  '7 * * * *',
+  $cron$
+    SELECT net.http_post(
+      url := current_setting('app.zoom_sync_url'),
+      headers := jsonb_build_object('Content-Type', 'application/json'),
+      body := jsonb_build_object('trigger', 'cron')
+    );
+  $cron$
+);
+
+-- Param à set côté Supabase Studio ou via psql :
+-- ALTER DATABASE postgres SET app.zoom_sync_url = 'https://<project>.functions.supabase.co/zoom-sync';
+```
+
+- [ ] **Step 2: Reset + doc**
+
+```bash
+pnpm db:reset
+# Documenter dans docs/runbooks/attendance.md le set du paramètre
+git add supabase/migrations/0033_zoom_sync_cron.sql
+git commit -m "feat(attendance): pg_cron hourly schedule for zoom-sync"
+git push origin main
+```
+
+### Task 8.3: Route /(dashboard)/reglages/integrations/zoom
+
+**Files:**
+- Create: `apps/web/app/(dashboard)/reglages/integrations/zoom/page.tsx`
+- Create: `apps/web/features/attendance/ui/actions/connect-zoom-s2s.action.ts`
+
+- [ ] **Step 1: connect-zoom-s2s.action.ts**
+
+```ts
+'use server';
+
+import { authActionClient } from '@/shared/lib/safe-action';
+import { connectZoomSchema } from '../schemas/attendance.schemas';
+import { attendanceComposition, adminSupabase } from '../../infrastructure/composition';
+import { connectZoomS2s } from '../../application/commands/connect-zoom-s2s';
+import { OrganizationId } from '@/features/dossier/domain/ids';
+import { ok, err } from '@/shared/lib/result';
+
+export const connectZoomS2sAction = authActionClient
+  .schema(connectZoomSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (ctx.role !== 'admin' && ctx.role !== 'owner') {
+      throw new Error('forbidden');
+    }
+    const c = await attendanceComposition();
+    const sbAdmin = adminSupabase();
+    const cmd = connectZoomS2s({
+      api: c.zoomApi,
+      cipher: c.cipher,
+      persistence: {
+        async upsertZoomS2s(args) {
+          const { error } = await sbAdmin.schema('app').from('tenant_integrations').upsert({
+            organization_id: args.organizationId,
+            kind: 'zoom_s2s',
+            status: 'active',
+            config_encrypted: '\\x' + Buffer.from(args.cipherText).toString('hex'),
+            config_nonce: '\\x' + Buffer.from(args.nonce).toString('hex'),
+            config_key_id: args.keyId,
+            last_test_at: new Date().toISOString(),
+            last_test_status: args.lastTestStatus,
+            last_test_error: args.lastTestError,
+            updated_at: new Date().toISOString(),
+          });
+          if (error) return err({ code: 'persistence_error', detail: error.message });
+          return ok(undefined);
+        },
+      },
+    });
+    const r = await cmd({
+      organizationId: OrganizationId(ctx.organizationId),
+      credentials: { accountId: parsedInput.accountId, clientId: parsedInput.clientId, clientSecret: parsedInput.clientSecret },
+    });
+    if (!r.ok) throw new Error(r.error.code);
+    return r.value;
+  });
+```
+
+- [ ] **Step 2: page.tsx**
+
+```tsx
+import { ZoomSettingsForm } from './zoom-settings-form.client';
+import { createClient } from '@/shared/lib/supabase/server';
+
+export default async function ZoomIntegrationPage() {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return null;
+  const { data: integ } = await sb.schema('app').from('tenant_integrations')
+    .select('status, last_test_at, last_test_status, last_test_error')
+    .eq('kind', 'zoom_s2s').maybeSingle();
+
+  return (
+    <div className="max-w-xl mx-auto px-6 py-6">
+      <h1 className="text-2xl font-semibold">Intégration Zoom</h1>
+      <p className="text-[13px] text-zinc-500 mt-1">
+        Connecte ton compte Zoom Server-to-Server pour synchroniser automatiquement les participants des sessions distancielles.
+      </p>
+      {integ ? (
+        <div className="mt-4 border border-emerald-200 rounded p-3">
+          <p className="text-[13px]">Statut : {integ.status} · Dernier test : {integ.last_test_at ?? '—'}</p>
+        </div>
+      ) : null}
+      <ZoomSettingsForm />
+    </div>
+  );
+}
+```
+
+```tsx
+'use client';
+// zoom-settings-form.client.tsx
+import { useState } from 'react';
+import { useAction } from 'next-safe-action/hooks';
+import { connectZoomS2sAction } from '@/features/attendance/ui/actions/connect-zoom-s2s.action';
+
+export function ZoomSettingsForm() {
+  const [form, setForm] = useState({ accountId: '', clientId: '', clientSecret: '' });
+  const { execute, status, result } = useAction(connectZoomS2sAction);
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); execute(form); }} className="space-y-3 mt-4">
+      {(['accountId', 'clientId', 'clientSecret'] as const).map((k) => (
+        <input key={k} type={k === 'clientSecret' ? 'password' : 'text'}
+               placeholder={k} value={form[k]}
+               onChange={(e) => setForm({ ...form, [k]: e.target.value })}
+               className="block w-full border rounded px-3 py-2 text-[13px]" />
+      ))}
+      <button type="submit" disabled={status === 'executing'}
+              className="bg-orange-500 text-white px-4 py-2 rounded text-[13px]">
+        {status === 'executing' ? 'Test…' : 'Connecter'}
+      </button>
+      {result.serverError && <p className="text-red-600 text-[11px]">{result.serverError}</p>}
+      {result.data && <p className="text-emerald-600 text-[11px]">Connecté en tant que {result.data.accountEmail}</p>}
+    </form>
+  );
+}
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/app/\(dashboard\)/reglages/integrations/zoom/ apps/web/features/attendance/ui/actions/connect-zoom-s2s.action.ts
+git commit -m "feat(attendance): /reglages/integrations/zoom (admin S2S setup)"
+git push origin main
+```
+
+---
+
+## Phase 9 — Câblage scheduling → materializeForSession (~J8)
+
+### Task 9.1: Brancher la création de session sur materializeForSession
+
+> **Contexte** : `features/scheduling/` est vide actuellement (vu en exploration). Si la création de sessions se fait déjà ailleurs (par exemple CRUD direct via Server Action `scheduling`), il faut intercepter l'INSERT/UPDATE et appeler `materializeForSession` dans la même transaction. Si scheduling n'est pas encore implémenté, créer la command minimale.
+
+**Files:**
+- Create (ou modify) : `apps/web/features/scheduling/application/commands/create-session.ts`
+- Create: `apps/web/features/scheduling/ui/actions/create-session.action.ts`
+
+- [ ] **Step 1: create-session.ts (command scheduling)**
+
+```ts
+import type { Result } from '@/shared/lib/result';
+import { ok, err } from '@/shared/lib/result';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { materializeForSession } from '@/features/attendance/application/commands/materialize-for-session';
+import { createSupabaseAttendanceSheetRepository } from '@/features/attendance/infrastructure/repositories/supabase-attendance-sheet.repository';
+import type { OrganizationId, DossierId, ModuleId } from '@/features/dossier/domain/ids';
+import { SessionId } from '@/features/attendance/domain/ids';
+import type { Database } from '@/shared/types/database';
+
+export type CreateSessionInput = {
+  organizationId: OrganizationId;
+  dossierId: DossierId;
+  dossierModuleId: ModuleId | null;
+  startsAt: Date;
+  endsAt: Date;
+  modality: 'presentiel' | 'distanciel' | 'mixte';
+  location: string | null;
+  remoteUrl: string | null;
+  zoomMeetingId: string | null;
+  participantLearnerIds: string[];
+  participantTrainerIds: string[];
+};
+
+export type CreateSessionError =
+  | { code: 'persistence_error'; detail: string }
+  | { code: 'invalid_period' };
+
+export const createSession = (sbAdmin: SupabaseClient<Database>) =>
+  async (input: CreateSessionInput): Promise<Result<{ sessionId: SessionId; sheetsCreated: number }, CreateSessionError>> => {
+    if (input.endsAt <= input.startsAt) return err({ code: 'invalid_period' });
+
+    const sessionId = SessionId(crypto.randomUUID());
+
+    // 1. INSERT session
+    const { error: sessErr } = await sbAdmin.schema('app').from('sessions').insert({
+      id: sessionId,
+      organization_id: input.organizationId,
+      dossier_id: input.dossierId,
+      dossier_module_id: input.dossierModuleId,
+      starts_at: input.startsAt.toISOString(),
+      ends_at: input.endsAt.toISOString(),
+      modality: input.modality,
+      status: 'planned',
+      location: input.location,
+      remote_url: input.remoteUrl,
+      zoom_meeting_id: input.zoomMeetingId,
+    });
+    if (sessErr) return err({ code: 'persistence_error', detail: sessErr.message });
+
+    // 2. INSERT session_participants
+    const partRows = [
+      ...input.participantLearnerIds.map((id) => ({
+        session_id: sessionId, organization_id: input.organizationId,
+        participant_kind: 'learner', learner_id: id, trainer_id: null,
+      })),
+      ...input.participantTrainerIds.map((id) => ({
+        session_id: sessionId, organization_id: input.organizationId,
+        participant_kind: 'trainer', learner_id: null, trainer_id: id,
+      })),
+    ];
+    if (partRows.length > 0) {
+      const { error } = await sbAdmin.schema('app').from('session_participants').insert(partRows);
+      if (error) return err({ code: 'persistence_error', detail: error.message });
+    }
+
+    // 3. Récup TZ org + split_strategy module
+    const { data: org } = await sbAdmin.schema('app').from('organizations')
+      .select('timezone').eq('id', input.organizationId).single();
+    const tz = org?.timezone ?? 'Europe/Paris';
+
+    let strategy: 'auto' | 'per_day' | 'manual' = 'auto';
+    if (input.dossierModuleId) {
+      const { data: dm } = await sbAdmin.schema('app').from('dossier_modules')
+        .select('attendance_split_strategy').eq('id', input.dossierModuleId).single();
+      strategy = (dm?.attendance_split_strategy as typeof strategy) ?? 'auto';
+    }
+
+    // 4. Materialize sheets
+    const repo = createSupabaseAttendanceSheetRepository(sbAdmin);
+    const r = await materializeForSession({
+      repo, clock: { now: () => new Date() }, ids: { newUuidV7: () => crypto.randomUUID() },
+    })({
+      organizationId: input.organizationId,
+      dossierId: input.dossierId,
+      sessionId,
+      sessionStartsAt: input.startsAt,
+      sessionEndsAt: input.endsAt,
+      organizationTimezone: tz,
+      splitStrategy: strategy,
+    });
+
+    // 5. Pré-création des signatures pour chaque participant × sheet
+    if (r.ok && r.value.created.length > 0) {
+      const sigRows: Array<Record<string, unknown>> = [];
+      for (const sheetId of r.value.created) {
+        for (const learnerId of input.participantLearnerIds) {
+          sigRows.push({
+            organization_id: input.organizationId,
+            attendance_sheet_id: sheetId,
+            participant_kind: 'learner',
+            learner_id: learnerId,
+            trainer_id: null,
+            status: null,
+            evidence_source: 'manual',
+          });
+        }
+        for (const trainerId of input.participantTrainerIds) {
+          sigRows.push({
+            organization_id: input.organizationId,
+            attendance_sheet_id: sheetId,
+            participant_kind: 'trainer',
+            learner_id: null,
+            trainer_id: trainerId,
+            status: null,
+            evidence_source: 'manual',
+          });
+        }
+      }
+      if (sigRows.length > 0) {
+        await sbAdmin.schema('app').from('attendance_signatures').insert(sigRows);
+      }
+    }
+
+    return ok({ sessionId, sheetsCreated: r.ok ? r.value.created.length : 0 });
+  };
+```
+
+- [ ] **Step 2: create-session.action.ts (Server Action wrapper)**
+
+```ts
+'use server';
+
+import { z } from 'zod';
+import { authActionClient } from '@/shared/lib/safe-action';
+import { adminSupabase } from '@/features/attendance/infrastructure/composition';
+import { createSession } from '../../application/commands/create-session';
+import { OrganizationId, DossierId, ModuleId } from '@/features/dossier/domain/ids';
+
+const schema = z.object({
+  dossierId: z.string().uuid(),
+  dossierModuleId: z.string().uuid().nullable(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  modality: z.enum(['presentiel', 'distanciel', 'mixte']),
+  location: z.string().nullable(),
+  remoteUrl: z.string().url().nullable(),
+  zoomMeetingId: z.string().nullable(),
+  participantLearnerIds: z.array(z.string().uuid()),
+  participantTrainerIds: z.array(z.string().uuid()),
+});
+
+export const createSessionAction = authActionClient
+  .schema(schema)
+  .action(async ({ parsedInput, ctx }) => {
+    const r = await createSession(adminSupabase())({
+      organizationId: OrganizationId(ctx.organizationId),
+      dossierId: DossierId(parsedInput.dossierId),
+      dossierModuleId: parsedInput.dossierModuleId ? ModuleId(parsedInput.dossierModuleId) : null,
+      startsAt: new Date(parsedInput.startsAt),
+      endsAt: new Date(parsedInput.endsAt),
+      modality: parsedInput.modality,
+      location: parsedInput.location,
+      remoteUrl: parsedInput.remoteUrl,
+      zoomMeetingId: parsedInput.zoomMeetingId,
+      participantLearnerIds: parsedInput.participantLearnerIds,
+      participantTrainerIds: parsedInput.participantTrainerIds,
+    });
+    if (!r.ok) throw new Error(r.error.code);
+    return r.value;
+  });
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd apps/web && pnpm typecheck
+git add apps/web/features/scheduling/
+git commit -m "feat(scheduling): createSession command + Server Action + materializeForSession wiring"
+git push origin main
+```
+
+### Task 9.2: Document storage bucket + API route download PDF
+
+**Files:**
+- Create: `supabase/migrations/0034_documents_bucket.sql` (si pas déjà existant)
+- Create: `apps/web/app/api/documents/[id]/download/route.ts`
+
+- [ ] **Step 1: Vérifier bucket `documents`**
+
+```bash
+psql "$DB_URL" -c "SELECT id FROM storage.buckets WHERE id='documents';"
+```
+Si absent : créer migration 0034.
+
+```sql
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('documents', 'documents', false, 20971520, ARRAY['application/pdf'])
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "documents_member_read"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'documents');
+```
+
+- [ ] **Step 2: Route /api/documents/[id]/download**
+
+```ts
+import { NextResponse } from 'next/server';
+import { createClient } from '@/shared/lib/supabase/server';
+
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const sb = await createClient();
+  const { data: doc } = await sb.schema('app').from('documents')
+    .select('path, kind').eq('id', id).single();
+  if (!doc) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+
+  const { data: signed } = await sb.storage.from('documents').createSignedUrl(doc.path, 60);
+  if (!signed?.signedUrl) return NextResponse.json({ error: 'signed_url_failed' }, { status: 500 });
+
+  return NextResponse.redirect(signed.signedUrl);
+}
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add supabase/migrations/0034_documents_bucket.sql apps/web/app/api/documents/
+git commit -m "feat(attendance): documents bucket + signed-URL download route"
+git push origin main
+```
+
+---
+
+## Phase 10 — Tests E2E + RGPD + Runbook (~J9-10)
+
+### Task 10.1: E2E presentiel (Playwright)
+
+**Files:**
+- Create: `apps/web/tests/e2e/attendance-presentiel.spec.ts`
+
+- [ ] **Step 1: Spec**
+
+```ts
+import { test, expect } from '@playwright/test';
+
+test('présentiel : génération QR + signature + finalize', async ({ page, request }) => {
+  // Préreq : fixture user formateur + dossier + session + sheet ouvert
+  await page.goto('/login');
+  await page.fill('input[name="email"]', process.env.E2E_TRAINER_EMAIL!);
+  await page.fill('input[name="password"]', process.env.E2E_TRAINER_PASSWORD!);
+  await page.click('button[type="submit"]');
+
+  await page.goto(`/emarger/${process.env.E2E_SHEET_ID!}`);
+  await expect(page.getByText('Présents')).toBeVisible();
+
+  // Génère un QR pour le premier apprenant
+  await page.getByRole('button', { name: /Afficher le QR/i }).first().click();
+  const qrUrl = await page.locator('text=/^https?:\\/\\//').first().textContent();
+  expect(qrUrl).toMatch(/\/signer\/[A-Za-z0-9_.-]+$/);
+
+  // Suit le lien dans une nouvelle page (simule apprenant)
+  const learnerPage = await page.context().newPage();
+  await learnerPage.goto(qrUrl!);
+  await expect(learnerPage.getByText(/Je confirme ma présence/i)).toBeVisible();
+
+  // Trace une signature (mouse drag sur canvas)
+  const canvas = learnerPage.locator('canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('canvas not found');
+  await learnerPage.mouse.move(box.x + 10, box.y + 10);
+  await learnerPage.mouse.down();
+  await learnerPage.mouse.move(box.x + 100, box.y + 50);
+  await learnerPage.mouse.up();
+
+  await learnerPage.getByRole('checkbox').check();
+  await learnerPage.getByRole('button', { name: /Signer/i }).click();
+  await expect(learnerPage.getByText(/Merci, c'est signé/i)).toBeVisible();
+
+  // Retour formateur, vérif realtime update
+  await page.waitForTimeout(500);
+  await expect(page.getByText(/1\/[0-9]+/)).toBeVisible();
+
+  // Marquer les autres absents (override)
+  const otherRows = await page.getByRole('button', { name: /Absent/i }).all();
+  for (const btn of otherRows) await btn.click();
+
+  // Finaliser
+  await page.getByRole('button', { name: /Finaliser/i }).click();
+  await expect(page.getByText(/Finalisé/i)).toBeVisible({ timeout: 10_000 });
+});
+```
+
+- [ ] **Step 2: Run + commit**
+
+```bash
+cd apps/web && pnpm test:e2e attendance-presentiel
+git add apps/web/tests/e2e/attendance-presentiel.spec.ts
+git commit -m "test(attendance): E2E presentiel happy path"
+git push origin main
+```
+
+### Task 10.2: E2E zoom CSV + immutabilité
+
+**Files:**
+- Create: `apps/web/tests/e2e/attendance-zoom-csv.spec.ts`
+- Create: `apps/web/tests/e2e/attendance-immutable.spec.ts`
+- Create: `apps/web/tests/e2e/fixtures/zoom-sample.csv`
+
+- [ ] **Step 1: zoom-sample.csv**
+
+```csv
+Name (Original Name),User Email,Total Duration (Minutes),Guest,Join Time,Leave Time
+Alice Martin,alice@e2e.fr,150,No,2026-09-15 09:00:23,2026-09-15 11:30:08
+Bob Dupont,bob@e2e.fr,30,No,2026-09-15 09:45:11,2026-09-15 10:15:42
+Zoe Inconnue,zoe@unknown.fr,180,No,2026-09-15 09:00:00,2026-09-15 12:00:00
+```
+
+- [ ] **Step 2: attendance-zoom-csv.spec.ts**
+
+```ts
+import { test, expect } from '@playwright/test';
+import path from 'node:path';
+
+test('zoom CSV : upload + unmatched resolution + finalize', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('input[name="email"]', process.env.E2E_TRAINER_EMAIL!);
+  await page.fill('input[name="password"]', process.env.E2E_TRAINER_PASSWORD!);
+  await page.click('button[type="submit"]');
+
+  await page.goto(`/emarger/${process.env.E2E_DISTANCIEL_SHEET_ID!}`);
+  await page.getByRole('tab', { name: /Import Zoom/i }).click();
+  await page.setInputFiles('input[type="file"]', path.join(__dirname, 'fixtures/zoom-sample.csv'));
+  await expect(page.getByText(/matchés/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/2 matchés.*1 à résoudre/)).toBeVisible();
+
+  // Résoudre Zoe → mapper à un learner connu
+  await page.getByRole('button', { name: /Lier à/i }).first().click();
+  await page.getByRole('option').first().click();
+
+  // Finaliser
+  await page.getByRole('button', { name: /Finaliser/i }).click();
+  await expect(page.getByText(/Finalisé/i)).toBeVisible({ timeout: 10_000 });
+});
+```
+
+- [ ] **Step 3: attendance-immutable.spec.ts**
+
+```ts
+import { test, expect } from '@playwright/test';
+
+test('feuille finalisée : modification rejetée', async ({ page, request }) => {
+  await page.goto('/login');
+  await page.fill('input[name="email"]', process.env.E2E_TRAINER_EMAIL!);
+  await page.fill('input[name="password"]', process.env.E2E_TRAINER_PASSWORD!);
+  await page.click('button[type="submit"]');
+
+  await page.goto(`/emarger/${process.env.E2E_FINALIZED_SHEET_ID!}`);
+  // Le bouton "Absent" / "Présent" ne doit pas être disponible
+  await expect(page.getByRole('button', { name: /Absent/i })).toHaveCount(0);
+  await expect(page.getByText(/Finalisée/i)).toBeVisible();
+});
+```
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+cd apps/web && pnpm test:e2e attendance-
+git add apps/web/tests/e2e/
+git commit -m "test(attendance): E2E zoom CSV + immutability"
+git push origin main
+```
+
+### Task 10.3: Job RGPD — purge IP 5 ans
+
+**Files:**
+- Create: `supabase/migrations/0035_attendance_ip_retention.sql`
+
+- [ ] **Step 1: Migration**
+
+```sql
+-- ============================================================================
+-- 0035 — RGPD : purge des IP signataires après 5 ans (archivage Qualiopi)
+-- ============================================================================
+
+SELECT cron.schedule(
+  'attendance_purge_ip_yearly',
+  '0 4 1 * *',  -- 1er du mois 4h du matin
+  $cron$
+    UPDATE app.attendance_signatures
+       SET signer_ip = NULL,
+           signer_user_agent = NULL,
+           signer_country = NULL
+     WHERE signed_at < now() - interval '5 years'
+       AND signer_ip IS NOT NULL;
+  $cron$
+);
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add supabase/migrations/0035_attendance_ip_retention.sql
+git commit -m "feat(attendance): pg_cron purge IP/UA/country after 5 years (RGPD)"
+git push origin main
+```
+
+### Task 10.4: Runbook opérationnel
+
+**Files:**
+- Create: `docs/runbooks/attendance.md`
+
+- [ ] **Step 1: Rédiger**
+
+```markdown
+# Runbook — Bounded context Attendance
+
+## Vue d'ensemble
+
+Émargement par demi-journée Qualiopi-compliant. 3 sources de preuves :
+- **Présentiel** : QR individuel + signature manuscrite + IP/UA/country
+- **Distanciel CSV** : import manuel formateur du CSV Zoom (compatible Teams/Meet/Webex)
+- **Distanciel API** : sync auto via Edge Function `zoom-sync` (cron hourly)
+
+## Rotation du TOKEN_SIGNING_KEY
+
+1. Générer une nouvelle clé : `openssl rand -base64 32`
+2. La mettre dans Railway env var `TOKEN_SIGNING_KEY_NEXT`
+3. Modifier `apps/web/shared/lib/signature-token.ts` pour accepter les deux clés en verify (rolling rotation)
+4. Attendre 24h (TTL max email_link)
+5. Renommer `TOKEN_SIGNING_KEY_NEXT` → `TOKEN_SIGNING_KEY`, supprimer l'ancienne
+
+## Setup Zoom S2S par tenant
+
+1. Le tenant crée une Server-to-Server OAuth app sur https://marketplace.zoom.us/develop/create
+2. Scopes minimaux : `meeting:read:past_meeting:admin`, `meeting:read:list_past_meeting_participants:admin`
+3. L'admin OF se rend sur `/reglages/integrations/zoom`, colle `accountId`, `clientId`, `clientSecret`
+4. Le formulaire teste la connexion (GET /v2/users/me), affiche l'email du compte
+5. Les secrets sont chiffrés via pgsodium et stockés dans `app.tenant_integrations`
+
+## Configurer le paramètre app.zoom_sync_url
+
+```sql
+ALTER DATABASE postgres
+  SET app.zoom_sync_url = 'https://<project>.functions.supabase.co/zoom-sync';
+```
+
+## Purge automatique des IP (RGPD)
+
+- `cron.zoom_sync_hourly` : sync Zoom toutes les heures
+- `cron.attendance_token_jtis_expire_stale` : nettoie les JTI expirés nightly
+- `cron.attendance_purge_ip_yearly` : purge IP/UA/country > 5 ans, mensuel
+- `cron.zoom_sync_hourly` : invocation auto Edge Function
+
+Vérifier les jobs :
+```sql
+SELECT jobid, jobname, schedule, active FROM cron.job WHERE jobname LIKE '%attendance%' OR jobname LIKE '%zoom%';
+```
+
+## Audit Qualiopi : exporter les preuves d'une feuille
+
+```sql
+SELECT s.id, s.half_day, s.status, s.finalized_at,
+       sig.participant_kind, sig.learner_id, sig.trainer_id,
+       sig.status AS sig_status, sig.signed_at, sig.signer_ip, sig.signer_country,
+       sig.signature_hash, sig.evidence_source, sig.evidence_payload
+  FROM app.attendance_sheets s
+  LEFT JOIN app.attendance_signatures sig ON sig.attendance_sheet_id = s.id
+ WHERE s.dossier_id = '<uuid>';
+```
+
+## Incidents fréquents
+
+| Symptôme | Cause probable | Action |
+|---|---|---|
+| `token_already_consumed` | Apprenant a actualisé la page | Régénérer un nouveau QR |
+| `token_already_expired` | TTL 30 min dépassé | Idem |
+| Sync Zoom échoue avec 401 | Secret rotated côté Zoom | Re-saisir credentials S2S |
+| PDF cold start > 2s | Bundle @react-pdf trop gros | Voir bench, fallback Edge Function dédiée |
+| Trusted-proxy : IP `0.0.0.0` | Headers Railway/CF mal forwardés | Vérifier `next.config.mjs` + Railway proxy |
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add docs/runbooks/attendance.md
+git commit -m "docs(attendance): runbook opérationnel (rotation JWT, Zoom setup, RGPD, audits)"
+git push origin main
+```
+
+### Task 10.5: Type-check + tests full + recette finale
+
+- [ ] **Step 1: Suite complète**
+
+```bash
+cd /Users/anissa/i-a-infinity-of
+pnpm db:reset
+pnpm db:test         # 5 pgTAP attendance + autres
+cd apps/web
+pnpm typecheck
+pnpm test            # Vitest domain + application
+pnpm test:e2e attendance-
+```
+Expected: tout vert
+
+- [ ] **Step 2: Recette manuelle smoke**
+
+Checklist à exécuter en local :
+1. Créer un dossier → créer une session 9h-17h presentiel → vérifier 2 sheets `morning` + `afternoon` créées auto
+2. Ouvrir `/emarger/<sheet_id>` → afficher QR pour 1 apprenant → scanner avec son tel → signer
+3. Vérifier signature stockée avec IP/UA/country dans `attendance_signatures`
+4. Marquer les autres absents
+5. Finaliser → vérifier PDF généré dans bucket `documents` + ligne dans `app.documents`
+6. Re-essayer de modifier la sheet → erreur P0010
+7. Créer une session distanciel avec zoom_meeting_id → uploader le CSV de test
+8. Vérifier les matched + lien manuel pour unmatched
+9. Setup Zoom S2S sur `/reglages/integrations/zoom` → tester connexion
+10. Lancer manuellement `zoom-sync` → vérifier sync
+
+- [ ] **Step 3: Commit final (rien à commit, juste tag)**
+
+```bash
+# Tag de release
+git tag attendance-v1
+git push origin attendance-v1
+```
+
+---
+
+## Définition de "done" (rappel du spec)
+
+- [x] 10 invariants domain testés ≥ 95% coverage
+- [x] 5 tests pgTAP passent
+- [x] 3 tests E2E passent (présentiel, zoom CSV, immutable)
+- [x] Charte UI v3 respectée (audit visuel J9)
+- [x] Mode sombre fonctionnel sur les 5 routes
+- [x] Runbook `docs/runbooks/attendance.md` publié
+- [x] 0 erreur `tsc --noEmit` + `pnpm test` + `pnpm test:e2e` verts en CI
+- [x] Migrations 0027-0035 appliquées et idempotentes
+- [x] Tous les commits sur `origin/main`, Railway déploie automatiquement
+
+---
+
+## Annexe — Compatibilité avec l'existant
+
+- La migration 0026 (`signature_electronique`) est conservée intacte (bucket `signatures` + RPC `get_signature_context`).
+- La RPC `app.record_attendance_signature` v1 (8 args) est **supprimée** par 0031 et remplacée par v2 (11 args avec `signer_country`, `evidence_source`, `evidence_payload`, anti-replay JTI).
+- Le fichier `apps/web/shared/lib/signature-token.ts` reste utilisé jusqu'à Task 7.1 où la route `/signer/[token]` bascule sur `recordSignatureAction`. La fonction `verifySignatureToken` est conservée pour la vérification dans le Server Component preview de cette page.
+- Le fichier `apps/web/app/(apprenant)/signer/[token]/actions.ts` (V1 non-commit, dans le working tree initial) est **supprimé** au profit de `features/attendance/ui/actions/record-signature.action.ts`.
