@@ -14,12 +14,54 @@ const palette = [
   'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
 ];
 
-export default function ApprenantsPage() {
-  const inFormation = dossiers
-    .filter((d) => d.status === 'active' || d.status === 'scheduled')
-    .map((d) => d.learnerId);
+type FilterKey = 'all' | 'in_formation' | 'rqth' | 'no_company';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'Tous' },
+  { key: 'in_formation', label: 'En formation' },
+  { key: 'rqth', label: 'RQTH' },
+  { key: 'no_company', label: 'Sans entreprise' },
+];
+
+export default function ApprenantsPage({
+  searchParams,
+}: {
+  searchParams: { q?: string; filter?: string };
+}) {
+  const inFormationIds = new Set(
+    dossiers
+      .filter((d) => d.status === 'active' || d.status === 'scheduled')
+      .map((d) => d.learnerId),
+  );
+  const inFormation = Array.from(inFormationIds);
   const rqthCount = learners.filter((l) => l.rqth).length;
   const newThisMonth = 2; // mock
+
+  const q = (searchParams.q ?? '').trim().toLowerCase();
+  const activeFilter: FilterKey =
+    FILTERS.some((f) => f.key === searchParams.filter)
+      ? (searchParams.filter as FilterKey)
+      : 'all';
+
+  const filteredLearners = learners.filter((l) => {
+    if (activeFilter === 'in_formation' && !inFormationIds.has(l.id)) return false;
+    if (activeFilter === 'rqth' && !l.rqth) return false;
+    if (activeFilter === 'no_company' && l.companyId) return false;
+    if (q) {
+      const company = companies.find((c) => c.id === l.companyId);
+      const haystack = `${l.firstName} ${l.lastName} ${l.email} ${l.position ?? ''} ${company?.name ?? ''}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const filterHref = (key: FilterKey): string => {
+    const sp = new URLSearchParams();
+    if (key !== 'all') sp.set('filter', key);
+    if (q) sp.set('q', q);
+    const qs = sp.toString();
+    return qs ? `/apprenants?${qs}` : '/apprenants';
+  };
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
@@ -47,25 +89,58 @@ export default function ApprenantsPage() {
       </section>
 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+        <form method="get" action="/apprenants" className="relative">
+          {activeFilter !== 'all' && (
+            <input type="hidden" name="filter" value={activeFilter} />
+          )}
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
           <input
             type="search"
+            name="q"
+            defaultValue={q}
             placeholder="Rechercher un apprenant…"
             className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-[13px] w-80 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
           />
-        </div>
+        </form>
         <div className="flex items-center gap-1.5 text-[12px]">
           <span className="text-zinc-500 dark:text-zinc-400 mr-2">Filtre :</span>
-          <button className="bg-violet-600 text-white px-2.5 py-1 rounded-md font-medium">Tous</button>
-          <button className="text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition">En formation</button>
-          <button className="text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition">RQTH</button>
-          <button className="text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition">Sans entreprise</button>
+          {FILTERS.map((f) => {
+            const active = f.key === activeFilter;
+            return (
+              <Link
+                key={f.key}
+                href={filterHref(f.key)}
+                className={
+                  active
+                    ? 'bg-violet-600 text-white px-2.5 py-1 rounded-md font-medium'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition'
+                }
+              >
+                {f.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
+      {(q || activeFilter !== 'all') && (
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3 px-1">
+          {filteredLearners.length === 0
+            ? 'Aucun apprenant ne correspond.'
+            : `${filteredLearners.length} apprenant${filteredLearners.length > 1 ? 's' : ''} sur ${learners.length}`}
+          {(q || activeFilter !== 'all') && (
+            <>
+              {' · '}
+              <Link href="/apprenants" className="text-violet-600 dark:text-violet-400 hover:underline">
+                Réinitialiser
+              </Link>
+            </>
+          )}
+        </p>
+      )}
+
       <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {learners.map((l) => {
+        {filteredLearners.map((l) => {
           const initials = `${l.firstName[0]}${l.lastName[0]}`.toUpperCase();
           const idx = (l.firstName.charCodeAt(0) + l.lastName.charCodeAt(0)) % palette.length;
           const company = companies.find((c) => c.id === l.companyId);
