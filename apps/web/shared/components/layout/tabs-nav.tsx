@@ -14,6 +14,7 @@ const tabs = [
   { slug: 'questionnaires', label: 'Questionnaires' },
   { slug: 'qualiopi', label: 'Qualiopi' },
   { slug: 'facturation', label: 'Facturation' },
+  { slug: 'acces-apprenant', label: 'Accès apprenant' },
 ];
 
 export function TabsNav({ baseHref }: { baseHref: string }) {
