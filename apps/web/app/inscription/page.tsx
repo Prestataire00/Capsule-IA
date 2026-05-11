@@ -33,6 +33,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { DateOfBirthInput } from '@/shared/ui/date-of-birth-input';
+import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { formations } from '@/shared/mock/data';
 
 type Funder =
@@ -220,13 +222,16 @@ export default function InscriptionPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
       <header className="px-6 py-5 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto flex items-center gap-2.5">
-          <span className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-mono text-[13px] font-medium shadow-sm">
-            ia
-          </span>
-          <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">infinity</p>
-          <span className="text-zinc-300 dark:text-zinc-700">·</span>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Pré-inscription</p>
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-mono text-[13px] font-medium shadow-sm">
+              ia
+            </span>
+            <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">infinity</p>
+            <span className="text-zinc-300 dark:text-zinc-700">·</span>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Pré-inscription</p>
+          </div>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -824,6 +829,9 @@ function SuccessView({
 }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
+      <div className="absolute top-5 right-6">
+        <ThemeToggle />
+      </div>
       <main className="max-w-xl mx-auto px-6 py-20 text-center">
         <span className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/60 dark:to-emerald-950/30 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto mb-6 shadow-sm">
           <CheckCircle2 className="w-8 h-8" />
