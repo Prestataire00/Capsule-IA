@@ -9,6 +9,7 @@ import {
   MessageSquareWarning, Settings, ChevronRight, Plus, Activity, ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
+import { Logo } from '@/shared/ui/logo';
 import { currentUser, dossiers, learnerFullName } from '@/shared/mock/data';
 
 type Item = {
@@ -81,11 +82,8 @@ export function SidebarRail() {
   return (
     <aside className="w-64 flex-shrink-0 border-r border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col">
       {/* Logo brand */}
-      <div className="px-4 py-5 flex items-center gap-2.5">
-        <span className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-mono text-[13px] font-medium shadow-sm">
-          ia
-        </span>
-        <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">infinity</p>
+      <div className="px-4 py-5">
+        <Logo size="sm" withWordmark />
       </div>
 
       {/* CTA Nouveau dossier */}

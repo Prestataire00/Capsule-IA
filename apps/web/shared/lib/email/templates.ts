@@ -1,4 +1,9 @@
 import 'server-only';
+import { env } from '@/env.mjs';
+
+const LOGO_URL = env.PUBLIC_APP_URL
+  ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/logo-icon.png`
+  : 'https://i-a-infinity.com/favicon.png';
 
 const baseStyles = `
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -12,8 +17,8 @@ const wrapper = (inner: string) => `
 <body style="margin:0; padding:0; background:#fafafa; ${baseStyles}">
   <div style="max-width:580px; margin:0 auto; padding:32px 24px;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:24px;">
-      <span style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#7c3aed; color:white; font-family:'JetBrains Mono', ui-monospace, monospace; font-size:13px; font-weight:600;">ia</span>
-      <span style="font-size:14px; font-weight:600; color:#18181b;">infinity</span>
+      <img src="${LOGO_URL}" alt="IA Infinity" width="32" height="32" style="width:32px; height:32px; display:block; border-radius:6px;">
+      <span style="font-size:14px; font-weight:600; color:#18181b;">IA Infinity</span>
       <span style="color:#d4d4d8;">·</span>
       <span style="font-size:13px; color:#71717a;">Plateforme OF</span>
     </div>

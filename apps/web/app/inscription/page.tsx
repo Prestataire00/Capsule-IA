@@ -36,6 +36,7 @@ import {
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { DateOfBirthInput } from '@/shared/ui/date-of-birth-input';
 import { ThemeToggle } from '@/shared/ui/theme-toggle';
+import { Logo } from '@/shared/ui/logo';
 import { formations, FORMATION_CATEGORY_LABELS, type FormationCategory } from '@/shared/mock/data';
 
 type Funder =
@@ -225,10 +226,7 @@ export default function InscriptionPage() {
       <header className="px-6 py-5 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-mono text-[13px] font-medium shadow-sm">
-              ia
-            </span>
-            <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">infinity</p>
+            <Logo size="sm" withWordmark />
             <span className="text-zinc-300 dark:text-zinc-700">·</span>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Pré-inscription</p>
           </div>
