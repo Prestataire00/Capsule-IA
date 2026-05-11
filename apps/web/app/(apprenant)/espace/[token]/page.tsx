@@ -23,8 +23,12 @@ import {
   User,
   AlertTriangle,
   Send,
+  Inbox,
+  Hourglass,
+  XCircle,
 } from 'lucide-react';
 import { learners, dossiers, formations, trainers, sessionsByDossier, modulesByDossier } from '@/shared/mock/data';
+import { submitComplaint } from './actions';
 
 // Mock: tous les tokens mappent à l'apprenant l-1 (Alice Martin) pour la VF
 function resolveLearner(token: string) {
@@ -92,6 +96,78 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
     { id: 'ex-3', title: 'Cas pratique TVA — entreprise X', dueDate: '2026-10-05', status: 'in_progress' as const, moduleTitle: 'TVA & cas spéciaux' },
     { id: 'ex-4', title: 'QCM TVA déductible', dueDate: '2026-10-12', status: 'todo' as const, moduleTitle: 'TVA & cas spéciaux' },
   ];
+
+  // Mock historique réclamations — V1.5 : vraie query Supabase avec learner_id du JWT
+  type ComplaintStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+  type ComplaintEvent = { kind: 'created' | 'comment' | 'status_change' | 'resolution'; at: string; by: string; text: string };
+  const myComplaints: Array<{
+    id: string;
+    reference: string;
+    subject: string;
+    category: string;
+    status: ComplaintStatus;
+    createdAt: string;
+    events: ComplaintEvent[];
+  }> = [
+    {
+      id: 'rec-1',
+      reference: 'REC-2026-A4F2K9',
+      subject: 'Problème de son lors de la session du 15 septembre',
+      category: 'Organisation / logistique',
+      status: 'resolved',
+      createdAt: '2026-09-16T09:12:00Z',
+      events: [
+        { kind: 'created', at: '2026-09-16T09:12:00Z', by: 'Vous', text: 'Réclamation envoyée' },
+        { kind: 'comment', at: '2026-09-16T14:30:00Z', by: 'Acme Formation', text: 'Bonjour, nous avons bien reçu votre signalement. Nous investiguons côté équipement audio.' },
+        { kind: 'status_change', at: '2026-09-17T10:00:00Z', by: 'Acme Formation', text: 'Statut → En cours de traitement' },
+        { kind: 'resolution', at: '2026-09-19T16:45:00Z', by: 'Acme Formation', text: 'Le micro de la salle 3 a été remplacé. Une session de rattrapage de 30 min vous est offerte le 22/09. Merci de votre signalement.' },
+      ],
+    },
+    {
+      id: 'rec-2',
+      reference: 'REC-2026-B8M3X1',
+      subject: 'Demande d\'aménagement pour accessibilité',
+      category: 'Accessibilité',
+      status: 'in_progress',
+      createdAt: '2026-10-02T11:30:00Z',
+      events: [
+        { kind: 'created', at: '2026-10-02T11:30:00Z', by: 'Vous', text: 'Réclamation envoyée' },
+        { kind: 'comment', at: '2026-10-02T15:00:00Z', by: 'Acme Formation', text: 'Merci pour votre demande. Notre référente handicap, Marie Durand, vous contacte sous 48h.' },
+        { kind: 'status_change', at: '2026-10-03T09:15:00Z', by: 'Acme Formation', text: 'Statut → En cours de traitement · Assignée à Marie Durand' },
+      ],
+    },
+  ];
+
+  const complaintStatusConfig: Record<ComplaintStatus, { label: string; tone: string; icon: React.ComponentType<{ className?: string }> }> = {
+    open: {
+      label: 'Ouverte',
+      tone: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
+      icon: Inbox,
+    },
+    in_progress: {
+      label: 'En cours',
+      tone: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
+      icon: Hourglass,
+    },
+    resolved: {
+      label: 'Résolue',
+      tone: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300',
+      icon: CheckCircle2,
+    },
+    closed: {
+      label: 'Clôturée',
+      tone: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400',
+      icon: XCircle,
+    },
+  };
+
+  const formatTimelineDate = (iso: string) =>
+    new Date(iso).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   return (
     <div className="bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/15 dark:to-zinc-950 min-h-[calc(100vh-3rem)]">
@@ -180,7 +256,8 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
               { href: '#documents', label: 'Documents', icon: FileText },
               { href: '#supports', label: 'Supports', icon: BookOpen },
               { href: '#exercices', label: 'Exercices', icon: PenLine },
-              { href: '#reclamation', label: 'Réclamation', icon: MessageSquareWarning },
+              { href: '#mes-reclamations', label: 'Mes réclamations', icon: Inbox },
+              { href: '#reclamation', label: 'Nouvelle réclamation', icon: MessageSquareWarning },
             ].map(({ href, label, icon: Icon }) => (
               <li key={href}>
                 <a
@@ -353,6 +430,111 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
           </ul>
         </Section>
 
+        {/* Mes réclamations — historique + suivi */}
+        <Section
+          id="mes-reclamations"
+          icon={Inbox}
+          title="Mes réclamations"
+          subtitle={
+            myComplaints.length === 0
+              ? 'Vous n\'avez pas encore envoyé de réclamation.'
+              : `${myComplaints.length} réclamation${myComplaints.length > 1 ? 's' : ''} · suivi temps réel par votre OF.`
+          }
+        >
+          {myComplaints.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center mb-3">
+                <Inbox className="w-6 h-6 text-zinc-400" />
+              </div>
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+                Pas de réclamation en cours. Si quelque chose ne va pas, signalez-le ci-dessous 👇
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-3 -my-1">
+              {myComplaints.map((c) => {
+                const cfg = complaintStatusConfig[c.status];
+                const StatusIcon = cfg.icon;
+                return (
+                  <li key={c.id}>
+                    <details className="group bg-zinc-50/60 dark:bg-zinc-950/50 border border-zinc-200/60 dark:border-zinc-800 rounded-xl overflow-hidden transition hover:border-zinc-300/60 dark:hover:border-zinc-700">
+                      <summary className="flex items-start gap-3 p-4 cursor-pointer list-none">
+                        <span className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.tone}`}>
+                          <StatusIcon className="w-4 h-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 leading-snug">
+                              {c.subject}
+                            </p>
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${cfg.tone}`}>
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-zinc-400">{c.reference}</span>
+                            <span className="text-zinc-300 dark:text-zinc-700">·</span>
+                            <span>{c.category}</span>
+                            <span className="text-zinc-300 dark:text-zinc-700">·</span>
+                            <span>Ouvert le {new Date(c.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-1 transition group-open:rotate-90" />
+                      </summary>
+
+                      {/* Timeline */}
+                      <div className="border-t border-zinc-200/60 dark:border-zinc-800 px-4 py-4 bg-white dark:bg-zinc-900">
+                        <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold mb-3">Suivi</p>
+                        <ol className="space-y-3">
+                          {c.events.map((ev, i) => {
+                            const isLast = i === c.events.length - 1;
+                            const dotColor =
+                              ev.kind === 'created' ? 'bg-blue-500'
+                              : ev.kind === 'resolution' ? 'bg-emerald-500'
+                              : ev.kind === 'status_change' ? 'bg-violet-500'
+                              : 'bg-zinc-400';
+                            const isFromYou = ev.by === 'Vous';
+                            return (
+                              <li key={i} className="flex gap-3 relative">
+                                <div className="flex flex-col items-center flex-shrink-0">
+                                  <span className={`w-2.5 h-2.5 rounded-full ${dotColor} ring-2 ring-white dark:ring-zinc-900 z-10 mt-1`} />
+                                  {!isLast && (
+                                    <span className="w-px flex-1 bg-zinc-200 dark:bg-zinc-800 mt-0.5" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0 pb-1">
+                                  <div className="flex items-baseline gap-2 flex-wrap">
+                                    <span className={`text-[12px] font-medium ${isFromYou ? 'text-violet-700 dark:text-violet-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                                      {ev.by}
+                                    </span>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{formatTimelineDate(ev.at)}</span>
+                                  </div>
+                                  <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug">
+                                    {ev.text}
+                                  </p>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
+
+                        {(c.status === 'open' || c.status === 'in_progress') && (
+                          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                              <Hourglass className="w-3 h-3 text-amber-500" />
+                              Réponse sous 15 jours ouvrés (engagement Qualiopi).
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Section>
+
         {/* Réclamation */}
         <Section id="reclamation" icon={MessageSquareWarning} title="Faire une réclamation" subtitle="Conformément à nos engagements Qualiopi, vous pouvez nous signaler tout dysfonctionnement.">
           <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-lg px-3 py-2.5 mb-5">
@@ -361,7 +543,8 @@ export default function EspaceApprenantPage({ params }: { params: { token: strin
               Nous nous engageons à vous répondre sous <strong className="font-semibold">15 jours ouvrés</strong>. Les réclamations sont traitées de façon confidentielle.
             </p>
           </div>
-          <form action={`/espace/${params.token}/reclamation/envoyee`} method="get" className="space-y-4">
+          <form action={submitComplaint} className="space-y-4">
+            <input type="hidden" name="token" value={params.token} />
             <label className="block">
               <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 block mb-1.5">
                 Type de réclamation <span className="text-rose-500">*</span>
