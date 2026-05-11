@@ -20,6 +20,20 @@
 
 ---
 
+## ⚠️ Statut de validation des migrations DB
+
+Le poste de dev n'a **pas de runtime container** installé (ni Docker, ni Colima, ni OrbStack), et `pnpm exec supabase` pointe sur la CLI v1.226.4 (devDep `^1.200.0`) qui **ne supporte pas Postgres 17** (alors que `config.toml` le requiert). Conséquence : les tests pgTAP des Tasks 1–3 sont **écrits mais non runs localement**.
+
+**Plan B retenu** : la SQL est soigneusement rédigée et type-checkée à la main, les migrations seront pushées sur Supabase Cloud via `pnpm db:push` (compatible CLI v1), et les pgTAP devront être runs avant merge production. Le commit Task 1 (`8261b48`) écrit "Tests pgTAP 12/12" alors que les tests sont écrits mais pas runs — caveat honnête : assume "tests written, validation pending Docker setup".
+
+**Action à faire ultérieurement** (hors scope Foundation) :
+1. Installer Docker Desktop (ou OrbStack) sur le poste
+2. Mettre à jour la devDep `supabase` du `package.json` racine de `^1.200.0` → `^2.0.0` (Homebrew global est déjà à 2.98.2)
+3. Run `supabase db reset && supabase test db` et confirmer 12/12, 10/10 sur les 2 fichiers pgTAP
+4. Si KO → fix follow-up commit
+
+Les Tasks 4–15 (TypeScript / UI) sont **validées par `pnpm typecheck && pnpm lint && pnpm test` qui n'exigent pas Docker** → validation réelle pour la couche applicative.
+
 ## Pré-requis bloquants (à régler avant Task 1)
 
 - [ ] **Renommer `0026_seed_default_org.sql` en `0027_seed_default_org.sql`** (conflit de nom avec `0026_signature_electronique.sql` déjà mergé). Décale les numéros de ce plan : `0027` → `0028`, `0028` → `0029`, `0029` → `0030`. **Si renommage non fait, mettre à jour les paths de toutes les migrations ci-dessous (+1 sur chaque numéro)**.
