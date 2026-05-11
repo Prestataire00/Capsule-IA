@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 const MONTHS_FR = [
   'Janvier',
@@ -84,57 +85,69 @@ export function DateOfBirthInput({
   };
 
   const selectClass =
-    'bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-violet-300 dark:focus:border-violet-700 focus:ring-2 focus:ring-violet-500/10 transition appearance-none cursor-pointer text-zinc-900 dark:text-zinc-100';
+    'w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-3 pr-8 py-2 text-[13px] focus:outline-none focus:border-violet-300 dark:focus:border-violet-700 focus:ring-2 focus:ring-violet-500/10 transition appearance-none cursor-pointer text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700';
+
+  const wrapClass = 'relative';
+  const chevronClass = 'absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none';
 
   return (
     <div className={`grid grid-cols-[1fr_2fr_1.3fr] gap-2 ${className ?? ''}`}>
-      <select
-        id={`${baseId}-day`}
-        aria-label="Jour de naissance"
-        value={parsed.d}
-        onChange={(e) => handleDayChange(e.target.value)}
-        className={selectClass}
-      >
-        <option value="">Jour</option>
-        {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-          <option key={d} value={String(d).padStart(2, '0')}>
-            {d}
-          </option>
-        ))}
-      </select>
-
-      <select
-        id={`${baseId}-month`}
-        aria-label="Mois de naissance"
-        value={parsed.mo}
-        onChange={(e) => handleMonthChange(e.target.value)}
-        className={selectClass}
-      >
-        <option value="">Mois</option>
-        {MONTHS_FR.map((label, i) => {
-          const v = String(i + 1).padStart(2, '0');
-          return (
-            <option key={v} value={v}>
-              {label}
+      <div className={wrapClass}>
+        <select
+          id={`${baseId}-day`}
+          aria-label="Jour de naissance"
+          value={parsed.d}
+          onChange={(e) => handleDayChange(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">Jour</option>
+          {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
+            <option key={d} value={String(d).padStart(2, '0')}>
+              {d}
             </option>
-          );
-        })}
-      </select>
+          ))}
+        </select>
+        <ChevronDown className={chevronClass} />
+      </div>
 
-      <select
-        id={`${baseId}-year`}
-        aria-label="Année de naissance"
-        value={parsed.y}
-        onChange={(e) => handleYearChange(e.target.value)}
-        className={selectClass}
-      >
-        <option value="">Année</option>
-        {years.map((y) => (
-          <option key={y} value={String(y)}>
-            {y}
-          </option>
-        ))}
-      </select>
+      <div className={wrapClass}>
+        <select
+          id={`${baseId}-month`}
+          aria-label="Mois de naissance"
+          value={parsed.mo}
+          onChange={(e) => handleMonthChange(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">Mois</option>
+          {MONTHS_FR.map((label, i) => {
+            const v = String(i + 1).padStart(2, '0');
+            return (
+              <option key={v} value={v}>
+                {label}
+              </option>
+            );
+          })}
+        </select>
+        <ChevronDown className={chevronClass} />
+      </div>
+
+      <div className={wrapClass}>
+        <select
+          id={`${baseId}-year`}
+          aria-label="Année de naissance"
+          value={parsed.y}
+          onChange={(e) => handleYearChange(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">Année</option>
+          {years.map((y) => (
+            <option key={y} value={String(y)}>
+              {y}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className={chevronClass} />
+      </div>
     </div>
   );
 }
