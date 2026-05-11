@@ -83,7 +83,7 @@ export function SidebarRail() {
     <aside className="w-64 flex-shrink-0 border-r border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col">
       {/* Logo brand */}
       <div className="px-4 py-5">
-        <Logo size="sm" withWordmark />
+        <Logo size="md" />
       </div>
 
       {/* CTA Nouveau dossier */}

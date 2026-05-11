@@ -17,8 +17,7 @@ const wrapper = (inner: string) => `
 <body style="margin:0; padding:0; background:#fafafa; ${baseStyles}">
   <div style="max-width:580px; margin:0 auto; padding:32px 24px;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:24px;">
-      <img src="${LOGO_URL}" alt="IA Infinity" width="32" height="32" style="width:32px; height:32px; display:block; border-radius:6px;">
-      <span style="font-size:14px; font-weight:600; color:#18181b;">IA Infinity</span>
+      <img src="${LOGO_URL}" alt="IA Infinity" width="89" height="40" style="width:89px; height:40px; display:block;">
       <span style="color:#d4d4d8;">·</span>
       <span style="font-size:13px; color:#71717a;">Plateforme OF</span>
     </div>

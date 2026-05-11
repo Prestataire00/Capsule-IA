@@ -46,7 +46,7 @@ export function EspaceSidebar({
     <aside className="w-64 flex-shrink-0 border-r border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm flex flex-col">
       {/* Brand */}
       <div className="px-4 py-5 border-b border-zinc-200/60 dark:border-zinc-800">
-        <Logo size="sm" withWordmark />
+        <Logo size="md" />
       </div>
 
       {/* Apprenant identity */}

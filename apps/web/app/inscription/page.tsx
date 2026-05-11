@@ -242,7 +242,7 @@ export default function InscriptionPage() {
       <header className="px-6 py-5 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5">
-            <Logo size="sm" withWordmark />
+            <Logo size="md" />
             <span className="text-zinc-300 dark:text-zinc-700">·</span>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Pré-inscription</p>
           </div>
