@@ -153,14 +153,30 @@ export default function InscriptionPage() {
 
   const requiredFilled = docs.filter((d) => d.required).every((d) => files[d.key]);
 
-  const canContinue =
-    step === 0
-      ? !!(identity.firstName && identity.lastName && identity.email)
-      : step === 1
-      ? !!formation.formationId
-      : step === 2
-      ? !!funding.funder
-      : true;
+  const missingFields = (() => {
+    if (step === 0) {
+      const missing: string[] = [];
+      if (!identity.firstName?.trim()) missing.push('Prénom');
+      if (!identity.lastName?.trim()) missing.push('Nom');
+      if (!identity.email?.trim()) missing.push('Email');
+      return missing;
+    }
+    if (step === 1) return formation.formationId ? [] : ['Formation'];
+    if (step === 2) return funding.funder ? [] : ['Mode de financement'];
+    return [];
+  })();
+  const canContinue = missingFields.length === 0;
+
+  const tryContinue = () => {
+    if (canContinue) {
+      setStep(step + 1);
+      setSubmitError(null);
+    } else {
+      setSubmitError(
+        `Pour continuer, renseignez : ${missingFields.join(', ')}.`,
+      );
+    }
+  };
 
   const selectedFormation = formations.find((f) => f.id === formation.formationId);
   const selectedFunder = FUNDERS.find((f) => f.value === funding.funder);
@@ -305,9 +321,8 @@ export default function InscriptionPage() {
             {step < STEPS.length - 1 ? (
               <button
                 type="button"
-                onClick={() => canContinue && setStep(step + 1)}
-                disabled={!canContinue}
-                className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+                onClick={tryContinue}
+                className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
               >
                 Continuer
                 <ArrowRight className="w-3.5 h-3.5" />
