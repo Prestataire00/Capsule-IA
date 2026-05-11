@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
+import QRCode from 'qrcode';
 import { env } from '@/env.mjs';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { sendEmail } from '@/shared/lib/email/resend';
@@ -14,7 +15,7 @@ const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export type GenerateLinkResult =
-  | { ok: true; url: string; expiresAt: string; learnerEmail: string | null; learnerName: string }
+  | { ok: true; url: string; qrDataUrl: string; expiresAt: string; learnerEmail: string | null; learnerName: string }
   | { ok: false; error: string };
 
 export async function generateApprenantLink(dossierId: string): Promise<GenerateLinkResult> {
@@ -45,9 +46,17 @@ export async function generateApprenantLink(dossierId: string): Promise<Generate
     env.PUBLIC_APP_URL,
   );
 
+  const qrDataUrl = await QRCode.toDataURL(signed.url, {
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    width: 320,
+    color: { dark: '#18181b', light: '#ffffff' },
+  });
+
   return {
     ok: true,
     url: signed.url,
+    qrDataUrl,
     expiresAt: signed.expiresAt.toISOString(),
     learnerEmail: row.learner?.email ?? null,
     learnerName: row.learner ? `${row.learner.first_name} ${row.learner.last_name}` : 'Apprenant',

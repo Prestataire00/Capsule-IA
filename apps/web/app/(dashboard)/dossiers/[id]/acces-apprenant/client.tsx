@@ -11,6 +11,7 @@ type LinkState =
   | {
       status: 'ready';
       url: string;
+      qrDataUrl: string;
       expiresAt: string;
       learnerEmail: string | null;
       learnerName: string;
@@ -37,6 +38,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
         setLink({
           status: 'ready',
           url: result.url,
+          qrDataUrl: result.qrDataUrl,
           expiresAt: result.expiresAt,
           learnerEmail: result.learnerEmail,
           learnerName: result.learnerName,
@@ -138,11 +140,12 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
             </div>
           </div>
 
-          <div>
-            <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
-              URL personnelle signée
-            </label>
-            <div className="flex items-stretch gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start">
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
+                URL personnelle signée
+              </label>
+              <div className="flex items-stretch gap-2">
               <input
                 type="text"
                 value={link.url}
@@ -158,6 +161,20 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Copié' : 'Copier'}
               </button>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
+                QR code
+              </label>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={link.qrDataUrl}
+                alt="QR code de l'URL apprenant"
+                className="w-32 h-32 bg-white p-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 shadow-sm mx-auto"
+              />
+              <p className="text-[10px] text-zinc-400 mt-1.5">À scanner avec le téléphone</p>
             </div>
           </div>
 
