@@ -12,6 +12,7 @@ export type TrainerId = Brand<string, 'TrainerId'>;
 export type FunderId = Brand<string, 'FunderId'>;
 export type DossierModuleId = Brand<string, 'DossierModuleId'>;
 export type DossierFunderId = Brand<string, 'DossierFunderId'>;
+export type CompetencyId = Brand<string, 'CompetencyId'>;
 
 export const OrganizationId = makeId<'OrganizationId'>();
 export const UserId = makeId<'UserId'>();
@@ -24,3 +25,4 @@ export const TrainerId = makeId<'TrainerId'>();
 export const FunderId = makeId<'FunderId'>();
 export const DossierModuleId = makeId<'DossierModuleId'>();
 export const DossierFunderId = makeId<'DossierFunderId'>();
+export const CompetencyId = makeId<'CompetencyId'>();
