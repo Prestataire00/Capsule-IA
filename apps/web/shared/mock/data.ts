@@ -40,12 +40,29 @@ export const companies = [
   { id: 'c-3', name: 'Horizon Group', siret: '99988877766655', email: 'formation@horizon.fr', city: 'Bordeaux' },
 ];
 
+export type FormationCategory =
+  | 'accounting'
+  | 'tech'
+  | 'management'
+  | 'languages'
+  | 'office'
+  | 'other';
+
+export const FORMATION_CATEGORY_LABELS: Record<FormationCategory, string> = {
+  accounting: 'Comptabilité & Gestion',
+  tech: 'Tech & Développement',
+  management: 'Management & Soft skills',
+  languages: 'Langues',
+  office: 'Bureautique & Outils',
+  other: 'Autres',
+};
+
 export const formations = [
-  { id: 'f-1', code: 'F-001', title: 'Comptabilité Niveau 2', defaultHours: 70, modality: 'presentiel' as Modality, isPublished: true },
-  { id: 'f-2', code: 'F-002', title: 'JavaScript Avancé', defaultHours: 35, modality: 'distanciel' as Modality, isPublished: true },
-  { id: 'f-3', code: 'F-003', title: 'Management de projet agile', defaultHours: 21, modality: 'hybride' as Modality, isPublished: true },
-  { id: 'f-4', code: 'F-004', title: "Anglais des affaires B2", defaultHours: 40, modality: 'distanciel' as Modality, isPublished: true },
-  { id: 'f-5', code: 'F-005', title: 'Excel pour les RH', defaultHours: 14, modality: 'presentiel' as Modality, isPublished: false },
+  { id: 'f-1', code: 'F-001', title: 'Comptabilité Niveau 2', defaultHours: 70, modality: 'presentiel' as Modality, isPublished: true, category: 'accounting' as FormationCategory },
+  { id: 'f-2', code: 'F-002', title: 'JavaScript Avancé', defaultHours: 35, modality: 'distanciel' as Modality, isPublished: true, category: 'tech' as FormationCategory },
+  { id: 'f-3', code: 'F-003', title: 'Management de projet agile', defaultHours: 21, modality: 'hybride' as Modality, isPublished: true, category: 'management' as FormationCategory },
+  { id: 'f-4', code: 'F-004', title: "Anglais des affaires B2", defaultHours: 40, modality: 'distanciel' as Modality, isPublished: true, category: 'languages' as FormationCategory },
+  { id: 'f-5', code: 'F-005', title: 'Excel pour les RH', defaultHours: 14, modality: 'presentiel' as Modality, isPublished: false, category: 'office' as FormationCategory },
 ];
 
 export const trainers = [

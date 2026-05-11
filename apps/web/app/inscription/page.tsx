@@ -35,7 +35,7 @@ import {
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { DateOfBirthInput } from '@/shared/ui/date-of-birth-input';
 import { ThemeToggle } from '@/shared/ui/theme-toggle';
-import { formations } from '@/shared/mock/data';
+import { formations, FORMATION_CATEGORY_LABELS, type FormationCategory } from '@/shared/mock/data';
 
 type Funder =
   | 'opco'
@@ -490,48 +490,78 @@ function FormationStep({
       </div>
 
       <FormField label="Formation" required>
-        <div className="space-y-2">
-          {formations.map((f) => {
-            const checked = value.formationId === f.id;
-            return (
-              <label
-                key={f.id}
-                className={`block border rounded-lg px-4 py-3 cursor-pointer transition ${
-                  checked
-                    ? 'border-violet-300 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30'
-                    : 'border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="formationId"
-                  value={f.id}
-                  checked={checked}
-                  onChange={() => update('formationId', f.id)}
-                  className="sr-only"
-                />
-                <div className="flex items-start gap-3">
-                  <span className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 flex items-center justify-center flex-shrink-0">
-                    <BookOpen className="w-4 h-4" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
-                    <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                      {f.title}
-                    </p>
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 inline-flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {f.defaultHours} h
-                      </span>
-                      <span className="text-zinc-300 dark:text-zinc-700">·</span>
-                      <span>{modalityLabel[f.modality] ?? f.modality}</span>
-                    </p>
+        <div className="space-y-5">
+          {(() => {
+            const groups = new Map<FormationCategory, typeof formations>();
+            for (const f of formations) {
+              if (!f.isPublished) continue;
+              const cat = (f.category ?? 'other') as FormationCategory;
+              const arr = groups.get(cat) ?? [];
+              arr.push(f);
+              groups.set(cat, arr);
+            }
+            const order: FormationCategory[] = ['accounting', 'tech', 'management', 'languages', 'office', 'other'];
+            return order
+              .filter((cat) => groups.has(cat))
+              .map((cat) => {
+                const list = groups.get(cat)!;
+                return (
+                  <div key={cat}>
+                    <div className="flex items-baseline justify-between mb-2 px-1">
+                      <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
+                        {FORMATION_CATEGORY_LABELS[cat]}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
+                        {list.length} formation{list.length > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {list.map((f) => {
+                        const checked = value.formationId === f.id;
+                        return (
+                          <label
+                            key={f.id}
+                            className={`block border rounded-lg px-4 py-3 cursor-pointer transition ${
+                              checked
+                                ? 'border-violet-300 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30'
+                                : 'border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="formationId"
+                              value={f.id}
+                              checked={checked}
+                              onChange={() => update('formationId', f.id)}
+                              className="sr-only"
+                            />
+                            <div className="flex items-start gap-3">
+                              <span className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 flex items-center justify-center flex-shrink-0">
+                                <BookOpen className="w-4 h-4" />
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
+                                <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                  {f.title}
+                                </p>
+                                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 inline-flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> {f.defaultHours} h
+                                  </span>
+                                  <span className="text-zinc-300 dark:text-zinc-700">·</span>
+                                  <span>{modalityLabel[f.modality] ?? f.modality}</span>
+                                </p>
+                              </div>
+                              {checked && <Check className="w-4 h-4 text-violet-600 flex-shrink-0 mt-1" />}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                  {checked && <Check className="w-4 h-4 text-violet-600 flex-shrink-0 mt-1" />}
-                </div>
-              </label>
-            );
-          })}
+                );
+              });
+          })()}
         </div>
       </FormField>
 
