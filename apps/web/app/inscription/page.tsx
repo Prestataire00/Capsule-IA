@@ -440,11 +440,9 @@ function IdentityStep({
           </div>
         </FormField>
         <FormField label="Date de naissance">
-          <input
-            type="date"
+          <DateOfBirthInput
             value={value.birthDate}
-            onChange={(e) => update('birthDate', e.target.value)}
-            className={inputClass}
+            onChange={(iso) => update('birthDate', iso)}
           />
         </FormField>
       </div>
