@@ -74,8 +74,23 @@ const palette = [
 
 const recentDossiers = dossiers.slice(0, 3);
 
-export function SidebarRail() {
+export type SidebarCounts = {
+  reclamationsActive?: number;
+};
+
+const BADGE_MAPPING: Record<string, { tone: keyof typeof badgeStyles }> = {
+  '/reclamations': { tone: 'rose' },
+};
+
+export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
   const pathname = usePathname();
+
+  const dynamicBadgeFor = (href: string): { count: number; tone: keyof typeof badgeStyles } | null => {
+    if (href === '/reclamations' && counts?.reclamationsActive && counts.reclamationsActive > 0) {
+      return { count: counts.reclamationsActive, tone: BADGE_MAPPING[href]?.tone ?? 'rose' };
+    }
+    return null;
+  };
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
   const userInitials = currentUser.full_name.split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2);
 
@@ -105,8 +120,9 @@ export function SidebarRail() {
               {section.title}
             </p>
             <ul className="space-y-0.5">
-              {section.items.map(({ href, icon: Icon, label, badge }) => {
+              {section.items.map(({ href, icon: Icon, label }) => {
                 const active = isActive(href);
+                const badge = dynamicBadgeFor(href);
                 return (
                   <li key={href}>
                     <Link
