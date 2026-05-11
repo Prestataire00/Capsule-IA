@@ -1,22 +1,53 @@
 // ARCHETYPE: command
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Inbox } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { complaints, dossiers } from '@/shared/mock/data';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/env.mjs';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
+
+export const dynamic = 'force-dynamic';
+
+type ComplaintRow = {
+  id: string;
+  reference: string;
+  subject: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  reporter_name: string | null;
+  reporter_email: string | null;
+  created_at: string;
+  metadata: Record<string, unknown>;
+};
+
+const admin = () =>
+  createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
 const sevTone = { low: 'success', medium: 'warning', high: 'danger', critical: 'danger' } as const;
 const sevLabel = { low: 'mineure', medium: 'moyenne', high: 'élevée', critical: 'critique' };
 const stateLabel = { open: 'ouverte', in_progress: 'en cours', resolved: 'résolue', closed: 'clôturée' };
 
-export default function ReclamationsPage() {
+export default async function ReclamationsPage() {
+  const sb = admin();
+  const { data } = await sb
+    .schema('app')
+    .from('complaints')
+    .select('id, reference, subject, status, severity, reporter_name, reporter_email, created_at, metadata')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  const complaints = (data ?? []) as unknown as ComplaintRow[];
   const open = complaints.filter((c) => c.status === 'open' || c.status === 'in_progress');
+
   return (
     <div className="max-w-6xl w-full mx-auto px-6 py-8">
-      <header className="flex items-end justify-between mb-6">
+      <header className="flex items-end justify-between mb-6 flex-wrap gap-3">
         <div>
           <SectionLabel className="mb-1">Qualité</SectionLabel>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Réclamations</h1>
@@ -29,34 +60,54 @@ export default function ReclamationsPage() {
           className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
         >
           <Plus className="w-3.5 h-3.5" />
-          Nouvelle réclamation
+          Saisie manuelle
         </Link>
       </header>
 
-      <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-        {complaints.map((c) => {
-          const dossier = c.dossierId ? dossiers.find((d) => d.id === c.dossierId) : null;
-          return (
-            <li key={c.id}>
-              <Link
-                href="#"
-                className="grid grid-cols-[120px_1fr_120px_140px_100px_100px] gap-3 py-3 px-1 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
-              >
-                <IdPill>{c.reference}</IdPill>
-                <span className="text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</span>
-                <span className="text-zinc-500 dark:text-zinc-400">{c.assignedTo ?? <span className="text-zinc-400">non assignée</span>}</span>
-                <span className="font-mono text-[11px] text-zinc-500">
-                  {format(parseISO(c.createdAt), 'dd MMM yyyy', { locale: fr })}
-                </span>
-                <StatusPill tone={sevTone[c.severity]}>{sevLabel[c.severity]}</StatusPill>
-                <StatusPill tone={c.status === 'resolved' || c.status === 'closed' ? 'neutral' : c.status === 'in_progress' ? 'warning' : 'danger'}>
-                  {stateLabel[c.status]}
-                </StatusPill>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      {complaints.length === 0 ? (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl p-12 text-center shadow-sm">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center mb-4">
+            <Inbox className="w-6 h-6 text-zinc-400" />
+          </div>
+          <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Pas de réclamation enregistrée</p>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+            Les réclamations soumises depuis l&apos;espace apprenant apparaîtront ici.
+          </p>
+        </div>
+      ) : (
+        <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          {complaints.map((c) => {
+            const category = (c.metadata?.category_label as string) ?? (c.metadata?.category as string) ?? '—';
+            return (
+              <li key={c.id}>
+                <Link
+                  href={`/reclamations/${c.id}`}
+                  className="grid grid-cols-[130px_1fr_140px_120px_110px_110px] gap-3 py-3 px-1 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
+                >
+                  <IdPill>{c.reference}</IdPill>
+                  <span className="text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 truncate text-[12px]">
+                    {c.reporter_name ?? <span className="text-zinc-400">anonyme</span>}
+                  </span>
+                  <span className="font-mono text-[11px] text-zinc-500">
+                    {format(parseISO(c.created_at), 'dd MMM yyyy', { locale: fr })}
+                  </span>
+                  <StatusPill tone={sevTone[c.severity]}>{sevLabel[c.severity]}</StatusPill>
+                  <StatusPill
+                    tone={
+                      c.status === 'resolved' || c.status === 'closed' ? 'neutral'
+                      : c.status === 'in_progress' ? 'warning'
+                      : 'danger'
+                    }
+                  >
+                    {stateLabel[c.status]}
+                  </StatusPill>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
