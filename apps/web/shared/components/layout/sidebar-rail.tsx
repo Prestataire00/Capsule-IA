@@ -24,7 +24,7 @@ const sections: { title: string; items: Item[] }[] = [
     title: 'Principal',
     items: [
       { href: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
-      { href: '/dossiers', icon: FolderOpen, label: 'Dossiers', badge: { count: 24, tone: 'violet' } },
+      { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
       { href: '/planning', icon: Calendar, label: 'Planning' },
     ],
   },
@@ -41,11 +41,11 @@ const sections: { title: string; items: Item[] }[] = [
   {
     title: 'Suivi',
     items: [
-      { href: '/documents', icon: FileText, label: 'Documents', badge: { count: 18, tone: 'violet' } },
-      { href: '/emargements', icon: ClipboardCheck, label: 'Émargements', badge: { count: 7, tone: 'amber' } },
-      { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires', badge: { count: 12, tone: 'violet' } },
-      { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations', badge: { count: 2, tone: 'rose' } },
-      { href: '/factures', icon: Receipt, label: 'Facturation', badge: { count: 3, tone: 'amber' } },
+      { href: '/documents', icon: FileText, label: 'Documents' },
+      { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
+      { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
+      { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
+      { href: '/factures', icon: Receipt, label: 'Facturation' },
     ],
   },
   {
