@@ -2,7 +2,7 @@
 // Justification: liste des documents générés du dossier avec statut signature.
 
 import { notFound } from 'next/navigation';
-import { Plus, FileText, Download, Eye, FileSignature } from 'lucide-react';
+import { Plus, FileText, Download, Eye, FileSignature, Sparkles } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { dossiers, documentsByDossier } from '@/shared/mock/data';
@@ -16,6 +16,29 @@ export default function DocumentsPage({ params }: { params: { id: string } }) {
 
   return (
     <div>
+      <section className="bg-gradient-to-br from-violet-50 to-violet-50/60 dark:from-violet-950/40 dark:to-violet-950/20 border border-violet-200/60 dark:border-violet-900/40 rounded-xl p-4 mb-5 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <span className="w-10 h-10 rounded-lg bg-white dark:bg-zinc-900 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Convention de formation</p>
+            <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5">
+              Générée automatiquement depuis les données du dossier. Conforme article L.6353-1 (Code du Travail) et Qualiopi I27.
+            </p>
+          </div>
+        </div>
+        <a
+          href={`/api/dossiers/${params.id}/convention.pdf`}
+          target="_blank"
+          rel="noreferrer"
+          className="bg-violet-600 hover:bg-violet-700 text-white text-[12px] font-medium px-3 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Télécharger PDF
+        </a>
+      </section>
+
       <header className="flex items-center justify-between mb-4">
         <div>
           <SectionLabel className="mb-1">Documents</SectionLabel>
