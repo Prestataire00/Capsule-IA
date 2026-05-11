@@ -31,6 +31,7 @@ import {
   Video,
   BookOpen,
   AlertCircle,
+  Search,
 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { DateOfBirthInput } from '@/shared/ui/date-of-birth-input';
@@ -480,6 +481,56 @@ function FormationStep({
   const update = <K extends keyof typeof value>(k: K, v: (typeof value)[K]) =>
     onChange({ ...value, [k]: v });
 
+  const [query, setQuery] = useState('');
+  const [activeCats, setActiveCats] = useState<Set<FormationCategory>>(new Set());
+
+  const toggleCat = (cat: FormationCategory) => {
+    setActiveCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const publishedFormations = useMemo(() => formations.filter((f) => f.isPublished), []);
+
+  const countByCat = useMemo(() => {
+    const map = new Map<FormationCategory, number>();
+    for (const f of publishedFormations) {
+      const cat = (f.category ?? 'other') as FormationCategory;
+      map.set(cat, (map.get(cat) ?? 0) + 1);
+    }
+    return map;
+  }, [publishedFormations]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return publishedFormations.filter((f) => {
+      const cat = (f.category ?? 'other') as FormationCategory;
+      if (activeCats.size > 0 && !activeCats.has(cat)) return false;
+      if (q) {
+        const haystack = `${f.title} ${f.code} ${FORMATION_CATEGORY_LABELS[cat]} ${modalityLabel[f.modality] ?? ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [publishedFormations, query, activeCats]);
+
+  const grouped = useMemo(() => {
+    const order: FormationCategory[] = ['accounting', 'tech', 'management', 'languages', 'office', 'other'];
+    const groups = new Map<FormationCategory, typeof filtered>();
+    for (const f of filtered) {
+      const cat = (f.category ?? 'other') as FormationCategory;
+      const arr = groups.get(cat) ?? [];
+      arr.push(f);
+      groups.set(cat, arr);
+    }
+    return order.filter((cat) => groups.has(cat)).map((cat) => ({ cat, list: groups.get(cat)! }));
+  }, [filtered]);
+
+  const orderedCats: FormationCategory[] = ['accounting', 'tech', 'management', 'languages', 'office'];
+
   return (
     <section className="p-6 space-y-5">
       <div>
@@ -490,78 +541,147 @@ function FormationStep({
       </div>
 
       <FormField label="Formation" required>
-        <div className="space-y-5">
-          {(() => {
-            const groups = new Map<FormationCategory, typeof formations>();
-            for (const f of formations) {
-              if (!f.isPublished) continue;
-              const cat = (f.category ?? 'other') as FormationCategory;
-              const arr = groups.get(cat) ?? [];
-              arr.push(f);
-              groups.set(cat, arr);
-            }
-            const order: FormationCategory[] = ['accounting', 'tech', 'management', 'languages', 'office', 'other'];
-            return order
-              .filter((cat) => groups.has(cat))
-              .map((cat) => {
-                const list = groups.get(cat)!;
-                return (
-                  <div key={cat}>
-                    <div className="flex items-baseline justify-between mb-2 px-1">
-                      <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
-                        {FORMATION_CATEGORY_LABELS[cat]}
-                      </p>
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
-                        {list.length} formation{list.length > 1 ? 's' : ''}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      {list.map((f) => {
-                        const checked = value.formationId === f.id;
-                        return (
-                          <label
-                            key={f.id}
-                            className={`block border rounded-lg px-4 py-3 cursor-pointer transition ${
-                              checked
-                                ? 'border-violet-300 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30'
-                                : 'border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="formationId"
-                              value={f.id}
-                              checked={checked}
-                              onChange={() => update('formationId', f.id)}
-                              className="sr-only"
-                            />
-                            <div className="flex items-start gap-3">
-                              <span className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 flex items-center justify-center flex-shrink-0">
-                                <BookOpen className="w-4 h-4" />
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
-                                <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                                  {f.title}
-                                </p>
-                                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 inline-flex items-center gap-2">
-                                  <span className="inline-flex items-center gap-1">
-                                    <Clock className="w-3 h-3" /> {f.defaultHours} h
-                                  </span>
-                                  <span className="text-zinc-300 dark:text-zinc-700">·</span>
-                                  <span>{modalityLabel[f.modality] ?? f.modality}</span>
-                                </p>
-                              </div>
-                              {checked && <Check className="w-4 h-4 text-violet-600 flex-shrink-0 mt-1" />}
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
+        <div className="space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher une formation, un code, une thématique…"
+              className={`${inputClass} pl-9`}
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition p-1"
+                aria-label="Effacer la recherche"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Category chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveCats(new Set())}
+              className={`text-[12px] font-medium px-3 py-1 rounded-full border transition ${
+                activeCats.size === 0
+                  ? 'bg-violet-600 text-white border-violet-600'
+                  : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200/60 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'
+              }`}
+            >
+              Toutes ({publishedFormations.length})
+            </button>
+            {orderedCats.map((cat) => {
+              const count = countByCat.get(cat) ?? 0;
+              if (count === 0) return null;
+              const active = activeCats.has(cat);
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => toggleCat(cat)}
+                  className={`text-[12px] font-medium px-3 py-1 rounded-full border transition ${
+                    active
+                      ? 'bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border-violet-300 dark:border-violet-800'
+                      : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200/60 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'
+                  }`}
+                >
+                  {FORMATION_CATEGORY_LABELS[cat]} <span className="text-zinc-400 dark:text-zinc-500">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Results count */}
+          {(query || activeCats.size > 0) && (
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 px-1">
+              {filtered.length === 0
+                ? 'Aucune formation ne correspond'
+                : `${filtered.length} formation${filtered.length > 1 ? 's' : ''} sur ${publishedFormations.length}`}
+            </p>
+          )}
+
+          {/* Groups */}
+          {filtered.length === 0 ? (
+            <div className="border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-8 text-center">
+              <Search className="w-5 h-5 text-zinc-300 dark:text-zinc-700 mx-auto mb-2" />
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-1">Pas de formation pour ces critères</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('');
+                  setActiveCats(new Set());
+                }}
+                className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline font-medium"
+              >
+                Réinitialiser les filtres
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {grouped.map(({ cat, list }) => (
+                <div key={cat}>
+                  <div className="flex items-baseline justify-between mb-2 px-1">
+                    <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
+                      {FORMATION_CATEGORY_LABELS[cat]}
+                    </p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
+                      {list.length} formation{list.length > 1 ? 's' : ''}
+                    </p>
                   </div>
-                );
-              });
-          })()}
+                  <div className="space-y-2">
+                    {list.map((f) => {
+                      const checked = value.formationId === f.id;
+                      return (
+                        <label
+                          key={f.id}
+                          className={`block border rounded-lg px-4 py-3 cursor-pointer transition ${
+                            checked
+                              ? 'border-violet-300 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30'
+                              : 'border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="formationId"
+                            value={f.id}
+                            checked={checked}
+                            onChange={() => update('formationId', f.id)}
+                            className="sr-only"
+                          />
+                          <div className="flex items-start gap-3">
+                            <span className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 flex items-center justify-center flex-shrink-0">
+                              <BookOpen className="w-4 h-4" />
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
+                              <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                {f.title}
+                              </p>
+                              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 inline-flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1">
+                                  <Clock className="w-3 h-3" /> {f.defaultHours} h
+                                </span>
+                                <span className="text-zinc-300 dark:text-zinc-700">·</span>
+                                <span>{modalityLabel[f.modality] ?? f.modality}</span>
+                              </p>
+                            </div>
+                            {checked && <Check className="w-4 h-4 text-violet-600 flex-shrink-0 mt-1" />}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </FormField>
 

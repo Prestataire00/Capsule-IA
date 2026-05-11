@@ -58,11 +58,34 @@ export const FORMATION_CATEGORY_LABELS: Record<FormationCategory, string> = {
 };
 
 export const formations = [
+  // Comptabilité & Gestion
   { id: 'f-1', code: 'F-001', title: 'Comptabilité Niveau 2', defaultHours: 70, modality: 'presentiel' as Modality, isPublished: true, category: 'accounting' as FormationCategory },
+  { id: 'f-6', code: 'F-006', title: 'Comptabilité Niveau 1 — Fondamentaux', defaultHours: 35, modality: 'presentiel' as Modality, isPublished: true, category: 'accounting' as FormationCategory },
+  { id: 'f-7', code: 'F-007', title: "Fiscalité d'entreprise", defaultHours: 28, modality: 'hybride' as Modality, isPublished: true, category: 'accounting' as FormationCategory },
+  { id: 'f-8', code: 'F-008', title: 'Gestion de paie', defaultHours: 35, modality: 'presentiel' as Modality, isPublished: true, category: 'accounting' as FormationCategory },
+
+  // Tech & Développement
   { id: 'f-2', code: 'F-002', title: 'JavaScript Avancé', defaultHours: 35, modality: 'distanciel' as Modality, isPublished: true, category: 'tech' as FormationCategory },
+  { id: 'f-9', code: 'F-009', title: 'React & Next.js — Apps modernes', defaultHours: 35, modality: 'distanciel' as Modality, isPublished: true, category: 'tech' as FormationCategory },
+  { id: 'f-10', code: 'F-010', title: 'Python pour la data', defaultHours: 42, modality: 'hybride' as Modality, isPublished: true, category: 'tech' as FormationCategory },
+  { id: 'f-11', code: 'F-011', title: 'Cybersécurité — Fondamentaux', defaultHours: 21, modality: 'distanciel' as Modality, isPublished: true, category: 'tech' as FormationCategory },
+
+  // Management & Soft skills
   { id: 'f-3', code: 'F-003', title: 'Management de projet agile', defaultHours: 21, modality: 'hybride' as Modality, isPublished: true, category: 'management' as FormationCategory },
+  { id: 'f-12', code: 'F-012', title: 'Leadership transversal', defaultHours: 14, modality: 'presentiel' as Modality, isPublished: true, category: 'management' as FormationCategory },
+  { id: 'f-13', code: 'F-013', title: 'Gestion de conflits', defaultHours: 7, modality: 'presentiel' as Modality, isPublished: true, category: 'management' as FormationCategory },
+  { id: 'f-14', code: 'F-014', title: 'Prise de parole en public', defaultHours: 14, modality: 'hybride' as Modality, isPublished: true, category: 'management' as FormationCategory },
+
+  // Langues
   { id: 'f-4', code: 'F-004', title: "Anglais des affaires B2", defaultHours: 40, modality: 'distanciel' as Modality, isPublished: true, category: 'languages' as FormationCategory },
+  { id: 'f-15', code: 'F-015', title: 'Espagnol professionnel A2 → B1', defaultHours: 35, modality: 'distanciel' as Modality, isPublished: true, category: 'languages' as FormationCategory },
+  { id: 'f-16', code: 'F-016', title: 'Préparation TOEIC', defaultHours: 30, modality: 'distanciel' as Modality, isPublished: true, category: 'languages' as FormationCategory },
+
+  // Bureautique & Outils
   { id: 'f-5', code: 'F-005', title: 'Excel pour les RH', defaultHours: 14, modality: 'presentiel' as Modality, isPublished: false, category: 'office' as FormationCategory },
+  { id: 'f-17', code: 'F-017', title: 'Excel avancé — Tableaux croisés & macros', defaultHours: 21, modality: 'presentiel' as Modality, isPublished: true, category: 'office' as FormationCategory },
+  { id: 'f-18', code: 'F-018', title: 'PowerPoint — Présentations qui marquent', defaultHours: 14, modality: 'hybride' as Modality, isPublished: true, category: 'office' as FormationCategory },
+  { id: 'f-19', code: 'F-019', title: 'Notion & ClickUp — Productivité moderne', defaultHours: 7, modality: 'distanciel' as Modality, isPublished: true, category: 'office' as FormationCategory },
 ];
 
 export const trainers = [
