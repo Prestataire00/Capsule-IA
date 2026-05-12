@@ -12,6 +12,9 @@ export type TrainerProfileProps = {
   specialties: string[];
   avatarPath: string | null;
   isInternal: boolean;
+  siret: string | null;             // admin-only côté DB, read-only ici
+  hourlyRateCents: number | null;   // admin-only côté DB, read-only ici
+  metadata?: Record<string, unknown>;
 };
 
 export type TrainerProfilePatch = {
@@ -40,6 +43,8 @@ export class TrainerProfile {
   get specialties() { return [...this.props.specialties]; }
   get avatarPath() { return this.props.avatarPath; }
   get isInternal() { return this.props.isInternal; }
+  get siret() { return this.props.siret; }
+  get hourlyRateCents() { return this.props.hourlyRateCents; }
 
   applyPatch(patch: TrainerProfilePatch): void {
     if (patch.firstName !== undefined) {
@@ -78,6 +83,10 @@ export class TrainerProfile {
     specialties: string[];
     metadata: Record<string, unknown>;
   } {
+    const metadata: Record<string, unknown> = { ...(this.props.metadata ?? {}) };
+    if (this.props.avatarPath) metadata.avatar_path = this.props.avatarPath;
+    else delete metadata.avatar_path;
+
     return {
       id: this.props.id,
       first_name: this.props.firstName,
@@ -85,7 +94,7 @@ export class TrainerProfile {
       phone: this.props.phone,
       bio: this.props.bio,
       specialties: this.props.specialties,
-      metadata: this.props.avatarPath ? { avatar_path: this.props.avatarPath } : {},
+      metadata,
     };
   }
 }

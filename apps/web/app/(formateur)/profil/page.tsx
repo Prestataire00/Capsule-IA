@@ -48,6 +48,8 @@ export default async function ProfilPage() {
           specialties: profile.specialties,
           email: profile.email,
           isInternal: profile.isInternal,
+          siret: profile.siret,
+          hourlyRateCents: profile.hourlyRateCents,
         }}
       />
     </div>

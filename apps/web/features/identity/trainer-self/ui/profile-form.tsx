@@ -20,7 +20,12 @@ export function ProfileForm({
   activeTrainerIds,
 }: {
   memberships: TrainerMembership[];
-  initial: FormValues & { email: string; isInternal: boolean };
+  initial: FormValues & {
+    email: string;
+    isInternal: boolean;
+    siret: string | null;
+    hourlyRateCents: number | null;
+  };
   activeTrainerIds: string[];
 }) {
   const [applyToAll, setApplyToAll] = useState(false);
@@ -73,6 +78,36 @@ export function ProfileForm({
                 : v,
           })}
         />
+      </FormField>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FormField label="SIRET" hint="Modifiable uniquement par l'admin de l'OF">
+          <input
+            className={inputClass + ' opacity-60 cursor-not-allowed'}
+            value={initial.siret ?? '—'}
+            disabled
+          />
+        </FormField>
+        <FormField label="Taux horaire" hint="Modifiable uniquement par l'admin de l'OF">
+          <input
+            className={inputClass + ' opacity-60 cursor-not-allowed'}
+            value={
+              initial.hourlyRateCents == null
+                ? '—'
+                : `${(initial.hourlyRateCents / 100).toFixed(2)} €/h`
+            }
+            disabled
+          />
+        </FormField>
+      </div>
+
+      <FormField
+        label={initial.isInternal ? 'Type — Interne' : 'Type — Externe (freelance)'}
+        hint="Modifiable uniquement par l'admin de l'OF"
+      >
+        <span className="text-[11px] text-zinc-400">
+          {initial.isInternal ? 'Salarié(e) de l\'OF' : 'Prestataire externe'}
+        </span>
       </FormField>
 
       {memberships.length > 1 && (

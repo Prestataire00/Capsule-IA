@@ -15,6 +15,8 @@ type TrainerRow = {
   bio: string | null;
   specialties: string[] | null;
   is_internal: boolean;
+  siret: string | null;
+  hourly_rate_cents: number | null;
   metadata: Record<string, unknown> | null;
 };
 
@@ -25,7 +27,7 @@ export class SupabaseTrainerSelfRepository implements TrainerSelfRepository {
     const { data, error } = await (this.supabase as any)
       .schema('app')
       .from('trainers')
-      .select('id, organization_id, user_id, first_name, last_name, email, phone, bio, specialties, is_internal, metadata')
+      .select('id, organization_id, user_id, first_name, last_name, email, phone, bio, specialties, is_internal, siret, hourly_rate_cents, metadata')
       .eq('id', id)
       .is('deleted_at', null)
       .maybeSingle();
@@ -33,7 +35,7 @@ export class SupabaseTrainerSelfRepository implements TrainerSelfRepository {
     if (!data) return null;
     const row = data as TrainerRow;
 
-    const metadata = (row.metadata ?? {}) as { avatar_path?: string };
+    const metadata = (row.metadata ?? {}) as Record<string, unknown> & { avatar_path?: string };
     return TrainerProfile.hydrate({
       id: TrainerId(row.id),
       organizationId: OrganizationId(row.organization_id),
@@ -44,8 +46,11 @@ export class SupabaseTrainerSelfRepository implements TrainerSelfRepository {
       phone: row.phone,
       bio: row.bio,
       specialties: row.specialties ?? [],
-      avatarPath: metadata.avatar_path ?? null,
+      avatarPath: typeof metadata.avatar_path === 'string' ? metadata.avatar_path : null,
       isInternal: row.is_internal,
+      siret: row.siret,
+      hourlyRateCents: row.hourly_rate_cents,
+      metadata,
     });
   }
 

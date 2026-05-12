@@ -16,6 +16,7 @@ const baseProps = {
   userId: UserId('00000000-0000-0000-0000-000000000099'),
   firstName: 'Alice', lastName: 'Martin', email: 'alice@example.com',
   phone: null, bio: null, specialties: [], avatarPath: null, isInternal: true,
+  siret: null, hourlyRateCents: null,
 };
 
 describe('UpdateTrainerProfile', () => {

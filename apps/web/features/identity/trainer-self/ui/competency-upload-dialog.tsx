@@ -64,7 +64,7 @@ export function CompetencyUploadDialog({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-[12px] font-medium hover:bg-orange-600 shadow-sm transition"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 text-[12px] font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 shadow-sm transition"
       >
         <Plus className="w-3.5 h-3.5" /> Ajouter
       </button>

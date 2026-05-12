@@ -14,6 +14,8 @@ const baseProps = {
   specialties: [] as string[],
   avatarPath: null,
   isInternal: true,
+  siret: null,
+  hourlyRateCents: null,
 };
 
 describe('TrainerProfile', () => {
@@ -48,5 +50,30 @@ describe('TrainerProfile', () => {
     expect(dto).toHaveProperty('bio', 'Hi');
     expect(dto).not.toHaveProperty('email');
     expect(dto).not.toHaveProperty('is_internal');
+  });
+
+  it('toPersistence préserve les autres clés metadata (pas d’écrasement)', () => {
+    const p = TrainerProfile.hydrate({
+      ...baseProps,
+      metadata: { external_id: 'ext-42', custom_flag: true },
+    });
+    p.applyPatch({ avatarPath: 'foo/avatar.png' });
+    const dto = p.toPersistence();
+    expect(dto.metadata).toEqual({
+      external_id: 'ext-42',
+      custom_flag: true,
+      avatar_path: 'foo/avatar.png',
+    });
+  });
+
+  it('toPersistence retire avatar_path si avatarPath devient null', () => {
+    const p = TrainerProfile.hydrate({
+      ...baseProps,
+      metadata: { external_id: 'ext-42', avatar_path: 'old.png' },
+      avatarPath: 'old.png',
+    });
+    p.applyPatch({ avatarPath: null });
+    const dto = p.toPersistence();
+    expect(dto.metadata).toEqual({ external_id: 'ext-42' });
   });
 });

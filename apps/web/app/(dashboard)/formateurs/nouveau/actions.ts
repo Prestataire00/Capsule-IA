@@ -19,28 +19,22 @@ export type CreateTrainerResult =
   | { ok: true; trainerId: string; invited: boolean }
   | { ok: false; error: string; details?: unknown };
 
-async function resolveOrgId(userId: string): Promise<string | null> {
+const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
+type AdminRole = (typeof ADMIN_ROLES)[number];
+
+async function resolveAdminOrgId(userId: string): Promise<string | null> {
   const admin = supabaseAdmin();
-  // 1) via app.members
   const { data: member } = await (admin as any)
     .schema('app').from('members')
-    .select('organization_id')
+    .select('organization_id, role')
     .eq('user_id', userId)
     .is('deleted_at', null)
     .order('is_default_org', { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (member?.organization_id) return member.organization_id as string;
-
-  // 2) Fallback : first org (V1 single-tenant assumption, TODO multi-tenant)
-  const { data: org } = await (admin as any)
-    .schema('app').from('organizations')
-    .select('id')
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  return (org as { id: string } | null)?.id ?? null;
+  if (!member?.organization_id) return null;
+  if (!ADMIN_ROLES.includes(member.role as AdminRole)) return null;
+  return member.organization_id as string;
 }
 
 export async function createTrainer(formData: FormData): Promise<CreateTrainerResult> {
@@ -48,8 +42,8 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'unauthenticated' };
 
-  const orgId = await resolveOrgId(user.id);
-  if (!orgId) return { ok: false, error: 'no_active_organization' };
+  const orgId = await resolveAdminOrgId(user.id);
+  if (!orgId) return { ok: false, error: 'forbidden_not_admin' };
 
   const payload = Object.fromEntries(formData.entries()) as Record<string, string>;
   const parsed = Schema.safeParse({
