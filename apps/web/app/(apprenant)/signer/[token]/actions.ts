@@ -41,9 +41,14 @@ export const recordSignature = async (
   if (buffer.length > MAX_PNG_BYTES) return { ok: false, error: 'image_too_large' };
 
   const h = await headers();
-  const forwarded = h.get('x-forwarded-for') ?? '';
-  const ip = forwarded.split(',')[0]?.trim() || h.get('x-real-ip') || '0.0.0.0';
+  const cfIp = h.get('cf-connecting-ip');
+  const xff = h.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const xreal = h.get('x-real-ip');
+  const ip = cfIp || xff || xreal || '0.0.0.0';
   const userAgent = h.get('user-agent') ?? 'unknown';
+  const cfCountry = h.get('cf-ipcountry');
+  const country =
+    cfCountry && cfCountry !== 'XX' && cfCountry.length === 2 ? cfCountry.toUpperCase() : null;
   const signedAt = new Date().toISOString();
 
   const signatureHash = createHash('sha256')
@@ -77,7 +82,10 @@ export const recordSignature = async (
     p_signature_hash: signatureHash,
     p_signer_ip: ip,
     p_signer_user_agent: userAgent,
-    p_token_id: jti,
+    p_signer_country: country,
+    p_token_jti: jti,
+    p_evidence_source: 'qr',
+    p_evidence_payload: null,
   } as never);
 
   if (error) {
