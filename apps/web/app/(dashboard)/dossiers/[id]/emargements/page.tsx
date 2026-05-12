@@ -46,17 +46,22 @@ export default function EmargementsPage({ params }: { params: { id: string } }) 
           const ratio = s.attendanceTotal > 0 ? s.attendanceCount / s.attendanceTotal : 0;
           const tone = s.status === 'planned' ? 'neutral' : ratio === 1 ? 'success' : 'warning';
           return (
-            <li key={s.id} className="grid grid-cols-[140px_1fr_120px_120px] gap-3 py-3 px-1 text-[13px] items-center">
-              <span className="font-mono text-[11px] text-zinc-500">
-                {format(parseISO(s.startsAt), 'dd/MM HH:mm', { locale: fr })}
-              </span>
-              <span className="text-zinc-900 dark:text-zinc-100">{trainerFullName(s.trainerId)}</span>
-              <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
-                {s.attendanceCount}/{s.attendanceTotal} signé{s.attendanceTotal > 1 ? 's' : ''}
-              </span>
-              <StatusPill tone={tone}>
-                {s.status === 'planned' ? 'à venir' : ratio === 1 ? 'finalisée' : 'incomplète'}
-              </StatusPill>
+            <li key={s.id}>
+              <Link
+                href={`/dossiers/${params.id}/emargements/${s.id}`}
+                className="grid grid-cols-[140px_1fr_120px_120px] gap-3 py-3 px-1 text-[13px] items-center hover:bg-zinc-50 dark:hover:bg-zinc-900 transition rounded-md"
+              >
+                <span className="font-mono text-[11px] text-zinc-500">
+                  {format(parseISO(s.startsAt), 'dd/MM HH:mm', { locale: fr })}
+                </span>
+                <span className="text-zinc-900 dark:text-zinc-100">{trainerFullName(s.trainerId)}</span>
+                <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
+                  {s.attendanceCount}/{s.attendanceTotal} signé{s.attendanceTotal > 1 ? 's' : ''}
+                </span>
+                <StatusPill tone={tone}>
+                  {s.status === 'planned' ? 'à venir' : ratio === 1 ? 'finalisée' : 'incomplète'}
+                </StatusPill>
+              </Link>
             </li>
           );
         })}
