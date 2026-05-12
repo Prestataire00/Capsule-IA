@@ -61,13 +61,13 @@ test.describe('Espace formateur — Foundation', () => {
     await page.keyboard.press('Escape');
 
     // 4) Page Profil — modifier bio
-    await page.goto('/formateur/profil');
+    await page.goto('/profil');
     await page.getByLabel(/^bio$/i).fill('Bio E2E auto-test');
     await page.getByRole('button', { name: /enregistrer/i }).click();
     await expect(page.getByText(/Enregistré/)).toBeVisible({ timeout: 5000 });
 
     // 5) Page CV — ajouter une compétence
-    await page.goto('/formateur/cv');
+    await page.goto('/cv');
     await page.getByRole('button', { name: /ajouter/i }).first().click();
     await page.getByLabel(/^titre$/i).fill('Master MEEF — E2E');
     // Bouton primaire du modal (le 2e "Ajouter" — celui-ci dans la dialog)
