@@ -4,8 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAction } from 'next-safe-action/hooks';
 import { z } from 'zod';
-import { useState } from 'react';
-import { Save, Loader2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Camera, Loader2, Save, Trash2 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { TrainerProfilePatchSchema } from './schemas';
 import { updateProfileAction } from '@/app/(formateur)/profil/actions';
@@ -25,10 +25,16 @@ export function ProfileForm({
     isInternal: boolean;
     siret: string | null;
     hourlyRateCents: number | null;
+    avatarUrl: string | null;
   };
   activeTrainerIds: string[];
 }) {
   const [applyToAll, setApplyToAll] = useState(false);
+  const [avatarPath, setAvatarPath] = useState<string | null>(initial.avatarPath ?? null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(initial.avatarUrl);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const action = useAction(updateProfileAction);
 
   const { register, handleSubmit, formState } = useForm<FormValues>({
@@ -40,11 +46,110 @@ export function ProfileForm({
     const trainerIds = applyToAll
       ? memberships.map((m) => m.trainerId as string)
       : activeTrainerIds;
-    action.execute({ trainerIds, patch: data });
+    action.execute({ trainerIds, patch: { ...data, avatarPath } });
   };
+
+  const onAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permet re-upload du même fichier
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Image trop lourde (5 Mo max)');
+      return;
+    }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setAvatarError('Format non supporté (PNG, JPG, WebP)');
+      return;
+    }
+    setAvatarUploading(true);
+    setAvatarError(null);
+
+    // Preview local immédiat
+    const localUrl = URL.createObjectURL(file);
+    setAvatarPreview(localUrl);
+
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/profil/api/avatar/upload', { method: 'POST', body: fd });
+    const body = (await res.json()) as
+      | { ok: true; path: string; publicUrl: string }
+      | { ok: false; error: string };
+    setAvatarUploading(false);
+
+    if (!body.ok) {
+      setAvatarError(body.error);
+      URL.revokeObjectURL(localUrl);
+      setAvatarPreview(initial.avatarUrl);
+      return;
+    }
+    setAvatarPath(body.path);
+    setAvatarPreview(body.publicUrl);
+  };
+
+  const onAvatarRemove = () => {
+    setAvatarPath(null);
+    setAvatarPreview(null);
+    setAvatarError(null);
+  };
+
+  const initials = `${initial.firstName?.[0] ?? ''}${initial.lastName?.[0] ?? ''}`.toUpperCase();
+  const avatarDirty =
+    avatarPath !== (initial.avatarPath ?? null) ||
+    (avatarPreview === null && initial.avatarUrl !== null);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 max-w-xl">
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={avatarUploading}
+          className="group relative w-20 h-20 rounded-full overflow-hidden border border-zinc-200/60 dark:border-zinc-800 bg-gradient-to-br from-orange-100 to-rose-100 dark:from-orange-950/50 dark:to-rose-950/30 flex items-center justify-center shadow-sm hover:shadow-md transition disabled:opacity-50"
+          aria-label="Changer l'avatar"
+        >
+          {avatarPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-[20px] font-medium text-orange-700 dark:text-orange-300">
+              {initials || '👤'}
+            </span>
+          )}
+          <span className="absolute inset-0 bg-zinc-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+            {avatarUploading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <Camera className="w-4 h-4 text-white" />
+            )}
+          </span>
+        </button>
+
+        <div className="flex flex-col gap-1">
+          <p className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">Photo de profil</p>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">PNG, JPG ou WebP — 5 Mo max</p>
+          {avatarPreview && (
+            <button
+              type="button"
+              onClick={onAvatarRemove}
+              className="text-[11px] text-red-600 dark:text-red-400 hover:underline inline-flex items-center gap-1 mt-0.5"
+            >
+              <Trash2 className="w-3 h-3" /> Retirer
+            </button>
+          )}
+          {avatarError && (
+            <p className="text-[11px] text-red-600 dark:text-red-400">{avatarError}</p>
+          )}
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={onAvatarChange}
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Prénom" required>
           <input className={inputClass} {...register('firstName')} />
@@ -128,7 +233,7 @@ export function ProfileForm({
       <div className="flex items-center gap-3 pt-2">
         <button
           type="submit"
-          disabled={action.isExecuting || !formState.isDirty}
+          disabled={action.isExecuting || avatarUploading || (!formState.isDirty && !avatarDirty)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white text-[13px] font-medium hover:bg-orange-600 disabled:opacity-50 shadow-sm transition"
         >
           {action.isExecuting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

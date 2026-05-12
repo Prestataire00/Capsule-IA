@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SupabaseMembershipReader } from '@/features/identity/trainer-self/infrastructure/supabase-membership.reader';
 import { SupabaseTrainerSelfRepository } from '@/features/identity/trainer-self/infrastructure/supabase-trainer-self.repository';
+import { SupabaseAvatarStorage } from '@/features/identity/trainer-self/infrastructure/supabase-avatar.storage';
 import { GetMyProfileQuery } from '@/features/identity/trainer-self/application/queries/get-my-profile';
 import { ProfileForm } from '@/features/identity/trainer-self/ui/profile-form';
 import { GraduationCap } from 'lucide-react';
@@ -21,6 +22,9 @@ export default async function ProfilPage() {
 
   const repo = new SupabaseTrainerSelfRepository(supabase);
   const profile = await new GetMyProfileQuery(repo).execute(active.trainerId);
+  const avatarUrl = profile.avatarPath
+    ? new SupabaseAvatarStorage(supabase).publicUrl(profile.avatarPath)
+    : null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -50,6 +54,8 @@ export default async function ProfilPage() {
           isInternal: profile.isInternal,
           siret: profile.siret,
           hourlyRateCents: profile.hourlyRateCents,
+          avatarPath: profile.avatarPath,
+          avatarUrl,
         }}
       />
     </div>
