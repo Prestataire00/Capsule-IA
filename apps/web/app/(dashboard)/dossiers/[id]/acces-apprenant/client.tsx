@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Link2, Copy, Check, Mail, Loader2, AlertCircle, Sparkles } from 'lucide-react';
-import { generateApprenantLink, sendApprenantLinkEmail } from './actions';
+import { Link2, Copy, Check, Mail, Loader2, AlertCircle, Sparkles, FileBadge } from 'lucide-react';
+import { generateApprenantLink, sendApprenantLinkEmail, sendWelcomePacketEmail } from './actions';
 
 type LinkState =
   | { status: 'idle' }
@@ -23,11 +23,38 @@ type EmailState =
   | { status: 'sent'; emailId: string }
   | { status: 'error'; message: string };
 
+type WelcomeState =
+  | { status: 'idle' }
+  | { status: 'sending' }
+  | { status: 'sent' }
+  | { status: 'error'; message: string };
+
 export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
   const [link, setLink] = useState<LinkState>({ status: 'idle' });
   const [email, setEmail] = useState<EmailState>({ status: 'idle' });
+  const [welcome, setWelcome] = useState<WelcomeState>({ status: 'idle' });
   const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const handleSendWelcomePacket = () => {
+    setWelcome({ status: 'sending' });
+    startTransition(async () => {
+      const result = await sendWelcomePacketEmail(dossierId);
+      if (result.ok) {
+        setWelcome({ status: 'sent' });
+      } else {
+        const msg =
+          result.error === 'learner_email_missing'
+            ? "L'apprenant n'a pas d'email renseigné dans sa fiche."
+            : result.error === 'dossier_not_found'
+            ? 'Dossier introuvable.'
+            : result.error === 'no_api_key'
+            ? 'RESEND_API_KEY non configurée côté Railway.'
+            : `Envoi échoué (${result.error}).`;
+        setWelcome({ status: 'error', message: msg });
+      }
+    });
+  };
 
   const handleGenerate = () => {
     setLink({ status: 'loading' });
@@ -221,6 +248,45 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
               </div>
             )}
           </div>
+
+          {link.learnerEmail && (
+            <div className="border-t border-zinc-100 dark:border-zinc-800 pt-5">
+              <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
+                Dossier d'entrée
+              </label>
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                Email récap formation (dates, durée, modalité, formateur) + lien convention PDF + lien espace.
+              </p>
+
+              {welcome.status === 'sent' ? (
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-lg">
+                  <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <p className="text-[12px] text-emerald-900 dark:text-emerald-200">
+                    Dossier d'entrée envoyé à <strong>{link.learnerEmail}</strong>
+                  </p>
+                </div>
+              ) : welcome.status === 'error' ? (
+                <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[12px] text-red-900 dark:text-red-200">{welcome.message}</p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSendWelcomePacket}
+                  disabled={welcome.status === 'sending' || pending}
+                  className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[12px] font-medium px-3 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2 disabled:opacity-40"
+                >
+                  {welcome.status === 'sending' ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FileBadge className="w-3.5 h-3.5" />
+                  )}
+                  {welcome.status === 'sending' ? 'Envoi…' : "Envoyer le dossier d'entrée"}
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
             <button
