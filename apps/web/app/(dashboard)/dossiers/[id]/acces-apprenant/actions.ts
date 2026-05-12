@@ -154,14 +154,15 @@ export async function sendWelcomePacketEmail(dossierId: string): Promise<SendWel
     return { ok: false, error: 'learner_email_missing' };
   }
 
-  // Premier formateur du dossier (s'il y en a un)
+  // Formateur du dossier — priorité au lead, sinon premier ajouté
   let trainerName: string | null = null;
   let trainerEmail: string | null = null;
   const { data: dtRow } = await sb
     .schema('app')
     .from('dossier_trainers')
-    .select('trainer_id')
+    .select('trainer_id, is_lead')
     .eq('dossier_id', dossierId)
+    .order('is_lead', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (dtRow) {
