@@ -153,6 +153,9 @@ export async function sendInvoiceByEmail(invoiceId: string): Promise<SendInvoice
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: inv.currency }).format(cents / 100);
 
   const subject = `Facture ${inv.reference} — ${fmt(inv.total_cents)}`;
+  const pdfUrl = env.PUBLIC_APP_URL
+    ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/invoices/${inv.id}/facture.pdf`
+    : null;
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;color:#18181b;line-height:1.55;background:#fafafa;margin:0;padding:24px;">
   <div style="max-width:580px;margin:0 auto;">
@@ -169,6 +172,7 @@ export async function sendInvoiceByEmail(invoiceId: string): Promise<SendInvoice
         <tr style="border-top:1px solid #f4f4f5;"><td style="padding:12px 0 0;font-size:13px;font-weight:600;">Total TTC</td><td style="padding:12px 0 0;font-size:15px;font-weight:600;text-align:right;color:#7c3aed;">${fmt(inv.total_cents)}</td></tr>
       </table>
       ${inv.due_at ? `<p style="font-size:12px;color:#71717a;margin:20px 0 0;">Échéance de paiement : <strong style="color:#18181b;">${new Date(inv.due_at).toLocaleDateString('fr-FR')}</strong></p>` : ''}
+      ${pdfUrl ? `<div style="margin-top:24px;text-align:center;"><a href="${pdfUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-size:13px;font-weight:500;">📎 Télécharger la facture PDF</a></div>` : ''}
     </div>
   </div>
 </body></html>`;
