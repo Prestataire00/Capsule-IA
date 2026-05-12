@@ -11,6 +11,7 @@ const envSchema = z.object({
   PUBLIC_APP_URL: z.string().url().optional(),
   ZOOM_API_KEY: z.string().optional(),
   ZOOM_API_SECRET: z.string().optional(),
+  ZOOM_SECRETS_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   CRON_SECRET: z.string().min(32),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

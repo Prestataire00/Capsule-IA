@@ -1,6 +1,8 @@
 // ARCHETYPE: command
-import { Plug, Mail, Video, CreditCard, ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
+import { Plug, Mail, Video, CreditCard, ArrowUpRight, Settings } from 'lucide-react';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 
 type IntegrationStatus = 'configured' | 'todo' | 'planned';
 
@@ -12,9 +14,10 @@ type Integration = {
   status: IntegrationStatus;
   badge?: string;
   docsUrl: string;
+  configureUrl?: string;
 };
 
-const INTEGRATIONS: Integration[] = [
+const baseIntegrations = (zoomConfigured: boolean): Integration[] => [
   {
     key: 'resend',
     name: 'Resend',
@@ -26,10 +29,11 @@ const INTEGRATIONS: Integration[] = [
   {
     key: 'zoom',
     name: 'Zoom',
-    description: 'Création automatique des liens de visio pour les sessions distancielles.',
+    description: 'Synchronisation automatique de la présence Zoom (sessions distancielles).',
     icon: Video,
-    status: 'todo',
-    docsUrl: 'https://marketplace.zoom.us',
+    status: zoomConfigured ? 'configured' : 'todo',
+    docsUrl: 'https://marketplace.zoom.us/develop/create',
+    configureUrl: '/parametres/integrations/zoom',
   },
   {
     key: 'stripe',
@@ -42,13 +46,39 @@ const INTEGRATIONS: Integration[] = [
   },
 ];
 
+async function loadZoomConfigured(): Promise<boolean> {
+  const sb = supabaseServer();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return false;
+  const { data: member } = await sb
+    .schema('app')
+    .from('memberships')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!member) return false;
+  const { data: integ } = await sb
+    .schema('app')
+    .from('tenant_integrations')
+    .select('status')
+    .eq('organization_id', (member as { organization_id: string }).organization_id)
+    .eq('kind', 'zoom_s2s')
+    .maybeSingle();
+  return Boolean(integ && (integ as { status: string }).status === 'active');
+}
+
 const STATUS_STYLES: Record<IntegrationStatus, { bg: string; text: string; label: string }> = {
   configured: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-300', label: 'Configurée' },
   todo: { bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-300', label: 'À configurer' },
   planned: { bg: 'bg-zinc-100 dark:bg-zinc-800', text: 'text-zinc-600 dark:text-zinc-400', label: 'Prévue' },
 };
 
-export default function ParametresIntegrationsPage() {
+export default async function ParametresIntegrationsPage() {
+  const zoomConfigured = await loadZoomConfigured();
+  const integrations = baseIntegrations(zoomConfigured);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-1">
@@ -57,7 +87,7 @@ export default function ParametresIntegrationsPage() {
       </div>
 
       <ul className="space-y-3">
-        {INTEGRATIONS.map((integ) => {
+        {integrations.map((integ) => {
           const Icon = integ.icon;
           const st = STATUS_STYLES[integ.status];
           return (
@@ -84,15 +114,26 @@ export default function ParametresIntegrationsPage() {
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{integ.description}</p>
               </div>
 
-              <a
-                href={integ.docsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[12px] text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition flex-shrink-0"
-              >
-                Docs
-                <ArrowUpRight className="w-3 h-3" />
-              </a>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {integ.configureUrl && (
+                  <Link
+                    href={integ.configureUrl}
+                    className="inline-flex items-center gap-1 text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition"
+                  >
+                    <Settings className="w-3 h-3" />
+                    Configurer
+                  </Link>
+                )}
+                <a
+                  href={integ.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[12px] text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition"
+                >
+                  Docs
+                  <ArrowUpRight className="w-3 h-3" />
+                </a>
+              </div>
             </li>
           );
         })}
