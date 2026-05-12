@@ -1,65 +1,88 @@
 // ARCHETYPE: workflow
-import { notFound } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
-import { ShieldCheck, Send, Star, Sparkles } from 'lucide-react';
+import { ShieldCheck, Send, Star, Sparkles, AlertTriangle } from 'lucide-react';
 import { Logo } from '@/shared/ui/logo';
+import { verifySatisfactionToken } from '@/shared/lib/satisfaction-token';
 import { submitSatisfaction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-async function loadDossier(id: string) {
+async function loadContext(token: string) {
+  const verified = await verifySatisfactionToken(token);
+  if (!verified.ok) return { kind: 'invalid' as const, reason: verified.error };
+
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data } = await sb
+  const { data: dossier } = await sb
     .schema('app')
     .from('dossiers')
     .select(`
-      id, reference, end_date,
+      id, reference,
       learner:learners(first_name, last_name),
       formation:formations(title)
     `)
-    .eq('id', id)
+    .eq('id', verified.value.dossierId)
     .maybeSingle();
-  return data as unknown as {
-    id: string;
-    reference: string;
-    end_date: string;
-    learner: { first_name: string; last_name: string } | null;
-    formation: { title: string } | null;
-  } | null;
-}
 
-async function alreadyAnswered(dossierId: string): Promise<boolean> {
-  const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data } = await sb
+  if (!dossier) return { kind: 'invalid' as const, reason: 'not_found' };
+
+  // Anti-doublon : check si déjà répondu
+  const { data: existing } = await sb
     .schema('app')
     .from('questionnaire_responses')
     .select('id')
-    .eq('dossier_id', dossierId)
+    .eq('assignment_id', verified.value.assignmentId)
     .maybeSingle();
-  return Boolean(data);
+
+  return {
+    kind: 'ok' as const,
+    answered: Boolean(existing),
+    dossier: dossier as unknown as {
+      id: string;
+      reference: string;
+      learner: { first_name: string; last_name: string } | null;
+      formation: { title: string } | null;
+    },
+  };
+}
+
+function InvalidScreen({ reason }: { reason: string }) {
+  const message =
+    reason === 'expired_token'
+      ? 'Ce lien a expiré (60 jours). Contactez votre OF pour en obtenir un nouveau.'
+      : reason === 'not_found'
+      ? 'Dossier introuvable. Le lien est peut-être obsolète.'
+      : 'Ce lien n\'est pas valide.';
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
+      <main className="max-w-xl mx-auto px-6 py-20 text-center">
+        <span className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-6">
+          <AlertTriangle className="w-7 h-7" />
+        </span>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Lien invalide</h1>
+        <p className="text-[14px] text-zinc-600 dark:text-zinc-400">{message}</p>
+      </main>
+    </div>
+  );
 }
 
 export default async function SatisfactionPage({
   params,
   searchParams,
 }: {
-  params: { dossierId: string };
+  params: { token: string };
   searchParams: { error?: string };
 }) {
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRe.test(params.dossierId)) return notFound();
+  const ctx = await loadContext(params.token);
 
-  const dossier = await loadDossier(params.dossierId);
-  if (!dossier) return notFound();
+  if (ctx.kind === 'invalid') {
+    return <InvalidScreen reason={ctx.reason} />;
+  }
 
-  const answered = await alreadyAnswered(params.dossierId);
-
-  if (answered) {
+  if (ctx.answered) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
         <main className="max-w-xl mx-auto px-6 py-20 text-center">
@@ -89,10 +112,10 @@ export default async function SatisfactionPage({
             Questionnaire de satisfaction
           </p>
           <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">
-            Comment s'est passée votre formation{dossier.learner ? `, ${dossier.learner.first_name}` : ''} ?
+            Comment s'est passée votre formation{ctx.dossier.learner ? `, ${ctx.dossier.learner.first_name}` : ''} ?
           </h1>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
-            <strong className="text-zinc-700 dark:text-zinc-300">{dossier.formation?.title ?? 'Votre formation'}</strong> · 5 minutes chrono · 100% confidentiel
+            <strong className="text-zinc-700 dark:text-zinc-300">{ctx.dossier.formation?.title ?? 'Votre formation'}</strong> · 5 minutes chrono · 100% confidentiel
           </p>
         </div>
 
@@ -100,16 +123,13 @@ export default async function SatisfactionPage({
           <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-200 rounded-lg px-4 py-3 text-[13px] mb-6">
             {searchParams.error === 'invalid'
               ? 'Certaines réponses sont incomplètes. Merci de tout renseigner avant d\'envoyer.'
-              : searchParams.error === 'not_found'
-              ? 'Dossier introuvable. Le lien est peut-être expiré.'
-              : 'Une erreur est survenue, merci de réessayer dans un instant.'}
+              : 'Une erreur est survenue, merci de réessayer.'}
           </div>
         )}
 
         <form action={submitSatisfaction} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
-          <input type="hidden" name="dossierId" value={dossier.id} />
+          <input type="hidden" name="token" value={params.token} />
 
-          {/* NPS */}
           <section className="p-6">
             <label className="block">
               <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1">
@@ -132,7 +152,6 @@ export default async function SatisfactionPage({
             </label>
           </section>
 
-          {/* Ratings */}
           {[
             { key: 'overallRating', label: 'Satisfaction globale' },
             { key: 'pedagogyRating', label: 'Qualité pédagogique (formateur, contenu)' },
@@ -147,7 +166,7 @@ export default async function SatisfactionPage({
                   {[1, 2, 3, 4, 5].map((v) => (
                     <label
                       key={v}
-                      className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg py-3 cursor-pointer text-center hover:bg-zinc-50 dark:hover:bg-zinc-950 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/40 has-[:checked]:border-violet-300 dark:has-[:checked]:border-violet-800 transition group"
+                      className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg py-3 cursor-pointer text-center hover:bg-zinc-50 dark:hover:bg-zinc-950 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/40 has-[:checked]:border-violet-300 dark:has-[:checked]:border-violet-800 transition"
                     >
                       <input type="radio" name={key} value={v} required className="sr-only" />
                       <div className="flex items-center justify-center gap-0.5">
@@ -163,7 +182,6 @@ export default async function SatisfactionPage({
             </section>
           ))}
 
-          {/* Free text */}
           <section className="p-6 space-y-4">
             <label className="block">
               <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 block mb-1.5">
@@ -205,7 +223,7 @@ export default async function SatisfactionPage({
 
         <p className="text-center text-[11px] text-zinc-500 dark:text-zinc-400 mt-6 inline-flex items-center justify-center gap-1.5 w-full">
           <ShieldCheck className="w-3 h-3" />
-          Données traitées dans le strict respect du RGPD · obligation Qualiopi I30/I31
+          Lien personnel signé · données traitées RGPD · obligation Qualiopi I30/I31
         </p>
       </main>
     </div>

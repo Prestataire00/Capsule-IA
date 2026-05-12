@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { randomBytes, createHash } from 'crypto';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import {
@@ -11,6 +12,7 @@ import {
   satisfactionSurveyEmail,
   endOfTrainingEmail,
 } from '@/shared/lib/email/templates';
+import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -57,6 +59,81 @@ function admin() {
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+const SATISFACTION_TEMPLATE_CODE = 'satisfaction_chaud_default';
+
+async function ensureSatisfactionTemplate(sb: ReturnType<typeof admin>): Promise<string> {
+  const { data: existing } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .select('id')
+    .is('organization_id', null)
+    .eq('code', SATISFACTION_TEMPLATE_CODE)
+    .maybeSingle();
+  if (existing) return (existing as { id: string }).id;
+
+  const { data: created } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .insert({
+      organization_id: null,
+      kind: 'satisfaction_chaud',
+      code: SATISFACTION_TEMPLATE_CODE,
+      title: 'Satisfaction à chaud — Qualiopi',
+      schema: {
+        version: 1,
+        fields: [
+          { key: 'nps', kind: 'nps' },
+          { key: 'overallRating', kind: 'rating_5' },
+          { key: 'pedagogyRating', kind: 'rating_5' },
+          { key: 'organizationRating', kind: 'rating_5' },
+          { key: 'whatWorked', kind: 'long_text' },
+          { key: 'whatToImprove', kind: 'long_text' },
+        ],
+      },
+      is_active: true,
+    })
+    .select('id')
+    .single();
+  return (created as { id: string }).id;
+}
+
+async function ensureSatisfactionAssignment(
+  sb: ReturnType<typeof admin>,
+  templateId: string,
+  dossierId: string,
+  organizationId: string,
+  learnerId: string,
+): Promise<string> {
+  const { data: existing } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('id')
+    .eq('template_id', templateId)
+    .eq('dossier_id', dossierId)
+    .eq('recipient_kind', 'learner')
+    .maybeSingle();
+  if (existing) return (existing as { id: string }).id;
+
+  const tokenRaw = randomBytes(24).toString('hex');
+  const tokenHash = createHash('sha256').update(tokenRaw).digest('hex');
+
+  const { data: created } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .insert({
+      organization_id: organizationId,
+      template_id: templateId,
+      dossier_id: dossierId,
+      recipient_kind: 'learner',
+      recipient_learner_id: learnerId,
+      token_hash: tokenHash,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+  return (created as { id: string }).id;
 }
 
 function isAuthorized(req: Request): boolean {
@@ -232,15 +309,31 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     if (!learner) continue;
     const formationTitle = (formationRow as { title: string } | null)?.title ?? 'Votre formation';
 
-    // Satisfaction
+    // Satisfaction — JWT signed URL
     try {
-      const surveyUrl = env.PUBLIC_APP_URL
-        ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/questionnaire/satisfaction/${d.id}`
-        : `https://example.com/satisfaction/${d.id}`;
+      const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
+      const templateId = await ensureSatisfactionTemplate(sb);
+
+      // Récup org_id du dossier
+      const { data: dossierRow } = await sb
+        .schema('app')
+        .from('dossiers')
+        .select('organization_id')
+        .eq('id', d.id)
+        .maybeSingle();
+      const orgId = (dossierRow as { organization_id: string } | null)?.organization_id;
+      if (!orgId) throw new Error('dossier org_id missing');
+
+      const assignmentId = await ensureSatisfactionAssignment(sb, templateId, d.id, orgId, d.learner_id);
+      const signed = await generateSatisfactionUrl(
+        { assignmentId, dossierId: d.id, organizationId: orgId, learnerId: d.learner_id },
+        baseUrl,
+      );
+
       const sat = satisfactionSurveyEmail({
         firstName: learner.first_name,
         formationTitle,
-        surveyUrl,
+        surveyUrl: signed.url,
         durationMinutes: 5,
       });
       const r = await sendEmail({ to: learner.email, subject: sat.subject, html: sat.html });

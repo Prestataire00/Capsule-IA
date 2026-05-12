@@ -22,7 +22,7 @@ export default function MerciPage({ searchParams }: { searchParams: { status?: s
         </h1>
         <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-8">
           {already
-            ? 'Vous avez déjà répondu à ce questionnaire. Nous tenons compte de votre retour avec attention.'
+            ? 'Vous avez déjà répondu à ce questionnaire.'
             : 'Votre avis a bien été enregistré. Il nourrit l\'amélioration continue de notre offre de formation.'}
         </p>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 inline-flex items-center justify-center gap-1.5 w-full">
