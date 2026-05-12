@@ -8,18 +8,36 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
     const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { count, error } = await sb
-      .schema('app')
-      .from('complaints')
-      .select('id', { count: 'exact', head: true })
-      .in('status', ['open', 'in_progress']);
 
-    if (error) {
-      console.error('[sidebar-rail-server] complaints count failed', error);
-      return {};
-    }
+    const [complaints, signatures, responses, invoices] = await Promise.all([
+      sb
+        .schema('app')
+        .from('complaints')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['open', 'in_progress']),
+      sb
+        .schema('app')
+        .from('attendance_signatures')
+        .select('id', { count: 'exact', head: true })
+        .is('signed_at', null),
+      sb
+        .schema('app')
+        .from('questionnaire_responses')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['pending', 'in_progress']),
+      sb
+        .schema('app')
+        .from('invoices')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['issued', 'partially_paid', 'overdue']),
+    ]);
 
-    return { reclamationsActive: count ?? 0 };
+    return {
+      reclamationsActive: complaints.count ?? 0,
+      emargementsPending: signatures.count ?? 0,
+      questionnairesActive: responses.count ?? 0,
+      invoicesUnpaid: invoices.count ?? 0,
+    };
   } catch (err) {
     console.error('[sidebar-rail-server] unexpected', err);
     return {};

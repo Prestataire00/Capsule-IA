@@ -76,20 +76,27 @@ const recentDossiers = dossiers.slice(0, 3);
 
 export type SidebarCounts = {
   reclamationsActive?: number;
+  emargementsPending?: number;
+  questionnairesActive?: number;
+  invoicesUnpaid?: number;
 };
 
-const BADGE_MAPPING: Record<string, { tone: keyof typeof badgeStyles }> = {
-  '/reclamations': { tone: 'rose' },
+const COUNT_BY_HREF: Record<string, { key: keyof SidebarCounts; tone: keyof typeof badgeStyles }> = {
+  '/reclamations': { key: 'reclamationsActive', tone: 'rose' },
+  '/emargements': { key: 'emargementsPending', tone: 'amber' },
+  '/questionnaires': { key: 'questionnairesActive', tone: 'violet' },
+  '/factures': { key: 'invoicesUnpaid', tone: 'amber' },
 };
 
 export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
   const pathname = usePathname();
 
   const dynamicBadgeFor = (href: string): { count: number; tone: keyof typeof badgeStyles } | null => {
-    if (href === '/reclamations' && counts?.reclamationsActive && counts.reclamationsActive > 0) {
-      return { count: counts.reclamationsActive, tone: BADGE_MAPPING[href]?.tone ?? 'rose' };
-    }
-    return null;
+    const mapping = COUNT_BY_HREF[href];
+    if (!mapping || !counts) return null;
+    const value = counts[mapping.key];
+    if (!value || value <= 0) return null;
+    return { count: value, tone: mapping.tone };
   };
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
   const userInitials = currentUser.full_name.split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2);
