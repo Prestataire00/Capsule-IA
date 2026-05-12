@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { ensureAttendanceSheet } from './actions';
 import { ParticipantsList, type ParticipantItem } from './participants-list';
+import { ZoomImportPanel } from './zoom-import-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,6 +149,10 @@ export default async function EmargementSessionPage({
       </div>
 
       <ParticipantsList sheetId={sheet.sheetId} participants={participants} />
+
+      {session.modality === 'distanciel' && (
+        <ZoomImportPanel sheetId={sheet.sheetId} sessionId={session.id} />
+      )}
     </div>
   );
 }
