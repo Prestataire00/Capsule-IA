@@ -1,10 +1,11 @@
 'use server';
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateSignatureToken } from '@/shared/lib/signature-token';
 import { parseZoomCsv } from '@/features/attendance/zoom-csv-parser';
+import { renderAttendancePdf, type PdfSignatureLine } from '@/features/attendance/pdf-render';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -73,15 +74,206 @@ export async function generateParticipantSignatureLink(input: {
   };
 }
 
-export async function finalizeAttendanceSheet(input: { sheetId: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+export type FinalizeResult =
+  | { ok: true; documentId: string; documentPath: string; hash: string }
+  | { ok: false; error: string };
+
+export async function finalizeAttendanceSheet(input: {
+  sheetId: string;
+  actorUserId: string | null;
+}): Promise<FinalizeResult> {
   const sb = admin();
-  const { error } = await sb
+
+  // 1. Charger sheet + contexte (dossier, session, organization)
+  const { data: sheetData } = await sb
     .schema('app')
     .from('attendance_sheets')
-    .update({ status: 'finalized', finalized_at: new Date().toISOString() })
-    .eq('id', input.sheetId);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+    .select(
+      `
+      id, status, half_day, organization_id, dossier_id, session_id,
+      sessions(starts_at, ends_at, modality, location, title),
+      dossiers(reference, formations(title)),
+      organizations(name, logo_url)
+    `,
+    )
+    .eq('id', input.sheetId)
+    .maybeSingle();
+  if (!sheetData) return { ok: false, error: 'sheet_not_found' };
+
+  const sheet = sheetData as unknown as {
+    id: string;
+    status: string;
+    half_day: 'morning' | 'afternoon' | 'full' | 'evening';
+    organization_id: string;
+    dossier_id: string;
+    session_id: string;
+    sessions: { starts_at: string; ends_at: string; modality: string; location: string | null; title: string | null } | null;
+    dossiers: { reference: string; formations: { title: string } | null } | null;
+    organizations: { name: string; logo_url: string | null } | null;
+  };
+  if (sheet.status === 'finalized') return { ok: false, error: 'already_finalized' };
+  if (!sheet.sessions) return { ok: false, error: 'session_dates_missing' };
+
+  // 2. Charger signatures + participants pour le PDF
+  const [{ data: sigsData }, { data: partsData }] = await Promise.all([
+    sb
+      .schema('app')
+      .from('attendance_signatures')
+      .select(
+        'participant_kind, learner_id, trainer_id, status, signed_at, signer_ip, signer_country, evidence_source, signature_image_path',
+      )
+      .eq('attendance_sheet_id', input.sheetId),
+    sb
+      .schema('app')
+      .from('session_participants')
+      .select(
+        'participant_kind, learner_id, trainer_id, learner:learners(first_name, last_name), trainer:trainers(first_name, last_name)',
+      )
+      .eq('session_id', sheet.session_id),
+  ]);
+
+  type SigRow = {
+    participant_kind: 'learner' | 'trainer';
+    learner_id: string | null;
+    trainer_id: string | null;
+    status: 'present' | 'absent' | 'late' | 'excused' | null;
+    signed_at: string | null;
+    signer_ip: string | null;
+    signer_country: string | null;
+    evidence_source: PdfSignatureLine['evidenceSource'];
+    signature_image_path: string | null;
+  };
+  type PartRow = {
+    participant_kind: 'learner' | 'trainer';
+    learner_id: string | null;
+    trainer_id: string | null;
+    learner: { first_name: string; last_name: string } | null;
+    trainer: { first_name: string; last_name: string } | null;
+  };
+
+  const sigs = (sigsData ?? []) as unknown as SigRow[];
+  const parts = (partsData ?? []) as unknown as PartRow[];
+
+  const nameOf = (kind: 'learner' | 'trainer', id: string | null): string => {
+    const p = parts.find(
+      (x) => x.participant_kind === kind && (kind === 'learner' ? x.learner_id : x.trainer_id) === id,
+    );
+    if (!p) return 'Participant inconnu';
+    const person = kind === 'learner' ? p.learner : p.trainer;
+    return person ? `${person.first_name} ${person.last_name}` : 'Participant inconnu';
+  };
+
+  // 3. Générer signed URLs (TTL 5 min) pour chaque PNG signature
+  const signedUrls = new Map<string, string>();
+  for (const sig of sigs) {
+    if (!sig.signature_image_path) continue;
+    const { data: u } = await sb.storage
+      .from('signatures')
+      .createSignedUrl(sig.signature_image_path, 300);
+    if (u?.signedUrl) signedUrls.set(sig.signature_image_path, u.signedUrl);
+  }
+
+  const lines: PdfSignatureLine[] = sigs.map((s) => ({
+    participantKind: s.participant_kind,
+    fullName: nameOf(s.participant_kind, s.participant_kind === 'learner' ? s.learner_id : s.trainer_id),
+    status: s.status,
+    signedAt: s.signed_at,
+    signerIp: s.signer_ip,
+    signerCountry: s.signer_country,
+    evidenceSource: s.evidence_source ?? 'manual',
+    signatureSignedUrl: s.signature_image_path ? signedUrls.get(s.signature_image_path) ?? null : null,
+  }));
+
+  // 4. Render PDF
+  let pdfBuffer: Buffer;
+  try {
+    pdfBuffer = await renderAttendancePdf({
+      sheetId: sheet.id,
+      halfDay: sheet.half_day,
+      dossierReference: sheet.dossiers?.reference ?? '—',
+      formationTitle: sheet.dossiers?.formations?.title ?? sheet.sessions.title ?? '—',
+      organizationName: sheet.organizations?.name ?? '—',
+      organizationLogoUrl: sheet.organizations?.logo_url ?? null,
+      sessionStartsAt: new Date(sheet.sessions.starts_at),
+      sessionEndsAt: new Date(sheet.sessions.ends_at),
+      modality: sheet.sessions.modality,
+      location: sheet.sessions.location,
+      lines,
+    });
+  } catch (e) {
+    return { ok: false, error: `pdf_render_failed:${(e as Error).message}` };
+  }
+
+  const pdfHash = createHash('sha256').update(pdfBuffer).digest('hex');
+
+  // 5. Upload bucket documents
+  const documentId = randomUUID();
+  const storagePath = `${sheet.organization_id}/emargements/${sheet.id}.pdf`;
+  const upload = await sb.storage
+    .from('documents')
+    .upload(storagePath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+  if (upload.error) {
+    return { ok: false, error: `storage_upload_failed:${upload.error.message}` };
+  }
+
+  // 6. INSERT app.documents
+  const { error: docErr } = await sb
+    .schema('app')
+    .from('documents')
+    .insert({
+      id: documentId,
+      organization_id: sheet.organization_id,
+      dossier_id: sheet.dossier_id,
+      kind: 'feuille_emargement_signee',
+      title: `Émargement ${sheet.dossiers?.reference ?? sheet.id} — ${sheet.half_day}`,
+      status: 'ready',
+      storage_path: storagePath,
+      mime_type: 'application/pdf',
+      file_size_bytes: pdfBuffer.length,
+      file_hash: pdfHash,
+      generated_at: new Date().toISOString(),
+      metadata: { attendance_sheet_id: sheet.id },
+    });
+  if (docErr) return { ok: false, error: `documents_insert_failed:${docErr.message}` };
+
+  // 7. UPDATE sheet (transition open→finalized en 1 step, trigger 0033 ne bloque pas)
+  const { error: updateErr } = await sb
+    .schema('app')
+    .from('attendance_sheets')
+    .update({
+      status: 'finalized',
+      finalized_at: new Date().toISOString(),
+      finalized_by: input.actorUserId,
+      document_id: documentId,
+    })
+    .eq('id', sheet.id)
+    .neq('status', 'finalized');
+  if (updateErr) return { ok: false, error: `finalize_update_failed:${updateErr.message}` };
+
+  return { ok: true, documentId, documentPath: storagePath, hash: pdfHash };
+}
+
+export type GetDownloadUrlResult =
+  | { ok: true; url: string }
+  | { ok: false; error: string };
+
+export async function getDocumentDownloadUrl(input: {
+  documentId: string;
+}): Promise<GetDownloadUrlResult> {
+  const sb = admin();
+  const { data: doc } = await sb
+    .schema('app')
+    .from('documents')
+    .select('storage_path')
+    .eq('id', input.documentId)
+    .maybeSingle();
+  if (!doc) return { ok: false, error: 'document_not_found' };
+  const path = (doc as { storage_path: string | null }).storage_path;
+  if (!path) return { ok: false, error: 'storage_path_missing' };
+
+  const { data: signed } = await sb.storage.from('documents').createSignedUrl(path, 60);
+  if (!signed?.signedUrl) return { ok: false, error: 'signed_url_failed' };
+  return { ok: true, url: signed.signedUrl };
 }
 
 export type ImportZoomCsvResult =

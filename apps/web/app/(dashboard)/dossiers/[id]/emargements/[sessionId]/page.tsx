@@ -4,6 +4,7 @@ import { env } from '@/env.mjs';
 import { ensureAttendanceSheet } from './actions';
 import { ParticipantsList, type ParticipantItem } from './participants-list';
 import { ZoomImportPanel } from './zoom-import-panel';
+import { FinalizeButton } from './finalize-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +82,7 @@ export default async function EmargementSessionPage({
     );
   }
 
-  const [{ data: participantsData }, { data: signaturesData }] = await Promise.all([
+  const [{ data: participantsData }, { data: signaturesData }, { data: sheetMeta }] = await Promise.all([
     sb
       .schema('app')
       .from('session_participants')
@@ -92,7 +93,17 @@ export default async function EmargementSessionPage({
       .from('attendance_signatures')
       .select('participant_kind, learner_id, trainer_id, signed_at, status')
       .eq('attendance_sheet_id', sheet.sheetId),
+    sb
+      .schema('app')
+      .from('attendance_sheets')
+      .select('status, document_id')
+      .eq('id', sheet.sheetId)
+      .maybeSingle(),
   ]);
+  const sheetState = (sheetMeta ?? { status: 'open', document_id: null }) as {
+    status: string;
+    document_id: string | null;
+  };
 
   const rawParticipants = (participantsData ?? []) as unknown as ParticipantRow[];
   const signatures = (signaturesData ?? []) as unknown as SignatureRow[];
@@ -153,6 +164,13 @@ export default async function EmargementSessionPage({
       {session.modality === 'distanciel' && (
         <ZoomImportPanel sheetId={sheet.sheetId} sessionId={session.id} />
       )}
+
+      <FinalizeButton
+        sheetId={sheet.sheetId}
+        initialFinalized={sheetState.status === 'finalized'}
+        initialDocumentId={sheetState.document_id}
+        allSigned={participants.length > 0 && signedCount === participants.length}
+      />
     </div>
   );
 }
