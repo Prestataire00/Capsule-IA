@@ -6,6 +6,9 @@ export default {
     './features/**/*.{ts,tsx}',
     './shared/**/*.{ts,tsx}',
   ],
+  safelist: [
+    { pattern: /bg-(orange|rose|blue|purple|emerald|amber)-(300|400)/ },
+  ],
   darkMode: 'class',
   theme: {
     extend: {
