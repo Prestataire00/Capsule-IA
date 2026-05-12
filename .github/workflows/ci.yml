@@ -12,9 +12,9 @@ concurrency:
 
 jobs:
   quality:
-    name: Typecheck & Lint
+    name: Typecheck · Lint · Unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -32,12 +32,51 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
+        # TODO(sprint-4) — quand on retire ignoreBuildErrors:true, ce step sera
+        # de facto bloquant pour le déploiement Railway. En attendant on signale
+        # honnêtement, mais on n'échoue pas le pipeline pour ne pas bloquer les
+        # merges sur une dette pré-existante.
         run: pnpm --filter web typecheck
         continue-on-error: true
 
       - name: Lint
+        # TODO(sprint-4) — fix unused vars + `any` puis rendre bloquant.
         run: pnpm --filter web lint
         continue-on-error: true
+
+      - name: Unit tests (Vitest)
+        run: pnpm --filter web test
+
+      - name: Format check
+        # TODO(sprint-1.5) — un seul `pnpm format` puis rendre bloquant.
+        run: pnpm format:check
+        continue-on-error: true
+
+  rls-tests:
+    name: RLS (pgTAP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase (local)
+        run: supabase start --workdir supabase
+
+      - name: Run pgTAP tests
+        # TODO(sprint-5) — élargir la couverture pgTAP avant de rendre bloquant.
+        run: supabase test db --workdir supabase
+        continue-on-error: true
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --workdir supabase --no-backup
