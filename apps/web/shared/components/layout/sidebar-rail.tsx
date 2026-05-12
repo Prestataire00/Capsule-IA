@@ -48,7 +48,7 @@ const GROUPS: Group[] = [
       { href: '/dossiers', icon: FolderOpen, label: 'Tous les dossiers' },
       { href: '/planning', icon: Calendar, label: 'Planning' },
     ],
-    showRecents: true,
+    showRecents: false,
   },
   {
     key: 'carnet',
