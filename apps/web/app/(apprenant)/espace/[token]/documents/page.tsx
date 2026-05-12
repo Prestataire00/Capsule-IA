@@ -1,13 +1,96 @@
 // ARCHETYPE: command
 import { notFound } from 'next/navigation';
-import { FileText, Download, BookOpen } from 'lucide-react';
-import { resolveApprenantContext, MOCK_ADMIN_DOCS, MOCK_SUPPORTS_BY_MODULE } from '../_lib';
+import { FileText, Download, BookOpen, Award } from 'lucide-react';
+import { resolveApprenantContext, MOCK_SUPPORTS_BY_MODULE } from '../_lib';
 
 export const dynamic = 'force-dynamic';
+
+type AdminDoc = {
+  id: string;
+  title: string;
+  type: string;
+  size: string;
+  status: 'signed' | 'available' | 'pending';
+  date: string;
+  href: string | null;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+function buildAdminDocs(dossierId: string, dossierStatus: string, isReal: boolean): AdminDoc[] {
+  const dossierCompleted = dossierStatus === 'completed' || dossierStatus === 'closed';
+
+  const conventionHref = isReal ? `/api/dossiers/${dossierId}/convention.pdf` : null;
+  const attestationHref = isReal && dossierCompleted ? `/api/dossiers/${dossierId}/attestation.pdf` : null;
+
+  return [
+    {
+      id: 'doc-convention',
+      title: 'Convention de formation signée',
+      type: 'PDF',
+      size: '—',
+      status: 'signed',
+      date: 'à la signature',
+      href: conventionHref,
+      icon: FileText,
+    },
+    {
+      id: 'doc-programme',
+      title: 'Programme détaillé',
+      type: 'PDF',
+      size: '—',
+      status: 'available',
+      date: 'à la souscription',
+      href: null,
+      icon: FileText,
+    },
+    {
+      id: 'doc-accueil',
+      title: "Livret d'accueil",
+      type: 'PDF',
+      size: '—',
+      status: 'available',
+      date: 'à la souscription',
+      href: null,
+      icon: FileText,
+    },
+    {
+      id: 'doc-reglement',
+      title: 'Règlement intérieur',
+      type: 'PDF',
+      size: '—',
+      status: 'available',
+      date: 'à la souscription',
+      href: null,
+      icon: FileText,
+    },
+    {
+      id: 'doc-attestation',
+      title: 'Attestation de réalisation',
+      type: 'PDF',
+      size: '—',
+      status: dossierCompleted ? 'available' : 'pending',
+      date: dossierCompleted ? 'disponible' : 'à la fin de la formation',
+      href: attestationHref,
+      icon: Award,
+    },
+    {
+      id: 'doc-certificat',
+      title: 'Certificat de réalisation',
+      type: 'PDF',
+      size: '—',
+      status: 'pending',
+      date: 'à la fin de la formation',
+      href: null,
+      icon: Award,
+    },
+  ];
+}
 
 export default async function EspaceDocumentsPage({ params }: { params: { token: string } }) {
   const ctx = await resolveApprenantContext(params.token);
   if (!ctx) return notFound();
+
+  const adminDocs = buildAdminDocs(ctx.dossier.id, ctx.dossier.status, ctx.isReal);
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8 space-y-6">
@@ -29,15 +112,13 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
           Documents administratifs
         </p>
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 -my-1">
-          {MOCK_ADMIN_DOCS.map((doc) => {
+          {adminDocs.map((doc) => {
             const isPending = doc.status === 'pending';
-            return (
-              <li
-                key={doc.id}
-                className={`flex items-center justify-between gap-3 px-3 py-3 -mx-3 rounded-lg ${
-                  isPending ? 'opacity-60' : 'hover:bg-zinc-50 dark:hover:bg-zinc-950 transition cursor-pointer'
-                }`}
-              >
+            const isClickable = !isPending && doc.href !== null;
+            const Icon = doc.icon;
+
+            const inner = (
+              <>
                 <div className="flex items-center gap-3 min-w-0">
                   <span
                     className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -48,12 +129,12 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
                         : 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
                     }`}
                   >
-                    <FileText className="w-4 h-4" />
+                    <Icon className="w-4 h-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{doc.title}</p>
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      {doc.type} {doc.size !== '—' && `· ${doc.size}`} · {doc.date}
+                      {doc.type} · {doc.date}
                     </p>
                   </div>
                 </div>
@@ -61,6 +142,29 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
                   <span className="text-[10px] text-zinc-400 flex-shrink-0">en attente</span>
                 ) : (
                   <Download className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                )}
+              </>
+            );
+
+            return (
+              <li key={doc.id}>
+                {isClickable && doc.href ? (
+                  <a
+                    href={doc.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 px-3 py-3 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <div
+                    className={`flex items-center justify-between gap-3 px-3 py-3 -mx-3 rounded-lg ${
+                      isPending ? 'opacity-60' : ''
+                    }`}
+                  >
+                    {inner}
+                  </div>
                 )}
               </li>
             );

@@ -21,6 +21,7 @@ export type ApprenantContext = {
     startDate: string;
     endDate: string;
     totalHours: number;
+    status: string;
   };
   formation: { id: string; title: string } | null;
   trainer: { firstName: string; lastName: string; email: string } | null;
@@ -117,6 +118,7 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
             startDate: d.dossier.start_date,
             endDate: d.dossier.end_date,
             totalHours: d.dossier.total_hours,
+            status: d.dossier.status,
           },
           formation: { id: d.dossier.formation.id, title: d.dossier.formation.title },
           trainer: d.trainer
@@ -170,6 +172,7 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
       startDate: dossier.startDate,
       endDate: dossier.endDate,
       totalHours: dossier.totalHours,
+      status: dossier.status,
     },
     formation: formation ? { id: formation.id, title: formation.title } : null,
     trainer: trainer ? { firstName: trainer.firstName, lastName: trainer.lastName, email: trainer.email } : null,
