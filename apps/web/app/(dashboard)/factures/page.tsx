@@ -8,6 +8,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { StatCard } from '@/shared/ui/stat-card';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { InvoiceActions } from './invoice-actions';
 
 const statusLabel = { draft: 'brouillon', issued: 'émise', paid: 'payée', overdue: 'en retard', cancelled: 'annulée', partially_paid: 'partielle' };
 const statusTone = { draft: 'neutral', issued: 'warning', paid: 'success', overdue: 'danger', cancelled: 'neutral', partially_paid: 'warning' } as const;
@@ -67,9 +68,10 @@ export default function FacturesPage() {
                 {formatEuros(inv.totalCents)}
               </span>
               <StatusPill tone={statusTone[inv.status]}>{statusLabel[inv.status]}</StatusPill>
-              <button type="button" className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition">
-                Détail
-              </button>
+              <InvoiceActions
+                invoiceId={inv.id}
+                pdfUrl={`/api/invoices/${inv.id}/facture.pdf`}
+              />
             </li>
           );
         })}
