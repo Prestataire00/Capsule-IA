@@ -38,14 +38,55 @@ Le token JWT HS256 utilisé pour `/signer/[token]` est signé par `env.TOKEN_SIG
 5. Renommer `TOKEN_SIGNING_KEY_NEXT` → `TOKEN_SIGNING_KEY`, supprimer l'ancienne
 6. Retirer l'acceptation legacy dans le code
 
-## Setup Zoom S2S par tenant (V2 / pas encore branché côté Edge Function)
+## Setup Zoom S2S par tenant
 
-1. Le tenant crée une Server-to-Server OAuth app sur `https://marketplace.zoom.us/develop/create`
+1. Admin OF crée une Server-to-Server OAuth app sur `https://marketplace.zoom.us/develop/create`
 2. Scopes minimaux : `meeting:read:past_meeting:admin`, `meeting:read:list_past_meeting_participants:admin`
-3. L'admin OF se rend sur `/reglages/integrations/zoom` (à créer côté UI quand prêt)
-4. Saisit `accountId`, `clientId`, `clientSecret`
-5. Test connexion : `GET /v2/users/me`
-6. Secrets chiffrés via pgsodium → `app.tenant_integrations` (admin-only RLS)
+3. Sur `/parametres/integrations/zoom` (admin-only) : saisit `accountId`, `clientId`, `clientSecret`
+4. Le form teste l'OAuth (GET /v2/users/me) puis chiffre AES-256-GCM avec `ZOOM_SECRETS_KEY` et upsert `app.tenant_integrations`
+5. Bouton "Tester" : decrypt + test périodique. Bouton "Déconnecter" : DELETE row.
+
+**Pré-requis serveur** : `ZOOM_SECRETS_KEY` = 32 bytes en base64 (44 chars) ou hex (64 chars). Générer : `openssl rand -base64 32`.
+
+## Sync automatique Zoom (auto-import présence)
+
+Route : `POST /api/cron/zoom-sync` (alias `GET` accepté).
+
+- Auth : header `Authorization: Bearer <CRON_SECRET>` (env var)
+- Body : aucun
+- Traite jusqu'à 20 sessions distancielles `ends_at < now() - 30min` avec `zoom_meeting_id` non null, dans l'ordre décroissant
+- Skip les sessions déjà synced avec status `success`
+- Pour chaque : decrypt creds tenant → fetch participants → create/use sheet `full` → record_attendance_signature v2 (`evidence_source='zoom_api'`) → log dans `zoom_sync_logs`
+
+**Branchements cron** (au choix) :
+
+1. **pg_cron + net.http_post** (Supabase) :
+   ```sql
+   ALTER DATABASE postgres SET app.zoom_sync_url = 'https://<app>.railway.app/api/cron/zoom-sync';
+   ALTER DATABASE postgres SET app.cron_secret = '<CRON_SECRET>';
+   SELECT cron.schedule(
+     'zoom_sync_hourly',
+     '7 * * * *',
+     $$ SELECT net.http_post(
+          url := current_setting('app.zoom_sync_url'),
+          headers := jsonb_build_object('Authorization', 'Bearer ' || current_setting('app.cron_secret'))
+        ) $$
+   );
+   ```
+
+2. **GitHub Actions** : workflow `.github/workflows/zoom-sync.yml` cron `7 * * * *` qui curl la route avec `${{ secrets.CRON_SECRET }}`.
+
+3. **Railway cron jobs** ou **cron-job.org** : URL + header Authorization.
+
+**Réponse type** :
+```json
+{
+  "ok": true,
+  "processed": 5,
+  "summary": { "success": 3, "partial": 1, "error": 0, "skipped": 1 },
+  "results": [...]
+}
+```
 
 ## Jobs `pg_cron`
 
