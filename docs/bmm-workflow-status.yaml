@@ -1,0 +1,85 @@
+# BMAD Method Workflow Status
+# Generated: 2026-05-16T00:00:00Z
+# Project: Capsule IA
+
+project_name: "Capsule IA"
+project_type: "web-app"
+project_level: 4
+communication_language: "French"
+output_language: "French"
+last_updated: "2026-05-16T04:00:00Z"
+
+# ⚠ NOTE 2026-05-16 : Les docs PRD et architecture ci-dessous ont été rédigés
+# AVANT audit du code existant. Le projet est en réalité ~75% V1 fonctionnel.
+# Source de vérité actuelle :
+#   - Audit : docs/bmad-audit-i-a-infinity-of-2026-05-16.md
+#   - PRD addendum V1.1 : docs/prd-addendum-V1.1-i-a-infinity-of-2026-05-16.md
+#   - Sprint plan V2 : docs/sprint-plan-V2-i-a-infinity-of-2026-05-16.md
+#   - ADR-0005 (Server Actions actées V1) : docs/architecture/adr/0005-server-actions-vs-edge-functions.md
+# Les docs originaux restent comme "baseline vision/scope cible".
+
+# Workflow Status Tracking
+# Status values:
+#   - "required" - Must be completed
+#   - "optional" - Can be skipped
+#   - "recommended" - Strongly suggested
+#   - "conditional" - Required based on project level
+#   - "{file-path}" - Completed (path to output file)
+#   - "skipped" - Explicitly skipped
+
+workflow_status:
+  # Phase 1: Analysis (Optional but recommended)
+  - name: product-brief
+    phase: 1
+    status: "optional"
+    description: "Create comprehensive product brief"
+
+  - name: brainstorm-project
+    phase: 1
+    status: "optional"
+    description: "Structured brainstorming session"
+
+  - name: research
+    phase: 1
+    status: "optional"
+    description: "Market and competitive research"
+
+  # Phase 2: Planning (Required - choose one based on project level)
+  - name: prd
+    phase: 2
+    status: "docs/prd-i-a-infinity-of-2026-05-16.md + docs/prd-addendum-V1.1-i-a-infinity-of-2026-05-16.md"
+    description: "Product Requirements Document (v1 baseline + addendum V1.1 features bonus)"
+
+  - name: tech-spec
+    phase: 2
+    status: "optional"  # level 4 → optional
+    description: "Technical Specification"
+
+  - name: create-ux-design
+    phase: 2
+    status: "optional"
+    description: "UX/UI design workflow"
+
+  # Phase 3: Solutioning (Conditional on project level)
+  - name: architecture
+    phase: 3
+    status: "docs/architecture-i-a-infinity-of-2026-05-16.md"  # completed
+    description: "System architecture design"
+
+  - name: solutioning-gate-check
+    phase: 3
+    status: "optional"
+    description: "Validate architecture against requirements"
+
+  # Phase 4: Implementation (Required)
+  - name: sprint-planning
+    phase: 4
+    status: "docs/sprint-plan-V2-i-a-infinity-of-2026-05-16.md"  # V1 obsolete, V2 active
+    description: "Sprint plan V2 (5 sprints, dettes critiques d'abord)"
+
+  - name: bmad-audit
+    phase: 4
+    status: "docs/bmad-audit-i-a-infinity-of-2026-05-16.md"
+    description: "Audit code vs PRD (gap analysis) — fait après PRD/archi initiaux"
+
+# Note: Détail stories tracké dans sprint-status.yaml

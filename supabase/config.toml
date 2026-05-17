@@ -39,6 +39,13 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
+# Auth Hook : custom JWT claims (organization_id, role, member_id)
+# Cf. ADR 0003 (docs/architecture/adr/0003-auth-hook-pl-pgsql.md) +
+# migration 0042_auth_hook.sql.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/app/before_token_emit"
+
 [storage]
 enabled = true
 file_size_limit = "50MiB"

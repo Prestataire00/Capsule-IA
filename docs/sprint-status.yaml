@@ -1,0 +1,152 @@
+# BMAD Method Sprint Status — V2
+# Generated: 2026-05-16T04:00:00Z
+# Project: Capsule IA
+# ⚠ Ce fichier remplace la version v1 (basée sur planning erroné, projet supposé from scratch).
+# Source de vérité : docs/sprint-plan-V2-i-a-infinity-of-2026-05-16.md
+
+project_name: "Capsule IA"
+sprint_plan_path: "docs/sprint-plan-V2-i-a-infinity-of-2026-05-16.md"
+current_sprint: "A"  # Sprint A "Sanctuary" (dette critique d'abord)
+last_updated: "2026-05-16T04:00:00Z"
+
+# Team & cadence
+team:
+  size: 1
+  members:
+    - name: "Ismael Lepennec"
+      role: "owner + dev solo"
+      capacity_hours_per_week: 40
+  sprint_length_weeks: 2
+  capacity_per_sprint_sp: 22  # 24 SP théorique - 2 SP buffer
+  point_to_hours: 3            # 1 SP ≈ 3h dev senior
+
+# Velocity tracking
+velocity:
+  sprint_A: null
+  sprint_B: null
+  sprint_C: null
+  sprint_D: null
+  sprint_E: null
+  rolling_average: null
+
+# Sprints (V2 plan : 5 sprints, dette d'abord)
+sprints:
+  - sprint_number: "A"
+    name: "Sanctuary"
+    start_date: "2026-05-18"
+    end_date: "2026-05-29"
+    status: "not_started"
+    goal: "Dette critique : tests pgTAP RLS + Auth Hook migration + MFA + dispatcher outbox"
+    committed_points: 24  # sanctuaire, pas de buffer
+    completed_points: 0
+    stories:
+      - id: "STORY-A1"
+        title: "Tests pgTAP RLS massifs (cross-tenant + par rôle + tokens publics)"
+        points: 13
+        priority: "must"
+        status: "not_started"
+        addresses: ["NFR-001"]
+        notes: "Le plus gros morceau Sprint A. Démarrer par cross-tenant baseline (le plus rentable)."
+      - id: "STORY-A2"
+        title: "Auth Hook migration miroir (PL/pgSQL) + tests pgTAP"
+        points: 3
+        priority: "must"
+        status: "not_started"
+        addresses: ["NFR-011", "ADR-0003"]
+        notes: "Procédure de bascule délicate prod : preview → test E2E → main."
+      - id: "STORY-A3"
+        title: "MFA TOTP complet (FR-004) + page + middleware + recovery codes"
+        points: 5
+        priority: "must"
+        status: "not_started"
+        addresses: ["FR-004"]
+      - id: "STORY-A4"
+        title: "Dispatcher outbox Server Action + pg_cron (ADR-0005)"
+        points: 3
+        priority: "must"
+        status: "not_started"
+        addresses: ["FR-049", "ADR-0005"]
+        notes: "Débloque tous les handlers d'events (FR-018, FR-040, FR-042, etc.)"
+
+  - sprint_number: "B"
+    name: "Dossier orchestration"
+    start_date: "2026-06-01"
+    end_date: "2026-06-12"
+    status: "roadmap"
+    goal: "Terminer EPIC-04 (FR-013/015/018/019/020) + algo sessions + replanification"
+    committed_points: 22
+    epics_targeted: ["EPIC-04", "EPIC-05 partiel"]
+    high_level_stories:
+      - "STORY-B1 Wizard autosave + cleanup TTL [3]"
+      - "STORY-B2 Cascading recalc dates modules [2]"
+      - "STORY-B3 scheduleDossierAction handlers chaînés [8] — plus gros morceau"
+      - "STORY-B4 Activate dossier J [2]"
+      - "STORY-B5 Algorithme sessions par défaut [3]"
+      - "STORY-B6 Replanification + notif [3]"
+      - "STORY-B7 E2E golden path création→activation [1]"
+
+  - sprint_number: "C"
+    name: "Documents finition"
+    start_date: "2026-06-15"
+    end_date: "2026-06-26"
+    status: "roadmap"
+    goal: "EPIC-07 complet : DOCX + génération + Gotenberg + Realtime émargement + notif Qualiopi"
+    committed_points: 22
+    epics_targeted: ["EPIC-07", "EPIC-06 finition", "EPIC-08 partiel"]
+    high_level_stories:
+      - "STORY-C1 Lib génération DOCX + 5 templates [5]"
+      - "STORY-C2 Server Action generate-document complète [5]"
+      - "STORY-C3 Déploiement Gotenberg Railway [3]"
+      - "STORY-C4 Realtime émargement formateur [2]"
+      - "STORY-C5 Notif preuves Qualiopi manquantes cron [3]"
+      - "STORY-C6 Handler attach-signature-as-qualiopi-proof [2]"
+      - "STORY-C7 E2E génération doc + signature mobile [2]"
+
+  - sprint_number: "D"
+    name: "Qualiopi exports + Questionnaires + Activate"
+    start_date: "2026-06-29"
+    end_date: "2026-07-10"
+    status: "roadmap"
+    goal: "FR-037 export audit annuel + cycle questionnaires complet + conversion prospect"
+    committed_points: 22
+    epics_targeted: ["EPIC-08", "EPIC-09", "EPIC-14"]
+    high_level_stories:
+      - "STORY-D1 Export audit Qualiopi annuel ZIP [8] — plus gros morceau"
+      - "STORY-D2 Handlers assignation auto questionnaires [5]"
+      - "STORY-D3 Relances + expiration cron [3]"
+      - "STORY-D4 Polish page apprenant questionnaire [2]"
+      - "STORY-D5 Conversion prospect → apprenant + dossier [3]"
+      - "STORY-D6 E2E cycle questionnaires complet [1]"
+
+  - sprint_number: "E"
+    name: "Finitions V1 + onboarding pilote"
+    start_date: "2026-07-13"
+    end_date: "2026-07-24"
+    status: "roadmap"
+    goal: "FRs résiduels + polish UX/a11y + onboarding 1er OF pilote"
+    committed_points: 22
+    epics_targeted: ["EPIC-01 finition", "EPIC-02 finition", "EPIC-13"]
+    high_level_stories:
+      - "STORY-E1 Switch organisation multi-org UI [3]"
+      - "STORY-E2 Import CSV apprenants [5]"
+      - "STORY-E3 Notifications in-app cloche Realtime [3]"
+      - "STORY-E4 Polish UI + a11y audit Axe [3]"
+      - "STORY-E5 Cleanup dette mineure [2]"
+      - "STORY-E6 Documentation pilote [2]"
+      - "STORY-E7 Onboarding 1er OF pilote (run, hotfixes) [4]"
+
+# Métriques agrégées V2
+metrics:
+  total_epics: 16  # 13 PRD initial + 3 addendum V1.1
+  total_frs: 63  # 53 + 10 addendum
+  audit_status:
+    frs_done: 31
+    frs_partial: 15
+    frs_todo: 7
+    coverage_estimate_percent: 75
+  remaining_work_v2:
+    total_sp: 112
+    sprints_needed: 5
+    target_pilot_date: "2026-07-24"
+  current_phase: "implementation"
+  current_sprint: "A"
