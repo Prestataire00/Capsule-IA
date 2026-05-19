@@ -51,22 +51,30 @@ sprints:
         title: "Auth Hook migration miroir (PL/pgSQL) + tests pgTAP"
         points: 3
         priority: "must"
-        status: "not_started"
+        status: "dev_complete"
         addresses: ["NFR-011", "ADR-0003"]
-        notes: "Procédure de bascule délicate prod : preview → test E2E → main."
+        notes: "Migration 0042 + 8 tests pgTAP commités. Procédure de bascule prod à exécuter manuellement par Ismael (preview → tests → désactiver dashboard hook → main)."
       - id: "STORY-A3"
         title: "MFA TOTP complet (FR-004) + page + middleware + recovery codes"
         points: 5
         priority: "must"
-        status: "not_started"
+        status: "partial"
         addresses: ["FR-004"]
+        notes: "Page enrollment + Server Actions (enroll/verify/disable) + audit. RESTE V1.5 : recovery codes (table dédiée + génération + use), middleware enforcement après 7j (à coder), notification owners par email à la désactivation."
       - id: "STORY-A4"
-        title: "Dispatcher outbox Server Action + pg_cron (ADR-0005)"
+        title: "Dispatcher outbox Server Action + cron externe (ADR-0005)"
         points: 3
         priority: "must"
-        status: "not_started"
+        status: "dev_complete"
         addresses: ["FR-049", "ADR-0005"]
-        notes: "Débloque tous les handlers d'events (FR-018, FR-040, FR-042, etc.)"
+        notes: "Route /api/cron/dispatch-events fonctionnelle (claim RPC + retry exp + dead letter). À déclencher via cron-job.org ou Railway cron toutes les 1min. Registry handlers vide V1 (à étoffer Sprint B avec handlers FR-018)."
+      - id: "STORY-A1-suite"
+        title: "Tests pgTAP RLS par rôle — learners + invoices"
+        points: 3
+        priority: "must"
+        status: "dev_complete"
+        addresses: ["NFR-001"]
+        notes: "2 fichiers supplémentaires (0045 learners, 0046 invoices avec cas comptable autorisé). RESTE : dossiers, documents, attendance_signatures, qualiopi_checklists, apprenant_token_access (~10 SP à compléter Sprint A)."
 
   - sprint_number: "B"
     name: "Dossier orchestration"
