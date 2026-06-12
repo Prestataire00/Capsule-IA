@@ -57,14 +57,14 @@ describe('groupByLens', () => {
     const rows: ConsolidatedSheetRow[] = [base, { ...base, attendanceSheetId: 'sh2' }];
     const groups = groupByLens(rows, 'session');
     expect(groups).toHaveLength(2);
-    expect(groups[0].sheetCount).toBe(1);
+    expect(groups[0]!.sheetCount).toBe(1);
   });
 
   it('regroupe les company_id null sous une clé "sans entreprise"', () => {
     const rows: ConsolidatedSheetRow[] = [{ ...base, companyId: null, companyName: null }];
     const groups = groupByLens(rows, 'company');
-    expect(groups[0].key).toBe('none');
-    expect(groups[0].label).toBe('Sans entreprise');
+    expect(groups[0]!.key).toBe('none');
+    expect(groups[0]!.label).toBe('Sans entreprise');
   });
 
   it('hasSyncError vrai si une feuille du groupe a un sync en erreur', () => {
@@ -73,7 +73,7 @@ describe('groupByLens', () => {
       { ...base, attendanceSheetId: 'sh2', zoomLastSyncStatus: 'error' },
     ];
     const groups = groupByLens(rows, 'company');
-    expect(groups[0].hasSyncError).toBe(true);
+    expect(groups[0]!.hasSyncError).toBe(true);
   });
 });
 
