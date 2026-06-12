@@ -1,146 +1,82 @@
+// ARCHETYPE: command
+// Justification: feuille d'émargement d'une séance — vue gestionnaire (mock, cohérent avec la liste).
+
 import { notFound } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/env.mjs';
-import { ensureAttendanceSheet } from './actions';
-import { ParticipantsList, type ParticipantItem } from './participants-list';
-import { ZoomImportPanel } from './zoom-import-panel';
-import { FinalizeButton } from './finalize-button';
+import Link from 'next/link';
+import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import {
+  dossiers,
+  sessionsByDossier,
+  formationTitle,
+  trainerFullName,
+  learnerFullName,
+} from '@/shared/mock/data';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { StatusPill } from '@/shared/ui/status-pill';
 
-export const dynamic = 'force-dynamic';
-
-const admin = () =>
-  createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-type SessionRow = {
-  id: string;
-  starts_at: string;
-  ends_at: string;
-  status: string;
-  modality: string;
-  location: string | null;
-  remote_url: string | null;
-  title: string | null;
-  organization_id: string;
-  dossier_id: string;
+const MODALITY_LABELS: Record<string, string> = {
+  presentiel: 'Présentiel',
+  distanciel: 'Distanciel',
+  hybride: 'Hybride',
+  afest: 'AFEST',
 };
 
-type ParticipantRow = {
-  participant_kind: 'learner' | 'trainer';
-  learner_id: string | null;
-  trainer_id: string | null;
-  learner: { first_name: string; last_name: string; email: string } | null;
-  trainer: { first_name: string; last_name: string; email: string } | null;
-};
-
-type SignatureRow = {
-  participant_kind: 'learner' | 'trainer';
-  learner_id: string | null;
-  trainer_id: string | null;
-  signed_at: string | null;
-  status: string;
-};
-
-const fmtDate = (iso: string) =>
-  new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
-const fmtTime = (iso: string) =>
-  new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
-
-export default async function EmargementSessionPage({
+export default function EmargementSessionPage({
   params,
 }: {
   params: { id: string; sessionId: string };
 }) {
-  const sb = admin();
+  const dossier = dossiers.find((d) => d.id === params.id);
+  if (!dossier) notFound();
 
-  const { data: sessionData, error: sessionErr } = await sb
-    .schema('app')
-    .from('sessions')
-    .select('id, starts_at, ends_at, status, modality, location, remote_url, title, organization_id, dossier_id')
-    .eq('id', params.sessionId)
-    .maybeSingle();
-  if (sessionErr || !sessionData) return notFound();
-  const session = sessionData as unknown as SessionRow;
+  const sessions = sessionsByDossier[params.id] ?? [];
+  const sessionIndex = sessions.findIndex((s) => s.id === params.sessionId);
+  const session = sessions[sessionIndex];
+  if (!session) notFound();
 
-  if (session.dossier_id !== params.id) return notFound();
-
-  const sheet = await ensureAttendanceSheet({
-    sessionId: session.id,
-    organizationId: session.organization_id,
-    dossierId: session.dossier_id,
-  });
-  if (!sheet.ok) {
-    return (
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-lg p-4">
-          <p className="text-[13px] text-red-900 dark:text-red-200">
-            Impossible de créer la feuille d&apos;émargement : {sheet.error}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const [{ data: participantsData }, { data: signaturesData }, { data: sheetMeta }] = await Promise.all([
-    sb
-      .schema('app')
-      .from('session_participants')
-      .select('participant_kind, learner_id, trainer_id, learner:learners(first_name, last_name, email), trainer:trainers(first_name, last_name, email)')
-      .eq('session_id', session.id),
-    sb
-      .schema('app')
-      .from('attendance_signatures')
-      .select('participant_kind, learner_id, trainer_id, signed_at, status')
-      .eq('attendance_sheet_id', sheet.sheetId),
-    sb
-      .schema('app')
-      .from('attendance_sheets')
-      .select('status, document_id')
-      .eq('id', sheet.sheetId)
-      .maybeSingle(),
-  ]);
-  const sheetState = (sheetMeta ?? { status: 'open', document_id: null }) as {
-    status: string;
-    document_id: string | null;
-  };
-
-  const rawParticipants = (participantsData ?? []) as unknown as ParticipantRow[];
-  const signatures = (signaturesData ?? []) as unknown as SignatureRow[];
-
-  const signedSet = new Set(
-    signatures
-      .filter((s) => s.signed_at != null)
-      .map((s) => `${s.participant_kind}:${s.participant_kind === 'learner' ? s.learner_id : s.trainer_id}`),
-  );
-
-  const participants: ParticipantItem[] = rawParticipants.map((p) => {
-    const person = p.participant_kind === 'learner' ? p.learner : p.trainer;
-    const id = (p.participant_kind === 'learner' ? p.learner_id : p.trainer_id) ?? '';
-    return {
-      id,
-      kind: p.participant_kind,
-      fullName: person ? `${person.first_name} ${person.last_name}` : 'Inconnu',
-      email: person?.email ?? null,
-      signed: signedSet.has(`${p.participant_kind}:${id}`),
-    };
-  });
+  // Signataires de la feuille = apprenant(s) du dossier. Le formateur émarge à part (en-tête).
+  const learnerIds = [dossier.learnerId];
+  const participants = learnerIds.map((id, i) => ({
+    id,
+    fullName: learnerFullName(id),
+    // Le mock encode le nombre de signatures via attendanceCount : on marque les
+    // premiers participants comme signés, de façon déterministe.
+    signed: i < session.attendanceCount,
+  }));
 
   const signedCount = participants.filter((p) => p.signed).length;
+  const allSigned = participants.length > 0 && signedCount === participants.length;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold mb-1">
-        Émargement
-      </p>
-      <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-        {session.title ?? 'Séance de formation'}
-      </h1>
-      <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-        {fmtDate(session.starts_at)} · {fmtTime(session.starts_at)}–{fmtTime(session.ends_at)} · {session.modality}
-      </p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div>
+        <Link
+          href={`/dossiers/${params.id}/emargements`}
+          className="text-[12px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition"
+        >
+          ← Toutes les feuilles
+        </Link>
+      </div>
 
-      <div className="mt-6 mb-6 grid grid-cols-3 gap-3">
+      <header>
+        <SectionLabel className="mb-1">Émargement · Séance {sessionIndex + 1}</SectionLabel>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+          {formationTitle(dossier.formationId)}
+        </h1>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+          {format(parseISO(session.startsAt), 'EEEE d MMMM yyyy', { locale: fr })} ·{' '}
+          {format(parseISO(session.startsAt), 'HH:mm', { locale: fr })}–
+          {format(parseISO(session.endsAt), 'HH:mm', { locale: fr })} ·{' '}
+          {MODALITY_LABELS[session.modality] ?? session.modality}
+          {session.location ? ` · ${session.location}` : ''}
+        </p>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+          Formateur : <span className="text-zinc-700 dark:text-zinc-300">{trainerFullName(session.trainerId)}</span>
+        </p>
+      </header>
+
+      <div className="grid grid-cols-3 gap-3">
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-3">
           <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold mb-1">Participants</p>
           <p className="text-[18px] font-semibold text-zinc-900 dark:text-zinc-100">{participants.length}</p>
@@ -154,23 +90,28 @@ export default async function EmargementSessionPage({
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-3">
           <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold mb-1">Statut</p>
           <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {signedCount === participants.length && participants.length > 0 ? '✅ Complète' : '⏳ En cours'}
+            {allSigned ? '✅ Complète' : '⏳ En cours'}
           </p>
         </div>
       </div>
 
-      <ParticipantsList sheetId={sheet.sheetId} participants={participants} />
+      <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+        {participants.map((p) => (
+          <li
+            key={p.id}
+            className="flex items-center justify-between py-3 px-1 text-[13px]"
+          >
+            <span className="text-zinc-900 dark:text-zinc-100">{p.fullName}</span>
+            <StatusPill tone={p.signed ? 'success' : 'warning'}>
+              {p.signed ? 'signé' : 'en attente'}
+            </StatusPill>
+          </li>
+        ))}
+      </ul>
 
-      {session.modality === 'distanciel' && (
-        <ZoomImportPanel sheetId={sheet.sheetId} sessionId={session.id} />
-      )}
-
-      <FinalizeButton
-        sheetId={sheet.sheetId}
-        initialFinalized={sheetState.status === 'finalized'}
-        initialDocumentId={sheetState.document_id}
-        allSigned={participants.length > 0 && signedCount === participants.length}
-      />
+      <p className="text-[11px] text-zinc-400">
+        L'émargement Qualiopi exige une signature par participant et par demi-journée (indicateur I22).
+      </p>
     </div>
   );
 }
