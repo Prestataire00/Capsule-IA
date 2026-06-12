@@ -1,5 +1,6 @@
 import 'server-only';
 import { env } from '@/env.mjs';
+import { renderFunderEmail, type FunderEmailTemplate } from './funder-render';
 
 const LOGO_URL = env.PUBLIC_APP_URL
   ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/logo-icon.png`
@@ -335,6 +336,21 @@ export function endOfTrainingEmail(data: EndOfTrainingData): { subject: string; 
     ` : ''}
   `);
 
+  return { subject, html };
+}
+
+// Email financeur : rend le contenu (sujet + corps) depuis le template d'une
+// étape de playbook, puis l'enveloppe dans la mise en page commune. La logique
+// de rendu vit dans funder-render.ts (module pur, testé) ; ici on n'ajoute que
+// l'habillage serveur (logo, footer).
+export function funderEmail(
+  tpl: FunderEmailTemplate,
+  vars: Record<string, string>,
+): { subject: string; html: string } {
+  const { subject, bodyHtml } = renderFunderEmail(tpl, vars);
+  const html = wrapper(
+    card(`<p style="font-size:14px; color:#18181b; margin:0;">${bodyHtml}</p>`),
+  );
   return { subject, html };
 }
 
