@@ -10,6 +10,15 @@
 
 ---
 
+## Statut d'exécution (2026-06-12)
+
+- ✅ **Task 6** (pièces jointes `sendEmail`) et ✅ **Task 7** (renderer + décision attach/lien) livrées et poussées sur `main` (commit `06d040c`).
+- **Déviation Task 7** : `server-only` n'étant ni mocké ni aliasé dans Vitest, la logique pure a été extraite hors de `templates.ts` — `apps/web/shared/lib/email/funder-render.ts` (`renderFunderEmail` → `{subject, bodyHtml}`) et `apps/web/shared/lib/funders/attachments.ts` (`decideTransport`), testés. `templates.ts` ne porte que le wrapper serveur **`funderEmail(tpl, vars) → {subject, html}`**.
+- ⏳ **Tasks 1-5, 8-11** en attente : nécessitent un runtime de conteneurs (Docker/OrbStack) pour Supabase local (`db:reset`, `db:test`, `db:types`). Non lançables tant que Docker est absent.
+- ⚠️ Pré-existant (hors scope) : `pnpm typecheck` est rouge sur `main` avant toute modif (déclaration `@/env.mjs` manquante, `any` implicites dans `shared/lib/supabase/*`, `date-of-birth-input.tsx`). À traiter séparément.
+
+---
+
 ## Conventions du repo (vérifiées)
 
 - Migrations : `supabase/migrations/NNNN_*.sql`, dernière = `0042`. Nouvelles → `0043`+.
@@ -799,8 +808,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail, type EmailAttachment } from '@/shared/lib/email/resend';
-import { renderFunderEmail } from '@/shared/lib/email/templates';
-import { decideTransport, RESEND_MAX_ATTACH_BYTES } from '@/shared/lib/funders/attachments';
+import { funderEmail } from '@/shared/lib/email/templates'; // wrapper serveur (Task 7)
+import { decideTransport } from '@/shared/lib/funders/attachments';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -889,10 +898,10 @@ export async function prepareFunderTaskDraft(taskId: string, dossierId: string):
     organisme: (org as { name?: string } | null)?.name ?? '',
   };
 
-  const rendered = renderFunderEmail(
+  const rendered = funderEmail(
     { subjectTemplate: (step as StepRow).email_subject_template, bodyTemplate: (step as StepRow).email_body_template },
     vars,
-  );
+  ); // -> { subject, html } déjà enveloppé dans la mise en page commune
 
   const resolved = await resolveAttachments(sb, t.organization_id, t.dossier_id, step as StepRow);
   const transport = decideTransport(resolved.map((r) => r.bytes));
