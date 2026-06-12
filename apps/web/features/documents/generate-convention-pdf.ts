@@ -1,5 +1,6 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { drawSignatureBlock } from './apply-org-signature';
 
 export type ConventionInput = {
   organization: {
@@ -9,6 +10,10 @@ export type ConventionInput = {
     address: string | null;
     representativeName: string | null;
   };
+  signaturePng: Uint8Array | null;
+  stampPng: Uint8Array | null;
+  representativeTitle: string | null;
+  place: string | null;
   learner: {
     firstName: string;
     lastName: string;
@@ -244,21 +249,27 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   c = { ...c, y: c.y - 16 };
 
   // Section 5 — Signatures
-  c = ensureRoom(doc, c, 100);
+  c = ensureRoom(doc, c, 120);
   c = drawHeading(doc, c, fontBold, '5. Signatures des parties');
-  c = drawText(doc, c, font, "Fait à _________________________, le _____ / _____ / __________", { size: 10 });
   c = { ...c, y: c.y - 24 };
 
   const colW = (COL - 24) / 2;
   c.page.drawRectangle({ x: MARGIN, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
   c.page.drawRectangle({ x: MARGIN + colW + 24, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
-  c.page.drawText("L'organisme de formation", { x: MARGIN + 8, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
   c.page.drawText('Le bénéficiaire', { x: MARGIN + colW + 32, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
-  c.page.drawText(input.organization.representativeName ?? input.organization.name, {
-    x: MARGIN + 8, y: c.y - 70, size: 8, font, color: COLOR_BODY,
-  });
   c.page.drawText(`${input.learner.firstName} ${input.learner.lastName}`, {
     x: MARGIN + colW + 32, y: c.y - 70, size: 8, font, color: COLOR_BODY,
+  });
+
+  // Colonne organisme : signature + cachet OF apposés automatiquement
+  const sigAnchor = { x: MARGIN, y: c.y - 80, width: colW, height: 80 };
+  await drawSignatureBlock(doc, c.page, { font, fontBold }, sigAnchor, {
+    signaturePng: input.signaturePng,
+    stampPng: input.stampPng,
+    representativeName: input.organization.representativeName,
+    representativeTitle: input.representativeTitle,
+    place: input.place,
+    date: input.generatedAt,
   });
 
   // Footer pied de page
