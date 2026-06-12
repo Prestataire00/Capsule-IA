@@ -23,9 +23,9 @@
 
 > **⚠️ Vérification DB indisponible en local** : aucun runtime de conteneurs n'est installé (Docker absent). `pnpm db:reset`/`db:test`/`db:types` ne tournent pas. Les tâches DB (1-5) sont **write-only** : écrire + commit, vérif **PENDING** jusqu'à un environnement avec Docker. Les tâches TS (6-8) se valident par `pnpm lint` + « aucune nouvelle erreur typecheck attribuable » (le typecheck du repo est rouge avant toute modif : `@/env.mjs` sans `.d.ts`, etc.). Voir le plan financeurs pour le même protocole.
 
-> **⚠️⚠️ L'UI dossier est un prototype MOCK** (constat 2026-06-13). `apps/web/app/(dashboard)/dossiers/[id]/page.tsx` et la page dédiée `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx` lisent `@/shared/mock/data` (pages **non-async**, pas de client Supabase). La **Task 8 est donc invalide en l'état** : elle suppose une page en données réelles. Prérequis avant Task 8 : convertir la page Qualiopi dossier de mock → données réelles (Server Component async + client `supabaseServer()`), effort distinct hors de ce plan. Tant que ce prérequis n'est pas fait, **ne pas exécuter la Task 8**.
+> **⚠️⚠️ L'UI dossier est un prototype MOCK** (constat 2026-06-13). `apps/web/app/(dashboard)/dossiers/[id]/page.tsx` et la page dédiée `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx` lisent `@/shared/mock/data` (pages **non-async**, pas de client Supabase). La **Task 8 intègre donc la conversion mock → données réelles** de la page Qualiopi dédiée (Server Component async + `supabaseServer()`), avant d'ajouter les boutons de transition gardés. Voir [[project_ia_infinity_ui_mock]].
 
-> **Décision d'exécution (2026-06-13)** : exécution **suspendue**. Les deux blocages ci-dessus (Docker absent + UI mock) font qu'aucun sous-ensemble n'apporte de valeur vérifiée. Reprendre quand : (a) un runtime de conteneurs est dispo (tâches 1-5, 9) ET (b) la page Qualiopi dossier est passée en données réelles (préalable à 8). Tâches 6-7 livrables dès (a), mais sans valeur tant que 1-5 ne sont pas appliquées.
+> **Décision d'exécution (2026-06-13)** : exécution **suspendue** tant que Docker est absent (tâches 1-5, 8, 9 dépendent du schéma appliqué). Reprendre quand un runtime de conteneurs est dispo → dérouler 1→9 d'un bloc. Tâches 6-7 livrables dès Docker présent ; Task 8 inclut sa propre conversion UI donc plus de préalable externe.
 
 ## Données existantes réutilisées (vérifiées)
 
@@ -49,12 +49,11 @@
 - `supabase/tests/0048_test_qualiopi_engine.sql`.
 
 **App (créer)**
-- `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/actions.ts` — `startTraining`, `closeDossier` (transitions gardées).
-- `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/_components/qualiopi-checklist.tsx` — UI.
+- `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/actions.ts` — `startTraining`, `closeDossier`, `recomputeNow` (transitions gardées + recalcul).
 
 **App (modifier)**
 - `apps/web/app/api/cron/dispatch-events/route.ts` — handlers de recalcul.
-- `apps/web/app/(dashboard)/dossiers/[id]/page.tsx` — monter la checklist.
+- `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx` — **conversion mock → données réelles** + boutons de transition gardés (Task 8).
 
 ---
 
@@ -596,9 +595,19 @@ export async function startTraining(dossierId: string): Promise<ActionResult> {
 export async function closeDossier(dossierId: string): Promise<ActionResult> {
   return transition(dossierId, 'closed');
 }
+
+// Recalcul manuel de la checklist (bouton « Recalculer » de la page Qualiopi).
+export async function recomputeNow(dossierId: string): Promise<ActionResult> {
+  const sb = admin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossierId });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/dossiers/${dossierId}/qualiopi`);
+  return { ok: true };
+}
 ```
 
-> **Vérif** : l'erreur PostgREST sur exception PL/pgSQL expose le message dans `error.message` (souvent préfixé). `explainGateError` matche par sous-chaîne, robuste au préfixe. Confirmer que la mise à jour du statut passe bien par cette table (pas uniquement via `save_dossier`) — sinon router ces actions vers `save_dossier`; le trigger s'applique dans les deux cas.
+> **Vérif** : l'erreur PostgREST sur exception PL/pgSQL expose le message dans `error.message` (souvent préfixé). `explainGateError` matche par sous-chaîne, robuste au préfixe. Confirmer que la mise à jour du statut passe bien par cette table (pas uniquement via `save_dossier`) — sinon router ces actions vers `save_dossier`; le trigger s'applique dans les deux cas. `recompute_qualiopi_checklist` : voir la note d'exposition PostgREST en Task 6.
 
 - [ ] **Step 2: Vérif**
 
@@ -614,21 +623,36 @@ git commit -m "feat(qualiopi): server actions startTraining/closeDossier gardée
 
 ---
 
-### Task 8: UI — checklist Qualiopi sur la page dossier
+### Task 8: Conversion page Qualiopi mock → réel + boutons de transition gardés
 
-> **⚠️ PRÉREQUIS NON REMPLI** : la page dossier/Qualiopi est en données **mock** (cf. note en tête). Avant cette tâche, convertir `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx` en Server Component async lisant `app.qualiopi_dossier_checklists` via `supabaseServer()`. Le code ci-dessous suppose ce prérequis fait. Ne pas exécuter sinon (sinon : section incohérente dans un prototype mock, et risque de casser la page en prod si on interroge des colonnes non encore migrées).
+> **Prérequis intégré** : `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx` est aujourd'hui un Server Component **non-async** qui lit `@/shared/mock/data` (cf. note en tête + [[project_ia_infinity_ui_mock]]). Cette tâche le **convertit en données réelles** (async + `supabaseServer()`, RLS-scopé) en réutilisant la mise en page existante (groupes par critère, pills bloquant, compteur de preuves), puis ajoute les boutons de transition gardés.
+> **Dépend de** : Tasks 1-5 appliquées (table/colonnes/moteur/seed) — donc Docker requis. Ne pas exécuter avant.
 
 **Files:**
-- Create: `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/_components/qualiopi-checklist.tsx`
-- Modify: `apps/web/app/(dashboard)/dossiers/[id]/page.tsx`
+- Modify (réécriture) : `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx`
 
-- [ ] **Step 1: Composant checklist**
+- [ ] **Step 1: Lire le fichier mock actuel pour préserver le visuel**
+
+Run: `sed -n '1,200p' "apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx"`
+Expected: page mock (imports `@/shared/mock/data`, groupage par `criterion`, pills `bloquant`, `Paperclip` preuves). On garde ce visuel, on remplace la source de données.
+
+- [ ] **Step 2: Réécrire la page en données réelles + boutons gardés**
+
+Remplacer tout le contenu par :
 
 ```tsx
-// apps/web/app/(dashboard)/dossiers/[id]/qualiopi/_components/qualiopi-checklist.tsx
-import { startTraining, closeDossier } from '../actions';
+// ARCHETYPE: command
+// Justification: conformité Qualiopi réelle par indicateur + actions de transition gardées.
 
-type Detail = {
+import { notFound } from 'next/navigation';
+import { Check, X, Paperclip, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { supabaseServer } from '@/shared/lib/supabase/server';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { StatusPill } from '@/shared/ui/status-pill';
+import { InfoCallout } from '@/shared/ui/info-callout';
+import { startTraining, closeDossier, recomputeNow } from './actions';
+
+type DetailRow = {
   indicator_id: string;
   number: number;
   stage: 'entry' | 'closing' | 'none';
@@ -637,106 +661,176 @@ type Detail = {
   source: string;
 };
 
-type Props = {
-  dossierId: string;
-  status: string;
-  entryBlockingMissing: number;
-  closingBlockingMissing: number;
-  details: Detail[];
-};
+export default async function QualiopiPage({ params }: { params: { id: string } }) {
+  const sb = supabaseServer();
 
-function Row({ d }: { d: Detail }) {
-  const color = d.satisfied ? 'text-emerald-600' : d.is_blocking ? 'text-red-600' : 'text-amber-600';
-  return (
-    <li className="flex items-center gap-2 text-sm">
-      <span className={color}>{d.satisfied ? '✓' : d.is_blocking ? '✗' : '!'}</span>
-      <span>Indicateur {d.number}{d.is_blocking ? ' (bloquant)' : ''}</span>
-    </li>
+  const { data: dossier } = await sb
+    .schema('app').from('dossiers')
+    .select('id, status').eq('id', params.id).maybeSingle();
+  if (!dossier) notFound();
+  const status = (dossier as { status: string }).status;
+
+  const { data: checklist } = await sb
+    .schema('app').from('qualiopi_dossier_checklists')
+    .select('total_indicators, satisfied_indicators, entry_blocking_missing, closing_blocking_missing, details')
+    .eq('dossier_id', params.id).maybeSingle();
+
+  const { data: indicators } = await sb
+    .schema('app').from('qualiopi_indicators')
+    .select('code, number, title, criterion').eq('scope', 'dossier');
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c = (checklist as any) ?? {};
+  const details: DetailRow[] = c.details ?? [];
+  const entryBlockingMissing: number = c.entry_blocking_missing ?? 0;
+  const closingBlockingMissing: number = c.closing_blocking_missing ?? 0;
+  const refByNumber = new Map<number, { code: string; title: string; criterion: number }>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((indicators as any[]) ?? []).map((i) => [i.number, { code: i.code, title: i.title, criterion: i.criterion }]),
   );
-}
 
-export function QualiopiChecklist({
-  dossierId, status, entryBlockingMissing, closingBlockingMissing, details,
-}: Props) {
-  const entry = details.filter((d) => d.stage === 'entry');
-  const closing = details.filter((d) => d.stage === 'closing');
+  const enriched = details.map((d) => {
+    const ref = refByNumber.get(d.number);
+    return {
+      code: ref?.code ?? `#${d.number}`,
+      title: ref?.title ?? `Indicateur ${d.number}`,
+      criterion: ref?.criterion ?? 0,
+      number: d.number,
+      satisfied: d.satisfied,
+      blocking: d.is_blocking,
+      stage: d.stage,
+    };
+  });
+
+  const byCriterion = enriched.reduce<Record<number, typeof enriched>>((acc, e) => {
+    (acc[e.criterion] ||= []).push(e);
+    return acc;
+  }, {});
+
+  const entryBlockers = enriched.filter((e) => e.stage === 'entry' && e.blocking && !e.satisfied);
+  const closingBlockers = enriched.filter((e) => e.stage === 'closing' && e.blocking && !e.satisfied);
+  const satisfied = c.satisfied_indicators ?? enriched.filter((e) => e.satisfied).length;
+  const totalCount = c.total_indicators ?? enriched.length;
+  const ready = entryBlockingMissing === 0 && closingBlockingMissing === 0;
 
   return (
-    <section className="rounded-lg border p-4 space-y-4">
-      <h2 className="font-semibold">Conformité Qualiopi</h2>
+    <div className="space-y-6">
+      <header>
+        <SectionLabel className="mb-2">Conformité Qualiopi</SectionLabel>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-4 py-3 flex items-center gap-4">
+          {ready ? (
+            <ShieldCheck className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+          ) : (
+            <ShieldAlert className="w-6 h-6 text-amber-600 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className="text-[15px] font-medium">{satisfied} / {totalCount} indicateurs satisfaits</p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {details.length === 0
+                ? 'Checklist pas encore calculée — cliquez sur Recalculer.'
+                : ready
+                  ? 'Tous les indicateurs bloquants sont satisfaits.'
+                  : `${entryBlockers.length} bloquant(s) d'entrée, ${closingBlockers.length} bloquant(s) de clôture.`}
+            </p>
+          </div>
+          <form action={async () => { 'use server'; await recomputeNow(params.id); }}>
+            <button type="submit" className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
+              Recalculer
+            </button>
+          </form>
+        </div>
+      </header>
 
-      <div>
-        <h3 className="text-sm font-medium">Entrée en formation</h3>
-        <ul className="mt-1 space-y-1">{entry.map((d) => <Row key={d.indicator_id} d={d} />)}</ul>
-        <form action={async () => { 'use server'; await startTraining(dossierId); }} className="mt-2">
+      <div className="flex flex-wrap gap-3">
+        <form action={async () => { 'use server'; await startTraining(params.id); }}>
           <button
             type="submit"
             disabled={status === 'active' || entryBlockingMissing > 0}
-            className="rounded bg-primary px-3 py-1 text-sm text-primary-foreground disabled:opacity-50"
-            title={entryBlockingMissing > 0 ? `${entryBlockingMissing} indicateur(s) d'entrée bloquant(s) manquant(s)` : ''}
+            className="border border-zinc-200/60 dark:border-zinc-800 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            title={entryBlockingMissing > 0 ? `${entryBlockingMissing} indicateur(s) d'entrée bloquant(s)` : ''}
           >
             Démarrer la formation
           </button>
         </form>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium">Clôture</h3>
-        <ul className="mt-1 space-y-1">{closing.map((d) => <Row key={d.indicator_id} d={d} />)}</ul>
-        <form action={async () => { 'use server'; await closeDossier(dossierId); }} className="mt-2">
+        <form action={async () => { 'use server'; await closeDossier(params.id); }}>
           <button
             type="submit"
             disabled={status === 'closed' || closingBlockingMissing > 0}
-            className="rounded bg-primary px-3 py-1 text-sm text-primary-foreground disabled:opacity-50"
-            title={closingBlockingMissing > 0 ? `${closingBlockingMissing} indicateur(s) de clôture bloquant(s) manquant(s)` : ''}
+            className="border border-zinc-200/60 dark:border-zinc-800 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            title={closingBlockingMissing > 0 ? `${closingBlockingMissing} indicateur(s) de clôture bloquant(s)` : ''}
           >
             Clôturer le dossier
           </button>
         </form>
       </div>
-    </section>
+
+      {(entryBlockers.length > 0 || closingBlockers.length > 0) && (
+        <InfoCallout tone="warning">
+          <p className="font-medium">Indicateurs bloquants à résoudre</p>
+          <ul className="text-[11px] mt-2 space-y-1">
+            {[...entryBlockers, ...closingBlockers].map((b) => (
+              <li key={b.code} className="flex items-center gap-2">
+                <span className="font-mono text-amber-700 dark:text-amber-300">{b.code}</span>
+                <span>{b.title}</span>
+                <span className="text-amber-600/70">({b.stage === 'entry' ? 'entrée' : 'clôture'})</span>
+              </li>
+            ))}
+          </ul>
+        </InfoCallout>
+      )}
+
+      {Object.entries(byCriterion).map(([criterion, items]) => {
+        const okCount = items.filter((i) => i.satisfied).length;
+        return (
+          <section key={criterion}>
+            <div className="flex items-center justify-between mb-2">
+              <SectionLabel>Critère {criterion}</SectionLabel>
+              <span className="font-mono text-[11px] text-zinc-500">{okCount}/{items.length}</span>
+            </div>
+            <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+              {items.map((ind) => (
+                <li key={ind.code} className="grid grid-cols-[40px_60px_1fr_120px] gap-3 py-3 px-1 items-center text-[13px]">
+                  {ind.satisfied ? (
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                      <Check className="w-3 h-3" />
+                    </span>
+                  ) : (
+                    <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+                      <X className="w-3 h-3" />
+                    </span>
+                  )}
+                  <span className="font-mono text-[11px] text-zinc-500">{ind.code}</span>
+                  <span className="text-zinc-900 dark:text-zinc-100">{ind.title}</span>
+                  {ind.blocking && !ind.satisfied ? (
+                    <StatusPill tone="warning">bloquant</StatusPill>
+                  ) : (
+                    <span className="text-[11px] text-zinc-400 inline-flex items-center gap-1 justify-self-end">
+                      {ind.stage !== 'none' ? (ind.stage === 'entry' ? 'entrée' : 'clôture') : ''}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 ```
 
-> Aligner les classes sur la charte UI (`.cursor/rules/70-ui-charter.mdc` : orange brand, font-semibold max sur titres, 1 bouton primaire/écran). Si deux boutons primaires posent souci charte, passer « Clôturer » en secondaire.
-
-- [ ] **Step 2: Charger la checklist et monter dans `page.tsx`**
-
-Dans `apps/web/app/(dashboard)/dossiers/[id]/page.tsx`, avec le client supabase serveur déjà présent :
-
-```tsx
-import { QualiopiChecklist } from './qualiopi/_components/qualiopi-checklist';
-
-const { data: checklist } = await sb
-  .schema('app')
-  .from('qualiopi_dossier_checklists')
-  .select('entry_blocking_missing, closing_blocking_missing, details')
-  .eq('dossier_id', params.id)
-  .maybeSingle();
-
-// ... dans le JSX (dossier = la ligne dossier déjà chargée) :
-<QualiopiChecklist
-  dossierId={params.id}
-  status={dossier.status}
-  entryBlockingMissing={checklist?.entry_blocking_missing ?? 0}
-  closingBlockingMissing={checklist?.closing_blocking_missing ?? 0}
-  details={(checklist?.details as any) ?? []}
-/>
-```
-
-> **Vérifs** : nom réel du client supabase dans `page.tsx` (`sb`/`supabase`), forme de `params` (Next 14), et nom de la variable de la ligne dossier. Si `qualiopi_dossier_checklists` n'a pas encore de ligne (jamais recalculé), `details` vaut `[]` → la section s'affiche vide mais ne casse pas ; déclencher un premier `recompute_qualiopi_checklist` à l'ouverture est optionnel (V2).
+> **Vérifs** : (1) `supabaseServer()` est bien le helper (lu Task conventions) ; le `(dashboard)` impose l'auth → RLS s'applique. (2) `params` synchrone en Next 14 (le repo l'utilise ainsi). (3) `Paperclip` retiré car le compteur de preuves mock n'a pas d'équivalent direct dans `details` V1 — si on veut le réintroduire, ajouter un comptage de `qualiopi_proofs` par indicateur dans le moteur (V2). (4) `database.ts` n'aura les nouvelles colonnes qu'après Task 9 ; les casts `any` évitent l'échec, et `next build` ignore les erreurs TS (`ignoreBuildErrors: true`).
 
 - [ ] **Step 3: Vérif**
 
-Run: `pnpm lint && pnpm build`
-Expected: build OK (page compile, composant monté).
+Run: `pnpm lint "apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx" && pnpm build`
+Expected: lint OK ; build OK.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add "apps/web/app/(dashboard)/dossiers/[id]/qualiopi/_components/qualiopi-checklist.tsx" "apps/web/app/(dashboard)/dossiers/[id]/page.tsx"
-git commit -m "feat(qualiopi): section checklist + boutons de transition gardés"
+git add "apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx"
+git commit -m "feat(qualiopi): page Qualiopi en données réelles + transitions gardées"
 ```
 
 ---
@@ -781,12 +875,15 @@ git commit -m "chore(qualiopi): régénère les types DB"
 - Moteur de calcul + résolveurs (proof/positionnement/évaluation/émargement/doc) → Task 3.
 - Enforcement dur incontournable (trigger `→active`/`→closed`) → Task 3, testé Task 4.
 - Recalcul event-driven (fraîcheur UI) → Task 6.
-- UI checklist + boutons gardés → Tasks 7-8.
+- Server Actions transitions gardées + recompute → Task 7.
+- Conversion page Qualiopi mock→réel + checklist + boutons gardés → Task 8.
 - Seed standard (matrice, #10 positionnement entry/blocking) → Task 5.
 - RLS + pgTAP → Task 1 (RLS), Task 4 (gates/override/resolvers).
 
-**Cohérence des types/noms :** `eval_qualiopi_counts` (OUT: total, satisfied, entry_blocking_missing, closing_blocking_missing, blocking_missing) utilisé identiquement Tasks 3/4 ; `recompute_qualiopi_checklist(p_dossier_id)` Tasks 3/6 ; colonnes checklist `entry_/closing_blocking_missing` Tasks 2/3/8 ; messages `qualiopi_entry_blocked`/`qualiopi_closing_blocked` Tasks 3/7.
+**Cohérence des types/noms :** `eval_qualiopi_counts` (OUT: total, satisfied, entry_blocking_missing, closing_blocking_missing, blocking_missing) utilisé identiquement Tasks 3/4 ; `recompute_qualiopi_checklist(p_dossier_id)` Tasks 3/6/7 ; colonnes checklist `entry_/closing_blocking_missing` Tasks 2/3/8 ; `details` (indicator_id, number, stage, is_blocking, satisfied, source) écrit Task 3, lu Task 8 ; actions `startTraining`/`closeDossier`/`recomputeNow` Task 7, consommées Task 8 ; messages `qualiopi_entry_blocked`/`qualiopi_closing_blocked` Tasks 3/7.
 
-**Points à confirmer pendant l'exécution (signalés inline) :** helpers pgTAP réels ; exposition PostgREST des RPC (wrapper public si besoin) ; chemin réel de changement de statut (table directe vs `save_dossier`) ; client/params dans `page.tsx` ; charte UI (2 boutons primaires) ; numérotation migrations vs plan financeurs.
+**Points à confirmer pendant l'exécution (signalés inline) :** helpers pgTAP réels ; exposition PostgREST des RPC (wrapper public si besoin) ; chemin réel de changement de statut (table directe vs `save_dossier`) ; `supabaseServer()`/`params` dans la page Qualiopi ; charte UI (boutons) ; numérotation migrations vs plan financeurs.
+
+**Ordre/dépendances :** 1→5 (DB, Docker requis) → 6, 7 (TS, dépendent des RPC) → 8 (UI, dépend des colonnes/`details`/actions) → 9 (types + vérif). Aucune tâche n'apporte de valeur isolée tant que 1-5 ne sont pas appliquées.
 
 **Hors scope (V2) :** override justifié, configurateur UI des règles, résolveurs avancés, wiring du domaine `dossier.entity.ts`, recompute auto à l'ouverture de page.
