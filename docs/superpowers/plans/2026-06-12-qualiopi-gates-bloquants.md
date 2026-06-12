@@ -23,6 +23,10 @@
 
 > **⚠️ Vérification DB indisponible en local** : aucun runtime de conteneurs n'est installé (Docker absent). `pnpm db:reset`/`db:test`/`db:types` ne tournent pas. Les tâches DB (1-5) sont **write-only** : écrire + commit, vérif **PENDING** jusqu'à un environnement avec Docker. Les tâches TS (6-8) se valident par `pnpm lint` + « aucune nouvelle erreur typecheck attribuable » (le typecheck du repo est rouge avant toute modif : `@/env.mjs` sans `.d.ts`, etc.). Voir le plan financeurs pour le même protocole.
 
+> **⚠️⚠️ L'UI dossier est un prototype MOCK** (constat 2026-06-13). `apps/web/app/(dashboard)/dossiers/[id]/page.tsx` et la page dédiée `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx` lisent `@/shared/mock/data` (pages **non-async**, pas de client Supabase). La **Task 8 est donc invalide en l'état** : elle suppose une page en données réelles. Prérequis avant Task 8 : convertir la page Qualiopi dossier de mock → données réelles (Server Component async + client `supabaseServer()`), effort distinct hors de ce plan. Tant que ce prérequis n'est pas fait, **ne pas exécuter la Task 8**.
+
+> **Décision d'exécution (2026-06-13)** : exécution **suspendue**. Les deux blocages ci-dessus (Docker absent + UI mock) font qu'aucun sous-ensemble n'apporte de valeur vérifiée. Reprendre quand : (a) un runtime de conteneurs est dispo (tâches 1-5, 9) ET (b) la page Qualiopi dossier est passée en données réelles (préalable à 8). Tâches 6-7 livrables dès (a), mais sans valeur tant que 1-5 ne sont pas appliquées.
+
 ## Données existantes réutilisées (vérifiées)
 
 - `app.qualiopi_indicators(id, code, number, scope, criterion, ...)` — 32 indicateurs seedés dans `supabase/seed.sql`. Dossier-scope : I4-I15, I20-I23, I26-I27, I30. **Le positionnement (analyse des besoins) = indicateur #10** « Positionnement de l'apprenant » (`expected_proofs=['questionnaire_positionnement']`).
@@ -611,6 +615,8 @@ git commit -m "feat(qualiopi): server actions startTraining/closeDossier gardée
 ---
 
 ### Task 8: UI — checklist Qualiopi sur la page dossier
+
+> **⚠️ PRÉREQUIS NON REMPLI** : la page dossier/Qualiopi est en données **mock** (cf. note en tête). Avant cette tâche, convertir `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/page.tsx` en Server Component async lisant `app.qualiopi_dossier_checklists` via `supabaseServer()`. Le code ci-dessous suppose ce prérequis fait. Ne pas exécuter sinon (sinon : section incohérente dans un prototype mock, et risque de casser la page en prod si on interroge des colonnes non encore migrées).
 
 **Files:**
 - Create: `apps/web/app/(dashboard)/dossiers/[id]/qualiopi/_components/qualiopi-checklist.tsx`
