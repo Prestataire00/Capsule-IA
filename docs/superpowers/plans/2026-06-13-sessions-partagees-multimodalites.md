@@ -20,6 +20,8 @@
 - Dispatcher : `apps/web/app/api/cron/dispatch-events/route.ts` (`HANDLERS`, `Handler=(event,sb)=>Promise<{ok}|{ok:false,error}>`).
 - Server Actions : `'use server'` + client service-role (cf. `apps/web/app/(dashboard)/factures/actions.ts`).
 
+> **✅ Déjà livré (2026-06-13)** : le module pur de la Task 6 — `apps/web/shared/lib/sessions/overlap.ts` (`hasOverlap`) + test Vitest (5/5 verts) — est committé/poussé. Reste de la Task 6 (handler dispatcher) en attente DB.
+
 > **⚠️ Vérification DB indisponible en local** : Docker absent → `db:reset`/`db:test`/`db:types` ne tournent pas. Tâches DB (1-5) = **write-only**, vérif **PENDING**. Tâches TS (6-8) = `pnpm lint` + « aucune nouvelle erreur typecheck attribuable » (typecheck repo déjà rouge). Voir [[project_ia_infinity_verif_gotchas]].
 
 > **⚠️ UI sessions/dossier en MOCK** ([[project_ia_infinity_ui_mock]]) : `apps/web/app/(dashboard)/dossiers/[id]/sessions/page.tsx` lit `@/shared/mock/data` (non-async). La Task 8 **inclut la conversion mock → données réelles** avant d'ajouter les contrôles.
