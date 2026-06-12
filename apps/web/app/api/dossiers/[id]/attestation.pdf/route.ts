@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateAttestationPDF, type AttestationInput } from '@/features/documents/generate-attestation-pdf';
+import { loadOrgBranding } from '@/features/documents/load-org-branding';
+import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,14 +89,21 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const attendanceRate = await computeAttendanceRate(sb, params.id);
 
+  const orgId = d.organization_id;
+  const branding = await loadOrgBranding(sb as never, orgId);
+
   const input: AttestationInput = {
     organization: {
       name: org?.name ?? 'Organisme de formation',
       siret: org?.siret ?? null,
       nda: org?.declaration_activite ?? null,
       address: composeAddress(org?.address),
-      representativeName: org?.contact_email ?? null,
+      representativeName: branding.representativeName ?? org?.contact_email ?? null,
     },
+    signaturePng: branding.signaturePng,
+    stampPng: branding.stampPng,
+    representativeTitle: branding.representativeTitle,
+    place: org?.address?.city ?? null,
     learner: {
       firstName: d.learner?.first_name ?? '—',
       lastName: d.learner?.last_name ?? '—',
@@ -117,6 +126,20 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   };
 
   const pdfBytes = await generateAttestationPDF(input);
+
+  try {
+    await persistGeneratedDocument(sb as never, {
+      organizationId: orgId,
+      dossierId: params.id,
+      kind: 'attestation_fin',
+      title: 'Attestation de fin de formation',
+      bytes: pdfBytes,
+      generationInput: input,
+    });
+  } catch (e) {
+    console.error('[attestation] persist failed', e);
+  }
+
   const filename = `attestation-${d.reference}.pdf`;
 
   return new NextResponse(new Uint8Array(pdfBytes), {
