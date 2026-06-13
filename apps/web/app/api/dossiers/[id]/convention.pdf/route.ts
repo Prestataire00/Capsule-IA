@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .schema('app')
     .from('dossiers')
     .select(`
-      reference, start_date, end_date, total_hours, modality, total_amount_cents, currency, accessibility_notes,
+      reference, start_date, end_date, total_hours, modality, modalities, total_amount_cents, currency, accessibility_notes,
       organization_id, learner_id, company_id,
       learner:learners(first_name, last_name, email, birth_date, address),
       company:companies(name, siret, address),
@@ -37,6 +37,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     end_date: string;
     total_hours: number;
     modality: string;
+    modalities: string[] | null;
     total_amount_cents: number | null;
     currency: string;
     accessibility_notes: string | null;
@@ -109,6 +110,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       endDate: d.end_date,
       totalHours: d.total_hours,
       modality: d.modality,
+      modalities: d.modalities ?? undefined,
       totalAmountCents: d.total_amount_cents,
       currency: d.currency,
       accessibilityNotes: d.accessibility_notes,
