@@ -3,8 +3,18 @@ import { Building2, Hash, FileBadge, Award, MapPin, Mail } from 'lucide-react';
 import { currentOrg } from '@/shared/mock/data';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { DataList, DataRow } from '@/shared/ui/data-row';
+import { SignatureStampSection } from './signature-stamp-section';
 
 export default function ParametresOrganisationPage() {
+  // currentOrg est un mock VF : les colonnes signature/cachet (migration 0045)
+  // n'y figurent pas encore → on lit avec un cast jusqu'au branchement Supabase réel.
+  const org = currentOrg as typeof currentOrg & {
+    representative_name?: string | null;
+    representative_title?: string | null;
+    signature_path?: string | null;
+    stamp_path?: string | null;
+  };
+
   return (
     <div className="space-y-8">
       <section>
@@ -67,6 +77,13 @@ export default function ParametresOrganisationPage() {
           />
         </DataList>
       </section>
+
+      <SignatureStampSection
+        representativeName={org.representative_name ?? null}
+        representativeTitle={org.representative_title ?? null}
+        hasSignature={!!org.signature_path}
+        hasStamp={!!org.stamp_path}
+      />
     </div>
   );
 }

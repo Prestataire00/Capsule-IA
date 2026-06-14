@@ -1,5 +1,6 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { drawSignatureBlock } from './apply-org-signature';
 
 export type InvoiceLine = {
   description: string;
@@ -22,6 +23,11 @@ export type InvoiceInput = {
     siret: string | null;
     address: string | null;
   };
+  signaturePng: Uint8Array | null;
+  stampPng: Uint8Array | null;
+  representativeName: string | null;
+  representativeTitle: string | null;
+  place: string | null;
   invoice: {
     reference: string;
     issuedAt: string | null; // YYYY-MM-DD
@@ -276,6 +282,19 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
       c = { ...c, y: c.y - 14 };
     }
   }
+
+  // Cadre signature auto (signature + cachet OF apposés), en bas à droite
+  c = ensureRoom(doc, c, 110);
+  c = { ...c, y: c.y - 12 };
+  const sigAnchor = { x: MARGIN + COL - 240, y: c.y - 90, width: 240, height: 90 };
+  await drawSignatureBlock(doc, c.page, { font, fontBold }, sigAnchor, {
+    signaturePng: input.signaturePng,
+    stampPng: input.stampPng,
+    representativeName: input.representativeName,
+    representativeTitle: input.representativeTitle,
+    place: input.place,
+    date: input.generatedAt,
+  });
 
   // Footer
   const pages = doc.getPages();

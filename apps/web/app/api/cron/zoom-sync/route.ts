@@ -7,6 +7,7 @@ import {
   type ZoomCredentials,
 } from '@/features/attendance/zoom-secrets-cipher';
 import { fetchPastMeetingParticipants } from '@/features/attendance/zoom-api-client';
+import { computeSyncWindow } from '@/features/attendance/zoom-sync-window';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -217,16 +218,11 @@ const syncSession = async (
     const statusComputed: 'present' | 'late' =
       row.durationMinutes >= ATTENDANCE_THRESHOLD * sessionMinutes ? 'present' : 'late';
     const hash = createHash('sha256').update(JSON.stringify(row.raw)).digest('hex');
-    const { error } = await sb.rpc('record_attendance_signature' as never, {
+    const { error } = await sb.rpc('record_zoom_attendance' as never, {
       p_attendance_sheet_id: sheetId,
-      p_signer_id: learnerId,
-      p_signer_kind: 'learner',
-      p_image_path: null,
+      p_learner_id: learnerId,
+      p_status: statusComputed,
       p_signature_hash: hash,
-      p_signer_ip: `zoom://${row.email ?? 'unknown'}`,
-      p_signer_user_agent: 'zoom-api-sync',
-      p_signer_country: null,
-      p_token_jti: null,
       p_evidence_source: 'zoom_api',
       p_evidence_payload: {
         joinTime: row.joinTime?.toISOString() ?? null,
@@ -276,7 +272,7 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = admin();
-  const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const { floorIso, cutoffIso } = computeSyncWindow(new Date());
 
   const { data: sessions, error } = await sb
     .schema('app')
@@ -284,8 +280,9 @@ export async function POST(req: NextRequest) {
     .select('id, organization_id, dossier_id, zoom_meeting_id, starts_at, ends_at')
     .eq('modality', 'distanciel')
     .not('zoom_meeting_id', 'is', null)
-    .lt('ends_at', cutoff)
-    .order('ends_at', { ascending: false })
+    .gte('ends_at', floorIso)   // borne basse = rétention Zoom
+    .lt('ends_at', cutoffIso)   // borne haute = délai de stabilisation
+    .order('ends_at', { ascending: true }) // traiter d'abord les plus proches de l'expiration
     .limit(SESSION_BATCH_LIMIT);
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

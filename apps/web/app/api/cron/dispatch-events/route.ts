@@ -104,7 +104,18 @@ async function recomputeSessionParticipants(event: DomainEvent, sb: Sb): Promise
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+// Heures : recalcule le suivi des heures d'un dossier (signature, abandon, session).
+async function recomputeDossierHours(event: DomainEvent, sb: Sb): Promise<HandlerResult> {
+  const payload = event.payload as { dossier_id?: string };
+  const dossierId = payload.dossier_id ?? (event.aggregate_type === 'dossier' ? event.aggregate_id : undefined);
+  if (!dossierId) return { ok: false, error: 'dossier_id absent du payload' };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any).rpc('recompute_dossier_hours', { p_dossier_id: dossierId });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
 const HANDLERS: Record<string, Record<string, Handler>> = {
+  'dossier.hours_dirty':     { 'recompute-dossier-hours': recomputeDossierHours },
   'dossier.funder_attached': { 'materialize-funder-playbook': materializeFunderPlaybook },
   'qualiopi.proof.attached': { 'recompute-qualiopi': recomputeQualiopiChecklist },
   'questionnaire.completed': { 'recompute-qualiopi': recomputeQualiopiChecklist },

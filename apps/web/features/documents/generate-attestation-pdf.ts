@@ -1,5 +1,6 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { drawSignatureBlock } from './apply-org-signature';
 
 export type AttestationInput = {
   organization: {
@@ -9,6 +10,10 @@ export type AttestationInput = {
     address: string | null;
     representativeName: string | null;
   };
+  signaturePng: Uint8Array | null;
+  stampPng: Uint8Array | null;
+  representativeTitle: string | null;
+  place: string | null;
   learner: {
     firstName: string;
     lastName: string;
@@ -199,31 +204,16 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
   );
   c = { ...c, y: c.y - 30 };
 
-  // Signature
-  const today = fmtDate(input.generatedAt.toISOString());
-  c.page.drawText(`Fait le ${today}`, {
-    x: MARGIN + COL - 200, y: c.y, size: 10, font, color: COLOR_BODY,
+  // Cadre signature auto (signature + cachet OF apposés)
+  const sigAnchor = { x: MARGIN + COL - 240, y: c.y - 90, width: 240, height: 90 };
+  await drawSignatureBlock(doc, c.page, { font, fontBold }, sigAnchor, {
+    signaturePng: input.signaturePng,
+    stampPng: input.stampPng,
+    representativeName: input.organization.representativeName,
+    representativeTitle: input.representativeTitle,
+    place: input.place,
+    date: input.generatedAt,
   });
-  c = { ...c, y: c.y - 30 };
-
-  // Cadre signature
-  const sigBoxW = 240;
-  const sigBoxH = 90;
-  c.page.drawRectangle({
-    x: MARGIN + COL - sigBoxW, y: c.y - sigBoxH,
-    width: sigBoxW, height: sigBoxH,
-    borderColor: COLOR_RULE, borderWidth: 0.5,
-  });
-  c.page.drawText("Signature et cachet de l'organisme", {
-    x: MARGIN + COL - sigBoxW + 8, y: c.y - 14,
-    size: 8, font: fontBold, color: COLOR_MUTED,
-  });
-  if (rep) {
-    c.page.drawText(rep, {
-      x: MARGIN + COL - sigBoxW + 8, y: c.y - sigBoxH + 10,
-      size: 9, font, color: COLOR_BODY,
-    });
-  }
 
   // Footer
   page.drawText(`${input.organization.name}  ·  ${input.dossier.reference}  ·  Attestation Qualiopi`, {

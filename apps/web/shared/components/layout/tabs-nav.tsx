@@ -10,10 +10,12 @@ const tabs = [
   { slug: 'modules', label: 'Modules' },
   { slug: 'sessions', label: 'Sessions' },
   { slug: 'emargements', label: 'Émargements' },
+  { slug: 'heures', label: 'Heures' },
   { slug: 'documents', label: 'Documents' },
   { slug: 'questionnaires', label: 'Questionnaires' },
   { slug: 'qualiopi', label: 'Qualiopi' },
   { slug: 'facturation', label: 'Facturation' },
+  { slug: 'financeurs', label: 'Financeurs' },
   { slug: 'acces-apprenant', label: 'Accès apprenant' },
 ];
 

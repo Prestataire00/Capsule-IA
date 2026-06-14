@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateConventionPDF, type ConventionInput } from '@/features/documents/generate-convention-pdf';
+import { loadOrgBranding } from '@/features/documents/load-org-branding';
+import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .schema('app')
     .from('dossiers')
     .select(`
-      reference, start_date, end_date, total_hours, modality, total_amount_cents, currency, accessibility_notes,
+      reference, start_date, end_date, total_hours, modality, modalities, total_amount_cents, currency, accessibility_notes,
       organization_id, learner_id, company_id,
       learner:learners(first_name, last_name, email, birth_date, address),
       company:companies(name, siret, address),
@@ -37,6 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     end_date: string;
     total_hours: number;
     modality: string;
+    modalities: string[] | null;
     total_amount_cents: number | null;
     currency: string;
     accessibility_notes: string | null;
@@ -72,14 +75,21 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return parts.length ? parts.join(', ') : null;
   };
 
+  const orgId = d.organization_id;
+  const branding = await loadOrgBranding(sb as never, orgId);
+
   const input: ConventionInput = {
     organization: {
       name: org?.name ?? 'Organisme de formation',
       siret: org?.siret ?? null,
       nda: org?.declaration_activite ?? null,
       address: composeAddress(org?.address),
-      representativeName: org?.contact_email ?? null,
+      representativeName: branding.representativeName ?? org?.contact_email ?? null,
     },
+    signaturePng: branding.signaturePng,
+    stampPng: branding.stampPng,
+    representativeTitle: branding.representativeTitle,
+    place: org?.address?.city ?? null,
     learner: {
       firstName: d.learner?.first_name ?? '—',
       lastName: d.learner?.last_name ?? '—',
@@ -110,6 +120,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       endDate: d.end_date,
       totalHours: d.total_hours,
       modality: d.modality,
+      modalities: d.modalities ?? undefined,
       totalAmountCents: d.total_amount_cents,
       currency: d.currency,
       accessibilityNotes: d.accessibility_notes,
@@ -118,6 +129,20 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   };
 
   const pdfBytes = await generateConventionPDF(input);
+
+  try {
+    await persistGeneratedDocument(sb as never, {
+      organizationId: orgId,
+      dossierId: params.id,
+      kind: 'convention',
+      title: 'Convention de formation',
+      bytes: pdfBytes,
+      generationInput: input,
+    });
+  } catch (e) {
+    console.error('[convention] persist failed', e);
+  }
+
   const filename = `convention-${d.reference}.pdf`;
 
   try {
