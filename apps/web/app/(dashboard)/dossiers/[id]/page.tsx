@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ClipboardList, Calendar, FileText, Users as UsersIcon } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { TagsEditor } from './tags-editor';
 
 export default async function DossierOverviewPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -13,12 +14,14 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
     const { count } = await sb.schema('app').from(table).select('*', { count: 'exact', head: true }).eq(col, id);
     return count ?? 0;
   };
-  const [modules, sessions, documents, funders] = await Promise.all([
+  const [modules, sessions, documents, funders, dossier] = await Promise.all([
     count('dossier_modules'),
     count('session_dossiers'),
     count('documents'),
     count('dossier_funders'),
+    sb.schema('app').from('dossiers').select('tags').eq('id', id).maybeSingle(),
   ]);
+  const tags = ((dossier.data?.tags as string[] | null) ?? []);
 
   const cards = [
     { icon: ClipboardList, label: 'Modules', value: modules, href: 'modules' },
@@ -45,6 +48,8 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
           </Link>
         ))}
       </div>
+      <TagsEditor dossierId={id} initialTags={tags} />
+
       <p className="text-[12px] text-zinc-500">
         Utilisez les onglets ci-dessus pour gérer modules, sessions, émargements, heures, Qualiopi, financeurs et documents.
       </p>
