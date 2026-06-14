@@ -252,7 +252,9 @@ export type Database = {
         Row: {
           address: Json
           contact_email: string | null
+          contact_name: string | null
           contact_phone: string | null
+          convention_collective: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -262,6 +264,7 @@ export type Database = {
           naf_code: string | null
           name: string
           notes: string | null
+          opco: string | null
           organization_id: string
           siret: string | null
           tags: string[]
@@ -273,7 +276,9 @@ export type Database = {
         Insert: {
           address?: Json
           contact_email?: string | null
+          contact_name?: string | null
           contact_phone?: string | null
+          convention_collective?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -283,6 +288,7 @@ export type Database = {
           naf_code?: string | null
           name: string
           notes?: string | null
+          opco?: string | null
           organization_id: string
           siret?: string | null
           tags?: string[]
@@ -294,7 +300,9 @@ export type Database = {
         Update: {
           address?: Json
           contact_email?: string | null
+          contact_name?: string | null
           contact_phone?: string | null
+          convention_collective?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -304,6 +312,7 @@ export type Database = {
           naf_code?: string | null
           name?: string
           notes?: string | null
+          opco?: string | null
           organization_id?: string
           siret?: string | null
           tags?: string[]
@@ -1154,6 +1163,76 @@ export type Database = {
           },
         ]
       }
+      dossier_hours_tracking: {
+        Row: {
+          absences_count: number
+          at_risk: boolean
+          attendance_rate: number
+          computed_at: string
+          dossier_id: string
+          hours_attended: number
+          hours_delivered: number
+          hours_planned: number
+          hours_remaining_planned: number
+          justified_absences_count: number
+          organization_id: string
+          projected_final_hours: number
+          sessions_held: number
+        }
+        Insert: {
+          absences_count?: number
+          at_risk?: boolean
+          attendance_rate?: number
+          computed_at?: string
+          dossier_id: string
+          hours_attended?: number
+          hours_delivered?: number
+          hours_planned?: number
+          hours_remaining_planned?: number
+          justified_absences_count?: number
+          organization_id: string
+          projected_final_hours?: number
+          sessions_held?: number
+        }
+        Update: {
+          absences_count?: number
+          at_risk?: boolean
+          attendance_rate?: number
+          computed_at?: string
+          dossier_id?: string
+          hours_attended?: number
+          hours_delivered?: number
+          hours_planned?: number
+          hours_remaining_planned?: number
+          justified_absences_count?: number
+          organization_id?: string
+          projected_final_hours?: number
+          sessions_held?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dossier_hours_tracking_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: true
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dossier_hours_tracking_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: true
+            referencedRelation: "v_dossiers_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dossier_hours_tracking_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dossier_modules: {
         Row: {
           attendance_split_strategy: string
@@ -1344,6 +1423,8 @@ export type Database = {
       }
       dossiers: {
         Row: {
+          abandon_reason: string | null
+          abandoned_at: string | null
           accessibility_notes: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -1368,12 +1449,15 @@ export type Database = {
           reference: string
           start_date: string
           status: Database["app"]["Enums"]["dossier_status"]
+          tags: string[]
           total_amount_cents: number | null
           total_hours: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          abandon_reason?: string | null
+          abandoned_at?: string | null
           accessibility_notes?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -1398,12 +1482,15 @@ export type Database = {
           reference: string
           start_date: string
           status?: Database["app"]["Enums"]["dossier_status"]
+          tags?: string[]
           total_amount_cents?: number | null
           total_hours: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          abandon_reason?: string | null
+          abandoned_at?: string | null
           accessibility_notes?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -1428,6 +1515,7 @@ export type Database = {
           reference?: string
           start_date?: string
           status?: Database["app"]["Enums"]["dossier_status"]
+          tags?: string[]
           total_amount_cents?: number | null
           total_hours?: number
           updated_at?: string
@@ -2090,6 +2178,7 @@ export type Database = {
           phone: string | null
           position: string | null
           rqth: boolean
+          statut: string | null
           tags: string[]
           updated_at: string
           updated_by: string | null
@@ -2119,6 +2208,7 @@ export type Database = {
           phone?: string | null
           position?: string | null
           rqth?: boolean
+          statut?: string | null
           tags?: string[]
           updated_at?: string
           updated_by?: string | null
@@ -2148,6 +2238,7 @@ export type Database = {
           phone?: string | null
           position?: string | null
           rqth?: boolean
+          statut?: string | null
           tags?: string[]
           updated_at?: string
           updated_by?: string | null
@@ -2238,6 +2329,7 @@ export type Database = {
           metadata: Json
           objectives: string[]
           organization_id: string
+          price_cents: number | null
           resources: Json
           title: string
           updated_at: string
@@ -2252,6 +2344,7 @@ export type Database = {
           metadata?: Json
           objectives?: string[]
           organization_id: string
+          price_cents?: number | null
           resources?: Json
           title: string
           updated_at?: string
@@ -2266,6 +2359,7 @@ export type Database = {
           metadata?: Json
           objectives?: string[]
           organization_id?: string
+          price_cents?: number | null
           resources?: Json
           title?: string
           updated_at?: string
@@ -2338,6 +2432,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_legal_documents: {
+        Row: {
+          content_md: string | null
+          created_at: string
+          generated_at: string | null
+          generated_model: string | null
+          id: string
+          kind: string
+          organization_id: string
+          pdf_storage_path: string | null
+          sources_used: Json
+          status: string
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+          version: number
+        }
+        Insert: {
+          content_md?: string | null
+          created_at?: string
+          generated_at?: string | null
+          generated_model?: string | null
+          id?: string
+          kind: string
+          organization_id: string
+          pdf_storage_path?: string | null
+          sources_used?: Json
+          status?: string
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          version?: number
+        }
+        Update: {
+          content_md?: string | null
+          created_at?: string
+          generated_at?: string | null
+          generated_model?: string | null
+          id?: string
+          kind?: string
+          organization_id?: string
+          pdf_storage_path?: string | null
+          sources_used?: Json
+          status?: string
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_legal_documents_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -3457,6 +3610,7 @@ export type Database = {
       trainers: {
         Row: {
           bio: string | null
+          contract_path: string | null
           created_at: string
           deleted_at: string | null
           email: string
@@ -3466,15 +3620,18 @@ export type Database = {
           is_internal: boolean
           last_name: string
           metadata: Json
+          nda: string | null
           organization_id: string
           phone: string | null
           siret: string | null
           specialties: string[]
           updated_at: string
           user_id: string | null
+          zoom_url: string | null
         }
         Insert: {
           bio?: string | null
+          contract_path?: string | null
           created_at?: string
           deleted_at?: string | null
           email: string
@@ -3484,15 +3641,18 @@ export type Database = {
           is_internal?: boolean
           last_name: string
           metadata?: Json
+          nda?: string | null
           organization_id: string
           phone?: string | null
           siret?: string | null
           specialties?: string[]
           updated_at?: string
           user_id?: string | null
+          zoom_url?: string | null
         }
         Update: {
           bio?: string | null
+          contract_path?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string
@@ -3502,12 +3662,14 @@ export type Database = {
           is_internal?: boolean
           last_name?: string
           metadata?: Json
+          nda?: string | null
           organization_id?: string
           phone?: string | null
           siret?: string | null
           specialties?: string[]
           updated_at?: string
           user_id?: string | null
+          zoom_url?: string | null
         }
         Relationships: [
           {
@@ -3783,6 +3945,10 @@ export type Database = {
       materialize_session_participants: {
         Args: { p_session_id: string }
         Returns: number
+      }
+      recompute_dossier_hours: {
+        Args: { p_dossier_id: string }
+        Returns: undefined
       }
       recompute_qualiopi_checklist: {
         Args: { p_dossier_id: string }
@@ -4385,6 +4551,10 @@ export type Database = {
       pg_version: { Args: never; Returns: string }
       pg_version_num: { Args: never; Returns: number }
       pgtap_version: { Args: never; Returns: number }
+      recompute_dossier_hours: {
+        Args: { p_dossier_id: string }
+        Returns: undefined
+      }
       recompute_qualiopi_checklist: {
         Args: { p_dossier_id: string }
         Returns: undefined
