@@ -1,24 +1,13 @@
 // ARCHETYPE: command
-// Justification: fiche détail formation — KPIs, programme, dossiers liés, lien d'inscription publique.
+// Justification: fiche détail formation en données réelles — KPIs, programme (formation_modules), dossiers liés, lien d'inscription.
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  ArrowLeft,
-  Clock,
-  Video,
-  MapPin,
-  GraduationCap,
-  BookOpen,
-  Eye,
-  EyeOff,
-  Users as UsersIcon,
-  Banknote,
-  FileText,
-  Sparkles,
-  ExternalLink,
+  ArrowLeft, Clock, Video, MapPin, GraduationCap, BookOpen, Eye, EyeOff,
+  Users as UsersIcon, Banknote, FileText, Sparkles, ExternalLink, Award,
 } from 'lucide-react';
-import { formations, dossiers, learners, trainers, formatEuros } from '@/shared/mock/data';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 
 const modalityStyles = {
@@ -27,8 +16,9 @@ const modalityStyles = {
   hybride: { bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', icon: GraduationCap, label: 'Hybride' },
   afest: { bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', icon: BookOpen, label: 'AFEST' },
 };
+type ModalityKey = keyof typeof modalityStyles;
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   active: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
   scheduled: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
   completed: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
@@ -40,47 +30,64 @@ const statusStyles = {
 };
 
 const statusLabel: Record<string, string> = {
-  active: 'En cours',
-  scheduled: 'Planifié',
-  completed: 'Terminé',
-  closed: 'Clos',
-  draft: 'Brouillon',
-  pending_validation: 'À valider',
-  archived: 'Archivé',
-  cancelled: 'Annulé',
+  active: 'En cours', scheduled: 'Planifié', completed: 'Terminé', closed: 'Clos',
+  draft: 'Brouillon', pending_validation: 'À valider', archived: 'Archivé', cancelled: 'Annulé',
 };
 
-export default function FormationDetailPage({ params }: { params: { id: string } }) {
-  const formation = formations.find((f) => f.id === params.id);
-  if (!formation) return notFound();
+const formatEuros = (cents: number | null) =>
+  cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €`;
 
-  const m = modalityStyles[formation.modality];
-  const Icon = m.icon;
+const ACTIVE = ['active', 'scheduled'];
+const REVENUE = ['active', 'completed', 'closed'];
 
-  const relatedDossiers = dossiers.filter((d) => d.formationId === formation.id);
-  const activeCount = relatedDossiers.filter((d) => d.status === 'active' || d.status === 'scheduled').length;
+export default async function FormationDetailPage({ params }: { params: { id: string } }) {
+  const sb = supabaseServer();
+  const id = params.id;
+
+  const { data } = await sb
+    .schema('app')
+    .from('formations')
+    .select(
+      'id, code, title, summary, description, objectives, prerequisites, target_audience, ' +
+        'evaluation_method, pedagogical_method, default_modality, default_duration_hours, ' +
+        'default_price_cents, is_published, rncp_code, rs_code, certificateur',
+    )
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const f = data as any;
+  if (!f) return notFound();
+
+  const [{ data: programData }, { data: dossierData }] = await Promise.all([
+    sb.schema('app').from('formation_modules')
+      .select('position, duration_hours, module:modules(title)')
+      .eq('formation_id', id)
+      .order('position', { ascending: true }),
+    sb.schema('app').from('dossiers')
+      .select('id, reference, status, total_amount_cents, learner:learners(first_name, last_name)')
+      .eq('formation_id', id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const program = ((programData as any[]) ?? []);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const relatedDossiers = ((dossierData as any[]) ?? []);
+
+  const activeCount = relatedDossiers.filter((d) => ACTIVE.includes(d.status)).length;
   const totalRevenue = relatedDossiers
-    .filter((d) => d.status === 'active' || d.status === 'completed' || d.status === 'closed')
-    .reduce((acc, d) => acc + (d.totalAmountCents ?? 0), 0);
-  const totalSessions = relatedDossiers.reduce((acc, d) => acc + d.sessionsCount, 0);
+    .filter((d) => REVENUE.includes(d.status))
+    .reduce((acc, d) => acc + (d.total_amount_cents ?? 0), 0);
 
-  // Mock additional content
-  const description =
-    "Formation pratique conçue pour les professionnels souhaitant maîtriser les fondamentaux et les bonnes pratiques de leur métier. Mises en situation, études de cas et exercices pratiques jalonnent l'ensemble du parcours.";
-  const targetAudience =
-    "Salariés, indépendants ou demandeurs d'emploi souhaitant monter en compétences. Prérequis : connaissances de base dans le domaine. Niveau d'entrée évalué lors de la pré-inscription.";
-  const objectives = [
-    'Maîtriser les concepts fondamentaux du domaine',
-    'Appliquer les bonnes pratiques en situation réelle',
-    'Identifier les écueils courants et les contourner',
-    'Élaborer un plan d\'action adapté à son contexte',
-  ];
-  const program = [
-    { title: 'Module 1 — Fondamentaux', hours: Math.floor(formation.defaultHours * 0.25) },
-    { title: 'Module 2 — Mises en pratique', hours: Math.floor(formation.defaultHours * 0.35) },
-    { title: 'Module 3 — Études de cas', hours: Math.floor(formation.defaultHours * 0.25) },
-    { title: 'Module 4 — Évaluation & plan d\'action', hours: Math.floor(formation.defaultHours * 0.15) },
-  ];
+  const objectives: string[] = f.objectives ?? [];
+  const prerequisites: string[] = f.prerequisites ?? [];
+  const description: string | null = f.description ?? f.summary ?? null;
+
+  const m = modalityStyles[f.default_modality as ModalityKey] ?? modalityStyles.presentiel;
+  const Icon = m.icon;
+  const isCertifiante = !!(f.rncp_code || f.rs_code);
 
   return (
     <div className="max-w-5xl w-full mx-auto px-8 py-8">
@@ -99,10 +106,8 @@ export default function FormationDetailPage({ params }: { params: { id: string }
               <Icon className={`w-6 h-6 ${m.text}`} />
             </span>
             <div className="min-w-0">
-              <p className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500 mb-1">{formation.code}</p>
-              <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                {formation.title}
-              </h1>
+              <p className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500 mb-1">{f.code}</p>
+              <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{f.title}</h1>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${m.bg} ${m.text}`}>
                   <Icon className="w-2.5 h-2.5" />
@@ -110,70 +115,103 @@ export default function FormationDetailPage({ params }: { params: { id: string }
                 </span>
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                   <Clock className="w-2.5 h-2.5" />
-                  {formation.defaultHours} h
+                  {Number(f.default_duration_hours)} h
                 </span>
+                {f.default_price_cents > 0 && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    <Banknote className="w-2.5 h-2.5" />
+                    {formatEuros(f.default_price_cents)} HT
+                  </span>
+                )}
+                {isCertifiante && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                    <Award className="w-2.5 h-2.5" />
+                    {f.rncp_code ? `RNCP ${f.rncp_code}` : `RS ${f.rs_code}`}
+                  </span>
+                )}
                 <span className={
-                  formation.isPublished
+                  f.is_published
                     ? 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 inline-flex items-center gap-1'
                     : 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 inline-flex items-center gap-1'
                 }>
-                  {formation.isPublished ? (<><Eye className="w-2.5 h-2.5" /> publiée</>) : (<><EyeOff className="w-2.5 h-2.5" /> brouillon</>)}
+                  {f.is_published ? (<><Eye className="w-2.5 h-2.5" /> publiée</>) : (<><EyeOff className="w-2.5 h-2.5" /> brouillon</>)}
                 </span>
               </div>
             </div>
           </div>
-          <CopyInscriptionLink formationId={formation.id} variant="full" />
+          <CopyInscriptionLink formationId={f.id} variant="full" />
         </div>
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <KpiTile label="Apprenants actifs" value={activeCount} icon={UsersIcon} accent="rose" />
-        <KpiTile label="Sessions" value={totalSessions} icon={Clock} accent="blue" hint="cumul historique" />
+        <KpiTile label="Modules" value={program.length} icon={BookOpen} accent="blue" hint="au programme" />
         <KpiTile label="CA généré" value={formatEuros(totalRevenue)} icon={Banknote} accent="amber" hint="actifs + clos" />
         <KpiTile label="Dossiers" value={relatedDossiers.length} icon={FileText} accent="violet" />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Description">
-            <p className="text-[14px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              {description}
-            </p>
-          </Card>
+          {description && (
+            <Card title="Description">
+              <p className="text-[14px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{description}</p>
+            </Card>
+          )}
 
-          <Card title="Public visé & prérequis">
-            <p className="text-[14px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              {targetAudience}
-            </p>
-          </Card>
+          {(f.target_audience || prerequisites.length > 0) && (
+            <Card title="Public visé & prérequis">
+              {f.target_audience && (
+                <p className="text-[14px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{f.target_audience}</p>
+              )}
+              {prerequisites.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {prerequisites.map((p, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                      <span className="text-zinc-400 mt-0.5">•</span> {p}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
 
-          <Card title="Objectifs pédagogiques">
-            <ul className="space-y-2">
-              {objectives.map((o, i) => (
-                <li key={i} className="flex items-start gap-2 text-[14px] text-zinc-600 dark:text-zinc-400">
-                  <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 flex items-center justify-center text-[11px] font-medium flex-shrink-0 mt-0.5">
-                    {i + 1}
-                  </span>
-                  {o}
-                </li>
-              ))}
-            </ul>
-          </Card>
-
-          <Card title="Programme">
-            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 -my-3">
-              {program.map((p, i) => (
-                <li key={i} className="flex items-center justify-between py-3 gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center text-[12px] font-medium flex-shrink-0">
+          {objectives.length > 0 && (
+            <Card title="Objectifs pédagogiques">
+              <ul className="space-y-2">
+                {objectives.map((o, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[14px] text-zinc-600 dark:text-zinc-400">
+                    <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 flex items-center justify-center text-[11px] font-medium flex-shrink-0 mt-0.5">
                       {i + 1}
                     </span>
-                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{p.title}</p>
-                  </div>
-                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400 font-mono tabular-nums">{p.hours} h</span>
-                </li>
-              ))}
-            </ul>
+                    {o}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          <Card title={`Programme (${program.length})`}>
+            {program.length === 0 ? (
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+                Aucun module rattaché à cette formation. Ajoutez des modules au catalogue puis composez le programme.
+              </p>
+            ) : (
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 -my-3">
+                {program.map((p, i) => (
+                  <li key={i} className="flex items-center justify-between py-3 gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center text-[12px] font-medium flex-shrink-0">
+                        {p.position + 1}
+                      </span>
+                      <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                        {p.module?.title ?? 'Module'}
+                      </p>
+                    </div>
+                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 font-mono tabular-nums">{Number(p.duration_hours)} h</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         </div>
 
@@ -183,12 +221,12 @@ export default function FormationDetailPage({ params }: { params: { id: string }
               Partagez ce lien sur votre site, vos réseaux ou par email. Les pré-inscriptions arrivent dans votre tableau de bord.
             </p>
             <div className="bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 mb-3 font-mono text-[11px] text-zinc-600 dark:text-zinc-400 break-all">
-              /inscription?formation={formation.id}
+              /inscription?formation={f.id}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <CopyInscriptionLink formationId={formation.id} variant="full" />
+              <CopyInscriptionLink formationId={f.id} variant="full" />
               <Link
-                href={`/inscription?formation=${formation.id}`}
+                href={`/inscription?formation=${f.id}`}
                 target="_blank"
                 className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition"
               >
@@ -200,36 +238,21 @@ export default function FormationDetailPage({ params }: { params: { id: string }
 
           <Card title={`Dossiers (${relatedDossiers.length})`}>
             {relatedDossiers.length === 0 ? (
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                Aucun dossier rattaché à cette formation pour le moment.
-              </p>
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun dossier rattaché à cette formation pour le moment.</p>
             ) : (
               <ul className="space-y-2 -my-1">
-                {relatedDossiers.slice(0, 6).map((d) => {
-                  const learner = learners.find((l) => l.id === d.learnerId);
-                  const trainer = trainers.find((t) => d.trainerIds.includes(t.id));
+                {relatedDossiers.slice(0, 8).map((d) => {
+                  const learner = d.learner ? `${d.learner.first_name} ${d.learner.last_name}` : null;
                   return (
                     <li key={d.id}>
-                      <Link
-                        href={`/dossiers/${d.id}`}
-                        className="block px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
-                      >
+                      <Link href={`/dossiers/${d.id}`} className="block px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-mono text-[11px] text-zinc-400">{d.reference}</p>
                           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusStyles[d.status] ?? statusStyles.draft}`}>
                             {statusLabel[d.status] ?? d.status}
                           </span>
                         </div>
-                        {learner && (
-                          <p className="text-[13px] text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
-                            {learner.firstName} {learner.lastName}
-                          </p>
-                        )}
-                        {trainer && (
-                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                            avec {trainer.firstName} {trainer.lastName}
-                          </p>
-                        )}
+                        {learner && <p className="text-[13px] text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">{learner}</p>}
                       </Link>
                     </li>
                   );
@@ -251,11 +274,7 @@ const accentStyles: Record<string, string> = {
 };
 
 function KpiTile({
-  label,
-  value,
-  icon: Icon,
-  accent,
-  hint,
+  label, value, icon: Icon, accent, hint,
 }: {
   label: string;
   value: string | number;
