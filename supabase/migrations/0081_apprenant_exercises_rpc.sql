@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0069 — RPC exercices apprenant
+-- 0081 — RPC exercices apprenant
 -- ============================================================================
 -- Token JWT apprenant vérifié côté Next.js ; learner_id passé ici.
 -- Renvoie en JSONB, pour le dossier actif de l'apprenant :
