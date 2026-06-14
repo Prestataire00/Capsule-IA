@@ -11,6 +11,25 @@ const admin = () =>
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+// GET : liste les orgs existantes pour récupérer l'organization_id cible.
+// Protégé par CRON_SECRET. Usage : /api/admin/seed-demo?secret=<CRON_SECRET>
+export async function GET(req: NextRequest) {
+  const secret = req.nextUrl.searchParams.get('secret');
+  if (!secret || secret !== env.CRON_SECRET) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  const sb = admin();
+  const { data, error } = await sb
+    .schema('app')
+    .from('organizations')
+    .select('id, name, slug')
+    .order('created_at', { ascending: true });
+  if (error) {
+    return NextResponse.json({ error: 'orgs_list_failed', details: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ organizations: data ?? [] });
+}
+
 // Protégé par CRON_SECRET en query string : /api/admin/seed-demo?secret=<CRON_SECRET>
 export async function POST(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get('secret');
@@ -20,41 +39,60 @@ export async function POST(req: NextRequest) {
 
   const sb = admin();
 
-  // 1. Organization "Démo"
-  const orgSlug = 'demo-formation-ia-infinity';
-  const { data: existingOrg } = await sb
-    .schema('app')
-    .from('organizations')
-    .select('id, name')
-    .eq('slug', orgSlug)
-    .maybeSingle();
-
+  // 1. Organization cible.
+  // Si ?org=<uuid> fourni : on sème dans cette org existante (cas réel — l'org
+  // doit correspondre au claim JWT de l'utilisateur pour que RLS rende visible).
+  // Sinon : org "Démo" isolée (back-compat / smoke test).
+  const targetOrgParam = req.nextUrl.searchParams.get('org');
   let orgId: string;
   let orgName: string;
-  if (existingOrg) {
-    orgId = (existingOrg as { id: string }).id;
-    orgName = (existingOrg as { name: string }).name;
-  } else {
-    const { data: newOrg, error: orgErr } = await sb
+
+  if (targetOrgParam) {
+    const { data: targetOrg } = await sb
       .schema('app')
       .from('organizations')
-      .insert({
-        slug: orgSlug,
-        name: 'Démo Formation',
-        legal_name: 'Démo Formation SAS',
-        siret: '00000000000000',
-        declaration_activite: '11 75 00000 75',
-        contact_email: 'demo@i-a-infinity.com',
-        contact_phone: '+33 1 23 45 67 89',
-        address: { line1: '12 rue de la République', postal_code: '75011', city: 'Paris', country: 'France' },
-      })
       .select('id, name')
-      .single();
-    if (orgErr || !newOrg) {
-      return NextResponse.json({ error: 'org_create_failed', details: orgErr?.message }, { status: 500 });
+      .eq('id', targetOrgParam)
+      .maybeSingle();
+    if (!targetOrg) {
+      return NextResponse.json({ error: 'org_not_found', details: targetOrgParam }, { status: 400 });
     }
-    orgId = (newOrg as { id: string }).id;
-    orgName = (newOrg as { name: string }).name;
+    orgId = (targetOrg as { id: string }).id;
+    orgName = (targetOrg as { name: string }).name;
+  } else {
+    const orgSlug = 'demo-formation-ia-infinity';
+    const { data: existingOrg } = await sb
+      .schema('app')
+      .from('organizations')
+      .select('id, name')
+      .eq('slug', orgSlug)
+      .maybeSingle();
+
+    if (existingOrg) {
+      orgId = (existingOrg as { id: string }).id;
+      orgName = (existingOrg as { name: string }).name;
+    } else {
+      const { data: newOrg, error: orgErr } = await sb
+        .schema('app')
+        .from('organizations')
+        .insert({
+          slug: orgSlug,
+          name: 'Démo Formation',
+          legal_name: 'Démo Formation SAS',
+          siret: '00000000000000',
+          declaration_activite: '11 75 00000 75',
+          contact_email: 'demo@i-a-infinity.com',
+          contact_phone: '+33 1 23 45 67 89',
+          address: { line1: '12 rue de la République', postal_code: '75011', city: 'Paris', country: 'France' },
+        })
+        .select('id, name')
+        .single();
+      if (orgErr || !newOrg) {
+        return NextResponse.json({ error: 'org_create_failed', details: orgErr?.message }, { status: 500 });
+      }
+      orgId = (newOrg as { id: string }).id;
+      orgName = (newOrg as { name: string }).name;
+    }
   }
 
   // 2. Formation
@@ -223,6 +261,14 @@ export async function POST(req: NextRequest) {
 
     // session_participants : ajouter Marie comme apprenant à chaque session
     if (sessionsCreated && sessionsCreated.length > 0) {
+      // Lien dossier ↔ session (lu par l'onglet Sessions et la carte Sessions).
+      const sessionDossierRows = sessionsCreated.map((s) => ({
+        session_id: (s as { id: string }).id,
+        dossier_id: dossierId,
+        organization_id: orgId,
+      }));
+      await sb.schema('app').from('session_dossiers').insert(sessionDossierRows);
+
       const participantRows = sessionsCreated.map((s) => ({
         session_id: (s as { id: string }).id,
         organization_id: orgId,
