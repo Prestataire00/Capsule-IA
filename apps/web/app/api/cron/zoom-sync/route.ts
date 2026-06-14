@@ -6,7 +6,8 @@ import {
   decryptZoomCredentials,
   type ZoomCredentials,
 } from '@/features/attendance/zoom-secrets-cipher';
-import { fetchPastMeetingParticipants } from '@/features/attendance/zoom-api-client';
+import { fetchPastMeetingParticipants, fetchMeetingRecordings } from '@/features/attendance/zoom-api-client';
+import { persistSessionRecording } from '@/features/attendance/persist-session-recording';
 import { computeSyncWindow } from '@/features/attendance/zoom-sync-window';
 
 export const runtime = 'nodejs';
@@ -246,6 +247,27 @@ const syncSession = async (
     matched_count: matched,
     unmatched_count: unmatched,
   });
+
+  // Best-effort : récupère les enregistrements Zoom sans bloquer la sync présences.
+  try {
+    const recResult = await fetchMeetingRecordings(creds, session.zoom_meeting_id);
+    if (recResult.ok) {
+      for (const recording of recResult.recordings) {
+        const r = await persistSessionRecording(sb, {
+          organizationId: session.organization_id,
+          sessionId: session.id,
+          recording,
+        });
+        if (!r.ok) {
+          console.warn(`[zoom-sync] persistSessionRecording failed for session ${session.id}:`, r.error);
+        }
+      }
+    } else {
+      console.warn(`[zoom-sync] fetchMeetingRecordings failed for session ${session.id}:`, recResult.error.code);
+    }
+  } catch (recErr) {
+    console.warn(`[zoom-sync] unexpected error fetching recordings for session ${session.id}:`, recErr);
+  }
 
   return {
     sessionId: session.id,
