@@ -1,72 +1,69 @@
-// ARCHETYPE: command
-// Justification: planning chronologique des sessions du dossier avec statut, formateur, émargement.
+// ARCHETYPE: workflow
+// Justification: planning des sessions du dossier + sessions partagées multi-entreprises.
 
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import { Plus, MapPin, Video } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { dossiers, sessionsByDossier, trainerFullName } from '@/shared/mock/data';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { StatusPill } from '@/shared/ui/status-pill';
+import { unlinkDossierFromSession } from './actions';
 
-export default function SessionsPage({ params }: { params: { id: string } }) {
-  const dossier = dossiers.find((d) => d.id === params.id);
+export default async function SessionsPage({ params }: { params: { id: string } }) {
+  const sb = supabaseServer();
+
+  const { data: dossier } = await sb.schema('app').from('dossiers')
+    .select('id, total_hours').eq('id', params.id).maybeSingle();
   if (!dossier) notFound();
-  const sessions = sessionsByDossier[params.id] ?? [];
+
+  // Sessions où CE dossier est lié (primaire ou partagé). Prod-safe : si
+  // session_dossiers n'est pas encore migrée, data=null → liste vide.
+  const { data: links } = await sb.schema('app').from('session_dossiers')
+    .select('session_id').eq('dossier_id', params.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sessionIds = ((links as any[]) ?? []).map((l) => l.session_id);
+
+  const { data: sessions } = sessionIds.length
+    ? await sb.schema('app').from('sessions')
+        .select('id, title, modality, status, starts_at, ends_at, duration_hours, dossier_id')
+        .in('id', sessionIds).order('starts_at', { ascending: true })
+    : { data: [] };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = (sessions as any[]) ?? [];
+  const coveredHours = rows.reduce((sum, s) => sum + Number(s.duration_hours ?? 0), 0);
+  const totalHours = Number((dossier as { total_hours?: number }).total_hours ?? 0);
 
   return (
-    <div>
-      <header className="flex items-center justify-between mb-4">
-        <div>
-          <SectionLabel className="mb-1">Sessions</SectionLabel>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-            {sessions.length} session{sessions.length > 1 ? 's' : ''} ·{' '}
-            <span className="text-emerald-600">{sessions.filter((s) => s.status === 'done').length} terminées</span>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Planifier une session
-        </button>
+    <div className="space-y-6">
+      <header className="flex items-center justify-between">
+        <SectionLabel>Sessions ({rows.length})</SectionLabel>
+        <span className="text-[12px] text-zinc-500">Volume couvert : {coveredHours} h / {totalHours} h</span>
       </header>
 
-      {sessions.length === 0 ? (
-        <div className="border border-dashed border-zinc-200/60 dark:border-zinc-800 rounded-md py-12 text-center">
-          <p className="text-[13px] text-zinc-500">Aucune session planifiée.</p>
-        </div>
-      ) : (
-        <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-          {sessions.map((s) => (
-            <li key={s.id} className="grid grid-cols-[140px_120px_1fr_140px_140px_100px] gap-3 py-3 px-1 items-center text-[13px]">
-              <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-                {format(parseISO(s.startsAt), 'EEE dd/MM', { locale: fr })}
-              </span>
-              <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
-                {format(parseISO(s.startsAt), 'HH:mm')} → {format(parseISO(s.endsAt), 'HH:mm')}
-              </span>
-              <span className="text-zinc-900 dark:text-zinc-100">{trainerFullName(s.trainerId)}</span>
-              <span className="text-zinc-500 dark:text-zinc-400 text-[11px] inline-flex items-center gap-1.5">
-                {s.modality === 'distanciel' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
-                {s.location ?? 'distanciel'}
-              </span>
-              <span className="font-mono text-[11px] text-zinc-500">
-                {s.attendanceCount}/{s.attendanceTotal} signé{s.attendanceTotal > 1 ? 's' : ''}
-              </span>
-              <StatusPill tone={s.status === 'done' ? 'success' : s.status === 'in_progress' ? 'warning' : 'info'}>
-                {s.status === 'done' ? 'fait' : s.status === 'in_progress' ? 'en cours' : 'planifié'}
-              </StatusPill>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+        {rows.map((s) => (
+          <li key={s.id} className="py-3 px-1 text-[13px] flex items-center justify-between gap-4">
+            <div>
+              <div className="font-medium">{s.title ?? s.modality}</div>
+              <div className="text-[11px] text-zinc-500">
+                {new Date(s.starts_at).toLocaleString('fr-FR')} · {Number(s.duration_hours)} h
+                {s.dossier_id !== params.id ? ' · partagée' : ''}
+              </div>
+            </div>
+            {s.dossier_id !== params.id && (
+              <form action={async () => { 'use server'; await unlinkDossierFromSession(s.id, params.id, params.id); }}>
+                <button type="submit" className="text-[11px] text-zinc-500 hover:text-red-600 underline-offset-2 hover:underline">
+                  Retirer ce dossier
+                </button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
 
-      <p className="text-[11px] text-zinc-400 mt-4">
-        Les feuilles d'émargement s'ouvrent depuis l'<Link href="/mes-sessions" className="underline">espace formateur</Link>.
-      </p>
+      {rows.length === 0 && (
+        <p className="text-[13px] text-zinc-500">
+          Aucune session. Rattachez ce dossier à une session partagée existante, ou créez-en une.
+        </p>
+      )}
     </div>
   );
 }
