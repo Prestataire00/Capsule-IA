@@ -19,6 +19,7 @@
 | Instance | Module / chemins | Branche | Depuis | Statut |
 |----------|------------------|---------|--------|--------|
 | _(exemple)_ | `apps/web/app/inscription/**` | `feature/xxx` | 2026-06-14 | libéré |
+| Opus (de-mock) | `apps/web/app/(dashboard)/financeurs/**`, `features/crm` (funders read) | feature/financeurs-reels | 2026-06-14 | actif |
 
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.
