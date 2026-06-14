@@ -11,11 +11,21 @@ const client = () => {
   return _client;
 };
 
+// Pièce jointe Resend : contenu inline (base64) OU lien (path). Le fallback
+// `path` sert quand un document dépasse le seuil d'attache et est transmis en
+// lien plutôt qu'inline (cf. shared/lib/funders/attachments.ts).
+export type EmailAttachment = {
+  filename: string;
+  content?: string;
+  path?: string;
+};
+
 export type SendEmailInput = {
   to: string | string[];
   subject: string;
   html: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
 };
 
 export type SendEmailResult =
@@ -33,6 +43,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       subject: input.subject,
       html: input.html,
       replyTo: input.replyTo,
+      attachments: input.attachments?.map((a) => ({
+        filename: a.filename,
+        ...(a.content ? { content: a.content } : {}),
+        ...(a.path ? { path: a.path } : {}),
+      })),
     });
     if (error || !data) return { ok: false, reason: 'send_failed', error };
     return { ok: true, id: data.id };
