@@ -14,8 +14,10 @@ import {
   MessageSquareWarning,
   ChevronRight,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
-import { resolveApprenantContext, MOCK_ADMIN_DOCS, MOCK_EXERCISES, MODALITY_LABEL } from './_lib';
+import { resolveApprenantContext, MOCK_EXERCISES, MODALITY_LABEL } from './_lib';
+import { resolveApprenantResources } from './resources';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,11 +25,15 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
   const ctx = await resolveApprenantContext(params.token);
   if (!ctx) return notFound();
 
+  const resources = await resolveApprenantResources(params.token);
+
   const sessionsDone = ctx.sessions.filter((s) => s.status === 'done').length;
   const sessionsCount = ctx.sessions.length;
   const progress = sessionsCount ? Math.round((sessionsDone / sessionsCount) * 100) : 0;
 
-  const docsAvailable = MOCK_ADMIN_DOCS.filter((d) => d.status !== 'pending').length;
+  const heuresSignees = resources?.assiduite.heuresSignees ?? 0;
+  const heuresPlanifiees = resources?.assiduite.heuresPlanifiees ?? 0;
+  const docsDispo = resources?.documents.filter((d) => d.displayStatus !== 'pending').length ?? 0;
   const exosTodo = MOCK_EXERCISES.filter((e) => e.status !== 'submitted').length;
   const complaintsOpen = ctx.complaints.filter((c) => c.status === 'open' || c.status === 'in_progress').length;
 
@@ -43,7 +49,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
       href: `/espace/${params.token}/documents`,
       icon: FileText,
       label: 'Documents',
-      hint: `${docsAvailable} document${docsAvailable > 1 ? 's' : ''} disponible${docsAvailable > 1 ? 's' : ''}`,
+      hint: `${docsDispo} document${docsDispo > 1 ? 's' : ''} disponible${docsDispo > 1 ? 's' : ''}`,
       accent: 'blue',
     },
     {
@@ -162,6 +168,24 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
             </Link>
           );
         })}
+      </section>
+
+      {/* Carte Assiduité */}
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 mb-8 flex items-center gap-4">
+        <span className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center flex-shrink-0 shadow-sm">
+          <BookOpen className="w-5 h-5" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">Assiduité</p>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {heuresSignees.toFixed(1)} h signées / {heuresPlanifiees.toFixed(1)} h planifiées
+          </p>
+        </div>
+        {heuresPlanifiees > 0 && (
+          <p className="text-[15px] font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums flex-shrink-0">
+            {Math.round((heuresSignees / heuresPlanifiees) * 100)} %
+          </p>
+        )}
       </section>
 
       <p className="text-center text-[11px] text-zinc-400 dark:text-zinc-500 inline-flex items-center justify-center gap-1.5 w-full">
