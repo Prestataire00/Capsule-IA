@@ -13,8 +13,17 @@ export type ZoomParticipant = {
 export type ZoomApiError =
   | { code: 'auth_failed'; detail: string }
   | { code: 'meeting_not_found' }
+  | { code: 'recording_not_found' }
   | { code: 'rate_limited' }
   | { code: 'network'; detail: string };
+
+export type ZoomRecording = {
+  readonly externalId: string;
+  readonly playUrl: string;
+  readonly passcode: string | null;
+  readonly durationSeconds: number | null;
+  readonly recordedAt: string | null;
+};
 
 type CachedToken = { token: string; expiresAt: number };
 const tokenCache = new Map<string, CachedToken>();
@@ -116,4 +125,82 @@ export const fetchPastMeetingParticipants = async (
   } while (nextToken);
 
   return { ok: true, participants: all };
+};
+
+type ZoomRecordingFileRaw = {
+  id?: unknown;
+  file_type?: unknown;
+  play_url?: unknown;
+  recording_start?: unknown;
+};
+
+type ZoomRecordingsBodyRaw = {
+  recording_files?: ZoomRecordingFileRaw[];
+  recording_play_passcode?: unknown;
+  password?: unknown;
+  duration?: unknown;
+};
+
+export function mapZoomRecordings(body: unknown): ZoomRecording[] {
+  if (!body || typeof body !== 'object') return [];
+  const raw = body as ZoomRecordingsBodyRaw;
+  if (!Array.isArray(raw.recording_files)) return [];
+
+  const passcode =
+    typeof raw.recording_play_passcode === 'string' && raw.recording_play_passcode.length > 0
+      ? raw.recording_play_passcode
+      : typeof raw.password === 'string' && raw.password.length > 0
+        ? raw.password
+        : null;
+
+  const durationSeconds =
+    typeof raw.duration === 'number' && raw.duration > 0 ? raw.duration * 60 : null;
+
+  const result: ZoomRecording[] = [];
+  for (const file of raw.recording_files) {
+    if (file.file_type !== 'MP4') continue;
+    if (typeof file.id !== 'string' || !file.id) continue;
+    if (typeof file.play_url !== 'string' || !file.play_url) continue;
+    result.push({
+      externalId: file.id,
+      playUrl: file.play_url,
+      passcode,
+      durationSeconds,
+      recordedAt:
+        typeof file.recording_start === 'string' && file.recording_start.length > 0
+          ? file.recording_start
+          : null,
+    });
+  }
+  return result;
+}
+
+export const fetchMeetingRecordings = async (
+  creds: ZoomCredentials,
+  meetingId: string,
+): Promise<{ ok: true; recordings: ZoomRecording[] } | { ok: false; error: ZoomApiError }> => {
+  const t = await getAccessToken(creds);
+  if ('error' in t) return { ok: false, error: t.error };
+
+  let resp: Response;
+  try {
+    resp = await fetch(
+      `https://api.zoom.us/v2/meetings/${encodeURIComponent(meetingId)}/recordings`,
+      { headers: { Authorization: `Bearer ${t.token}` } },
+    );
+  } catch (e) {
+    return { ok: false, error: { code: 'network', detail: (e as Error).message } };
+  }
+
+  if (resp.status === 404) return { ok: false, error: { code: 'recording_not_found' } };
+  if (resp.status === 429) return { ok: false, error: { code: 'rate_limited' } };
+  if (resp.status === 401) {
+    return { ok: false, error: { code: 'auth_failed', detail: `${resp.status}` } };
+  }
+  if (!resp.ok) {
+    return { ok: false, error: { code: 'network', detail: `${resp.status}` } };
+  }
+
+  const body: unknown = await resp.json();
+  return { ok: true, recordings: mapZoomRecordings(body) };
 };
