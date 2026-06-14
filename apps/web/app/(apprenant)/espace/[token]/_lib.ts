@@ -182,28 +182,7 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
   };
 }
 
-// Mock contenus statiques (admin docs, supports, exercices) — la VF
-export const MOCK_ADMIN_DOCS = [
-  { id: 'doc-1', title: 'Convention de formation signée', type: 'PDF', size: '152 Ko', status: 'signed' as const, date: '2026-08-25' },
-  { id: 'doc-2', title: 'Programme détaillé', type: 'PDF', size: '320 Ko', status: 'available' as const, date: '2026-08-25' },
-  { id: 'doc-3', title: "Livret d'accueil", type: 'PDF', size: '480 Ko', status: 'available' as const, date: '2026-08-25' },
-  { id: 'doc-4', title: 'Règlement intérieur', type: 'PDF', size: '90 Ko', status: 'available' as const, date: '2026-08-25' },
-  { id: 'doc-5', title: 'Attestation de présence', type: 'PDF', size: '—', status: 'pending' as const, date: 'à la fin' },
-  { id: 'doc-6', title: 'Certificat de réalisation', type: 'PDF', size: '—', status: 'pending' as const, date: 'à la fin' },
-];
-
-export const MOCK_SUPPORTS_BY_MODULE: Record<string, { title: string; type: string; size: string }[]> = {
-  'm-1-1': [
-    { title: 'Slides — Comptabilité générale', type: 'PDF', size: '4.2 Mo' },
-    { title: 'Cas pratique : écritures de base', type: 'PDF', size: '180 Ko' },
-    { title: 'Tableur — Modèle de plan comptable', type: 'XLSX', size: '45 Ko' },
-  ],
-  'm-1-2': [
-    { title: 'Slides — TVA', type: 'PDF', size: '3.8 Mo' },
-    { title: 'Fiche mémo : taux et exceptions', type: 'PDF', size: '220 Ko' },
-  ],
-};
-
+// Mock contenus statiques (exercices) — docs/supports remplacés par données réelles
 export const MOCK_EXERCISES = [
   { id: 'ex-1', title: 'Exercice 1 — Écritures comptables', dueDate: '2026-09-08', status: 'submitted' as const, moduleTitle: 'Comptabilité générale' },
   { id: 'ex-2', title: 'Exercice 2 — Bilan simplifié', dueDate: '2026-09-22', status: 'submitted' as const, moduleTitle: 'Comptabilité générale' },
