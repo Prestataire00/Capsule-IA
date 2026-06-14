@@ -13,6 +13,8 @@ const Schema = z.object({
   isInternal: z.boolean(),
   siret: z.string().regex(/^\d{14}$/).optional().or(z.literal('')),
   specialties: z.array(z.string()).max(12).optional(),
+  nda: z.string().trim().max(50).optional().or(z.literal('')),
+  zoomUrl: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
 export type CreateTrainerResult =
@@ -54,6 +56,8 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
     isInternal: payload.isInternal === 'true' || payload.isInternal === 'on',
     siret: payload.siret || undefined,
     specialties: payload.specialties ? JSON.parse(payload.specialties) : undefined,
+    nda: payload.nda || undefined,
+    zoomUrl: payload.zoomUrl || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'invalid_input', details: parsed.error.flatten() };
 
@@ -69,6 +73,8 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
       is_internal: parsed.data.isInternal,
       siret: parsed.data.siret ?? null,
       specialties: parsed.data.specialties ?? [],
+      nda: parsed.data.nda || null,
+      zoom_url: parsed.data.zoomUrl || null,
     }).select('id, user_id').single();
   if (insertErr || !trainer) return { ok: false, error: 'db_insert_failed', details: insertErr?.message };
 
