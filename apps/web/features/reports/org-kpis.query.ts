@@ -42,15 +42,17 @@ export async function getOrgKpis(
     toSign = toSignRes.count ?? 0;
   }
 
-  // Questionnaires à traiter : en attente ou en cours.
+  // Questionnaires à compléter : assignations en attente ou en cours.
+  // NB: le statut est porté par questionnaire_assignments (une réponse =
+  // soumission, sans statut). questionnaire_responses n'a pas de colonne status.
   const questionnairesRes = await sb
     .schema('app')
-    .from('questionnaire_responses')
+    .from('questionnaire_assignments')
     .select('id', { count: 'exact', head: true })
     .in('status', ['pending', 'in_progress']);
   let questionnairesPending = 0;
   if (questionnairesRes.error) {
-    console.error(`[org-kpis] questionnaire_responses indisponible — 0: ${questionnairesRes.error.message}`);
+    console.error(`[org-kpis] questionnaire_assignments indisponible — 0: ${questionnairesRes.error.message}`);
   } else {
     questionnairesPending = questionnairesRes.count ?? 0;
   }
