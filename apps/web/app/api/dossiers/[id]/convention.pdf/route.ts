@@ -41,6 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     currency: string;
     accessibility_notes: string | null;
     organization_id: string;
+    learner_id: string | null;
     company_id: string | null;
     learner: { first_name: string; last_name: string; email: string; birth_date: string | null; address: AddressJson | null } | null;
     company: { name: string; siret: string | null; address: AddressJson | null } | null;
@@ -118,6 +119,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const pdfBytes = await generateConventionPDF(input);
   const filename = `convention-${d.reference}.pdf`;
+
+  await sb.schema('app').from('resource_access_log' as never).insert({
+    organization_id: d.organization_id,
+    target_kind: 'document', target_id: params.id, dossier_id: params.id,
+    learner_id: d.learner_id ?? null, actor_kind: 'system', action: 'download',
+  } as never);
 
   return new NextResponse(new Uint8Array(pdfBytes), {
     status: 200,
