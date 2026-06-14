@@ -45,6 +45,7 @@ export type ConventionInput = {
     endDate: string;
     totalHours: number;
     modality: string;
+    modalities?: string[];
     totalAmountCents: number | null;
     currency: string;
     accessibilityNotes: string | null;
@@ -204,7 +205,11 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   c = drawKeyValue(doc, c, font, fontBold, 'Intitulé', input.formation.title);
   c = drawKeyValue(doc, c, font, fontBold, 'Période', `du ${fmtDate(input.dossier.startDate)} au ${fmtDate(input.dossier.endDate)}`);
   c = drawKeyValue(doc, c, font, fontBold, 'Durée totale', `${input.dossier.totalHours} heures`);
-  c = drawKeyValue(doc, c, font, fontBold, 'Modalité', modalityLabel(input.dossier.modality));
+  const modalitiesText =
+    input.dossier.modalities && input.dossier.modalities.length > 1
+      ? input.dossier.modalities.map(modalityLabel).join(', ')
+      : modalityLabel(input.dossier.modality);
+  c = drawKeyValue(doc, c, font, fontBold, 'Modalité', modalitiesText);
   c = drawKeyValue(doc, c, font, fontBold, 'Montant total', fmtEuros(input.dossier.totalAmountCents, input.dossier.currency));
   c = { ...c, y: c.y - 8 };
 
