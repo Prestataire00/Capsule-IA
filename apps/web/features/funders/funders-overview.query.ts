@@ -1,7 +1,8 @@
 import 'server-only';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/shared/types/database';
+import type { supabaseServer } from '@/shared/lib/supabase/server';
 import { countByKind } from './funders-overview';
+
+type Sb = ReturnType<typeof supabaseServer>;
 
 export type FunderRow = {
   id: string;
@@ -23,7 +24,7 @@ const FUNDED_STATUSES = new Set(['active', 'completed', 'closed']);
 const ACTIVE_STATUSES = new Set(['active', 'scheduled']);
 
 // Vue d'ensemble des financeurs de l'org (RLS) : montant financé + dossiers actifs par financeur.
-export async function getFundersOverview(sb: SupabaseClient<Database>): Promise<FundersOverview> {
+export async function getFundersOverview(sb: Sb): Promise<FundersOverview> {
   const { data: fData } = await sb
     .schema('app')
     .from('funders')
