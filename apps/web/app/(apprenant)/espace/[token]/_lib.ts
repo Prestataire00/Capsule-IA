@@ -182,14 +182,6 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
   };
 }
 
-// Mock contenus statiques (exercices) — docs/supports remplacés par données réelles
-export const MOCK_EXERCISES = [
-  { id: 'ex-1', title: 'Exercice 1 — Écritures comptables', dueDate: '2026-09-08', status: 'submitted' as const, moduleTitle: 'Comptabilité générale' },
-  { id: 'ex-2', title: 'Exercice 2 — Bilan simplifié', dueDate: '2026-09-22', status: 'submitted' as const, moduleTitle: 'Comptabilité générale' },
-  { id: 'ex-3', title: 'Cas pratique TVA — entreprise X', dueDate: '2026-10-05', status: 'in_progress' as const, moduleTitle: 'TVA & cas spéciaux' },
-  { id: 'ex-4', title: 'QCM TVA déductible', dueDate: '2026-10-12', status: 'todo' as const, moduleTitle: 'TVA & cas spéciaux' },
-];
-
 export const MODALITY_LABEL: Record<string, string> = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',

@@ -16,8 +16,9 @@ import {
   Sparkles,
   BookOpen,
 } from 'lucide-react';
-import { resolveApprenantContext, MOCK_EXERCISES, MODALITY_LABEL } from './_lib';
+import { resolveApprenantContext, MODALITY_LABEL } from './_lib';
 import { resolveApprenantResources } from './resources';
+import { resolveApprenantExercises } from './exercises';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,10 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
   const ctx = await resolveApprenantContext(params.token);
   if (!ctx) return notFound();
 
-  const resources = await resolveApprenantResources(params.token);
+  const [resources, exercises] = await Promise.all([
+    resolveApprenantResources(params.token),
+    resolveApprenantExercises(params.token),
+  ]);
 
   const sessionsDone = ctx.sessions.filter((s) => s.status === 'done').length;
   const sessionsCount = ctx.sessions.length;
@@ -34,7 +38,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
   const heuresSignees = resources?.assiduite.heuresSignees ?? 0;
   const heuresPlanifiees = resources?.assiduite.heuresPlanifiees ?? 0;
   const docsDispo = resources?.documents.filter((d) => d.displayStatus !== 'pending').length ?? 0;
-  const exosTodo = MOCK_EXERCISES.filter((e) => e.status !== 'submitted').length;
+  const exosTodo = exercises.filter((e) => !e.submission || e.submission.status !== 'graded').length;
   const complaintsOpen = ctx.complaints.filter((c) => c.status === 'open' || c.status === 'in_progress').length;
 
   const tiles = [
