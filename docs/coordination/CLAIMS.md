@@ -20,6 +20,7 @@
 |----------|------------------|---------|--------|--------|
 | _(exemple)_ | `apps/web/app/inscription/**` | `feature/xxx` | 2026-06-14 | libéré |
 | Opus (de-mock) | `apps/web/app/(dashboard)/financeurs/**`, `features/crm` (funders read) | feature/financeurs-reels | 2026-06-14 | actif |
+| Opus (catalog+dossier) | `dispatch-events/route.ts` + migrations 0073/0074 (garde-fous dossier) ; déjà mergé : prix module, contrat formateur, snapshot prix, catalogue formations, /inscription (org-scopé) | (push direct main) | 2026-06-14 | mergé |
 
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.
