@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { generateQuestionnaireToken } from '@/shared/lib/questionnaire-token';
@@ -43,7 +43,7 @@ export const sendFunderQuestionnaire = authActionClient
       recipient_funder_id: parsedInput.funderId,
       recipient_email: email,
       recipient_name: (funder as { name?: string } | null)?.name ?? null,
-      token_hash: `pending-${parsedInput.funderId}-${parsedInput.templateCode}`,
+      token_hash: `pending-${randomUUID()}`,
       status: 'pending',
     } as never).select('id').single();
     if (error || !ins) return { ok: false as const, error: 'assignment_create_failed', details: error?.message };
