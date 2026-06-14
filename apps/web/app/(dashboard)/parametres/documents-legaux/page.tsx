@@ -1,0 +1,101 @@
+// ARCHETYPE: workflow
+// Justification: génération IA + validation des documents juridiques de l'OF.
+
+import { supabaseServer } from '@/shared/lib/supabase/server';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { generateLegalDocDraft, saveLegalDocEdit, validateLegalDoc } from './actions';
+import type { LegalKind } from '@/shared/lib/legifrance/mapping';
+
+const DOCS: { kind: LegalKind; label: string }[] = [
+  { kind: 'reglement_interieur', label: 'Règlement intérieur' },
+  { kind: 'cgv', label: 'Conditions générales de vente' },
+  { kind: 'livret_accueil', label: "Livret d'accueil" },
+];
+
+export default async function DocumentsLegauxPage() {
+  const sb = supabaseServer();
+  const { data: org } = await sb.schema('app').from('organizations').select('id').limit(1).maybeSingle();
+  const orgId = (org as { id?: string } | null)?.id ?? '';
+
+  const { data: docs } = await sb
+    .schema('app')
+    .from('org_legal_documents')
+    .select('kind, status, content_md, sources_used, generated_model, validated_at, pdf_storage_path')
+    .eq('organization_id', orgId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const byKind = new Map<string, any>(((docs as any[]) ?? []).map((d) => [d.kind, d]));
+
+  return (
+    <div className="space-y-8">
+      <header>
+        <SectionLabel>Documents juridiques (assistés par IA)</SectionLabel>
+        <p className="text-[12px] text-zinc-500 mt-1">
+          Génération à partir des sources officielles (Légifrance) —{' '}
+          <strong>aide à la rédaction, pas un conseil juridique</strong> : relisez et validez avant usage.
+        </p>
+      </header>
+
+      {DOCS.map(({ kind, label }) => {
+        const d = byKind.get(kind);
+        const sources = (d?.sources_used as Array<{ ref: string }> | undefined) ?? [];
+        return (
+          <section key={kind} className="rounded-lg border border-zinc-200/60 dark:border-zinc-800 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium text-[14px]">{label}</h3>
+              <span className="text-[11px] text-zinc-500">
+                {d
+                  ? d.status === 'validated'
+                    ? `Validé le ${new Date(d.validated_at).toLocaleDateString('fr-FR')}`
+                    : 'Brouillon'
+                  : 'Non généré'}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <form action={async () => { 'use server'; await generateLegalDocDraft(orgId, kind); }}>
+                <button type="submit" className="border border-zinc-200/60 dark:border-zinc-800 text-[12px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
+                  {d ? 'Régénérer (IA)' : 'Générer (IA)'}
+                </button>
+              </form>
+              {d?.status === 'draft' && (
+                <form action={async () => { 'use server'; await validateLegalDoc(orgId, kind); }}>
+                  <button type="submit" className="bg-orange-500 text-white text-[12px] px-3 py-1.5 rounded-md hover:bg-orange-600 transition">
+                    Valider
+                  </button>
+                </form>
+              )}
+              {d?.pdf_storage_path && <span className="text-[11px] text-emerald-600 self-center">PDF généré</span>}
+            </div>
+
+            {d?.content_md && (
+              <form
+                action={async (fd: FormData) => {
+                  'use server';
+                  await saveLegalDocEdit(orgId, kind, String(fd.get('content') ?? ''));
+                }}
+                className="space-y-2"
+              >
+                <textarea
+                  name="content"
+                  defaultValue={d.content_md}
+                  rows={10}
+                  className="w-full text-[12px] font-mono border border-zinc-200/60 dark:border-zinc-800 rounded p-2 bg-transparent"
+                />
+                <button type="submit" className="border border-zinc-200/60 dark:border-zinc-800 text-[12px] px-3 py-1 rounded-md">
+                  Enregistrer les modifications
+                </button>
+              </form>
+            )}
+
+            {sources.length > 0 && (
+              <p className="text-[11px] text-zinc-500">
+                Sources citées : {sources.map((s) => s.ref).join(', ')}
+                {d?.generated_model ? ` · ${d.generated_model}` : ''}
+              </p>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
