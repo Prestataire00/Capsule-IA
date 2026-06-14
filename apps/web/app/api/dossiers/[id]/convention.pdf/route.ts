@@ -120,11 +120,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const pdfBytes = await generateConventionPDF(input);
   const filename = `convention-${d.reference}.pdf`;
 
-  await sb.schema('app').from('resource_access_log' as never).insert({
-    organization_id: d.organization_id,
-    target_kind: 'document', target_id: params.id, dossier_id: params.id,
-    learner_id: d.learner_id ?? null, actor_kind: 'system', action: 'download',
-  } as never);
+  try {
+    const { error: auditErr } = await sb.schema('app').from('resource_access_log' as never).insert({
+      organization_id: d.organization_id,
+      target_kind: 'document', target_id: params.id, dossier_id: params.id,
+      learner_id: d.learner_id ?? null, actor_kind: 'system', action: 'download',
+    } as never);
+    if (auditErr) console.error('resource_access_log insert failed (non-bloquant)', auditErr);
+  } catch (err) {
+    console.error('resource_access_log insert failed (non-bloquant)', err);
+  }
 
   return new NextResponse(new Uint8Array(pdfBytes), {
     status: 200,
