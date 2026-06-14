@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateInvoicePDF, type InvoiceInput } from '@/features/documents/generate-invoice-pdf';
+import { loadOrgBranding } from '@/features/documents/load-org-branding';
+import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +102,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const recipientSiret = inv.company?.siret ?? null;
   const recipientAddress = composeAddress(inv.company?.address ?? inv.dossier?.learner?.address);
 
+  const orgId = inv.organization_id;
+  const branding = await loadOrgBranding(sb as never, orgId);
+
   const input: InvoiceInput = {
     organization: {
       name: org?.name ?? 'Organisme de formation',
@@ -114,6 +119,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       siret: recipientSiret,
       address: recipientAddress,
     },
+    signaturePng: branding.signaturePng,
+    stampPng: branding.stampPng,
+    representativeName: branding.representativeName ?? org?.contact_email ?? null,
+    representativeTitle: branding.representativeTitle,
+    place: org?.address?.city ?? null,
     invoice: {
       reference: inv.reference,
       issuedAt: inv.issued_at,
@@ -136,6 +146,20 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   };
 
   const pdfBytes = await generateInvoicePDF(input);
+
+  try {
+    await persistGeneratedDocument(sb as never, {
+      organizationId: orgId,
+      dossierId: inv.dossier_id ?? null,
+      kind: 'facture',
+      title: `Facture ${inv.reference}`,
+      bytes: pdfBytes,
+      generationInput: input,
+    });
+  } catch (e) {
+    console.error('[facture] persist failed', e);
+  }
+
   const filename = `facture-${inv.reference}.pdf`;
 
   return new NextResponse(new Uint8Array(pdfBytes), {
