@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0058 — Bucket Storage privé pour les supports pédagogiques
+-- 0065 — Bucket Storage privé pour les supports pédagogiques
 -- ============================================================================
 -- Bucket privé "pedagogical" : PDF, présentations, tableurs, documents Word,
 -- images. Limite 50 MB par fichier.
