@@ -8,6 +8,7 @@ import {
   prospectConfirmationEmail,
   prospectInternalNotificationEmail,
 } from '@/shared/lib/email/templates';
+import { derivePrimaryFunder } from '@/features/prospect/funding';
 import {
   prospectFieldsSchema,
   MAX_FILE_SIZE,
@@ -15,12 +16,11 @@ import {
   type ProspectFields,
 } from './schema';
 
-const FUNDER_LABELS: Record<ProspectFields['funderKind'], string> = {
+const FUNDER_LABELS: Record<ProspectFields['funderKinds'][number], string> = {
   opco: 'OPCO',
-  cpf: 'CPF',
-  pole_emploi: 'France Travail',
-  region: 'Région',
-  entreprise: 'Plan entreprise',
+  faf_ca: 'FAF / Chef d’entreprise',
+  agefiph: 'Agefiph',
+  entreprise: 'Entreprise',
   autofinancement: 'Autofinancement',
 };
 
@@ -94,22 +94,25 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
   const ipHeader = h.get('x-forwarded-for') ?? h.get('x-real-ip');
   const ip = ipHeader ? ipHeader.split(',')[0]?.trim() ?? null : null;
 
+  const isIndividual =
+    fields.situation === 'independant' || fields.situation === 'particulier';
+
   // Résout l'OF + le titre depuis la formation choisie (service-role → hors RLS).
   // Rattache le prospect au bon OF pour qu'il apparaisse dans SON triage.
   const formationId = nullify(fields.formationId);
   let organizationId: string | null = null;
   let formationTitle: string | null = null;
   if (formationId) {
-    const { data: form } = await supabase
+    const { data: formation } = await supabase
       .schema('app')
       .from('formations')
       .select('organization_id, title')
       .eq('id', formationId)
       .is('deleted_at', null)
       .maybeSingle();
-    if (form) {
-      organizationId = (form as { organization_id: string }).organization_id;
-      formationTitle = (form as { title: string }).title;
+    if (formation) {
+      organizationId = (formation as { organization_id: string }).organization_id;
+      formationTitle = (formation as { title: string }).title;
     }
   }
 
@@ -128,7 +131,13 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     message: nullify(fields.message),
     situation: fields.situation,
     company_name: nullify(fields.companyName),
-    funder_kind: fields.funderKind,
+    company_siret: isIndividual ? null : fields.companySiret || null,
+    company_address: isIndividual ? null : fields.companyAddress ?? null,
+    referent_name: isIndividual ? null : fields.referentName || null,
+    referent_email: isIndividual ? null : fields.referentEmail || null,
+    referent_phone: isIndividual ? null : fields.referentPhone || null,
+    funder_kinds: fields.funderKinds,
+    funder_kind: derivePrimaryFunder(fields.funderKinds),
     source: 'web_form',
     ip_address: ip,
     user_agent: h.get('user-agent') ?? null,
@@ -137,7 +146,7 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
   const { data: prospect, error: insertErr } = await supabase
     .schema('app')
     .from('prospects')
-    .insert(insertRow)
+    .insert(insertRow as never)
     .select('id')
     .single();
 
@@ -190,8 +199,10 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
 
   // Notifications email — non bloquantes. Si pas de RESEND_API_KEY,
   // sendEmail renvoie { ok:false, reason:'no_api_key' } silencieusement.
-  // formationTitle déjà résolu plus haut depuis la table formations.
-  const funderLabel = FUNDER_LABELS[fields.funderKind];
+  // formationTitle déjà résolu plus haut (avec organization_id).
+  const funderLabel = fields.funderKinds
+    .map((k) => FUNDER_LABELS[k])
+    .join(', ');
 
   const baseEmailData = {
     firstName: fields.firstName,

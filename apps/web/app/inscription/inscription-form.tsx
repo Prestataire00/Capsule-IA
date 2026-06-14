@@ -3,8 +3,9 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { submitProspect } from '../actions';
-import type { ProspectFields } from '../schema';
+import { useSearchParams } from 'next/navigation';
+import { submitProspect } from './actions';
+import type { ProspectFields } from './schema';
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,11 +13,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  CreditCard,
-  Building2,
-  Briefcase,
-  Globe,
-  Wallet,
   User,
   GraduationCap,
   FileText,
@@ -31,109 +27,43 @@ import {
   BookOpen,
   AlertCircle,
   Search,
+  Building2,
 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { DateOfBirthInput } from '@/shared/ui/date-of-birth-input';
 import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { Logo } from '@/shared/ui/logo';
-
-// Catalogue réel passé en prop par la page serveur (RPC public org-scopée).
-export type FormationCategory = 'accounting' | 'tech' | 'management' | 'languages' | 'office' | 'other';
-export const FORMATION_CATEGORY_LABELS: Record<FormationCategory, string> = {
-  accounting: 'Comptabilité & gestion',
-  tech: 'Tech & numérique',
-  management: 'Management & RH',
-  languages: 'Langues',
-  office: 'Bureautique',
-  other: 'Autres',
-};
-export type FormationOption = {
-  id: string;
-  code: string;
-  title: string;
-  defaultHours: number;
-  modality: string;
-  isPublished: boolean;
-  category: FormationCategory;
-};
-
-type Funder =
-  | 'opco'
-  | 'cpf'
-  | 'pole_emploi'
-  | 'region'
-  | 'entreprise'
-  | 'autofinancement';
+import {
+  FUNDER_OPTIONS,
+  type FunderValue,
+  requiredDocsForFunders,
+  type DocRequirement,
+} from '@/features/prospect/funding';
+import type { PublicFormation } from '@/features/catalog/public-catalog';
 
 const STEPS = [
   { key: 'identity', label: 'Vous', icon: User },
   { key: 'formation', label: 'Formation', icon: GraduationCap },
-  { key: 'funding', label: 'Financement', icon: Wallet },
+  { key: 'funding', label: 'Financement', icon: User },
   { key: 'documents', label: 'Documents', icon: FileText },
 ] as const;
 
-const FUNDERS: {
-  value: Funder;
-  label: string;
-  hint: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { value: 'opco', label: 'OPCO', hint: 'Mon employeur passe par un OPCO', icon: Building2 },
-  { value: 'cpf', label: 'CPF', hint: 'Mon compte personnel de formation', icon: CreditCard },
-  { value: 'pole_emploi', label: 'France Travail', hint: "Je suis demandeur d'emploi", icon: Briefcase },
-  { value: 'region', label: 'Région', hint: 'Financement régional', icon: Globe },
-  { value: 'entreprise', label: 'Plan entreprise', hint: 'Plan de développement employeur', icon: Building2 },
-  { value: 'autofinancement', label: 'Autofinancement', hint: 'Je finance moi-même', icon: Wallet },
-];
-
-type DocSpec = { key: string; label: string; hint: string; required: boolean };
-
-const REQUIRED_DOCS: Record<Funder, DocSpec[]> = {
-  opco: [
-    { key: 'payslip', label: 'Bulletin de paie récent', hint: "Justifie votre statut salarié et permet à l'OPCO de calculer la prise en charge.", required: true },
-    { key: 'collective_agreement', label: 'Convention collective applicable', hint: 'Code IDCC ou copie complète.', required: true },
-    { key: 'employer_agreement', label: 'Accord employeur signé', hint: 'Document attestant que votre employeur valide votre départ.', required: true },
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport en cours de validité.', required: false },
-  ],
-  cpf: [
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport en cours de validité.', required: true },
-    { key: 'residence', label: 'Justificatif de domicile', hint: 'Moins de 3 mois (facture EDF, quittance de loyer…).', required: true },
-  ],
-  pole_emploi: [
-    { key: 'pe_attestation', label: 'Attestation France Travail', hint: 'À télécharger depuis votre espace personnel.', required: true },
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport.', required: true },
-    { key: 'rib', label: 'RIB', hint: 'Pour les éventuels frais annexes.', required: false },
-  ],
-  region: [
-    { key: 'residence', label: 'Justificatif de domicile dans la région', hint: 'Moins de 3 mois.', required: true },
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport.', required: true },
-    { key: 'tax_notice', label: "Avis d'imposition", hint: 'Pour les critères de ressources si applicable.', required: false },
-  ],
-  entreprise: [
-    { key: 'purchase_order', label: 'Bon de commande employeur', hint: 'Ou accord-cadre signé.', required: true },
-    { key: 'employer_agreement', label: 'Accord employeur signé', hint: 'Validation hiérarchique du départ.', required: true },
-  ],
-  autofinancement: [
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport.', required: true },
-    { key: 'rib', label: 'RIB', hint: 'Pour les modalités de paiement.', required: false },
-  ],
+type Funding = {
+  status: 'salarie' | 'demandeur' | 'independant' | 'particulier';
+  companyName: string;
+  companySiret: string;
+  companyAddressLine1: string;
+  companyAddressCity: string;
+  companyAddressPostalCode: string;
+  referentName: string;
+  referentEmail: string;
+  referentPhone: string;
+  funderKinds: FunderValue[];
 };
 
-const modalityLabel: Record<string, string> = {
-  presentiel: 'Présentiel',
-  distanciel: 'Distanciel',
-  hybride: 'Hybride',
-  afest: 'AFEST',
-};
-
-export function InscriptionForm({
-  formations,
-  preselectedId,
-}: {
-  formations: FormationOption[];
-  preselectedId: string;
-}) {
-  const preselectedFormation = preselectedId;
+export function InscriptionForm({ formations }: { formations: PublicFormation[] }) {
+  const searchParams = useSearchParams();
+  const preselectedFormation = searchParams.get('formation') ?? '';
 
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -157,21 +87,24 @@ export function InscriptionForm({
     message: '',
   });
 
-  const [funding, setFunding] = useState<{
-    status: 'salarie' | 'demandeur' | 'independant' | 'particulier';
-    companyName: string;
-    funder: Funder | null;
-  }>({
+  const [funding, setFunding] = useState<Funding>({
     status: 'salarie',
     companyName: '',
-    funder: null,
+    companySiret: '',
+    companyAddressLine1: '',
+    companyAddressCity: '',
+    companyAddressPostalCode: '',
+    referentName: '',
+    referentEmail: '',
+    referentPhone: '',
+    funderKinds: [],
   });
 
   const [files, setFiles] = useState<Record<string, File | null>>({});
 
-  const docs: DocSpec[] = useMemo(
-    () => (funding.funder ? REQUIRED_DOCS[funding.funder] : []),
-    [funding.funder],
+  const docs: DocRequirement[] = useMemo(
+    () => requiredDocsForFunders(funding.funderKinds),
+    [funding.funderKinds],
   );
 
   const requiredFilled = docs.filter((d) => d.required).every((d) => files[d.key]);
@@ -185,7 +118,7 @@ export function InscriptionForm({
       return missing;
     }
     if (step === 1) return formation.formationId ? [] : ['Formation'];
-    if (step === 2) return funding.funder ? [] : ['Mode de financement'];
+    if (step === 2) return funding.funderKinds.length > 0 ? [] : ['Mode de financement'];
     return [];
   })();
   const canContinue = missingFields.length === 0;
@@ -195,17 +128,18 @@ export function InscriptionForm({
       setStep(step + 1);
       setSubmitError(null);
     } else {
-      setSubmitError(
-        `Pour continuer, renseignez : ${missingFields.join(', ')}.`,
-      );
+      setSubmitError(`Pour continuer, renseignez : ${missingFields.join(', ')}.`);
     }
   };
 
   const selectedFormation = formations.find((f) => f.id === formation.formationId);
-  const selectedFunder = FUNDERS.find((f) => f.value === funding.funder);
+  const selectedFunders = FUNDER_OPTIONS.filter((f) => funding.funderKinds.includes(f.value));
+
+  const isIndividual =
+    funding.status === 'independant' || funding.status === 'particulier';
 
   const handleSubmit = () => {
-    if (!funding.funder) return;
+    if (funding.funderKinds.length === 0) return;
     setSubmitError(null);
 
     const payload: ProspectFields = {
@@ -221,8 +155,19 @@ export function InscriptionForm({
       preferredStartDate: formation.preferredStart,
       message: formation.message,
       situation: funding.status,
-      companyName: funding.companyName,
-      funderKind: funding.funder,
+      companyName: isIndividual ? '' : funding.companyName,
+      companySiret: isIndividual ? '' : funding.companySiret,
+      companyAddress: isIndividual
+        ? undefined
+        : {
+            line1: funding.companyAddressLine1,
+            city: funding.companyAddressCity,
+            postalCode: funding.companyAddressPostalCode,
+          },
+      referentName: isIndividual ? '' : funding.referentName,
+      referentEmail: isIndividual ? '' : funding.referentEmail,
+      referentPhone: isIndividual ? '' : funding.referentPhone,
+      funderKinds: funding.funderKinds,
     };
 
     const fd = new FormData();
@@ -255,7 +200,7 @@ export function InscriptionForm({
       <SuccessView
         identity={identity}
         formation={selectedFormation}
-        funder={selectedFunder}
+        funders={selectedFunders}
       />
     );
   }
@@ -312,14 +257,16 @@ export function InscriptionForm({
 
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm">
           {step === 0 && <IdentityStep value={identity} onChange={setIdentity} />}
-          {step === 1 && <FormationStep value={formation} onChange={setFormation} formations={formations} />}
+          {step === 1 && (
+            <FormationStep value={formation} onChange={setFormation} formations={formations} />
+          )}
           {step === 2 && <FundingStep value={funding} onChange={setFunding} />}
           {step === 3 && (
             <DocumentsStep
               docs={docs}
               files={files}
               onFile={(k, f) => setFiles((prev) => ({ ...prev, [k]: f }))}
-              funder={selectedFunder?.label ?? ''}
+              funderLabel={selectedFunders.map((f) => f.label).join(', ')}
             />
           )}
 
@@ -514,15 +461,17 @@ function FormationStep({
 }: {
   value: { formationId: string; preferredModality: string; preferredStart: string; message: string };
   onChange: (v: typeof value) => void;
-  formations: FormationOption[];
+  formations: PublicFormation[];
 }) {
   const update = <K extends keyof typeof value>(k: K, v: (typeof value)[K]) =>
     onChange({ ...value, [k]: v });
 
   const [query, setQuery] = useState('');
-  const [activeCats, setActiveCats] = useState<Set<FormationCategory>>(new Set());
+  const [activeCats, setActiveCats] = useState<Set<string>>(new Set());
 
-  const toggleCat = (cat: FormationCategory) => {
+  const categoryLabel = (cat: string | null) => cat ?? 'Autres';
+
+  const toggleCat = (cat: string) => {
     setActiveCats((prev) => {
       const next = new Set(prev);
       if (next.has(cat)) next.delete(cat);
@@ -531,43 +480,45 @@ function FormationStep({
     });
   };
 
-  const publishedFormations = useMemo(() => formations.filter((f) => f.isPublished), [formations]);
-
   const countByCat = useMemo(() => {
-    const map = new Map<FormationCategory, number>();
-    for (const f of publishedFormations) {
-      const cat = (f.category ?? 'other') as FormationCategory;
+    const map = new Map<string, number>();
+    for (const f of formations) {
+      const cat = f.category ?? 'Autres';
       map.set(cat, (map.get(cat) ?? 0) + 1);
     }
     return map;
-  }, [publishedFormations]);
+  }, [formations]);
+
+  const orderedCats = useMemo(
+    () => Array.from(countByCat.keys()).sort((a, b) => a.localeCompare(b, 'fr')),
+    [countByCat],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return publishedFormations.filter((f) => {
-      const cat = (f.category ?? 'other') as FormationCategory;
+    return formations.filter((f) => {
+      const cat = f.category ?? 'Autres';
       if (activeCats.size > 0 && !activeCats.has(cat)) return false;
       if (q) {
-        const haystack = `${f.title} ${f.code} ${FORMATION_CATEGORY_LABELS[cat]} ${modalityLabel[f.modality] ?? ''}`.toLowerCase();
+        const haystack = `${f.title} ${f.code} ${cat}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [publishedFormations, query, activeCats]);
+  }, [formations, query, activeCats]);
 
   const grouped = useMemo(() => {
-    const order: FormationCategory[] = ['accounting', 'tech', 'management', 'languages', 'office', 'other'];
-    const groups = new Map<FormationCategory, typeof filtered>();
+    const groups = new Map<string, PublicFormation[]>();
     for (const f of filtered) {
-      const cat = (f.category ?? 'other') as FormationCategory;
+      const cat = f.category ?? 'Autres';
       const arr = groups.get(cat) ?? [];
       arr.push(f);
       groups.set(cat, arr);
     }
-    return order.filter((cat) => groups.has(cat)).map((cat) => ({ cat, list: groups.get(cat)! }));
-  }, [filtered]);
-
-  const orderedCats: FormationCategory[] = ['accounting', 'tech', 'management', 'languages', 'office'];
+    return orderedCats
+      .filter((cat) => groups.has(cat))
+      .map((cat) => ({ cat, list: groups.get(cat)! }));
+  }, [filtered, orderedCats]);
 
   return (
     <section className="p-6 space-y-5">
@@ -603,45 +554,47 @@ function FormationStep({
           </div>
 
           {/* Category chips */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setActiveCats(new Set())}
-              className={`text-[12px] font-medium px-3 py-1 rounded-full border transition ${
-                activeCats.size === 0
-                  ? 'bg-violet-600 text-white border-violet-600'
-                  : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200/60 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'
-              }`}
-            >
-              Toutes ({publishedFormations.length})
-            </button>
-            {orderedCats.map((cat) => {
-              const count = countByCat.get(cat) ?? 0;
-              if (count === 0) return null;
-              const active = activeCats.has(cat);
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => toggleCat(cat)}
-                  className={`text-[12px] font-medium px-3 py-1 rounded-full border transition ${
-                    active
-                      ? 'bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border-violet-300 dark:border-violet-800'
-                      : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200/60 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'
-                  }`}
-                >
-                  {FORMATION_CATEGORY_LABELS[cat]} <span className="text-zinc-400 dark:text-zinc-500">{count}</span>
-                </button>
-              );
-            })}
-          </div>
+          {orderedCats.length > 1 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setActiveCats(new Set())}
+                className={`text-[12px] font-medium px-3 py-1 rounded-full border transition ${
+                  activeCats.size === 0
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200/60 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'
+                }`}
+              >
+                Toutes ({formations.length})
+              </button>
+              {orderedCats.map((cat) => {
+                const count = countByCat.get(cat) ?? 0;
+                if (count === 0) return null;
+                const active = activeCats.has(cat);
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => toggleCat(cat)}
+                    className={`text-[12px] font-medium px-3 py-1 rounded-full border transition ${
+                      active
+                        ? 'bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border-violet-300 dark:border-violet-800'
+                        : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200/60 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'
+                    }`}
+                  >
+                    {categoryLabel(cat)} <span className="text-zinc-400 dark:text-zinc-500">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Results count */}
           {(query || activeCats.size > 0) && (
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 px-1">
               {filtered.length === 0
                 ? 'Aucune formation ne correspond'
-                : `${filtered.length} formation${filtered.length > 1 ? 's' : ''} sur ${publishedFormations.length}`}
+                : `${filtered.length} formation${filtered.length > 1 ? 's' : ''} sur ${formations.length}`}
             </p>
           )}
 
@@ -649,17 +602,23 @@ function FormationStep({
           {filtered.length === 0 ? (
             <div className="border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-8 text-center">
               <Search className="w-5 h-5 text-zinc-300 dark:text-zinc-700 mx-auto mb-2" />
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-1">Pas de formation pour ces critères</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery('');
-                  setActiveCats(new Set());
-                }}
-                className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline font-medium"
-              >
-                Réinitialiser les filtres
-              </button>
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-1">
+                {formations.length === 0
+                  ? 'Aucune formation disponible pour le moment'
+                  : 'Pas de formation pour ces critères'}
+              </p>
+              {(query || activeCats.size > 0) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery('');
+                    setActiveCats(new Set());
+                  }}
+                  className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline font-medium"
+                >
+                  Réinitialiser les filtres
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-5">
@@ -667,7 +626,7 @@ function FormationStep({
                 <div key={cat}>
                   <div className="flex items-baseline justify-between mb-2 px-1">
                     <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
-                      {FORMATION_CATEGORY_LABELS[cat]}
+                      {categoryLabel(cat)}
                     </p>
                     <p className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
                       {list.length} formation{list.length > 1 ? 's' : ''}
@@ -701,13 +660,6 @@ function FormationStep({
                               <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
                               <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
                                 {f.title}
-                              </p>
-                              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 inline-flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1">
-                                  <Clock className="w-3 h-3" /> {f.defaultHours} h
-                                </span>
-                                <span className="text-zinc-300 dark:text-zinc-700">·</span>
-                                <span>{modalityLabel[f.modality] ?? f.modality}</span>
                               </p>
                             </div>
                             {checked && <Check className="w-4 h-4 text-violet-600 flex-shrink-0 mt-1" />}
@@ -777,13 +729,21 @@ function FundingStep({
   value,
   onChange,
 }: {
-  value: {
-    status: 'salarie' | 'demandeur' | 'independant' | 'particulier';
-    companyName: string;
-    funder: Funder | null;
-  };
-  onChange: (v: typeof value) => void;
+  value: Funding;
+  onChange: (v: Funding) => void;
 }) {
+  const update = <K extends keyof Funding>(k: K, v: Funding[K]) =>
+    onChange({ ...value, [k]: v });
+
+  const isIndividual = value.status === 'independant' || value.status === 'particulier';
+
+  const toggleFunder = (funder: FunderValue) => {
+    const next = value.funderKinds.includes(funder)
+      ? value.funderKinds.filter((f) => f !== funder)
+      : [...value.funderKinds, funder];
+    update('funderKinds', next);
+  };
+
   return (
     <section className="p-6 space-y-5">
       <div>
@@ -809,7 +769,7 @@ function FundingStep({
                 type="radio"
                 name="status"
                 checked={value.status === opt.v}
-                onChange={() => onChange({ ...value, status: opt.v as typeof value.status })}
+                onChange={() => update('status', opt.v as Funding['status'])}
                 className="sr-only"
               />
               <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{opt.l}</p>
@@ -818,26 +778,118 @@ function FundingStep({
         </div>
       </FormField>
 
-      {value.status === 'salarie' && (
-        <FormField label="Nom de votre employeur">
-          <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+      {!isIndividual && (
+        <div className="space-y-5 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-4 bg-zinc-50/40 dark:bg-zinc-950/40">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-violet-600" />
+            <h3 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Entreprise</h3>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Nom de l'entreprise">
+              <input
+                type="text"
+                value={value.companyName}
+                onChange={(e) => update('companyName', e.target.value)}
+                placeholder="Acme Conseil"
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="SIRET">
+              <input
+                type="text"
+                value={value.companySiret}
+                onChange={(e) => update('companySiret', e.target.value)}
+                placeholder="123 456 789 00012"
+                className={inputClass}
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Adresse">
             <input
               type="text"
-              value={value.companyName}
-              onChange={(e) => onChange({ ...value, companyName: e.target.value })}
-              placeholder="Acme Conseil"
-              className={`${inputClass} pl-9`}
+              value={value.companyAddressLine1}
+              onChange={(e) => update('companyAddressLine1', e.target.value)}
+              placeholder="12 rue de la Formation"
+              className={inputClass}
             />
+          </FormField>
+
+          <div className="grid grid-cols-3 gap-3">
+            <FormField label="Code postal">
+              <input
+                type="text"
+                value={value.companyAddressPostalCode}
+                onChange={(e) => update('companyAddressPostalCode', e.target.value)}
+                placeholder="75001"
+                className={inputClass}
+              />
+            </FormField>
+            <div className="col-span-2">
+              <FormField label="Ville">
+                <input
+                  type="text"
+                  value={value.companyAddressCity}
+                  onChange={(e) => update('companyAddressCity', e.target.value)}
+                  placeholder="Paris"
+                  className={inputClass}
+                />
+              </FormField>
+            </div>
           </div>
-        </FormField>
+
+          <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 space-y-5">
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Référent qui suivra le dossier côté entreprise.
+            </p>
+            <FormField label="Référent">
+              <input
+                type="text"
+                value={value.referentName}
+                onChange={(e) => update('referentName', e.target.value)}
+                placeholder="Jean Dupont — Responsable formation"
+                className={inputClass}
+              />
+            </FormField>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Email du référent">
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="email"
+                    value={value.referentEmail}
+                    onChange={(e) => update('referentEmail', e.target.value)}
+                    placeholder="j.dupont@acme.fr"
+                    className={`${inputClass} pl-9`}
+                  />
+                </div>
+              </FormField>
+              <FormField label="Téléphone du référent">
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="tel"
+                    value={value.referentPhone}
+                    onChange={(e) => update('referentPhone', e.target.value)}
+                    placeholder="01 23 45 67 89"
+                    className={`${inputClass} pl-9`}
+                  />
+                </div>
+              </FormField>
+            </div>
+          </div>
+        </div>
       )}
 
-      <FormField label="Mode de financement envisagé" required>
+      <FormField
+        label="Mode(s) de financement envisagé(s)"
+        hint="Plusieurs choix possibles."
+        required
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {FUNDERS.map((f) => {
-            const Icon = f.icon;
-            const checked = value.funder === f.value;
+          {FUNDER_OPTIONS.map((f) => {
+            const checked = value.funderKinds.includes(f.value);
             return (
               <label
                 key={f.value}
@@ -848,20 +900,16 @@ function FundingStep({
                 }`}
               >
                 <input
-                  type="radio"
-                  name="funder"
+                  type="checkbox"
+                  name="funderKinds"
                   checked={checked}
-                  onChange={() => onChange({ ...value, funder: f.value })}
-                  className="sr-only"
+                  onChange={() => toggleFunder(f.value)}
+                  className="mt-0.5 accent-violet-600"
                 />
-                <span className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-4 h-4 text-violet-600" />
-                </span>
                 <div className="min-w-0">
                   <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{f.label}</p>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{f.hint}</p>
                 </div>
-                {checked && <Check className="w-4 h-4 text-violet-600 flex-shrink-0 mt-1" />}
               </label>
             );
           })}
@@ -877,12 +925,12 @@ function DocumentsStep({
   docs,
   files,
   onFile,
-  funder,
+  funderLabel,
 }: {
-  docs: DocSpec[];
+  docs: DocRequirement[];
   files: Record<string, File | null>;
   onFile: (k: string, f: File | null) => void;
-  funder: string;
+  funderLabel: string;
 }) {
   return (
     <section className="p-6 space-y-5">
@@ -890,7 +938,7 @@ function DocumentsStep({
         <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">Pièces justificatives</h2>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           La liste ci-dessous est adaptée à votre mode de financement
-          {funder && <strong className="font-semibold text-zinc-900 dark:text-zinc-100"> ({funder})</strong>}.
+          {funderLabel && <strong className="font-semibold text-zinc-900 dark:text-zinc-100"> ({funderLabel})</strong>}.
         </p>
       </div>
 
@@ -901,16 +949,25 @@ function DocumentsStep({
         </p>
       </div>
 
-      <div className="space-y-3">
-        {docs.map((doc) => (
-          <DocUploader
-            key={doc.key}
-            doc={doc}
-            file={files[doc.key] ?? null}
-            onFile={(f) => onFile(doc.key, f)}
-          />
-        ))}
-      </div>
+      {docs.length === 0 ? (
+        <div className="border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-8 text-center">
+          <FileText className="w-5 h-5 text-zinc-300 dark:text-zinc-700 mx-auto mb-2" />
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+            Aucune pièce justificative requise pour le financement sélectionné.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {docs.map((doc) => (
+            <DocUploader
+              key={doc.key}
+              doc={doc}
+              file={files[doc.key] ?? null}
+              onFile={(f) => onFile(doc.key, f)}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -920,7 +977,7 @@ function DocUploader({
   file,
   onFile,
 }: {
-  doc: DocSpec;
+  doc: DocRequirement;
   file: File | null;
   onFile: (f: File | null) => void;
 }) {
@@ -1007,11 +1064,11 @@ function DocUploader({
 function SuccessView({
   identity,
   formation,
-  funder,
+  funders,
 }: {
   identity: { firstName: string; lastName: string; email: string };
-  formation: { code: string; title: string } | undefined;
-  funder: { label: string } | undefined;
+  formation: PublicFormation | undefined;
+  funders: { label: string }[];
 }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
@@ -1038,10 +1095,12 @@ function SuccessView({
               <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{formation.title}</span>
             </div>
           )}
-          {funder && (
+          {funders.length > 0 && (
             <div className="px-5 py-3 flex items-center justify-between gap-3">
               <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Financement</span>
-              <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{funder.label}</span>
+              <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                {funders.map((f) => f.label).join(', ')}
+              </span>
             </div>
           )}
           <div className="px-5 py-3 flex items-center justify-between gap-3">
