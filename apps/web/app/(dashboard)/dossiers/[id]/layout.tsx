@@ -1,24 +1,40 @@
 // ARCHETYPE: command (sous-shell d'un dossier)
-// Justification: vue détaillée d'un dossier avec hero et tabs.
+// Justification: hero + tabs d'un dossier, en données réelles (RLS-scopé).
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, MoreHorizontal, Calendar, Clock, Users as UsersIcon, Banknote } from 'lucide-react';
-import {
-  dossiers, learnerFullName, formationTitle, companyName, formatEuros,
-} from '@/shared/mock/data';
+import { ArrowLeft, Calendar, Clock, Users as UsersIcon, Banknote } from 'lucide-react';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
 
-export default function DossierLayout({
+const fmtDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '—');
+const fmtEuros = (cents: number | null) =>
+  cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
+const modalityLabel = (m: string) =>
+  (({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride', afest: 'AFEST' }) as Record<string, string>)[m] ?? m;
+
+export default async function DossierLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
   params: { id: string };
 }) {
-  const dossier = dossiers.find((d) => d.id === params.id);
-  if (!dossier) notFound();
+  const sb = supabaseServer();
+  const { data } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select(
+      'reference, status, modality, start_date, end_date, total_hours, total_amount_cents, ' +
+        'learner:learners(first_name, last_name), company:companies(name), formation:formations(title)',
+    )
+    .eq('id', params.id)
+    .maybeSingle();
+  if (!data) notFound();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = data as any;
+  const learner = [d.learner?.first_name, d.learner?.last_name].filter(Boolean).join(' ') || '—';
 
   return (
     <div className="min-h-[calc(100vh-3rem)]">
@@ -34,69 +50,25 @@ export default function DossierLayout({
         <header className="flex items-start justify-between gap-4 mb-8">
           <div className="min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-medium font-mono text-zinc-900 dark:text-zinc-100">
-                {dossier.reference}
-              </h1>
-              <StatusPill tone={dossierStatusTone(dossier.status)}>
-                {dossierStatusLabel(dossier.status)}
-              </StatusPill>
+              <h1 className="text-2xl font-medium font-mono text-zinc-900 dark:text-zinc-100">{d.reference}</h1>
+              <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
             </div>
             <p className="text-[15px] text-zinc-700 dark:text-zinc-300">
-              {learnerFullName(dossier.learnerId)}
-              {companyName(dossier.companyId) && (
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  {' · '}
-                  {companyName(dossier.companyId)}
-                </span>
-              )}
+              {learner}
+              {d.company?.name && <span className="text-zinc-500 dark:text-zinc-400">{' · '}{d.company.name}</span>}
             </p>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-              {formationTitle(dossier.formationId)}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              aria-label="Plus d'actions"
-              className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-2.5 py-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-            {dossier.status === 'completed' && (
-              <button
-                type="button"
-                className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm"
-              >
-                Clôturer
-              </button>
-            )}
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">{d.formation?.title ?? '—'}</p>
           </div>
         </header>
 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <MiniStat
-            icon={Calendar}
-            label="Période"
-            value={`${formatDate(dossier.startDate)} → ${formatDate(dossier.endDate)}`}
-          />
-          <MiniStat
-            icon={Clock}
-            label="Heures totales"
-            value={`${dossier.totalHours} h`}
-          />
-          <MiniStat
-            icon={UsersIcon}
-            label="Modalité"
-            value={modalityLabel(dossier.modality)}
-          />
-          <MiniStat
-            icon={Banknote}
-            label="Montant"
-            value={formatEuros(dossier.totalAmountCents)}
-          />
+          <MiniStat icon={Calendar} label="Période" value={`${fmtDate(d.start_date)} → ${fmtDate(d.end_date)}`} />
+          <MiniStat icon={Clock} label="Heures totales" value={`${Number(d.total_hours ?? 0)} h`} />
+          <MiniStat icon={UsersIcon} label="Modalité" value={modalityLabel(d.modality)} />
+          <MiniStat icon={Banknote} label="Montant" value={fmtEuros(d.total_amount_cents)} />
         </section>
 
-        <TabsNav baseHref={`/dossiers/${dossier.id}`} />
+        <TabsNav baseHref={`/dossiers/${params.id}`} />
 
         <div className="mt-8">{children}</div>
       </div>
@@ -105,8 +77,14 @@ export default function DossierLayout({
 }
 
 function MiniStat({
-  icon: Icon, label, value,
-}: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-4 py-3">
       <div className="flex items-center gap-2 mb-1">
@@ -116,17 +94,4 @@ function MiniStat({
       <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{value}</p>
     </div>
   );
-}
-
-function formatDate(iso: string) {
-  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
-}
-
-function modalityLabel(m: string) {
-  return ({
-    presentiel: 'Présentiel',
-    distanciel: 'Distanciel',
-    hybride: 'Hybride',
-    afest: 'AFEST',
-  } as Record<string, string>)[m] ?? m;
 }

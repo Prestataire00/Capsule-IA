@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0067 — Enregistrements (replays) de séances, rattachés à la session
+-- 0079 — Enregistrements (replays) de séances, rattachés à la session
 -- ============================================================================
 -- Contexte : scheduling. Liens vers les replays vidéo (Zoom, upload manuel)
 -- d'une séance de formation. Soft-delete via deleted_at. Multi-tenant RLS.

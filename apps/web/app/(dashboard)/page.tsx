@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   ArrowUpRight, FolderOpen, Clock, GraduationCap, BarChart3,
-  FileSignature, ClipboardCheck, ClipboardList, Receipt, Calendar, Check, FileText,
+  FileSignature, ClipboardCheck, ClipboardList, Calendar, Check, FileText,
 } from 'lucide-react';
 
 import { StatCard } from '@/shared/ui/stat-card';
@@ -19,6 +19,9 @@ import { ProgressBar } from '@/shared/ui/progress-bar';
 import {
   dossiers, learnerFullName, formationTitle, companyName, currentUser,
 } from '@/shared/mock/data';
+
+import { supabaseServer } from '@/shared/lib/supabase/server';
+import { getOrgKpis } from '@/features/reports/org-kpis.query';
 
 const greet = () => {
   const h = new Date().getHours();
@@ -39,13 +42,6 @@ const fundersData = [
 const activityPoints = [12, 18, 22, 19, 28, 32, 38];
 const activityLabels = ['12/05', '13/05', '14/05', '15/05', '16/05', '17/05', '18/05'];
 
-const tasks = [
-  { icon: FileSignature, label: 'Documents à signer', count: 18, href: '/dossiers/d-1/documents', color: 'violet' as const },
-  { icon: ClipboardCheck, label: 'Émargements manquants', count: 7, href: '/dossiers', color: 'amber' as const },
-  { icon: ClipboardList, label: 'Questionnaires à compléter', count: 12, href: '/dossiers', color: 'blue' as const },
-  { icon: Receipt, label: 'Factures à envoyer', count: 3, href: '/factures', color: 'rose' as const },
-];
-
 const taskColors = {
   violet: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-600 dark:text-violet-400' },
   amber: { bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-600 dark:text-amber-400' },
@@ -60,7 +56,14 @@ const qualiopiPoints = [
   { label: 'Audit interne OK', ok: true },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const kpis = await getOrgKpis(supabaseServer());
+  const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  const tasks = [
+    { icon: FileSignature, label: 'Documents à signer', count: kpis.toSign, href: '/dossiers/d-1/documents', color: 'violet' as const },
+    { icon: ClipboardCheck, label: 'Émargements manquants', count: kpis.attendanceMissing, href: '/dossiers', color: 'amber' as const },
+    { icon: ClipboardList, label: 'Questionnaires à compléter', count: kpis.questionnairesPending, href: '/dossiers', color: 'blue' as const },
+  ];
   const firstName = currentUser.full_name.split(' ')[0];
   const today = new Date();
   const start = format(today, 'd MMM', { locale: fr });
@@ -84,10 +87,10 @@ export default function Home() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard href="/dossiers" label="Dossiers actifs" value={128} icon={FolderOpen} accent="purple" hint="+12 ce mois" hintTone="success" />
-        <StatCard href="/planning" label="Heures réalisées" value="1 248 h" icon={Clock} accent="emerald" hint="+8% vs mois dernier" hintTone="success" />
-        <StatCard href="/formations" label="Formations en cours" value={24} icon={GraduationCap} accent="blue" hint="+3 cette semaine" hintTone="success" />
-        <StatCard href="/qualiopi" label="Taux de complétion" value="87%" icon={BarChart3} accent="amber" hint="+5% vs mois dernier" hintTone="success" />
+        <StatCard href="/dossiers" label="Dossiers actifs" value={kpis.dossiersActive} icon={FolderOpen} accent="purple" />
+        <StatCard href="/factures" label="CA en cours" value={euro.format(kpis.revenueInProgressCents / 100)} icon={Clock} accent="emerald" />
+        <StatCard href="/dossiers" label="Clôturés ce mois" value={kpis.dossiersClosedThisMonth} icon={GraduationCap} accent="blue" />
+        <StatCard href="/qualiopi" label="Taux Qualiopi" value={`${Math.round(kpis.qualiopiRate * 100)}%`} icon={BarChart3} accent="amber" />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">

@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0063 — Table app.module_resources (supports pédagogiques par module)
+-- 0075 — Table app.module_resources (supports pédagogiques par module)
 -- ============================================================================
 -- Contexte : catalog. Fichiers réutilisables attachés à un module (PDF, PPTX,
 -- XLSX, DOCX, images). Soft-delete via deleted_at.

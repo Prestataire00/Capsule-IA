@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0066 — RPC ressources apprenant (documents réels + supports + assiduité)
+-- 0078 — RPC ressources apprenant (documents réels + supports + assiduité)
 -- ============================================================================
 -- Token JWT apprenant vérifié côté Next.js ; learner_id passé ici.
 -- Renvoie en JSONB, pour le dossier actif de l'apprenant :

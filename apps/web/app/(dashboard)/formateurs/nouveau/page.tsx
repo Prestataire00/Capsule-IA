@@ -84,6 +84,15 @@ export default function NouveauFormateurPage() {
             <input name="siret" className={inputClass} pattern="\d{14}" maxLength={14} />
           </FormField>
 
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="NDA" hint="N° de déclaration d'activité (si sous-traitant)">
+              <input name="nda" className={inputClass} maxLength={50} />
+            </FormField>
+            <FormField label="Lien Zoom personnel">
+              <input name="zoomUrl" type="url" className={inputClass} maxLength={500} placeholder="https://zoom.us/j/…" />
+            </FormField>
+          </div>
+
           <FormField label="Spécialités" hint="Séparées par virgule, max 12">
             <input
               className={inputClass}

@@ -25,6 +25,16 @@ Contexte projet pour les sessions Claude Code (et autres agents IA).
 
 `identity`, `crm`, `catalog`, `dossier` (root), `scheduling`, `attendance`, `documents`, `qualiopi`, `questionnaire`, `complaint`, `billing`, `automation`, `notification`.
 
+## Coordination (2 instances Claude en parallèle)
+
+Ismael fait souvent tourner **2 instances en parallèle** sur ce repo (même dossier, même `main` → Railway). Pour éviter le travail en double et les collisions :
+
+1. **Avant toute feature** : `git fetch` + lire `docs/coordination/CLAIMS.md` + `git log origin/main --oneline -20`. Si la zone est déjà claimée/faite → coordonner ou prendre autre chose.
+2. **Claimer** sa zone dans `docs/coordination/CLAIMS.md` (commit/push) avant de coder ; **libérer** au merge.
+3. **Juste avant push/PR** : re-`fetch` + re-lire `CLAIMS.md` + comparer `git show origin/main:<fichier>` à sa version (anti-doublon « de fin », pas seulement au début).
+4. **Zones chaudes** (`app/inscription/**`, pages dossier UI, `features/attendance/**`, home `(dashboard)/page.tsx`) : une seule instance à la fois.
+5. **Migrations** : numéro = `(dernier sur origin/main) + 1` au moment du **push** ; brancher depuis `origin/main` (jamais le `main` local, souvent pollué par les commits non-pushés de l'autre instance).
+
 ## Règles dures (red lines)
 
 1. Jamais bypass RLS depuis le client. `service_role` uniquement dans Edge Functions et webhooks (avec guard explicite).

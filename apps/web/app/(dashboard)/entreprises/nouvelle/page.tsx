@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { createCompany } from './actions';
 
 type SireneHit = {
   siren: string;
@@ -47,6 +48,9 @@ export default function NouvelleEntreprisePage() {
     address: '',
     postalCode: '',
     city: '',
+    contactName: '',
+    conventionCollective: '',
+    opco: '',
   });
 
   useEffect(() => {
@@ -126,8 +130,7 @@ export default function NouvelleEntreprisePage() {
         </header>
 
         <form
-          action="/entreprises"
-          method="get"
+          action={createCompany}
           className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800"
         >
           <section className="p-6 space-y-4">
@@ -270,6 +273,16 @@ export default function NouvelleEntreprisePage() {
                 />
               </div>
             </FormField>
+            <FormField label="Contact référent">
+              <input
+                type="text"
+                name="contactName"
+                value={form.contactName}
+                onChange={update('contactName')}
+                placeholder="Nom du contact RH / référent"
+                className={inputClass}
+              />
+            </FormField>
           </section>
 
           <section className="p-6 space-y-4">
@@ -309,6 +322,30 @@ export default function NouvelleEntreprisePage() {
                 </div>
               </FormField>
             </div>
+          </section>
+
+          <section className="p-6 space-y-4">
+            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Rattachement</p>
+            <FormField label="Convention collective" hint="IDCC ou intitulé.">
+              <input
+                type="text"
+                name="conventionCollective"
+                value={form.conventionCollective}
+                onChange={update('conventionCollective')}
+                placeholder="ex. 1486 — Bureaux d'études techniques"
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="OPCO de rattachement">
+              <input
+                type="text"
+                name="opco"
+                value={form.opco}
+                onChange={update('opco')}
+                placeholder="ex. OPCO Atlas"
+                className={inputClass}
+              />
+            </FormField>
           </section>
 
           <div className="px-6 py-4 bg-zinc-50/40 dark:bg-zinc-950/40 flex items-center justify-between gap-3">
