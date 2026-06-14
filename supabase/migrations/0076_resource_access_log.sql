@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0064 — Table app.resource_access_log (journal d'audit append-only)
+-- 0076 — Table app.resource_access_log (journal d'audit append-only)
 -- ============================================================================
 -- Journal unifié et polymorphe pour les accès aux ressources pédagogiques :
 -- documents Qualiopi, supports de module, replays.
