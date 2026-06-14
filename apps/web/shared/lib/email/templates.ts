@@ -18,13 +18,13 @@ const wrapper = (inner: string) => `
 <body style="margin:0; padding:0; background:#fafafa; ${baseStyles}">
   <div style="max-width:580px; margin:0 auto; padding:32px 24px;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:24px;">
-      <img src="${LOGO_URL}" alt="IA Infinity" width="89" height="40" style="width:89px; height:40px; display:block;">
+      <img src="${LOGO_URL}" alt="Capsule IA" width="89" height="40" style="width:89px; height:40px; display:block;">
       <span style="color:#d4d4d8;">·</span>
       <span style="font-size:13px; color:#71717a;">Plateforme OF</span>
     </div>
     ${inner}
     <p style="font-size:11px; color:#a1a1aa; margin-top:32px; text-align:center;">
-      Cet email vous est envoyé depuis i-a-infinity OF.<br>
+      Cet email vous est envoyé depuis Capsule IA.<br>
       Données traitées dans le strict respect du RGPD.
     </p>
   </div>

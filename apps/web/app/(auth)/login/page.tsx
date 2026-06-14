@@ -10,7 +10,7 @@ export default function LoginPage() {
     <div className="w-full max-w-[400px]">
       <div className="text-center mb-7">
         <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">
-          i-a-infinity OF
+          Capsule IA
         </p>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Se connecter</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">

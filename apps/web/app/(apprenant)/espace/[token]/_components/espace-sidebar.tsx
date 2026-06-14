@@ -99,7 +99,7 @@ export function EspaceSidebar({
       <div className="px-4 py-4 border-t border-zinc-200/60 dark:border-zinc-800">
         <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
           Espace propulsé par<br />
-          <span className="font-medium text-zinc-600 dark:text-zinc-400">IA Infinity</span>
+          <span className="font-medium text-zinc-600 dark:text-zinc-400">Capsule IA</span>
         </p>
       </div>
     </aside>
