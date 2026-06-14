@@ -4,9 +4,20 @@
 import Link from 'next/link';
 import { ArrowLeft, Check, User, Mail, Phone, Building2, Accessibility } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
-import { companies } from '@/shared/mock/data';
+import { supabaseServer } from '@/shared/lib/supabase/server';
+import { createLearner } from './actions';
 
-export default function NouvelApprenantPage() {
+export default async function NouvelApprenantPage() {
+  const sb = supabaseServer();
+  const { data: companiesData } = await sb
+    .schema('app')
+    .from('companies')
+    .select('id, name')
+    .is('deleted_at', null)
+    .order('name', { ascending: true });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const companies = (companiesData as any[]) ?? [];
+
   return (
     <div className="min-h-[calc(100vh-4rem)]">
       <div className="max-w-2xl w-full mx-auto px-8 py-10">
@@ -34,7 +45,7 @@ export default function NouvelApprenantPage() {
           </div>
         </header>
 
-        <form action="/apprenants" method="get" className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
+        <form action={createLearner} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
           {/* Identité */}
           <section className="p-6 space-y-4">
             <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Identité</p>
@@ -85,9 +96,19 @@ export default function NouvelApprenantPage() {
                 </select>
               </div>
             </FormField>
-            <FormField label="Poste / fonction">
-              <input type="text" name="position" placeholder="Comptable, Manager, Développeur…" className={inputClass} />
-            </FormField>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Poste / fonction">
+                <input type="text" name="position" placeholder="Comptable, Manager…" className={inputClass} />
+              </FormField>
+              <FormField label="Statut">
+                <select name="statut" defaultValue="" className={inputClass}>
+                  <option value="">— Non précisé —</option>
+                  <option value="salarie">Salarié(e)</option>
+                  <option value="dirigeant">Dirigeant(e)</option>
+                  <option value="independant">Indépendant(e)</option>
+                </select>
+              </FormField>
+            </div>
           </section>
 
           {/* Accessibilité */}

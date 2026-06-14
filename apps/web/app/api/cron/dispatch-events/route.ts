@@ -114,13 +114,113 @@ async function recomputeDossierHours(event: DomainEvent, sb: Sb): Promise<Handle
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+// ── Transitions automatiques de statut dossier ────────────────────────────────
+
+// (a) Convention signée → scheduled
+// Déclenché par document.signed (payload: { dossier_id, kind, signer_kind }).
+// Filtre : seulement si kind === 'convention'. Si le kind est absent du payload,
+// on fait un lookup en base pour éviter de rater une convention.
+// Transition idempotente : le WHERE sur status garantit qu'une 2e exécution
+// (retry ou re-livraison) ne déclenche pas de RAISE côté trigger si le dossier
+// est déjà en scheduled (0 ligne affectée = OK, pas d'exception).
+// Machine à états autorisée : pending_validation → scheduled (0015_triggers.sql).
+async function transitionDossierScheduledOnConventionSigned(
+  event: DomainEvent,
+  sb: Sb,
+): Promise<HandlerResult> {
+  const payload = event.payload as {
+    dossier_id?: string;
+    kind?: string;
+    document_id?: string;
+  };
+
+  const dossierId = payload.dossier_id;
+  if (!dossierId) return { ok: false, error: 'payload.dossier_id absent' };
+
+  // Résolution du kind : payload first, fallback lookup BDD
+  let kind = payload.kind;
+  if (!kind && payload.document_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (sb as any)
+      .schema('app')
+      .from('documents')
+      .select('kind')
+      .eq('id', payload.document_id)
+      .maybeSingle();
+    kind = (data as { kind?: string } | null)?.kind;
+  }
+
+  // On ne réagit qu'aux conventions
+  if (kind !== 'convention') return { ok: true };
+
+  // UPDATE idempotent : le WHERE status = 'pending_validation' garantit que
+  // si la transition a déjà eu lieu (status déjà 'scheduled' ou autre), on
+  // obtient 0 ligne et on retourne ok=true sans erreur.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any)
+    .schema('app')
+    .from('dossiers')
+    .update({ status: 'scheduled', updated_at: new Date().toISOString() })
+    .eq('id', dossierId)
+    .eq('status', 'pending_validation');
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// (b) Facture payée → closed
+// Déclenché par billing.invoice.paid (payload: { dossier_id }).
+// Transition autorisée : completed → closed (0015_triggers.sql).
+// L'émission de billing.invoice.paid reste à brancher côté action "marquer payée"
+// (cf. rapport — pas d'action existante pour marquer une facture paid).
+// Le handler est idempotent : WHERE status = 'completed' → 0 ligne si déjà closed.
+async function transitionDossierClosedOnInvoicePaid(
+  event: DomainEvent,
+  sb: Sb,
+): Promise<HandlerResult> {
+  const payload = event.payload as { dossier_id?: string };
+
+  // billing.invoice.paid a aggregate_type='invoice', aggregate_id=invoice_id.
+  // Le dossier_id doit être dans le payload ; sinon on fait un lookup facture.
+  let dossierId = payload.dossier_id;
+  if (!dossierId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (sb as any)
+      .schema('app')
+      .from('invoices')
+      .select('dossier_id')
+      .eq('id', event.aggregate_id)
+      .maybeSingle();
+    dossierId = (data as { dossier_id?: string | null } | null)?.dossier_id ?? undefined;
+  }
+
+  if (!dossierId) return { ok: false, error: 'dossier_id introuvable (payload + invoice lookup)' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any)
+    .schema('app')
+    .from('dossiers')
+    .update({ status: 'closed', updated_at: new Date().toISOString() })
+    .eq('id', dossierId)
+    .eq('status', 'completed');
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 const HANDLERS: Record<string, Record<string, Handler>> = {
   'dossier.hours_dirty':     { 'recompute-dossier-hours': recomputeDossierHours },
   'dossier.funder_attached': { 'materialize-funder-playbook': materializeFunderPlaybook },
   'qualiopi.proof.attached': { 'recompute-qualiopi': recomputeQualiopiChecklist },
   'questionnaire.completed': { 'recompute-qualiopi': recomputeQualiopiChecklist },
   'attendance.finalized':    { 'recompute-qualiopi': recomputeQualiopiChecklist },
-  'document.signed':         { 'recompute-qualiopi': recomputeQualiopiChecklist },
+  'document.signed': {
+    'recompute-qualiopi':                        recomputeQualiopiChecklist,
+    'transition-dossier-on-convention-signed':   transitionDossierScheduledOnConventionSigned,
+  },
+  'billing.invoice.paid': {
+    'transition-dossier-closed-on-invoice-paid': transitionDossierClosedOnInvoicePaid,
+  },
   'session.dossier_linked':  { 'recompute-session-participants': recomputeSessionParticipants },
   'session.rescheduled':     { 'recompute-session-participants': recomputeSessionParticipants },
 };
