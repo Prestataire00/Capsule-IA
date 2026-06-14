@@ -22,15 +22,17 @@ Enum statut : `draft, pending_validation, scheduled, active, completed, closed, 
 ## Garde-fous manquants (à implémenter — séquencé)
 
 ### Trou #1 — Transitions de statut automatiques
-`guard_dossier_transitions` *valide* les transitions mais ne les *déclenche* pas depuis les événements métier. À câbler via l'outbox `infra.domain_events` :
-- Convention (dossier d'entrée) signée → `draft`/`pending_validation` → `scheduled` (ou `active`).
+`guard_dossier_transitions` *valide* les transitions mais ne les *déclenche* pas depuis les événements métier. **Vérifié sur `origin/main` (0751c74)** : le registre `HANDLERS` du dispatcher d'outbox [`apps/web/app/api/cron/dispatch-events/route.ts`] ne contient AUCUN handler de transition de statut — `document.signed` → `recompute-qualiopi` seulement (pas de changement de statut), et `billing.invoice.paid` est un event défini **mais sans handler** (jamais consommé). Les entrées `'dossier.scheduled'` / `'dossier.closed'` sont en commentaire (« à étoffer »).
+
+À câbler (ajouter des handlers au registre existant) :
+- Convention (dossier d'entrée) signée (`document.signed`, kind `convention`) → `draft`/`pending_validation` → `scheduled` (ou `active`).
 - Fin de formation (end_date atteinte / dernière session `done` / assiduité complète) → `completed`.
-- Facture payée → `closed`.
-Implémentation : handlers d'événements (`document_signatures` complétée pour kind `convention` ; `invoices` → `paid` ; complétion d'attendance / fin de sessions), respectant la machine à états existante (ajustement manuel toujours possible).
+- Facture payée (`billing.invoice.paid` — handler à créer) → `closed`.
+Implémentation : nouveaux handlers idempotents dans le registre du dispatcher, faisant un `UPDATE app.dossiers SET status = …` qui passe par `guard_dossier_transitions` (donc transitions invalides rejetées ; ajustement manuel toujours possible). Le point d'ancrage est précis et **distinct** du tunnel CRM mock→réel → faible collision.
 
 ### Trou #2 — Verrou suppression si convention signée
 Ajouter un garde-fou DB : `BEFORE DELETE ON app.dossiers` (et/ou interdiction du passage à `deleted_at`) qui **lève une exception si une convention signée existe** pour le dossier (`EXISTS` dans `document_signatures` `status` signé pour un `documents.kind = 'convention'` du dossier) → forcer la transition vers `archived` au lieu de la suppression. Trigger isolé, faible surface, pgTAP dédié.
 
 ## Coordination
 
-⚠️ Au moment de cette note, une **session parallèle construit activement le tunnel mock→réel dossier/CRM** (`F-CRM-09/10/11`, formulaires apprenant/entreprise/formateur réels) et le répertoire principal était en **conflit de merge sur `dossiers/[id]/page.tsx`**. Les 2 trous touchent cette zone (notamment le moteur de statut). **Recommandation : implémenter les 2 garde-fous APRÈS le merge du tunnel parallèle**, sur une base saine, pour éviter collision et double-travail. Le trou #2 (trigger DB pur) est le plus isolable et peut être fait en premier.
+⚠️ Une **session parallèle construit le tunnel mock→réel dossier/CRM** (`F-CRM-03/09/10/11`, formulaires apprenant/entreprise/formateur réels, prix par module). Le conflit de merge sur `dossiers/[id]/page.tsx` observé lors de l'audit est désormais **résolu** (`origin/main` à 0751c74, working tree propre). Les 2 trous sont **isolables** du tunnel (trou #1 = registre de handlers du dispatcher ; trou #2 = trigger DB pur) → collision faible, mais **vérifier `git fetch` + le dernier numéro de migration avant d'écrire** (numéros de migration en mouvement rapide, cf [[project_ia_infinity_migration_collisions]]). Ordre conseillé : trou #2 d'abord (le plus isolé), puis trou #1.
