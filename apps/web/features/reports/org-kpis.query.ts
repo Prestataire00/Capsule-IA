@@ -1,21 +1,16 @@
 import 'server-only';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import { qualiopiCompletionRate, type OrgKpis } from './org-kpis';
+import {
+  buildOrgKpis,
+  type OrgKpis,
+  type VOrgKpisRow,
+  type AttendanceCountRow,
+} from './org-kpis';
 
-type VOrgKpisRow = {
-  dossiers_active: number | null;
-  dossiers_closed_this_month: number | null;
-  dossiers_qualiopi_blocking: number | null;
-  dossiers_active_completed: number | null;
-  revenue_in_progress_cents: number | null;
-  nps_avg: number | null;
-};
-
-type AttendanceCountRow = {
-  signed_count: number | null;
-  expected_count: number | null;
-};
-
+// Résilience : la home dépend de ces KPIs mais ne doit JAMAIS tomber (500
+// global) si une source manque — ex. drift de schéma où app.v_org_kpis n'est
+// pas encore migrée en prod. Chaque source en erreur est journalisée
+// (console.error, pas d'avalement silencieux) et dégrade vers une valeur neutre.
 export async function getOrgKpis(
   sb: ReturnType<typeof supabaseServer>,
 ): Promise<OrgKpis> {
@@ -27,17 +22,12 @@ export async function getOrgKpis(
       'dossiers_active, dossiers_closed_this_month, dossiers_qualiopi_blocking, dossiers_active_completed, revenue_in_progress_cents, nps_avg',
     )
     .maybeSingle();
+  let kpisRow: VOrgKpisRow | null = null;
   if (kpisRes.error) {
-    throw new Error(`org_kpis_query_failed: ${kpisRes.error.message}`);
+    console.error(`[org-kpis] v_org_kpis indisponible — KPIs dégradés: ${kpisRes.error.message}`);
+  } else {
+    kpisRow = (kpisRes.data as VOrgKpisRow | null) ?? null;
   }
-  const kpis = (kpisRes.data as VOrgKpisRow | null) ?? {
-    dossiers_active: 0,
-    dossiers_closed_this_month: 0,
-    dossiers_qualiopi_blocking: 0,
-    dossiers_active_completed: 0,
-    revenue_in_progress_cents: 0,
-    nps_avg: null,
-  };
 
   // Documents à signer : signatures en attente.
   const toSignRes = await sb
@@ -45,8 +35,11 @@ export async function getOrgKpis(
     .from('document_signatures')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'pending');
+  let toSign = 0;
   if (toSignRes.error) {
-    throw new Error(`org_kpis_to_sign_failed: ${toSignRes.error.message}`);
+    console.error(`[org-kpis] document_signatures indisponible — 0: ${toSignRes.error.message}`);
+  } else {
+    toSign = toSignRes.count ?? 0;
   }
 
   // Questionnaires à traiter : en attente ou en cours.
@@ -55,36 +48,25 @@ export async function getOrgKpis(
     .from('questionnaire_responses')
     .select('id', { count: 'exact', head: true })
     .in('status', ['pending', 'in_progress']);
+  let questionnairesPending = 0;
   if (questionnairesRes.error) {
-    throw new Error(`org_kpis_questionnaires_failed: ${questionnairesRes.error.message}`);
+    console.error(`[org-kpis] questionnaire_responses indisponible — 0: ${questionnairesRes.error.message}`);
+  } else {
+    questionnairesPending = questionnairesRes.count ?? 0;
   }
 
   // Émargements manquants : feuilles non finalisées dont signed_count < expected_count.
-  // PostgREST ne sait pas comparer deux colonnes entre elles → filtrage côté TS.
   const attendanceRes = await sb
     .schema('app')
     .from('attendance_consolidated' as never)
     .select('signed_count, expected_count')
     .neq('status', 'finalized');
+  let attendanceRows: AttendanceCountRow[] = [];
   if (attendanceRes.error) {
-    throw new Error(`org_kpis_attendance_failed: ${attendanceRes.error.message}`);
+    console.error(`[org-kpis] attendance_consolidated indisponible — 0: ${attendanceRes.error.message}`);
+  } else {
+    attendanceRows = (attendanceRes.data as AttendanceCountRow[] | null) ?? [];
   }
-  const attendanceRows = (attendanceRes.data as AttendanceCountRow[] | null) ?? [];
-  const attendanceMissing = attendanceRows.filter(
-    (r) => (r.signed_count ?? 0) < (r.expected_count ?? 0),
-  ).length;
 
-  return {
-    dossiersActive: kpis.dossiers_active ?? 0,
-    dossiersClosedThisMonth: kpis.dossiers_closed_this_month ?? 0,
-    qualiopiRate: qualiopiCompletionRate(
-      kpis.dossiers_active_completed ?? 0,
-      kpis.dossiers_qualiopi_blocking ?? 0,
-    ),
-    revenueInProgressCents: kpis.revenue_in_progress_cents ?? 0,
-    npsAvg: kpis.nps_avg,
-    toSign: toSignRes.count ?? 0,
-    attendanceMissing,
-    questionnairesPending: questionnairesRes.count ?? 0,
-  };
+  return buildOrgKpis(kpisRow, toSign, questionnairesPending, attendanceRows);
 }
