@@ -16,6 +16,7 @@ const tabs = [
   { slug: 'qualiopi', label: 'Qualiopi' },
   { slug: 'facturation', label: 'Facturation' },
   { slug: 'financeurs', label: 'Financeurs' },
+  { slug: 'activite', label: 'Activité' },
   { slug: 'acces-apprenant', label: 'Accès apprenant' },
 ];
 
