@@ -59,6 +59,7 @@ const GROUPS: Group[] = [
       { href: '/formateurs', icon: UserCog, label: 'Formateurs' },
       { href: '/entreprises', icon: Building2, label: 'Entreprises' },
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
+      { href: '/modules', icon: BookOpen, label: 'Modules' },
       { href: '/financeurs', icon: Wallet, label: 'Financeurs' },
     ],
   },
