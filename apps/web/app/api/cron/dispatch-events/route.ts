@@ -70,8 +70,48 @@ type Handler = (event: DomainEvent, sb: Sb) => Promise<HandlerResult>;
 //   },
 // ============================================================================
 
+// Financeurs : matérialise les tâches d'un dossier×financeur quand un financeur
+// est rattaché (RPC app.materialize_funder_tasks via wrapper public).
+async function materializeFunderPlaybook(event: DomainEvent, sb: Sb): Promise<HandlerResult> {
+  const payload = event.payload as { dossier_id?: string; funder_id?: string };
+  if (!payload.dossier_id || !payload.funder_id) {
+    return { ok: false, error: 'payload manquant dossier_id/funder_id' };
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any).rpc('materialize_funder_tasks', {
+    p_dossier_id: payload.dossier_id,
+    p_funder_id: payload.funder_id,
+  });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// Qualiopi : recalcule la checklist de readiness d'un dossier.
+async function recomputeQualiopiChecklist(event: DomainEvent, sb: Sb): Promise<HandlerResult> {
+  const payload = event.payload as { dossier_id?: string };
+  const dossierId = payload.dossier_id ?? (event.aggregate_type === 'dossier' ? event.aggregate_id : undefined);
+  if (!dossierId) return { ok: false, error: 'dossier_id absent du payload' };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossierId });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// Sessions partagées : recalcule les présents effectifs d'une session.
+async function recomputeSessionParticipants(event: DomainEvent, sb: Sb): Promise<HandlerResult> {
+  const payload = event.payload as { session_id?: string };
+  if (!payload.session_id) return { ok: false, error: 'session_id absent du payload' };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any).rpc('materialize_session_participants', { p_session_id: payload.session_id });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
 const HANDLERS: Record<string, Record<string, Handler>> = {
-  // Stub : à compléter dans les Sprints B-D selon le sprint plan V2.
+  'dossier.funder_attached': { 'materialize-funder-playbook': materializeFunderPlaybook },
+  'qualiopi.proof.attached': { 'recompute-qualiopi': recomputeQualiopiChecklist },
+  'questionnaire.completed': { 'recompute-qualiopi': recomputeQualiopiChecklist },
+  'attendance.finalized':    { 'recompute-qualiopi': recomputeQualiopiChecklist },
+  'document.signed':         { 'recompute-qualiopi': recomputeQualiopiChecklist },
+  'session.dossier_linked':  { 'recompute-session-participants': recomputeSessionParticipants },
+  'session.rescheduled':     { 'recompute-session-participants': recomputeSessionParticipants },
 };
 
 function isAuthorized(req: Request): boolean {
