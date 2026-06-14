@@ -14,15 +14,11 @@ import {
   ALLOWED_FILE_TYPES,
   type ProspectFields,
 } from './schema';
+import { FUNDER_OPTIONS, derivePrimaryFunder } from '@/features/prospect/funding';
 
-const FUNDER_LABELS: Record<ProspectFields['funderKind'], string> = {
-  opco: 'OPCO',
-  cpf: 'CPF',
-  pole_emploi: 'France Travail',
-  region: 'Région',
-  entreprise: 'Plan entreprise',
-  autofinancement: 'Autofinancement',
-};
+const FUNDER_LABELS: Record<string, string> = Object.fromEntries(
+  FUNDER_OPTIONS.map((o) => [o.value, o.label]),
+);
 
 const SITUATION_LABELS: Record<ProspectFields['situation'], string> = {
   salarie: 'Salarié(e)',
@@ -113,6 +109,16 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     }
   }
 
+  const isIndividual =
+    fields.situation === 'independant' || fields.situation === 'particulier';
+  const addressLine = [
+    nullify(fields.companyAddress?.line1),
+    nullify(fields.companyAddress?.postalCode),
+    nullify(fields.companyAddress?.city),
+  ]
+    .filter(Boolean)
+    .join(', ');
+
   const insertRow = {
     organization_id: organizationId,
     civility: fields.civility ?? null,
@@ -127,8 +133,14 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     preferred_start_date: nullify(fields.preferredStartDate),
     message: nullify(fields.message),
     situation: fields.situation,
-    company_name: nullify(fields.companyName),
-    funder_kind: fields.funderKind,
+    company_name: isIndividual ? null : nullify(fields.companyName),
+    company_siret: isIndividual ? null : nullify(fields.companySiret),
+    company_address: isIndividual ? null : addressLine.length > 0 ? addressLine : null,
+    referent_name: isIndividual ? null : nullify(fields.referentName),
+    referent_email: isIndividual ? null : nullify(fields.referentEmail),
+    referent_phone: isIndividual ? null : nullify(fields.referentPhone),
+    funder_kinds: fields.funderKinds,
+    funder_kind: derivePrimaryFunder(fields.funderKinds),
     source: 'web_form',
     ip_address: ip,
     user_agent: h.get('user-agent') ?? null,
@@ -137,7 +149,7 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
   const { data: prospect, error: insertErr } = await supabase
     .schema('app')
     .from('prospects')
-    .insert(insertRow)
+    .insert(insertRow as never)
     .select('id')
     .single();
 
@@ -191,7 +203,9 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
   // Notifications email — non bloquantes. Si pas de RESEND_API_KEY,
   // sendEmail renvoie { ok:false, reason:'no_api_key' } silencieusement.
   // formationTitle déjà résolu plus haut depuis la table formations.
-  const funderLabel = FUNDER_LABELS[fields.funderKind];
+  const funderLabel = fields.funderKinds
+    .map((k) => FUNDER_LABELS[k] ?? k)
+    .join(', ');
 
   const baseEmailData = {
     firstName: fields.firstName,

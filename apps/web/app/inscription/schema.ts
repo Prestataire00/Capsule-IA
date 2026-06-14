@@ -1,13 +1,5 @@
 import { z } from 'zod';
-
-export const PROSPECT_FUNDER_KINDS = [
-  'opco',
-  'cpf',
-  'pole_emploi',
-  'region',
-  'entreprise',
-  'autofinancement',
-] as const;
+import { FUNDER_VALUES } from '@/features/prospect/funding';
 
 export const PROSPECT_SITUATIONS = [
   'salarie',
@@ -34,7 +26,20 @@ export const prospectFieldsSchema = z.object({
 
   situation: z.enum(PROSPECT_SITUATIONS),
   companyName: z.string().trim().max(200).optional().or(z.literal('')),
-  funderKind: z.enum(PROSPECT_FUNDER_KINDS),
+  companySiret: z.string().trim().max(20).optional().or(z.literal('')),
+  companyAddress: z
+    .object({
+      line1: z.string().trim().max(200).optional().or(z.literal('')),
+      city: z.string().trim().max(120).optional().or(z.literal('')),
+      postalCode: z.string().trim().max(20).optional().or(z.literal('')),
+    })
+    .optional(),
+  referentName: z.string().trim().max(150).optional().or(z.literal('')),
+  referentEmail: z.string().trim().toLowerCase().email('Email invalide').max(255).optional().or(z.literal('')),
+  referentPhone: z.string().trim().max(30).optional().or(z.literal('')),
+  funderKinds: z
+    .array(z.enum(FUNDER_VALUES))
+    .min(1, 'Sélectionnez au moins un financement'),
 });
 
 export type ProspectFields = z.infer<typeof prospectFieldsSchema>;

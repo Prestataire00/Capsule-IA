@@ -12,10 +12,8 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  CreditCard,
   Building2,
   Briefcase,
-  Globe,
   Wallet,
   User,
   GraduationCap,
@@ -36,6 +34,11 @@ import { FormField, inputClass } from '@/shared/ui/form-field';
 import { DateOfBirthInput } from '@/shared/ui/date-of-birth-input';
 import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { Logo } from '@/shared/ui/logo';
+import {
+  FUNDER_OPTIONS,
+  requiredDocsForFunders,
+  type FunderValue,
+} from '@/features/prospect/funding';
 
 // Catalogue réel passé en prop par la page serveur (RPC public org-scopée).
 export type FormationCategory = 'accounting' | 'tech' | 'management' | 'languages' | 'office' | 'other';
@@ -57,14 +60,6 @@ export type FormationOption = {
   category: FormationCategory;
 };
 
-type Funder =
-  | 'opco'
-  | 'cpf'
-  | 'pole_emploi'
-  | 'region'
-  | 'entreprise'
-  | 'autofinancement';
-
 const STEPS = [
   { key: 'identity', label: 'Vous', icon: User },
   { key: 'formation', label: 'Formation', icon: GraduationCap },
@@ -72,52 +67,15 @@ const STEPS = [
   { key: 'documents', label: 'Documents', icon: FileText },
 ] as const;
 
-const FUNDERS: {
-  value: Funder;
-  label: string;
-  hint: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { value: 'opco', label: 'OPCO', hint: 'Mon employeur passe par un OPCO', icon: Building2 },
-  { value: 'cpf', label: 'CPF', hint: 'Mon compte personnel de formation', icon: CreditCard },
-  { value: 'pole_emploi', label: 'France Travail', hint: "Je suis demandeur d'emploi", icon: Briefcase },
-  { value: 'region', label: 'Région', hint: 'Financement régional', icon: Globe },
-  { value: 'entreprise', label: 'Plan entreprise', hint: 'Plan de développement employeur', icon: Building2 },
-  { value: 'autofinancement', label: 'Autofinancement', hint: 'Je finance moi-même', icon: Wallet },
-];
+const FUNDER_ICONS: Record<FunderValue, React.ComponentType<{ className?: string }>> = {
+  opco: Building2,
+  faf_ca: Briefcase,
+  agefiph: Accessibility,
+  entreprise: Building2,
+  autofinancement: Wallet,
+};
 
 type DocSpec = { key: string; label: string; hint: string; required: boolean };
-
-const REQUIRED_DOCS: Record<Funder, DocSpec[]> = {
-  opco: [
-    { key: 'payslip', label: 'Bulletin de paie récent', hint: "Justifie votre statut salarié et permet à l'OPCO de calculer la prise en charge.", required: true },
-    { key: 'collective_agreement', label: 'Convention collective applicable', hint: 'Code IDCC ou copie complète.', required: true },
-    { key: 'employer_agreement', label: 'Accord employeur signé', hint: 'Document attestant que votre employeur valide votre départ.', required: true },
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport en cours de validité.', required: false },
-  ],
-  cpf: [
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport en cours de validité.', required: true },
-    { key: 'residence', label: 'Justificatif de domicile', hint: 'Moins de 3 mois (facture EDF, quittance de loyer…).', required: true },
-  ],
-  pole_emploi: [
-    { key: 'pe_attestation', label: 'Attestation France Travail', hint: 'À télécharger depuis votre espace personnel.', required: true },
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport.', required: true },
-    { key: 'rib', label: 'RIB', hint: 'Pour les éventuels frais annexes.', required: false },
-  ],
-  region: [
-    { key: 'residence', label: 'Justificatif de domicile dans la région', hint: 'Moins de 3 mois.', required: true },
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport.', required: true },
-    { key: 'tax_notice', label: "Avis d'imposition", hint: 'Pour les critères de ressources si applicable.', required: false },
-  ],
-  entreprise: [
-    { key: 'purchase_order', label: 'Bon de commande employeur', hint: 'Ou accord-cadre signé.', required: true },
-    { key: 'employer_agreement', label: 'Accord employeur signé', hint: 'Validation hiérarchique du départ.', required: true },
-  ],
-  autofinancement: [
-    { key: 'id', label: "Pièce d'identité", hint: 'CNI ou passeport.', required: true },
-    { key: 'rib', label: 'RIB', hint: 'Pour les modalités de paiement.', required: false },
-  ],
-};
 
 const modalityLabel: Record<string, string> = {
   presentiel: 'Présentiel',
@@ -160,18 +118,32 @@ export function InscriptionForm({
   const [funding, setFunding] = useState<{
     status: 'salarie' | 'demandeur' | 'independant' | 'particulier';
     companyName: string;
-    funder: Funder | null;
+    companySiret: string;
+    companyAddressLine1: string;
+    companyCity: string;
+    companyPostalCode: string;
+    referentName: string;
+    referentEmail: string;
+    referentPhone: string;
+    funderKinds: FunderValue[];
   }>({
     status: 'salarie',
     companyName: '',
-    funder: null,
+    companySiret: '',
+    companyAddressLine1: '',
+    companyCity: '',
+    companyPostalCode: '',
+    referentName: '',
+    referentEmail: '',
+    referentPhone: '',
+    funderKinds: [],
   });
 
   const [files, setFiles] = useState<Record<string, File | null>>({});
 
   const docs: DocSpec[] = useMemo(
-    () => (funding.funder ? REQUIRED_DOCS[funding.funder] : []),
-    [funding.funder],
+    () => requiredDocsForFunders(funding.funderKinds),
+    [funding.funderKinds],
   );
 
   const requiredFilled = docs.filter((d) => d.required).every((d) => files[d.key]);
@@ -185,7 +157,7 @@ export function InscriptionForm({
       return missing;
     }
     if (step === 1) return formation.formationId ? [] : ['Formation'];
-    if (step === 2) return funding.funder ? [] : ['Mode de financement'];
+    if (step === 2) return funding.funderKinds.length > 0 ? [] : ['Mode de financement'];
     return [];
   })();
   const canContinue = missingFields.length === 0;
@@ -202,11 +174,18 @@ export function InscriptionForm({
   };
 
   const selectedFormation = formations.find((f) => f.id === formation.formationId);
-  const selectedFunder = FUNDERS.find((f) => f.value === funding.funder);
+  const selectedFunderLabels = FUNDER_OPTIONS.filter((f) =>
+    funding.funderKinds.includes(f.value),
+  )
+    .map((f) => f.label)
+    .join(', ');
 
   const handleSubmit = () => {
-    if (!funding.funder) return;
+    if (funding.funderKinds.length === 0) return;
     setSubmitError(null);
+
+    const isIndividual =
+      funding.status === 'independant' || funding.status === 'particulier';
 
     const payload: ProspectFields = {
       civility: identity.civility,
@@ -221,8 +200,19 @@ export function InscriptionForm({
       preferredStartDate: formation.preferredStart,
       message: formation.message,
       situation: funding.status,
-      companyName: funding.companyName,
-      funderKind: funding.funder,
+      companyName: isIndividual ? '' : funding.companyName,
+      companySiret: isIndividual ? '' : funding.companySiret,
+      companyAddress: isIndividual
+        ? undefined
+        : {
+            line1: funding.companyAddressLine1,
+            city: funding.companyCity,
+            postalCode: funding.companyPostalCode,
+          },
+      referentName: isIndividual ? '' : funding.referentName,
+      referentEmail: isIndividual ? '' : funding.referentEmail,
+      referentPhone: isIndividual ? '' : funding.referentPhone,
+      funderKinds: funding.funderKinds,
     };
 
     const fd = new FormData();
@@ -255,7 +245,7 @@ export function InscriptionForm({
       <SuccessView
         identity={identity}
         formation={selectedFormation}
-        funder={selectedFunder}
+        funderLabel={selectedFunderLabels}
       />
     );
   }
@@ -319,7 +309,7 @@ export function InscriptionForm({
               docs={docs}
               files={files}
               onFile={(k, f) => setFiles((prev) => ({ ...prev, [k]: f }))}
-              funder={selectedFunder?.label ?? ''}
+              funder={selectedFunderLabels}
             />
           )}
 
@@ -780,10 +770,32 @@ function FundingStep({
   value: {
     status: 'salarie' | 'demandeur' | 'independant' | 'particulier';
     companyName: string;
-    funder: Funder | null;
+    companySiret: string;
+    companyAddressLine1: string;
+    companyCity: string;
+    companyPostalCode: string;
+    referentName: string;
+    referentEmail: string;
+    referentPhone: string;
+    funderKinds: FunderValue[];
   };
   onChange: (v: typeof value) => void;
 }) {
+  const update = <K extends keyof typeof value>(k: K, v: (typeof value)[K]) =>
+    onChange({ ...value, [k]: v });
+
+  const toggleFunder = (funder: FunderValue) => {
+    const has = value.funderKinds.includes(funder);
+    update(
+      'funderKinds',
+      has
+        ? value.funderKinds.filter((f) => f !== funder)
+        : [...value.funderKinds, funder],
+    );
+  };
+
+  const showCompany = value.status !== 'independant' && value.status !== 'particulier';
+
   return (
     <section className="p-6 space-y-5">
       <div>
@@ -809,7 +821,7 @@ function FundingStep({
                 type="radio"
                 name="status"
                 checked={value.status === opt.v}
-                onChange={() => onChange({ ...value, status: opt.v as typeof value.status })}
+                onChange={() => update('status', opt.v as typeof value.status)}
                 className="sr-only"
               />
               <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{opt.l}</p>
@@ -818,26 +830,111 @@ function FundingStep({
         </div>
       </FormField>
 
-      {value.status === 'salarie' && (
-        <FormField label="Nom de votre employeur">
-          <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+      {showCompany && (
+        <div className="space-y-4 rounded-lg border border-zinc-200/60 dark:border-zinc-800 p-4">
+          <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+            Entreprise &amp; référent
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FormField label="Nom de l'entreprise">
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={value.companyName}
+                  onChange={(e) => update('companyName', e.target.value)}
+                  placeholder="Acme Conseil"
+                  className={`${inputClass} pl-9`}
+                />
+              </div>
+            </FormField>
+            <FormField label="SIRET">
+              <input
+                type="text"
+                value={value.companySiret}
+                onChange={(e) => update('companySiret', e.target.value)}
+                placeholder="123 456 789 00012"
+                className={inputClass}
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Adresse">
             <input
               type="text"
-              value={value.companyName}
-              onChange={(e) => onChange({ ...value, companyName: e.target.value })}
-              placeholder="Acme Conseil"
-              className={`${inputClass} pl-9`}
+              value={value.companyAddressLine1}
+              onChange={(e) => update('companyAddressLine1', e.target.value)}
+              placeholder="12 rue de la Formation"
+              className={inputClass}
             />
+          </FormField>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FormField label="Code postal">
+              <input
+                type="text"
+                value={value.companyPostalCode}
+                onChange={(e) => update('companyPostalCode', e.target.value)}
+                placeholder="75011"
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="Ville">
+              <input
+                type="text"
+                value={value.companyCity}
+                onChange={(e) => update('companyCity', e.target.value)}
+                placeholder="Paris"
+                className={inputClass}
+              />
+            </FormField>
           </div>
-        </FormField>
+
+          <FormField label="Nom du référent">
+            <input
+              type="text"
+              value={value.referentName}
+              onChange={(e) => update('referentName', e.target.value)}
+              placeholder="Responsable formation"
+              className={inputClass}
+            />
+          </FormField>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FormField label="Email du référent">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="email"
+                  value={value.referentEmail}
+                  onChange={(e) => update('referentEmail', e.target.value)}
+                  placeholder="rh@acme.fr"
+                  className={`${inputClass} pl-9`}
+                />
+              </div>
+            </FormField>
+            <FormField label="Téléphone du référent">
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="tel"
+                  value={value.referentPhone}
+                  onChange={(e) => update('referentPhone', e.target.value)}
+                  placeholder="01 23 45 67 89"
+                  className={`${inputClass} pl-9`}
+                />
+              </div>
+            </FormField>
+          </div>
+        </div>
       )}
 
-      <FormField label="Mode de financement envisagé" required>
+      <FormField label="Mode(s) de financement envisagé(s)" required hint="Plusieurs choix possibles.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {FUNDERS.map((f) => {
-            const Icon = f.icon;
-            const checked = value.funder === f.value;
+          {FUNDER_OPTIONS.map((f) => {
+            const Icon = FUNDER_ICONS[f.value];
+            const checked = value.funderKinds.includes(f.value);
             return (
               <label
                 key={f.value}
@@ -848,10 +945,10 @@ function FundingStep({
                 }`}
               >
                 <input
-                  type="radio"
-                  name="funder"
+                  type="checkbox"
+                  name="funderKinds"
                   checked={checked}
-                  onChange={() => onChange({ ...value, funder: f.value })}
+                  onChange={() => toggleFunder(f.value)}
                   className="sr-only"
                 />
                 <span className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center flex-shrink-0">
@@ -1007,11 +1104,11 @@ function DocUploader({
 function SuccessView({
   identity,
   formation,
-  funder,
+  funderLabel,
 }: {
   identity: { firstName: string; lastName: string; email: string };
   formation: { code: string; title: string } | undefined;
-  funder: { label: string } | undefined;
+  funderLabel: string;
 }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
@@ -1038,10 +1135,10 @@ function SuccessView({
               <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{formation.title}</span>
             </div>
           )}
-          {funder && (
+          {funderLabel && (
             <div className="px-5 py-3 flex items-center justify-between gap-3">
               <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Financement</span>
-              <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{funder.label}</span>
+              <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{funderLabel}</span>
             </div>
           )}
           <div className="px-5 py-3 flex items-center justify-between gap-3">
