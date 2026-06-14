@@ -70,14 +70,14 @@ export function DateOfBirthInput({
 
   const handleDayChange = (d: string) => onChange(composeIso(d, parsed.mo, parsed.y));
   const handleMonthChange = (m: string) => {
-    let day = parsed.d;
+    let day = parsed.d ?? '';
     if (day && parseInt(day, 10) > daysInMonth(parseInt(parsed.y || '2000', 10), parseInt(m || '1', 10) - 1)) {
       day = '';
     }
     onChange(composeIso(day, m, parsed.y));
   };
   const handleYearChange = (y: string) => {
-    let day = parsed.d;
+    let day = parsed.d ?? '';
     if (day && parsed.mo && parseInt(day, 10) > daysInMonth(parseInt(y || '2000', 10), parseInt(parsed.mo, 10) - 1)) {
       day = '';
     }
