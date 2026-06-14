@@ -8,7 +8,6 @@ import {
   prospectConfirmationEmail,
   prospectInternalNotificationEmail,
 } from '@/shared/lib/email/templates';
-import { formations } from '@/shared/mock/data';
 import {
   prospectFieldsSchema,
   MAX_FILE_SIZE,
@@ -95,7 +94,27 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
   const ipHeader = h.get('x-forwarded-for') ?? h.get('x-real-ip');
   const ip = ipHeader ? ipHeader.split(',')[0]?.trim() ?? null : null;
 
+  // Résout l'OF + le titre depuis la formation choisie (service-role → hors RLS).
+  // Rattache le prospect au bon OF pour qu'il apparaisse dans SON triage.
+  const formationId = nullify(fields.formationId);
+  let organizationId: string | null = null;
+  let formationTitle: string | null = null;
+  if (formationId) {
+    const { data: form } = await supabase
+      .schema('app')
+      .from('formations')
+      .select('organization_id, title')
+      .eq('id', formationId)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (form) {
+      organizationId = (form as { organization_id: string }).organization_id;
+      formationTitle = (form as { title: string }).title;
+    }
+  }
+
   const insertRow = {
+    organization_id: organizationId,
     civility: fields.civility ?? null,
     first_name: fields.firstName,
     last_name: fields.lastName,
@@ -103,7 +122,7 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     phone: nullify(fields.phone),
     birth_date: nullify(fields.birthDate),
     rqth: fields.rqth,
-    formation_id: nullify(fields.formationId),
+    formation_id: formationId,
     preferred_modality: nullify(fields.preferredModality),
     preferred_start_date: nullify(fields.preferredStartDate),
     message: nullify(fields.message),
@@ -171,8 +190,7 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
 
   // Notifications email — non bloquantes. Si pas de RESEND_API_KEY,
   // sendEmail renvoie { ok:false, reason:'no_api_key' } silencieusement.
-  const formationTitle =
-    formations.find((f) => f.id === fields.formationId)?.title ?? null;
+  // formationTitle déjà résolu plus haut depuis la table formations.
   const funderLabel = FUNDER_LABELS[fields.funderKind];
 
   const baseEmailData = {
