@@ -10,7 +10,9 @@ const NATIVE_H = 152;
 const RATIO = NATIVE_W / NATIVE_H;
 
 // Hauteur de la planète en px par taille — la largeur suit le ratio.
-const heights: Record<Size, number> = { icon: 22, sm: 28, md: 36, lg: 44, xl: 60 };
+// `sm` est utilisé par la sidebar (rail 64px) : planète bien visible (~60px de
+// large à 32px de haut, ratio 1.875).
+const heights: Record<Size, number> = { icon: 22, sm: 32, md: 36, lg: 44, xl: 60 };
 const titleCls: Record<Size, string> = {
   icon: 'text-[13px]',
   sm: 'text-[15px]',
