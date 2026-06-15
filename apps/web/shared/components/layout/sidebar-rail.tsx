@@ -8,6 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
+  Bell, BarChart3,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -73,6 +74,7 @@ const GROUPS: Group[] = [
       { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
       { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/factures', icon: Receipt, label: 'Facturation' },
+      { href: '/notifications', icon: Bell, label: 'Notifications' },
     ],
     countKeys: ['reclamationsActive', 'emargementsPending', 'questionnairesActive', 'invoicesUnpaid'],
   },
@@ -82,6 +84,7 @@ const GROUPS: Group[] = [
     icon: ShieldCheck,
     items: [
       { href: '/qualiopi', icon: ShieldCheck, label: 'Qualiopi' },
+      { href: '/reporting', icon: BarChart3, label: 'Reporting' },
       { href: '/audit', icon: Activity, label: 'Audit' },
     ],
   },

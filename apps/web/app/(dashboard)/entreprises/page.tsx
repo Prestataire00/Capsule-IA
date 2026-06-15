@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { Plus, Building2, MapPin, Mail } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 const palette = [
   'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
@@ -52,8 +53,17 @@ export default async function EntreprisesPage() {
       </header>
 
       {companies.length === 0 ? (
-        <div className="text-[13px] text-zinc-500 inline-flex items-center gap-2">
-          <Building2 className="w-4 h-4" /> Aucune entreprise pour l'instant.
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
+          <EmptyState
+            icon={Building2}
+            title="Aucune entreprise dans votre carnet."
+            description="Ajoutez une entreprise cliente pour la rattacher à des dossiers et financeurs."
+            action={
+              <Link href="/entreprises/nouvelle" className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] px-3 py-1.5 rounded-md transition inline-flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5" /> Nouvelle entreprise
+              </Link>
+            }
+          />
         </div>
       ) : (
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

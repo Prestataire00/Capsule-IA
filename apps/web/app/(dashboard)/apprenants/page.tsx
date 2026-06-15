@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, Search, Users, Accessibility, GraduationCap, TrendingUp, Mail, Phone, ArrowUpRight } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,6 +173,20 @@ export default async function ApprenantsPage({
         </p>
       )}
 
+      {filteredLearners.length === 0 ? (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
+          <EmptyState
+            icon={Users}
+            title={learners.length === 0 ? 'Aucun apprenant dans votre carnet.' : 'Aucun apprenant ne correspond.'}
+            description={learners.length === 0 ? 'Ajoutez un apprenant pour pouvoir le rattacher à un dossier.' : 'Essayez un autre filtre ou une autre recherche.'}
+            action={
+              <Link href="/apprenants/nouveau" className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] px-3 py-1.5 rounded-md transition inline-flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5" /> Nouvel apprenant
+              </Link>
+            }
+          />
+        </div>
+      ) : (
       <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredLearners.map((l) => {
           const initials = `${l.first_name[0] ?? ''}${l.last_name[0] ?? ''}`.toUpperCase();
@@ -243,6 +258,7 @@ export default async function ApprenantsPage({
           );
         })}
       </ul>
+      )}
     </div>
   );
 }

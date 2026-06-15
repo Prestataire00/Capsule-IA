@@ -2,13 +2,21 @@
 // Justification: création d'un apprenant — formulaire focalisé, pas de sidebar.
 
 import Link from 'next/link';
-import { ArrowLeft, Check, User, Mail, Phone, Building2, Accessibility } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Building2, Accessibility } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { createLearner } from './actions';
+import { SubmitButton } from './submit-button';
 
-export default async function NouvelApprenantPage() {
+export default async function NouvelApprenantPage({ searchParams }: { searchParams: { error?: string } }) {
   const sb = supabaseServer();
+  const errorMsg = searchParams.error
+    ? searchParams.error === 'missing'
+      ? 'Prénom, nom et email sont obligatoires.'
+      : searchParams.error === 'no_org'
+        ? 'Organisation introuvable.'
+        : `Erreur : ${decodeURIComponent(searchParams.error)}`
+    : null;
   const { data: companiesData } = await sb
     .schema('app')
     .from('companies')
@@ -44,6 +52,12 @@ export default async function NouvelApprenantPage() {
             </div>
           </div>
         </header>
+
+        {errorMsg && (
+          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-200 rounded-lg px-4 py-3 text-[13px] mb-5">
+            {errorMsg}
+          </div>
+        )}
 
         <form action={createLearner} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
           {/* Identité */}
@@ -143,13 +157,7 @@ export default async function NouvelApprenantPage() {
             >
               Annuler
             </Link>
-            <button
-              type="submit"
-              className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
-            >
-              <Check className="w-3.5 h-3.5" />
-              Créer l'apprenant
-            </button>
+            <SubmitButton />
           </div>
         </form>
       </div>
