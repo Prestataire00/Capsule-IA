@@ -115,9 +115,9 @@ export default async function ApprenantsPage({
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total apprenants" value={learners.length} icon={Users} accent="rose" hint="dans le carnet" hintTone="neutral" />
-        <StatCard label="En formation" value={inFormation.length} icon={GraduationCap} accent="violet" hint="dossiers actifs/planifiés" hintTone="neutral" />
-        <StatCard label="RQTH" value={rqthCount} icon={Accessibility} accent="blue" hint="adaptations à prévoir" hintTone="neutral" />
+        <StatCard label="Total apprenants" value={learners.length} icon={Users} accent="rose" hint="dans le carnet" hintTone="neutral" href={filterHref('all')} />
+        <StatCard label="En formation" value={inFormation.length} icon={GraduationCap} accent="violet" hint="dossiers actifs/planifiés" hintTone="neutral" href={filterHref('in_formation')} />
+        <StatCard label="RQTH" value={rqthCount} icon={Accessibility} accent="blue" hint="adaptations à prévoir" hintTone="neutral" href={filterHref('rqth')} />
         <StatCard label="Nouveaux ce mois" value={newThisMonth} icon={TrendingUp} accent="emerald" hint="↑ 1 vs mois dernier" hintTone="success" />
       </section>
 

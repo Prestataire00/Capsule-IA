@@ -73,7 +73,11 @@ async function loadInScopeDossiers(
   }));
 }
 
-export default async function QualiopiOrgPage() {
+export default async function QualiopiOrgPage({
+  searchParams,
+}: {
+  searchParams: { filter?: string };
+}) {
   const sb = supabaseServer();
   const inScope = await loadInScopeDossiers(sb);
 
@@ -81,6 +85,16 @@ export default async function QualiopiOrgPage() {
   const blocking = inScope.filter((d) => d.qualiopiBlocking > 0).length;
   const totalIndicators = inScope.reduce((acc, d) => acc + d.qualiopiTotal, 0);
   const satisfied = inScope.reduce((acc, d) => acc + d.qualiopiSatisfied, 0);
+
+  const activeFilter =
+    searchParams.filter === 'blocking' || searchParams.filter === 'ready' ? searchParams.filter : null;
+  const dossiers =
+    activeFilter === 'blocking'
+      ? inScope.filter((d) => d.qualiopiBlocking > 0)
+      : activeFilter === 'ready'
+        ? inScope.filter((d) => d.qualiopiReady)
+        : inScope;
+  const filterLabels: Record<string, string> = { blocking: 'Dossiers bloquants', ready: 'Dossiers conformes' };
 
   return (
     <div className="max-w-6xl w-full mx-auto px-6 py-8">
@@ -102,20 +116,32 @@ export default async function QualiopiOrgPage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <StatCard label="Dossiers Qualiopi-ready" value={`${ready}/${inScope.length}`} hint={inScope.length > 0 && ready === inScope.length ? 'tous prêts' : '—'} />
-        <StatCard label="Dossiers bloquants" value={blocking} hint={blocking > 0 ? 'à traiter' : 'aucun'} />
+        <StatCard label="Dossiers Qualiopi-ready" value={`${ready}/${inScope.length}`} hint={inScope.length > 0 && ready === inScope.length ? 'tous prêts' : '—'} href="/qualiopi?filter=ready" />
+        <StatCard label="Dossiers bloquants" value={blocking} hint={blocking > 0 ? 'à traiter' : 'aucun'} href="/qualiopi?filter=blocking" />
         <StatCard label="Indicateurs satisfaits" value={`${satisfied}`} hint={`/ ${totalIndicators}`} />
         <StatCard label="Certification" value="✓" hint="Valide jusqu'à mars 2027" />
       </section>
 
-      <SectionLabel className="mb-3">Dossiers en cours</SectionLabel>
-      {inScope.length === 0 ? (
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Dossiers en cours</SectionLabel>
+        {activeFilter && (
+          <span className="flex items-center gap-2 text-[13px]">
+            <span className="text-zinc-500 dark:text-zinc-400">
+              Filtré sur <span className="font-medium text-zinc-700 dark:text-zinc-300">{filterLabels[activeFilter]}</span>
+            </span>
+            <Link href="/qualiopi" className="inline-flex items-center gap-1 text-orange-600 hover:underline">
+              ✕ Tout afficher
+            </Link>
+          </span>
+        )}
+      </div>
+      {dossiers.length === 0 ? (
         <p className="text-[13px] text-zinc-400 text-center py-12">
           Aucun dossier en cours à suivre.
         </p>
       ) : (
         <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-          {inScope.map((d) => (
+          {dossiers.map((d) => (
             <li key={d.id}>
               <Link
                 href={`/dossiers/${d.id}/qualiopi`}
