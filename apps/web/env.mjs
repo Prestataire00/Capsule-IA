@@ -17,6 +17,9 @@ const envSchema = z.object({
   ZOOM_SECRETS_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   CRON_SECRET: z.string().min(32),
+  // Gate 2FA admin (4.1) : enforcement OFF par défaut (variable absente).
+  // Mettre 'true' une fois le flux d'enrôlement /securite testé en prod.
+  ENFORCE_ADMIN_MFA: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
