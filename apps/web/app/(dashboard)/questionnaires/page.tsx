@@ -4,11 +4,12 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ClipboardList, Star, Send } from 'lucide-react';
+import { ClipboardList, Star, Send, Plus, BarChart3 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { StatCard } from '@/shared/ui/stat-card';
+import { TemplatesSection, type TemplateItem } from './templates-section';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,24 @@ export default async function QuestionnairesPage({
     .order('created_at', { ascending: false });
   const all = (data as unknown as AssignmentRow[] | null) ?? [];
 
+  // Modèles de questionnaires (org + système).
+  const { data: tplData } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .select('id, title, kind, schema, organization_id')
+    .is('deleted_at', null)
+    .order('organization_id', { ascending: false, nullsFirst: false })
+    .order('title', { ascending: true });
+  const templates: TemplateItem[] = (
+    (tplData as { id: string; title: string; kind: string; schema: { questions?: unknown[] } | null; organization_id: string | null }[] | null) ?? []
+  ).map((t) => ({
+    id: t.id,
+    title: t.title,
+    kind: t.kind,
+    questionCount: t.schema?.questions?.length ?? 0,
+    isSystem: t.organization_id === null,
+  }));
+
   const completed = all.filter((q) => q.status === 'completed').length;
   const pending = all.filter((q) => q.status === 'pending' || q.status === 'in_progress').length;
   const npsValues = all
@@ -75,11 +94,21 @@ export default async function QuestionnairesPage({
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Questionnaires</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-          Positionnement, satisfaction à chaud et à froid — preuves Qualiopi I10, I26, I27.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Questionnaires</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
+            Positionnement, satisfaction à chaud et à froid — preuves Qualiopi I10, I26, I27.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/questionnaires/analytics" className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
+            <BarChart3 className="w-3.5 h-3.5" /> Statistiques
+          </Link>
+          <Link href="/questionnaires/nouveau" className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow-sm transition">
+            <Plus className="w-3.5 h-3.5" /> Nouveau questionnaire
+          </Link>
+        </div>
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -87,6 +116,20 @@ export default async function QuestionnairesPage({
         <StatCard label="Complétés" value={completed} icon={ClipboardList} accent="emerald" hint={`${Math.round((completed / Math.max(all.length, 1)) * 100)}% des envois`} hintTone="success" href="/questionnaires?status=completed" />
         <StatCard label="En attente" value={pending} icon={Send} accent="amber" hint={pending > 0 ? 'à relancer si due_at proche' : '—'} hintTone={pending > 0 ? 'warning' : 'neutral'} href="/questionnaires?status=pending" />
         <StatCard label="NPS moyen" value={<span>{npsAvg}<span className="text-[15px] text-zinc-400 font-normal">/10</span></span>} icon={Star} accent="violet" hint="↑ 0.4 vs trimestre" hintTone="success" />
+      </section>
+
+      {/* Modèles de questionnaires */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[13px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium">Modèles ({templates.length})</h2>
+        </div>
+        {templates.length === 0 ? (
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+            Aucun modèle. <Link href="/questionnaires/nouveau" className="text-orange-600 hover:underline">Créez votre premier questionnaire</Link>.
+          </p>
+        ) : (
+          <TemplatesSection templates={templates} />
+        )}
       </section>
 
       {activeStatus && (
