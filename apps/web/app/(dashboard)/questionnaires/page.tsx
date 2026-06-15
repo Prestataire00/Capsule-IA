@@ -34,7 +34,11 @@ type AssignmentRow = {
   response: { nps: number | null; submitted_at: string } | null;
 };
 
-export default async function QuestionnairesPage() {
+export default async function QuestionnairesPage({
+  searchParams,
+}: {
+  searchParams: { status?: string };
+}) {
   const sb = supabaseServer();
 
   // Assignations de questionnaires (RLS-scopé) + template, dossier et réponse éventuelle.
@@ -59,6 +63,16 @@ export default async function QuestionnairesPage() {
     ? (npsValues.reduce((s, n) => s + n, 0) / npsValues.length).toFixed(1)
     : '—';
 
+  const activeStatus =
+    searchParams.status === 'completed' || searchParams.status === 'pending' ? searchParams.status : null;
+  const rows =
+    activeStatus === 'completed'
+      ? all.filter((q) => q.status === 'completed')
+      : activeStatus === 'pending'
+        ? all.filter((q) => q.status === 'pending' || q.status === 'in_progress')
+        : all;
+  const filterLabels: Record<string, string> = { completed: 'Complétés', pending: 'En attente' };
+
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
       <header className="mb-6">
@@ -69,11 +83,22 @@ export default async function QuestionnairesPage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Questionnaires assignés" value={all.length} icon={ClipboardList} accent="blue" />
-        <StatCard label="Complétés" value={completed} icon={ClipboardList} accent="emerald" hint={`${Math.round((completed / Math.max(all.length, 1)) * 100)}% des envois`} hintTone="success" />
-        <StatCard label="En attente" value={pending} icon={Send} accent="amber" hint={pending > 0 ? 'à relancer si due_at proche' : '—'} hintTone={pending > 0 ? 'warning' : 'neutral'} />
+        <StatCard label="Questionnaires assignés" value={all.length} icon={ClipboardList} accent="blue" href="/questionnaires" />
+        <StatCard label="Complétés" value={completed} icon={ClipboardList} accent="emerald" hint={`${Math.round((completed / Math.max(all.length, 1)) * 100)}% des envois`} hintTone="success" href="/questionnaires?status=completed" />
+        <StatCard label="En attente" value={pending} icon={Send} accent="amber" hint={pending > 0 ? 'à relancer si due_at proche' : '—'} hintTone={pending > 0 ? 'warning' : 'neutral'} href="/questionnaires?status=pending" />
         <StatCard label="NPS moyen" value={<span>{npsAvg}<span className="text-[15px] text-zinc-400 font-normal">/10</span></span>} icon={Star} accent="violet" hint="↑ 0.4 vs trimestre" hintTone="success" />
       </section>
+
+      {activeStatus && (
+        <div className="flex items-center gap-2 mb-4 text-[13px]">
+          <span className="text-zinc-500 dark:text-zinc-400">
+            Filtré sur <span className="font-medium text-zinc-700 dark:text-zinc-300">{filterLabels[activeStatus]}</span>
+          </span>
+          <Link href="/questionnaires" className="inline-flex items-center gap-1 text-orange-600 hover:underline">
+            ✕ Tout afficher
+          </Link>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-[180px_140px_1fr_140px_140px_120px] gap-3 px-5 py-2.5 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
@@ -85,7 +110,7 @@ export default async function QuestionnairesPage() {
           <div>Statut</div>
         </div>
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-          {all.map((q) => {
+          {rows.map((q) => {
             const kind = q.template?.kind ?? '';
             const submittedAt = q.response?.submitted_at ?? null;
             const nps = q.response?.nps ?? null;
