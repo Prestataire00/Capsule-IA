@@ -30,6 +30,7 @@
 | Opus (catalog+dossier) | F-EMA-08 alerte signature manquante : cron `transactional-emails` + `shared/lib/email/attendance-reminder.ts` (notif in-app + email, dédup via notifications, sans migration) | (push direct main) | 2026-06-15 | mergé |
 | Opus (catalog+dossier) | F-EMA-04 QR par créneau (backend) : `shared/lib/qr.ts` + endpoint `api/attendance/[sheetId]/qr` (PNG du lien de signature personnalisé, auth RLS, sans migration). UI emarger (`<img>`) = instance // | (push direct main) | 2026-06-15 | mergé |
 | Opus (form-formation) | Formulaire création/édition formation façon SoSafe (5 sections accordéon, extras en `metadata.catalog`) : `features/formations/**`, `app/(dashboard)/formations/nouvelle`+`[id]/edit`, `shared/ui/{accordion-section,rich-text}`. **Sans migration.** | feature/formation-form-sosafe | 2026-06-15 | mergé (PR #28) |
+| Opus (form-formation) | Gaps Espace Apprenant F-APP-11 (questionnaire persistant), F-APP-05 (lien Zoom dashboard/sessions), F-APP-04 (signature docs depuis l'espace) : `app/(apprenant)/espace/[token]/**` (questionnaire, sessions, documents) + RPC éventuel. Zone partagée espace = coordonner. | feature/espace-apprenant-gaps | 2026-06-15 | actif |
 
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.
