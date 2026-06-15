@@ -5,25 +5,59 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ClipboardList, Star, Send } from 'lucide-react';
-import { questionnairesByDossier, dossiers, learnerFullName } from '@/shared/mock/data';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { StatCard } from '@/shared/ui/stat-card';
 
-const labels = {
+export const dynamic = 'force-dynamic';
+
+const labels: Record<string, string> = {
   positionnement: 'Positionnement',
   satisfaction_chaud: 'Satisfaction à chaud',
   satisfaction_froid: 'Satisfaction à froid',
-} as const;
+  opco: 'OPCO',
+  evaluation_acquis: 'Évaluation des acquis',
+  custom: 'Personnalisé',
+};
 
-export default function QuestionnairesPage() {
-  const all = Object.entries(questionnairesByDossier).flatMap(([did, list]) =>
-    list.map((q) => ({ ...q, dossierId: did })),
-  );
+type AssignmentRow = {
+  id: string;
+  recipient_name: string | null;
+  recipient_email: string | null;
+  status: string;
+  due_at: string | null;
+  created_at: string;
+  dossier_id: string;
+  template: { title: string; kind: string } | null;
+  dossier: { reference: string } | null;
+  response: { nps: number | null; submitted_at: string } | null;
+};
+
+export default async function QuestionnairesPage() {
+  const sb = supabaseServer();
+
+  // Assignations de questionnaires (RLS-scopé) + template, dossier et réponse éventuelle.
+  const { data } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select(
+      'id, recipient_name, recipient_email, status, due_at, created_at, dossier_id, ' +
+        'template:questionnaire_templates(title, kind), ' +
+        'dossier:dossiers(reference), ' +
+        'response:questionnaire_responses(nps, submitted_at)',
+    )
+    .order('created_at', { ascending: false });
+  const all = (data as unknown as AssignmentRow[] | null) ?? [];
+
   const completed = all.filter((q) => q.status === 'completed').length;
   const pending = all.filter((q) => q.status === 'pending' || q.status === 'in_progress').length;
-  const expired = all.filter((q) => q.status === 'expired').length;
-  const npsAvg = 8.4; // mock
+  const npsValues = all
+    .map((q) => q.response?.nps)
+    .filter((n): n is number => typeof n === 'number');
+  const npsAvg = npsValues.length
+    ? (npsValues.reduce((s, n) => s + n, 0) / npsValues.length).toFixed(1)
+    : '—';
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
@@ -52,24 +86,27 @@ export default function QuestionnairesPage() {
         </div>
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {all.map((q) => {
-            const dossier = dossiers.find((d) => d.id === q.dossierId);
-            if (!dossier) return null;
+            const kind = q.template?.kind ?? '';
+            const submittedAt = q.response?.submitted_at ?? null;
+            const nps = q.response?.nps ?? null;
             return (
               <li key={q.id}>
                 <Link
-                  href={`/dossiers/${dossier.id}/questionnaires`}
+                  href={`/dossiers/${q.dossier_id}/questionnaires`}
                   className="grid grid-cols-[180px_140px_1fr_140px_140px_120px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
                 >
-                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{labels[q.kind]}</span>
-                  <IdPill>{dossier.reference}</IdPill>
-                  <span className="text-zinc-700 dark:text-zinc-300 truncate">{q.recipient}</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{labels[kind] ?? q.template?.title ?? kind}</span>
+                  <IdPill>{q.dossier?.reference ?? '—'}</IdPill>
+                  <span className="text-zinc-700 dark:text-zinc-300 truncate">{q.recipient_name ?? q.recipient_email ?? '—'}</span>
                   <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {q.submittedAt
-                      ? `répondu ${format(parseISO(q.submittedAt), 'dd/MM', { locale: fr })}`
-                      : `due ${format(parseISO(q.dueAt), 'dd/MM', { locale: fr })}`}
+                    {submittedAt
+                      ? `répondu ${format(parseISO(submittedAt), 'dd/MM', { locale: fr })}`
+                      : q.due_at
+                        ? `due ${format(parseISO(q.due_at), 'dd/MM', { locale: fr })}`
+                        : '—'}
                   </span>
                   <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {q.nps != null ? `${q.nps}/10` : '—'}
+                    {nps != null ? `${nps}/10` : '—'}
                   </span>
                   <StatusPill tone={q.status === 'completed' ? 'success' : q.status === 'expired' ? 'danger' : q.status === 'in_progress' ? 'warning' : 'info'}>
                     {q.status === 'completed' ? 'rempli' : q.status === 'expired' ? 'expiré' : q.status === 'in_progress' ? 'en cours' : 'envoyé'}
