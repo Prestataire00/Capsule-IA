@@ -22,7 +22,7 @@
 | Opus (de-mock) | financeurs (de-mock) | feature/financeurs-reels | 2026-06-14 | mergé (PR #21) |
 | Opus (de-mock) | de-mock dashboards (apprenants/membres/organisation/questionnaires) | feature/demock-dashboards | 2026-06-15 | mergé (PR #24) |
 | Opus (de-mock) | /qualiopi + /mes-sessions | feature/demock-qualiopi-sessions | 2026-06-15 | mergé (PR #26) |
-| Opus (éditable+KPI) | `parametres/organisation` + `parametres/membres` (édition) ; KPI cliquables (pages hors home) | feature/parametres-editables | 2026-06-15 | actif |
+| Opus (éditable+KPI) | paramètres éditables + KPI cliquables | feature/parametres-editables, feature/kpi-clickable | 2026-06-15 | mergé (PR #27, #29) |
 | Opus (catalog+dossier) | `dispatch-events/route.ts` + migrations 0073/0074 (garde-fous dossier) ; déjà mergé : prix module, contrat formateur, snapshot prix, catalogue formations, /inscription (org-scopé) | (push direct main) | 2026-06-14 | mergé |
 | Opus (catalog+dossier) | `shared/ui/logo.tsx` → wordmark « Capsule IA / par IA infinity » (PR #22 n'avait changé que l'alt, image PNG dit encore IA INFINITY) | (push direct main) | 2026-06-15 | mergé |
 | Opus (catalog+dossier) | F-DOC-09 certificat de réalisation : `features/documents/generate-certificat-pdf.ts` + `api/dossiers/[id]/certificat.pdf` + stub espace câblé (sous-lot 3.4, reste = instance //) | (push direct main) | 2026-06-15 | mergé |
