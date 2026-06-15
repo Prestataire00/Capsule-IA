@@ -1,12 +1,74 @@
 // ARCHETYPE: command
 import { notFound } from 'next/navigation';
-import { Video, Play, CheckCircle2, CircleDashed } from 'lucide-react';
+import { Video, Play, CheckCircle2, CircleDashed, KeyRound } from 'lucide-react';
+import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { resolveApprenantContext, formatSessionDate, formatSessionTime } from '../_lib';
 
 export const dynamic = 'force-dynamic';
 
+type ReplayInfo = {
+  sessionId: string;
+  passcode: string | null;
+};
+
+/** Charge les session_ids ayant un replay publié pour le dossier de l'apprenant. */
+async function resolvePublishedReplays(token: string): Promise<Map<string, ReplayInfo>> {
+  const verified = await verifyApprenantToken(token);
+  if (!verified.ok) return new Map();
+
+  const admin = supabaseAdmin();
+  const { dossierId } = verified.value;
+
+  // Récupère les session_id liés au dossier (direct + junction)
+  const [byDirect, byJunction] = await Promise.all([
+    admin
+      .schema('app')
+      .from('sessions')
+      .select('id')
+      .eq('dossier_id', dossierId),
+    admin
+      .schema('app')
+      .from('session_dossiers' as never)
+      .select('session_id')
+      .eq('dossier_id', dossierId),
+  ]);
+
+  const sessionIds = new Set<string>();
+  for (const row of (byDirect.data ?? []) as { id: string }[]) {
+    sessionIds.add(row.id);
+  }
+  for (const row of (byJunction.data ?? []) as { session_id: string }[]) {
+    sessionIds.add(row.session_id);
+  }
+
+  if (sessionIds.size === 0) return new Map();
+
+  // Un seul enregistrement publié par session (le plus récent)
+  const { data: recordings } = await admin
+    .schema('app')
+    .from('session_recordings' as never)
+    .select('session_id, passcode')
+    .in('session_id', [...sessionIds])
+    .eq('is_published', true)
+    .is('deleted_at', null)
+    .order('recorded_at', { ascending: false });
+
+  const map = new Map<string, ReplayInfo>();
+  for (const r of (recordings ?? []) as { session_id: string; passcode: string | null }[]) {
+    // .in() + order : on prend le premier occurrence par session_id (le plus récent)
+    if (!map.has(r.session_id)) {
+      map.set(r.session_id, { sessionId: r.session_id, passcode: r.passcode });
+    }
+  }
+  return map;
+}
+
 export default async function EspaceSessionsPage({ params }: { params: { token: string } }) {
-  const ctx = await resolveApprenantContext(params.token);
+  const [ctx, replays] = await Promise.all([
+    resolveApprenantContext(params.token),
+    resolvePublishedReplays(params.token),
+  ]);
   if (!ctx) return notFound();
 
   return (
@@ -33,6 +95,9 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
             {ctx.sessions.map((s) => {
               const isDone = s.status === 'done';
               const isLive = s.status === 'in_progress';
+              const replay = replays.get(s.id);
+              const replayUrl = `/api/espace/${params.token}/replay/${s.id}`;
+
               return (
                 <li key={s.id} className="py-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -57,14 +122,27 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
                       </p>
                     </div>
                   </div>
-                  {isDone ? (
-                    <a
-                      href="#"
-                      className="inline-flex items-center gap-1 text-[12px] text-violet-600 dark:text-violet-400 hover:text-violet-700 font-medium px-2.5 py-1 rounded-md bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-950/60 transition flex-shrink-0"
-                    >
-                      <Play className="w-3 h-3" />
-                      Replay
-                    </a>
+                  {replay ? (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <a
+                        href={replayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[12px] text-violet-600 dark:text-violet-400 hover:text-violet-700 font-medium px-2.5 py-1 rounded-md bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-950/60 transition"
+                      >
+                        <Play className="w-3 h-3" />
+                        Replay
+                      </a>
+                      {replay.passcode && (
+                        <span
+                          title={`Code d'accès : ${replay.passcode}`}
+                          className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400 px-2 py-1 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+                        >
+                          <KeyRound className="w-3 h-3" />
+                          {replay.passcode}
+                        </span>
+                      )}
+                    </div>
                   ) : isLive ? (
                     <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400">En cours</span>
                   ) : (
