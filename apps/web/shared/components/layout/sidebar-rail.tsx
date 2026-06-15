@@ -175,9 +175,12 @@ export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
         >
           <div className="dark:hidden contents">{/* gradient clair (défaut ci-dessus) */}</div>
 
-          {/* Logo */}
-          <Link href="/" className="mt-4 mb-2 shrink-0" aria-label="Accueil">
-            <Logo size="icon" />
+          {/* Logo planète + wordmark Capsule IA (empilés) */}
+          <Link href="/" className="mt-4 mb-2 shrink-0 flex flex-col items-center gap-1" aria-label="Accueil">
+            <Logo size="sm" showWordmark={false} />
+            <span className="text-[10px] font-semibold tracking-tight leading-none text-zinc-700 dark:text-zinc-300">
+              Capsule&nbsp;IA
+            </span>
           </Link>
 
           {/* CTA Nouveau dossier */}
