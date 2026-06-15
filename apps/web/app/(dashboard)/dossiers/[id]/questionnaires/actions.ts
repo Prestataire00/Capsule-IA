@@ -12,6 +12,62 @@ const SendSchema = z.object({
   templateCode: z.enum(['funder_besoins', 'funder_satisfaction', 'funder_conformite']),
 });
 
+const AssignLearnerSchema = z.object({
+  dossierId: z.string().uuid(),
+  templateId: z.string().uuid(),
+});
+
+/** Affecte un questionnaire à l'apprenant du dossier (rempli depuis son espace). */
+export const assignLearnerQuestionnaire = authActionClient
+  .schema(AssignLearnerSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const sb = ctx.supabase;
+    const { data: dossier } = await sb
+      .schema('app')
+      .from('dossiers')
+      .select('id, organization_id, learner_id, learner:learners(first_name, last_name, email)')
+      .eq('id', parsedInput.dossierId)
+      .maybeSingle();
+    const d = dossier as {
+      organization_id: string;
+      learner_id: string | null;
+      learner: { first_name: string; last_name: string; email: string | null } | null;
+    } | null;
+    if (!d) return { ok: false as const, error: 'dossier_not_found' };
+    if (!d.learner_id) return { ok: false as const, error: 'no_learner' };
+
+    // Pas de doublon actif pour ce template + apprenant.
+    const { data: dup } = await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .select('id')
+      .eq('dossier_id', parsedInput.dossierId)
+      .eq('recipient_learner_id', d.learner_id)
+      .eq('template_id', parsedInput.templateId)
+      .neq('status', 'expired')
+      .maybeSingle();
+    if (dup) return { ok: false as const, error: 'already_assigned' };
+
+    const { error } = await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .insert({
+        organization_id: d.organization_id,
+        template_id: parsedInput.templateId,
+        dossier_id: parsedInput.dossierId,
+        recipient_kind: 'learner',
+        recipient_learner_id: d.learner_id,
+        recipient_email: d.learner?.email ?? null,
+        recipient_name: d.learner ? `${d.learner.first_name} ${d.learner.last_name}`.trim() : null,
+        token_hash: `pending-${randomUUID()}`,
+        status: 'pending',
+      } as never);
+    if (error) return { ok: false as const, error: 'assignment_create_failed', details: error.message };
+
+    revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
+    return { ok: true as const };
+  });
+
 export const sendFunderQuestionnaire = authActionClient
   .schema(SendSchema)
   .action(async ({ parsedInput, ctx }) => {
