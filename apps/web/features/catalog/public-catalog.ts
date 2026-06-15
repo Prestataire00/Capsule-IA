@@ -39,3 +39,14 @@ export async function getPublicCatalog(formationId?: string): Promise<PublicForm
   }
   return mapped;
 }
+
+// Catalogue public d'un OF identifié directement par son id (lien d'inscription
+// niveau organisme : /inscription?org=<id>). Même RPC publique (publiées uniquement).
+export async function getPublicCatalogByOrg(orgId?: string): Promise<PublicFormation[]> {
+  const id = (orgId ?? '').trim();
+  if (!id) return [];
+  const sb = supabaseServer();
+  const { data: list } = await sb.rpc('list_published_formations' as never, { p_org: id } as never);
+  const rows = (list as unknown as RpcRow[] | null) ?? [];
+  return rows.map((r) => ({ id: r.id, code: r.code, title: r.title, category: r.category }));
+}

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Users, ShieldCheck, Plug } from 'lucide-react';
+import { Building2, Users, ShieldCheck, Plug, Link2 } from 'lucide-react';
 
 const ITEMS = [
   { href: '/parametres/organisation', label: 'Organisation', icon: Building2 },
   { href: '/parametres/membres', label: 'Membres', icon: Users },
+  { href: '/parametres/inscription', label: "Lien d'inscription", icon: Link2 },
   { href: '/parametres/securite', label: 'Sécurité', icon: ShieldCheck },
   { href: '/parametres/integrations', label: 'Intégrations', icon: Plug },
 ];
