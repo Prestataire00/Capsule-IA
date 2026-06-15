@@ -3,8 +3,22 @@
 
 import Link from 'next/link';
 import { Plus, Search, Users, Accessibility, GraduationCap, TrendingUp, Mail, Phone, ArrowUpRight } from 'lucide-react';
-import { learners, companies, dossiers } from '@/shared/mock/data';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
+
+export const dynamic = 'force-dynamic';
+
+type LearnerRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  company_id: string | null;
+  rqth: boolean;
+  position: string | null;
+  created_at: string;
+  company: { name: string } | null;
+};
 
 const palette = [
   'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
@@ -23,19 +37,39 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'no_company', label: 'Sans entreprise' },
 ];
 
-export default function ApprenantsPage({
+export default async function ApprenantsPage({
   searchParams,
 }: {
   searchParams: { q?: string; filter?: string };
 }) {
+  const sb = supabaseServer();
+
+  // Apprenants (RLS-scopé à l'organisation) + entreprise rattachée.
+  const { data: learnersData } = await sb
+    .schema('app')
+    .from('learners')
+    .select('id, first_name, last_name, email, company_id, rqth, position, created_at, company:companies(name)')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+  const learners = (learnersData as unknown as LearnerRow[] | null) ?? [];
+
+  // Apprenants en formation = ceux avec un dossier actif/planifié.
+  const { data: activeDossiers } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('learner_id, status')
+    .is('deleted_at', null)
+    .in('status', ['active', 'scheduled']);
   const inFormationIds = new Set(
-    dossiers
-      .filter((d) => d.status === 'active' || d.status === 'scheduled')
-      .map((d) => d.learnerId),
+    ((activeDossiers as unknown as { learner_id: string }[] | null) ?? []).map((d) => d.learner_id),
   );
+
   const inFormation = Array.from(inFormationIds);
   const rqthCount = learners.filter((l) => l.rqth).length;
-  const newThisMonth = 2; // mock
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  const newThisMonth = learners.filter((l) => new Date(l.created_at) >= startOfMonth).length;
 
   const q = (searchParams.q ?? '').trim().toLowerCase();
   const activeFilter: FilterKey =
@@ -46,10 +80,9 @@ export default function ApprenantsPage({
   const filteredLearners = learners.filter((l) => {
     if (activeFilter === 'in_formation' && !inFormationIds.has(l.id)) return false;
     if (activeFilter === 'rqth' && !l.rqth) return false;
-    if (activeFilter === 'no_company' && l.companyId) return false;
+    if (activeFilter === 'no_company' && l.company_id) return false;
     if (q) {
-      const company = companies.find((c) => c.id === l.companyId);
-      const haystack = `${l.firstName} ${l.lastName} ${l.email} ${l.position ?? ''} ${company?.name ?? ''}`.toLowerCase();
+      const haystack = `${l.first_name} ${l.last_name} ${l.email} ${l.position ?? ''} ${l.company?.name ?? ''}`.toLowerCase();
       if (!haystack.includes(q)) return false;
     }
     return true;
@@ -141,10 +174,10 @@ export default function ApprenantsPage({
 
       <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredLearners.map((l) => {
-          const initials = `${l.firstName[0]}${l.lastName[0]}`.toUpperCase();
-          const idx = (l.firstName.charCodeAt(0) + l.lastName.charCodeAt(0)) % palette.length;
-          const company = companies.find((c) => c.id === l.companyId);
-          const activeDossier = dossiers.find((d) => d.learnerId === l.id && (d.status === 'active' || d.status === 'scheduled'));
+          const initials = `${l.first_name[0] ?? ''}${l.last_name[0] ?? ''}`.toUpperCase();
+          const idx = ((l.first_name.charCodeAt(0) || 0) + (l.last_name.charCodeAt(0) || 0)) % palette.length;
+          const company = l.company;
+          const activeDossier = inFormationIds.has(l.id);
           return (
             <li key={l.id}>
               <Link
@@ -158,7 +191,7 @@ export default function ApprenantsPage({
                     </span>
                     <div className="min-w-0">
                       <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                        {l.firstName} {l.lastName}
+                        {l.first_name} {l.last_name}
                       </p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
                         {l.position}
@@ -199,7 +232,7 @@ export default function ApprenantsPage({
                       RQTH
                     </span>
                   )}
-                  {!l.companyId && (
+                  {!l.company_id && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                       indép.
                     </span>
