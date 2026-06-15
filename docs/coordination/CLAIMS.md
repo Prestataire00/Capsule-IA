@@ -20,7 +20,7 @@
 |----------|------------------|---------|--------|--------|
 | _(exemple)_ | `apps/web/app/inscription/**` | `feature/xxx` | 2026-06-14 | libéré |
 | Opus (de-mock) | financeurs (de-mock) | feature/financeurs-reels | 2026-06-14 | mergé (PR #21) |
-| Opus (de-mock) | `(dashboard)/{apprenants,parametres/membres,parametres/organisation,questionnaires}/page.tsx` | feature/demock-dashboards | 2026-06-15 | actif |
+| Opus (de-mock) | de-mock dashboards (apprenants/membres/organisation/questionnaires) | feature/demock-dashboards | 2026-06-15 | mergé (PR #24) |
 | Opus (catalog+dossier) | `dispatch-events/route.ts` + migrations 0073/0074 (garde-fous dossier) ; déjà mergé : prix module, contrat formateur, snapshot prix, catalogue formations, /inscription (org-scopé) | (push direct main) | 2026-06-14 | mergé |
 | Opus (catalog+dossier) | `shared/ui/logo.tsx` → wordmark « Capsule IA / par IA infinity » (PR #22 n'avait changé que l'alt, image PNG dit encore IA INFINITY) | (push direct main) | 2026-06-15 | mergé |
 
