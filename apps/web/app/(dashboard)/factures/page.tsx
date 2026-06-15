@@ -48,18 +48,34 @@ type InvoiceRow = {
   total_cents: number;
   currency: string;
   dossier: { reference: string } | null;
+  funder: { name: string } | null;
+  company: { name: string } | null;
 };
 
-async function loadInvoices(): Promise<InvoiceRow[]> {
+const STATUSES: InvoiceStatus[] = ['draft', 'issued', 'paid', 'partially_paid', 'overdue', 'cancelled'];
+
+function resolvePayer(inv: InvoiceRow): string | null {
+  if (inv.funder?.name) return `OPCO/financeur: ${inv.funder.name}`;
+  if (inv.company?.name) return `Entreprise: ${inv.company.name}`;
+  return null;
+}
+
+async function loadInvoices(status: InvoiceStatus | null): Promise<InvoiceRow[]> {
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await sb
+  let query = sb
     .schema('app')
     .from('invoices')
-    .select('id, reference, status, issued_at, due_at, paid_at, total_cents, currency, dossier:dossiers(reference)')
+    .select('id, reference, status, issued_at, due_at, paid_at, total_cents, currency, dossier:dossiers(reference), funder:funders(name), company:companies(name)')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
+
+  if (status) {
+    query = query.eq('status', status);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('[factures] load failed', error);
@@ -68,8 +84,16 @@ async function loadInvoices(): Promise<InvoiceRow[]> {
   return (data ?? []) as unknown as InvoiceRow[];
 }
 
-export default async function FacturesPage() {
-  const invoices = await loadInvoices();
+export default async function FacturesPage({
+  searchParams,
+}: {
+  searchParams: { status?: string };
+}) {
+  const status = STATUSES.includes(searchParams.status as InvoiceStatus)
+    ? (searchParams.status as InvoiceStatus)
+    : null;
+  const exportHref = status ? `/api/factures/export.csv?status=${status}` : '/api/factures/export.csv';
+  const invoices = await loadInvoices(status);
 
   const issued = invoices.filter((i) => i.status === 'issued' || i.status === 'paid' || i.status === 'overdue');
   const totalIssued = issued.reduce((acc, i) => acc + i.total_cents, 0);
@@ -89,6 +113,13 @@ export default async function FacturesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href={exportHref}
+            className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Exporter CSV
+          </a>
           <button
             type="button"
             className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
@@ -133,11 +164,18 @@ export default async function FacturesPage() {
           {invoices.map((inv) => (
             <li
               key={inv.id}
-              className="grid grid-cols-[140px_140px_1fr_120px_120px_100px] gap-3 py-3 px-1 items-center text-[13px]"
+              className="grid grid-cols-[140px_140px_150px_1fr_120px_120px_100px] gap-3 py-3 px-1 items-center text-[13px]"
             >
               <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">{inv.reference}</span>
               {inv.dossier ? (
                 <IdPill>{inv.dossier.reference}</IdPill>
+              ) : (
+                <span className="text-zinc-400 text-[11px]">—</span>
+              )}
+              {resolvePayer(inv) ? (
+                <span className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate" title={resolvePayer(inv) ?? undefined}>
+                  {resolvePayer(inv)}
+                </span>
               ) : (
                 <span className="text-zinc-400 text-[11px]">—</span>
               )}
