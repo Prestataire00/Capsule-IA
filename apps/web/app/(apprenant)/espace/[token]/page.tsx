@@ -15,10 +15,12 @@ import {
   ChevronRight,
   Sparkles,
   BookOpen,
+  ClipboardList,
 } from 'lucide-react';
 import { resolveApprenantContext, MODALITY_LABEL, formatSessionDate, formatSessionTime } from './_lib';
 import { resolveApprenantResources } from './resources';
 import { resolveApprenantExercises } from './exercises';
+import { listApprenantQuestionnaires } from './questionnaires';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,10 +28,13 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
   const ctx = await resolveApprenantContext(params.token);
   if (!ctx) return notFound();
 
-  const [resources, exercises] = await Promise.all([
+  const [resources, exercises, questionnaires] = await Promise.all([
     resolveApprenantResources(params.token),
     resolveApprenantExercises(params.token),
+    listApprenantQuestionnaires(params.token),
   ]);
+
+  const questionnairesTodo = questionnaires.filter((q) => q.status !== 'completed' && q.status !== 'expired').length;
 
   const sessionsDone = ctx.sessions.filter((s) => s.status === 'done').length;
   const sessionsCount = ctx.sessions.length;
@@ -64,6 +69,13 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
       label: 'Exercices',
       hint: exosTodo === 0 ? 'Tous rendus' : `${exosTodo} à faire`,
       accent: exosTodo === 0 ? 'emerald' : 'amber',
+    },
+    {
+      href: `/espace/${params.token}/questionnaires`,
+      icon: ClipboardList,
+      label: 'Questionnaires',
+      hint: questionnairesTodo === 0 ? 'À jour' : `${questionnairesTodo} à compléter`,
+      accent: questionnairesTodo === 0 ? 'emerald' : 'amber',
     },
     {
       href: `/espace/${params.token}/reclamation`,
