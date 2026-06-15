@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft, Clock, Video, MapPin, GraduationCap, BookOpen, Eye, EyeOff,
-  Users as UsersIcon, Banknote, FileText, Sparkles, ExternalLink, Award,
+  Users as UsersIcon, Banknote, FileText, Sparkles, ExternalLink, Award, Pencil,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
@@ -139,7 +139,16 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               </div>
             </div>
           </div>
-          <CopyInscriptionLink formationId={f.id} variant="full" />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Link
+              href={`/formations/${f.id}/edit`}
+              className="text-[13px] font-medium px-3 py-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Modifier
+            </Link>
+            <CopyInscriptionLink formationId={f.id} variant="full" />
+          </div>
         </div>
       </header>
 
