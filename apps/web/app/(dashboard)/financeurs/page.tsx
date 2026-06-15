@@ -22,8 +22,15 @@ const kindStyles: Record<string, { bg: string; text: string; icon: React.Compone
   autre: { bg: 'bg-zinc-100 dark:bg-zinc-800', text: 'text-zinc-700 dark:text-zinc-300', icon: Wallet, label: 'Autre' },
 };
 
-export default async function FinanceursPage() {
+export default async function FinanceursPage({
+  searchParams,
+}: {
+  searchParams: { kind?: string };
+}) {
   const overview = await getFundersOverview(supabaseServer());
+
+  const activeKind = searchParams.kind && kindStyles[searchParams.kind] ? searchParams.kind : null;
+  const funders = activeKind ? overview.funders.filter((f) => f.kind === activeKind) : overview.funders;
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
@@ -44,19 +51,30 @@ export default async function FinanceursPage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total financeurs" value={overview.totalFunders} icon={Wallet} accent="violet" />
-        <StatCard label="OPCO" value={overview.byKind['opco'] ?? 0} icon={Building2} accent="violet" hint="organismes paritaires" hintTone="neutral" />
-        <StatCard label="CPF" value={overview.byKind['cpf'] ?? 0} icon={CreditCard} accent="blue" hint="financement individuel" hintTone="neutral" />
+        <StatCard label="Total financeurs" value={overview.totalFunders} icon={Wallet} accent="violet" href="/financeurs" />
+        <StatCard label="OPCO" value={overview.byKind['opco'] ?? 0} icon={Building2} accent="violet" hint="organismes paritaires" hintTone="neutral" href="/financeurs?kind=opco" />
+        <StatCard label="CPF" value={overview.byKind['cpf'] ?? 0} icon={CreditCard} accent="blue" hint="financement individuel" hintTone="neutral" href="/financeurs?kind=cpf" />
         <StatCard label="Total financé" value={formatEurosCents(overview.grandTotalCents)} icon={TrendingUp} accent="emerald" />
       </section>
 
-      {overview.funders.length === 0 ? (
+      {activeKind && (
+        <div className="flex items-center gap-2 mb-4 text-[13px]">
+          <span className="text-zinc-500 dark:text-zinc-400">
+            Filtré sur <span className="font-medium text-zinc-700 dark:text-zinc-300">{kindStyles[activeKind]!.label}</span>
+          </span>
+          <Link href="/financeurs" className="inline-flex items-center gap-1 text-orange-600 hover:underline">
+            ✕ Tout afficher
+          </Link>
+        </div>
+      )}
+
+      {funders.length === 0 ? (
         <p className="px-5 py-12 text-center text-[13px] text-zinc-400 border border-dashed border-zinc-200/60 dark:border-zinc-800 rounded-xl">
           Aucun financeur configuré. <Link href="/financeurs/nouveau" className="text-orange-600 hover:underline">En ajouter un</Link>.
         </p>
       ) : (
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {overview.funders.map((f) => {
+          {funders.map((f) => {
             const k = kindStyles[f.kind] ?? kindStyles['autre']!;
             const Icon = k.icon;
             return (
