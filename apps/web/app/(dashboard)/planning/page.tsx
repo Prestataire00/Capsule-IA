@@ -1,71 +1,126 @@
 // ARCHETYPE: command
-// Justification: planning calendaire des sessions — vue semaine dense, events colorés par formation, scan rapide.
+// Justification: planning calendaire des sessions réelles — vue semaine dense, events colorés par statut.
 
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 
-type Event = {
-  day: number;        // 0 = lundi, 4 = vendredi
-  startHour: number;  // ex 10 pour 10:00
-  duration: number;   // en heures
-  title: string;
-  learner: string;
-  tone: 'violet' | 'blue' | 'emerald' | 'amber' | 'rose';
-  dossierId: string;
-};
-
-const events: Event[] = [
-  { day: 0, startHour: 10, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
-  { day: 0, startHour: 14, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
-  { day: 1, startHour: 10, duration: 2, title: 'Prompt Engineering', learner: 'Sophie Bernard', tone: 'blue', dossierId: 'd-3' },
-  { day: 1, startHour: 14, duration: 2, title: 'Prompt Engineering', learner: 'Sophie Bernard', tone: 'blue', dossierId: 'd-3' },
-  { day: 2, startHour: 10, duration: 2, title: 'Data Analyse', learner: 'Julien Moreau', tone: 'emerald', dossierId: 'd-2' },
-  { day: 2, startHour: 14, duration: 2, title: 'Data Analyse', learner: 'Julien Moreau', tone: 'emerald', dossierId: 'd-2' },
-  { day: 3, startHour: 10, duration: 2, title: 'Automatisation', learner: 'Camille Petit', tone: 'amber', dossierId: 'd-4' },
-  { day: 3, startHour: 14, duration: 2, title: 'Automatisation', learner: 'Camille Petit', tone: 'amber', dossierId: 'd-4' },
-  { day: 4, startHour: 10, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
-  { day: 4, startHour: 14, duration: 2, title: 'IA Générative', learner: 'Thomas Martin', tone: 'violet', dossierId: 'd-1' },
+const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+const ROW_H = 64; // px par heure (h-16)
+const DAY_LABELS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.'];
+const MONTHS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
 
-const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17];
-const DAYS = [
-  { label: 'Lun.', date: 12 },
-  { label: 'Mar.', date: 13 },
-  { label: 'Mer.', date: 14 },
-  { label: 'Jeu.', date: 15 },
-  { label: 'Ven.', date: 16 },
-];
+type SessionStatus = 'planned' | 'in_progress' | 'done' | 'cancelled';
 
-const toneStyles: Record<Event['tone'], string> = {
-  violet: 'bg-violet-50 dark:bg-violet-950/40 border-violet-200/60 dark:border-violet-900/50 text-violet-900 dark:text-violet-200',
-  blue: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200/60 dark:border-blue-900/50 text-blue-900 dark:text-blue-200',
-  emerald: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/60 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200',
-  amber: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200/60 dark:border-amber-900/50 text-amber-900 dark:text-amber-200',
-  rose: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200/60 dark:border-rose-900/50 text-rose-900 dark:text-rose-200',
+const toneByStatus: Record<SessionStatus, string> = {
+  planned: 'bg-violet-50 dark:bg-violet-950/40 border-violet-200/60 dark:border-violet-900/50 text-violet-900 dark:text-violet-200',
+  in_progress: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/60 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200',
+  done: 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300',
+  cancelled: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200/60 dark:border-rose-900/50 text-rose-900 dark:text-rose-200 line-through',
 };
 
 const legend = [
-  { label: 'En cours', tone: 'emerald' as const },
-  { label: 'Planifiée', tone: 'violet' as const },
-  { label: 'Terminée', tone: 'zinc' as const },
-  { label: 'Annulée', tone: 'rose' as const },
+  { label: 'En cours', dot: 'bg-emerald-500' },
+  { label: 'Planifiée', dot: 'bg-violet-500' },
+  { label: 'Terminée', dot: 'bg-zinc-400' },
+  { label: 'Annulée', dot: 'bg-rose-500' },
 ];
 
-const dotColors: Record<string, string> = {
-  emerald: 'bg-emerald-500',
-  violet: 'bg-violet-500',
-  zinc: 'bg-zinc-400',
-  rose: 'bg-rose-500',
+type SessionRow = {
+  id: string;
+  title: string | null;
+  status: SessionStatus;
+  starts_at: string;
+  ends_at: string;
+  dossier: {
+    id: string;
+    learner: { first_name: string | null; last_name: string | null } | null;
+    formation: { title: string | null } | null;
+  } | null;
 };
 
-export default function PlanningPage() {
+function mondayOf(d: Date): Date {
+  const m = new Date(d);
+  const day = m.getDay(); // 0 = dimanche
+  m.setDate(m.getDate() + (day === 0 ? -6 : 1 - day));
+  m.setHours(0, 0, 0, 0);
+  return m;
+}
+
+export default async function PlanningPage({
+  searchParams,
+}: {
+  searchParams?: { week?: string };
+}) {
+  const weekOffset = Number.parseInt(searchParams?.week ?? '0', 10) || 0;
+
+  const weekStart = mondayOf(new Date());
+  weekStart.setDate(weekStart.getDate() + weekOffset * 7);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+
+  const sb = supabaseServer();
+  // Prod-safe : si app.sessions n'est pas migrée → data=null → semaine vide. RLS scope l'org.
+  const { data } = await sb
+    .schema('app')
+    .from('sessions')
+    .select(
+      'id, title, status, starts_at, ends_at, ' +
+        'dossier:dossiers(id, learner:learners(first_name, last_name), formation:formations(title))',
+    )
+    .gte('starts_at', weekStart.toISOString())
+    .lt('starts_at', weekEnd.toISOString())
+    .order('starts_at', { ascending: true });
+
+  const sessions = ((data as unknown) as SessionRow[]) ?? [];
+
+  const days = DAY_LABELS.map((label, i) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + i);
+    return { label, dayNum: date.getDate() };
+  });
+
+  const gridHeight = HOURS.length * ROW_H;
+  const firstHour = HOURS[0] ?? 8;
+
+  const events = sessions
+    .map((s) => {
+      const start = new Date(s.starts_at);
+      const end = new Date(s.ends_at);
+      const dayIdx = (start.getDay() + 6) % 7; // lundi = 0
+      const startHour = start.getHours() + start.getMinutes() / 60;
+      const durationH = Math.max(0.5, (end.getTime() - start.getTime()) / 3_600_000);
+      const learner = s.dossier?.learner
+        ? [s.dossier.learner.first_name, s.dossier.learner.last_name].filter(Boolean).join(' ')
+        : null;
+      return {
+        id: s.id,
+        dayIdx,
+        startHour,
+        durationH,
+        title: s.title || s.dossier?.formation?.title || 'Session',
+        learner: learner || '—',
+        status: s.status,
+        dossierId: s.dossier?.id ?? null,
+        timeLabel: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
+      };
+    })
+    .filter((e) => e.dayIdx >= 0 && e.dayIdx <= 4);
+
+  const hiddenWeekend = sessions.length - events.length;
+  const monthLabel = `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
       <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Planning</h1>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-            Vue d'ensemble des sessions de formation cette semaine.
+            {sessions.length} session{sessions.length > 1 ? 's' : ''} cette semaine
+            {hiddenWeekend > 0 && ` · ${hiddenWeekend} le week-end (non affichée${hiddenWeekend > 1 ? 's' : ''})`}.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -74,7 +129,7 @@ export default function PlanningPage() {
             className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
           >
             <Filter className="w-3.5 h-3.5" />
-            Formateur
+            Formateurs
           </Link>
           <Link
             href="/dossiers"
@@ -87,31 +142,41 @@ export default function PlanningPage() {
       </header>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-        {/* Sélecteur Mois / Semaine / Jour */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/60 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <Link href="/planning?week=prev" aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+            <Link
+              href={`/planning?week=${weekOffset - 1}`}
+              aria-label="Semaine précédente"
+              className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center"
+            >
               <ChevronLeft className="w-4 h-4" />
             </Link>
-            <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Mai 2026</p>
-            <Link href="/planning?week=next" aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+            <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 capitalize">{monthLabel}</p>
+            <Link
+              href={`/planning?week=${weekOffset + 1}`}
+              aria-label="Semaine suivante"
+              className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center"
+            >
               <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5">
-            <Link href="/planning?view=day" className="text-[12px] text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded hover:text-zinc-900 dark:hover:text-zinc-100 transition">Jour</Link>
-            <Link href="/planning?view=week" className="text-[12px] bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-medium px-3 py-1 rounded shadow-sm">Semaine</Link>
-            <Link href="/planning?view=month" className="text-[12px] text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded hover:text-zinc-900 dark:hover:text-zinc-100 transition">Mois</Link>
-          </div>
+          {weekOffset !== 0 && (
+            <Link
+              href="/planning"
+              className="text-[12px] text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition"
+            >
+              Cette semaine
+            </Link>
+          )}
         </div>
 
-        {/* Calendar grid */}
+        {/* En-tête des jours */}
         <div className="grid grid-cols-[60px_repeat(5,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
           <div className="border-r border-zinc-200/60 dark:border-zinc-800" />
-          {DAYS.map((d) => (
+          {days.map((d) => (
             <div key={d.label} className="px-3 py-3 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800">
               <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
-              <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 mt-0.5 tabular-nums">{d.date}</p>
+              <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 mt-0.5 tabular-nums">{d.dayNum}</p>
             </div>
           ))}
         </div>
@@ -123,7 +188,7 @@ export default function PlanningPage() {
                 <div className="h-16 border-b border-r border-zinc-100 dark:border-zinc-800/60 px-2 py-1">
                   <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{String(h).padStart(2, '0')}:00</p>
                 </div>
-                {DAYS.map((_, dayIdx) => (
+                {days.map((_, dayIdx) => (
                   <div
                     key={`${h}-${dayIdx}`}
                     className="h-16 border-b border-r last:border-r-0 border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/50 dark:hover:bg-zinc-950/40 transition"
@@ -136,22 +201,27 @@ export default function PlanningPage() {
           {/* Events overlay */}
           <div className="absolute inset-0 grid grid-cols-[60px_repeat(5,1fr)] pointer-events-none">
             <div />
-            {DAYS.map((_, dayIdx) => (
+            {days.map((_, dayIdx) => (
               <div key={dayIdx} className="relative border-r last:border-r-0 border-transparent">
                 {events
-                  .filter((e) => e.day === dayIdx)
-                  .map((e, i) => {
-                    const top = (e.startHour - HOURS[0]!) * 64;
-                    const height = e.duration * 64 - 4;
+                  .filter((e) => e.dayIdx === dayIdx)
+                  .map((e) => {
+                    const rawTop = (e.startHour - firstHour) * ROW_H;
+                    const top = Math.max(0, Math.min(rawTop, gridHeight - 24));
+                    const rawHeight = e.durationH * ROW_H - 4;
+                    const height = Math.max(24, Math.min(rawHeight, gridHeight - top - 2));
+                    const href = e.dossierId ? `/dossiers/${e.dossierId}` : '/dossiers';
                     return (
                       <Link
-                        key={i}
-                        href="/dossiers"
-                        className={`absolute left-1.5 right-1.5 rounded-md border px-2.5 py-1.5 pointer-events-auto cursor-pointer hover:shadow-md transition block ${toneStyles[e.tone]}`}
+                        key={e.id}
+                        href={href}
+                        className={`absolute left-1.5 right-1.5 rounded-md border px-2.5 py-1.5 pointer-events-auto cursor-pointer hover:shadow-md transition block overflow-hidden ${toneByStatus[e.status]}`}
                         style={{ top, height }}
                       >
                         <p className="text-[12px] font-medium leading-tight truncate">{e.title}</p>
-                        <p className="text-[11px] opacity-75 truncate mt-0.5">{e.learner}</p>
+                        <p className="text-[11px] opacity-75 truncate mt-0.5">
+                          {e.timeLabel} · {e.learner}
+                        </p>
                       </Link>
                     );
                   })}
@@ -160,11 +230,11 @@ export default function PlanningPage() {
           </div>
         </div>
 
-        {/* Legend */}
+        {/* Légende */}
         <div className="px-5 py-3 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center gap-5 flex-wrap">
           {legend.map((l) => (
             <div key={l.label} className="inline-flex items-center gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-              <span className={`w-2 h-2 rounded-full ${dotColors[l.tone]}`} />
+              <span className={`w-2 h-2 rounded-full ${l.dot}`} />
               {l.label}
             </div>
           ))}
