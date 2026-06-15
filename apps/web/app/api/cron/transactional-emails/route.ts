@@ -14,6 +14,8 @@ import {
 } from '@/shared/lib/email/templates';
 import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
+import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
+import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -508,16 +510,149 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
   return { candidates: candidates.length, alerted, errors };
 }
 
+const TRAINER_SAT_TEMPLATE_CODE = 'satisfaction_formateur_default';
+
+async function ensureTrainerSatisfactionTemplate(sb: ReturnType<typeof admin>): Promise<string> {
+  const { data: existing } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .select('id')
+    .is('organization_id', null)
+    .eq('code', TRAINER_SAT_TEMPLATE_CODE)
+    .maybeSingle();
+  if (existing) return (existing as { id: string }).id;
+
+  const { data: created } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .insert({
+      organization_id: null,
+      kind: 'satisfaction_formateur',
+      code: TRAINER_SAT_TEMPLATE_CODE,
+      title: 'Satisfaction formateur — fin de formation',
+      schema: {
+        version: 1,
+        fields: [
+          { key: 'nps', kind: 'nps' },
+          { key: 'overallRating', kind: 'rating_5' },
+          { key: 'organizationRating', kind: 'rating_5' },
+          { key: 'groupRating', kind: 'rating_5' },
+          { key: 'whatWorked', kind: 'long_text' },
+          { key: 'whatToImprove', kind: 'long_text' },
+        ],
+      },
+      is_active: true,
+    })
+    .select('id')
+    .single();
+  return (created as { id: string }).id;
+}
+
+// F-FOR-10 — satisfaction formateur : à la fin d'un dossier, chaque formateur du
+// dossier reçoit son propre questionnaire (assignation recipient_kind='trainer').
+async function runTrainerSatisfaction(): Promise<{ candidates: number; sent: number; errors: string[] }> {
+  const sb = admin();
+  const errors: string[] = [];
+
+  const yesterday = new Date();
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yesterdayISO = yesterday.toISOString().slice(0, 10);
+
+  const { data: dossiers, error } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('id, organization_id, formation_id, end_date, status')
+    .eq('end_date', yesterdayISO)
+    .eq('status', 'completed');
+  if (error) return { candidates: 0, sent: 0, errors: [error.message] };
+  const rows = (dossiers ?? []) as unknown as { id: string; organization_id: string; formation_id: string }[];
+  if (rows.length === 0) return { candidates: 0, sent: 0, errors: [] };
+
+  const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const templateId = await ensureTrainerSatisfactionTemplate(sb);
+  let sent = 0;
+
+  for (const d of rows) {
+    const [{ data: formationRow }, { data: dtRows }] = await Promise.all([
+      sb.schema('app').from('formations').select('title').eq('id', d.formation_id).maybeSingle(),
+      sb.schema('app').from('dossier_trainers').select('trainer_id').eq('dossier_id', d.id),
+    ]);
+    const formationTitle = (formationRow as { title: string } | null)?.title ?? 'la formation';
+    const trainerIds = ((dtRows ?? []) as { trainer_id: string }[]).map((r) => r.trainer_id);
+    if (trainerIds.length === 0) continue;
+
+    const { data: trainersRow } = await sb
+      .schema('app')
+      .from('trainers')
+      .select('id, first_name, email')
+      .in('id', trainerIds);
+    const trainers = (trainersRow ?? []) as { id: string; first_name: string; email: string }[];
+
+    for (const t of trainers) {
+      try {
+        // Anti-doublon : une assignation par (template, dossier, formateur)
+        const { data: existing } = await sb
+          .schema('app')
+          .from('questionnaire_assignments')
+          .select('id')
+          .eq('template_id', templateId)
+          .eq('dossier_id', d.id)
+          .eq('recipient_kind', 'trainer')
+          .eq('recipient_trainer_id', t.id)
+          .maybeSingle();
+
+        let assignmentId = (existing as { id: string } | null)?.id ?? null;
+        if (!assignmentId) {
+          const tokenHash = createHash('sha256').update(randomBytes(24)).digest('hex');
+          const { data: createdAssign } = await sb
+            .schema('app')
+            .from('questionnaire_assignments')
+            .insert({
+              organization_id: d.organization_id,
+              template_id: templateId,
+              dossier_id: d.id,
+              recipient_kind: 'trainer',
+              recipient_trainer_id: t.id,
+              token_hash: tokenHash,
+              status: 'pending',
+            })
+            .select('id')
+            .single();
+          assignmentId = (createdAssign as { id: string } | null)?.id ?? null;
+        }
+        if (!assignmentId) {
+          errors.push(`trainer_sat ${d.id}/${t.id}: assignment_failed`);
+          continue;
+        }
+
+        const signed = await generateTrainerSatisfactionUrl(
+          { assignmentId, dossierId: d.id, organizationId: d.organization_id, trainerId: t.id },
+          baseUrl,
+        );
+        const tpl = trainerSatisfactionEmail({ firstName: t.first_name, formationTitle, surveyUrl: signed.url });
+        const r = await sendEmail({ to: t.email, subject: tpl.subject, html: tpl.html });
+        if (r.ok) sent++;
+        else if (r.reason !== 'no_api_key') errors.push(`trainer_sat ${d.id}/${t.id}: send_failed`);
+      } catch (e) {
+        errors.push(`trainer_sat ${d.id}/${t.id}: ${(e as Error).message}`);
+      }
+    }
+  }
+
+  return { candidates: rows.length, sent, errors };
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const startedAt = Date.now();
-  const [convocations, dossierEnd, missingSignatures] = await Promise.all([
+  const [convocations, dossierEnd, missingSignatures, trainerSatisfaction] = await Promise.all([
     runConvocationsJ7(),
     runDossierEnd(),
     runMissingSignatureAlerts(),
+    runTrainerSatisfaction(),
   ]);
   const durationMs = Date.now() - startedAt;
 
@@ -527,6 +662,7 @@ export async function POST(req: Request) {
     convocationsJ7: convocations,
     dossierEnd,
     missingSignatures,
+    trainerSatisfaction,
   });
 }
 
