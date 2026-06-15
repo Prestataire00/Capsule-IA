@@ -1,20 +1,17 @@
 // ARCHETYPE: command
 import Link from 'next/link';
-import { Users, UserPlus, Crown } from 'lucide-react';
+import { Users, UserPlus } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { MemberRowActions } from './member-row-actions';
+import { MEMBER_ROLES, type MemberRole } from './members-schema';
 
 export const dynamic = 'force-dynamic';
 
 const pendingInvitations: Array<{ email: string; role: string; sentAt: string }> = [];
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: 'Propriétaire',
-  admin: 'Administrateur',
-  gestionnaire: 'Gestionnaire',
-  comptable: 'Comptable',
-  formateur: 'Formateur',
-};
+const asMemberRole = (role: string): MemberRole =>
+  (MEMBER_ROLES as readonly string[]).includes(role) ? (role as MemberRole) : 'formateur';
 
 type MemberRow = {
   id: string;
@@ -32,6 +29,9 @@ type ProfileRow = {
 export default async function ParametresMembresPage() {
   const sb = supabaseServer();
 
+  const { data: auth } = await sb.auth.getUser();
+  const currentUserId = auth.user?.id ?? null;
+
   // Membres de l'organisation (RLS-scopé). Le profil (nom/email) est joint via user_id.
   const { data: membersData } = await sb
     .schema('app')
@@ -39,6 +39,10 @@ export default async function ParametresMembresPage() {
     .select('id, user_id, role, is_default_org')
     .is('deleted_at', null);
   const memberRows = (membersData as unknown as MemberRow[] | null) ?? [];
+
+  // L'utilisateur courant peut muter s'il est owner/admin de l'org.
+  const currentMember = memberRows.find((m) => m.user_id === currentUserId);
+  const canEdit = currentMember?.role === 'owner' || currentMember?.role === 'admin';
 
   const userIds = memberRows.map((m) => m.user_id);
   const { data: profilesData } = userIds.length
@@ -92,10 +96,7 @@ export default async function ParametresMembresPage() {
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono truncate">{m.email}</p>
                   </div>
                 </div>
-                <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 inline-flex items-center gap-1 flex-shrink-0">
-                  <Crown className="w-2.5 h-2.5" />
-                  {ROLE_LABEL[m.role] ?? m.role}
-                </span>
+                <MemberRowActions memberId={m.id} role={asMemberRole(m.role)} editable={canEdit} />
               </li>
             );
           })}
