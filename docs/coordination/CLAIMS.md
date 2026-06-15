@@ -36,6 +36,7 @@
 | Opus (form-formation) | Formulaire création/édition formation façon SoSafe (5 sections accordéon, extras en `metadata.catalog`) : `features/formations/**`, `app/(dashboard)/formations/nouvelle`+`[id]/edit`, `shared/ui/{accordion-section,rich-text}`. **Sans migration.** | feature/formation-form-sosafe | 2026-06-15 | mergé (PR #28) |
 | Opus (form-formation) | Gaps Espace Apprenant F-APP-11 (questionnaire persistant), F-APP-05 (lien Zoom dashboard/sessions), F-APP-04 (signature docs depuis l'espace) : `app/(apprenant)/espace/[token]/**` (questionnaire, sessions, documents) + RPC éventuel. Zone partagée espace = coordonner. **Sans migration.** | feature/espace-apprenant-gaps | 2026-06-15 | mergé (PR #31) |
 | Opus (catalog+dossier) | F-FOR-10 satisfaction formateur : migration 0084 (enum), token + `/questionnaire/formateur/[token]`, cron `transactional-emails` (assignation+email), email isolé. Réutilise infra questionnaire. | (push direct main) | 2026-06-15 | mergé |
+| Opus (catalog+dossier) | Module 3.12 Reporting (couche données) : migration 0085 vue `v_org_reporting` (7 KPIs : pipeline prospects, dossiers actifs, conformité Qualiopi %, retour questionnaires %, heures réelles vs prévues, CA facturé/encaissé/à encaisser, réclamations). UI home/reporting = instance // | (push direct main) | 2026-06-15 | mergé |
 
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.
