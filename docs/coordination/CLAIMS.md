@@ -18,7 +18,7 @@
 
 | Instance | Module / chemins | Branche | Depuis | Statut |
 |----------|------------------|---------|--------|--------|
-| Opus (lien-inscription) | Lien d'inscription niveau organisme (`/inscription?org=<id>`) + page `parametres/inscription` (lien + snippet bouton) : `app/inscription/page.tsx` (zone chaude), `features/catalog/public-catalog.ts`, `parametres/**`. **Sans migration, mode lien (pas d'iframe).** | feature/lien-inscription-org | 2026-06-15 | actif |
+| Opus (lien-inscription) | Lien d'inscription niveau organisme (`/inscription?org=<id>`) + page `parametres/inscription` (lien + snippet bouton) : `app/inscription/page.tsx` (zone chaude), `features/catalog/public-catalog.ts`, `parametres/**`. **Sans migration, mode lien (pas d'iframe).** | feature/lien-inscription-org | 2026-06-15 | mergé (PR #36) |
 | Opus (qst-module) | Module Questionnaires F-QST-01/02/04/06/07/08 : éditeur templates (`(dashboard)/questionnaires/**`), affectation apprenant + saisie manuelle (`dossiers/[id]/questionnaires/**` — zone chaude), export PDF, stats, génération IA. **Sans migration.** | feature/questionnaires-module | 2026-06-15 | mergé (PR #34) |
 | Opus (F-FAC) | export CSV + payeur subrogation | feature/factures-export | 2026-06-15 | mergé (PR #32) |
 | Opus (F-AUT-08) | logs d'envoi email | feature/email-log | 2026-06-15 | mergé (PR #30) |
