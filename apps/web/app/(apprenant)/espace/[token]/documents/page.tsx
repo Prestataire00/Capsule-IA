@@ -21,6 +21,7 @@ function buildAdminDocs(dossierId: string, dossierStatus: string, isReal: boolea
 
   const conventionHref = isReal ? `/api/dossiers/${dossierId}/convention.pdf` : null;
   const attestationHref = isReal && dossierCompleted ? `/api/dossiers/${dossierId}/attestation.pdf` : null;
+  const certificatHref = isReal && dossierCompleted ? `/api/dossiers/${dossierId}/certificat.pdf` : null;
 
   return [
     {
@@ -78,9 +79,9 @@ function buildAdminDocs(dossierId: string, dossierStatus: string, isReal: boolea
       title: 'Certificat de réalisation',
       type: 'PDF',
       size: '—',
-      status: 'pending',
-      date: 'à la fin de la formation',
-      href: null,
+      status: dossierCompleted ? 'available' : 'pending',
+      date: dossierCompleted ? 'disponible' : 'à la fin de la formation',
+      href: certificatHref,
       icon: Award,
     },
   ];
