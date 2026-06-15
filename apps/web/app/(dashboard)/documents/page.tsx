@@ -59,7 +59,7 @@ export default function DocumentsPage() {
             />
           </div>
           <Link
-            href="/dossiers/d-1/documents"
+            href="/dossiers"
             className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -105,7 +105,7 @@ export default function DocumentsPage() {
           {allDocs.slice(0, 8).map((d, i) => (
             <li key={d.id + i}>
               <Link
-                href={d.dossier ? `/dossiers/${d.dossier.id}/documents` : '/dossiers'}
+                href="/dossiers"
                 className="grid grid-cols-[28px_1.5fr_140px_1.2fr_120px_120px_100px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group"
               >
                 <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">

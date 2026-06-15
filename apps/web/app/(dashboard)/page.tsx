@@ -60,7 +60,7 @@ export default async function Home() {
   const kpis = await getOrgKpis(supabaseServer());
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   const tasks = [
-    { icon: FileSignature, label: 'Documents à signer', count: kpis.toSign, href: '/dossiers/d-1/documents', color: 'violet' as const },
+    { icon: FileSignature, label: 'Documents à signer', count: kpis.toSign, href: '/documents', color: 'violet' as const },
     { icon: ClipboardCheck, label: 'Émargements manquants', count: kpis.attendanceMissing, href: '/dossiers', color: 'amber' as const },
     { icon: ClipboardList, label: 'Questionnaires à compléter', count: kpis.questionnairesPending, href: '/dossiers', color: 'blue' as const },
   ];
@@ -297,7 +297,7 @@ function DocumentsSection() {
         {docs.map((d, i) => (
           <li key={i}>
             <Link
-              href={`/dossiers/d-1/documents`}
+              href="/documents"
               className="grid grid-cols-[24px_1fr_120px_100px_100px_120px_90px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group"
             >
               <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">
@@ -340,7 +340,7 @@ function ParcoursSection() {
   ];
   return (
     <section className="lg:col-span-5 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-      <Link href="/dossiers/d-3" className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800 block hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group">
+      <Link href="/dossiers" className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800 block hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group">
         <div className="flex items-center justify-between">
           <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Parcours apprenant en cours</p>
           <ArrowUpRight className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 group-hover:text-violet-600 transition" />
