@@ -13,7 +13,7 @@ export default async function ZoomIntegrationPage() {
   const {
     data: { user },
   } = await sb.auth.getUser();
-  if (!user) redirect('/connexion');
+  if (!user) redirect('/login');
 
   const { data: member } = await sb
     .schema('app')
