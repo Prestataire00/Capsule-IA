@@ -1,28 +1,67 @@
 // ARCHETYPE: command
 import Link from 'next/link';
 import { Users, UserPlus, Crown } from 'lucide-react';
-import { currentUser } from '@/shared/mock/data';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 
-// Mock — un seul membre actif (le owner) pour la VF
-const members = [{
-  id: currentUser.id,
-  name: currentUser.full_name,
-  email: currentUser.email,
-  role: currentUser.role,
-  joinedAt: '2024-03-15',
-}];
+export const dynamic = 'force-dynamic';
 
 const pendingInvitations: Array<{ email: string; role: string; sentAt: string }> = [];
 
 const ROLE_LABEL: Record<string, string> = {
   owner: 'Propriétaire',
   admin: 'Administrateur',
-  staff: 'Staff',
-  viewer: 'Lecture seule',
+  gestionnaire: 'Gestionnaire',
+  comptable: 'Comptable',
+  formateur: 'Formateur',
 };
 
-export default function ParametresMembresPage() {
+type MemberRow = {
+  id: string;
+  user_id: string;
+  role: string;
+  is_default_org: boolean;
+};
+
+type ProfileRow = {
+  user_id: string;
+  full_name: string;
+  email: string;
+};
+
+export default async function ParametresMembresPage() {
+  const sb = supabaseServer();
+
+  // Membres de l'organisation (RLS-scopé). Le profil (nom/email) est joint via user_id.
+  const { data: membersData } = await sb
+    .schema('app')
+    .from('members')
+    .select('id, user_id, role, is_default_org')
+    .is('deleted_at', null);
+  const memberRows = (membersData as unknown as MemberRow[] | null) ?? [];
+
+  const userIds = memberRows.map((m) => m.user_id);
+  const { data: profilesData } = userIds.length
+    ? await sb
+        .schema('app')
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', userIds)
+    : { data: [] };
+  const profileById = new Map(
+    ((profilesData as unknown as ProfileRow[] | null) ?? []).map((p) => [p.user_id, p]),
+  );
+
+  const members = memberRows.map((m) => {
+    const profile = profileById.get(m.user_id);
+    return {
+      id: m.id,
+      name: profile?.full_name ?? '—',
+      email: profile?.email ?? '—',
+      role: m.role,
+    };
+  });
+
   return (
     <div className="space-y-8">
       <section>
