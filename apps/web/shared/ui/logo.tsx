@@ -29,7 +29,7 @@ export function Logo({
   return (
     <Image
       src="/logo-icon.png"
-      alt="IA Infinity"
+      alt="Capsule IA"
       width={w}
       height={h}
       priority

@@ -2,7 +2,7 @@ import 'server-only';
 import { Resend } from 'resend';
 import { env } from '@/env.mjs';
 
-const DEFAULT_FROM = 'i-a-infinity <onboarding@resend.dev>';
+const DEFAULT_FROM = 'Capsule IA <onboarding@resend.dev>';
 
 let _client: Resend | null = null;
 const client = () => {

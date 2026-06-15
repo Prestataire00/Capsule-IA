@@ -23,7 +23,7 @@ const themeInitScript = `
 `;
 
 export const metadata: Metadata = {
-  title: 'i-a-infinity OF',
+  title: 'Capsule IA',
   description: "Plateforme de gestion d'organismes de formation",
 };
 

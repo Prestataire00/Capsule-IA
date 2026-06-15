@@ -213,7 +213,7 @@ export async function submitComplaint(formData: FormData): Promise<void> {
       </div>
       ${dashboardUrl ? `<div style="margin-top:24px;"><a href="${dashboardUrl}" style="display:inline-block;padding:10px 18px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-size:13px;font-weight:500;">Traiter dans le dashboard</a></div>` : ''}
     </div>
-    <p style="font-size:11px;color:#a1a1aa;margin-top:24px;text-align:center;">i-a-infinity OF · ${escapeHtml(org.name)}</p>
+    <p style="font-size:11px;color:#a1a1aa;margin-top:24px;text-align:center;">Capsule IA · ${escapeHtml(org.name)}</p>
   </div>
 </body></html>
       `,
