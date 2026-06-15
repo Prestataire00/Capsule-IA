@@ -77,7 +77,7 @@ export default async function FormateurDashboard() {
           <ShortcutCard href="/profil" icon={<GraduationCap className="w-4 h-4" />} label="Mon profil" />
           <ShortcutCard href="/cv" icon={<FileText className="w-4 h-4" />} label="Mon CV" />
           <ShortcutCard href="/mes-sessions" icon={<Calendar className="w-4 h-4" />} label="Mes sessions" subtle />
-          <ShortcutCard href="/emarger" icon={<ClipboardList className="w-4 h-4" />} label="Émargements" subtle />
+          <ShortcutCard href="/mes-sessions" icon={<ClipboardList className="w-4 h-4" />} label="Émargements" subtle />
         </div>
       </section>
     </div>
