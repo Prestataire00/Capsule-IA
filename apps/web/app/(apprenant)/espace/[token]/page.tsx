@@ -16,7 +16,7 @@ import {
   Sparkles,
   BookOpen,
 } from 'lucide-react';
-import { resolveApprenantContext, MODALITY_LABEL } from './_lib';
+import { resolveApprenantContext, MODALITY_LABEL, formatSessionDate, formatSessionTime } from './_lib';
 import { resolveApprenantResources } from './resources';
 import { resolveApprenantExercises } from './exercises';
 
@@ -40,6 +40,8 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
   const docsDispo = resources?.documents.filter((d) => d.displayStatus !== 'pending').length ?? 0;
   const exosTodo = exercises.filter((e) => !e.submission || e.submission.status !== 'graded').length;
   const complaintsOpen = ctx.complaints.filter((c) => c.status === 'open' || c.status === 'in_progress').length;
+  // Prochaine séance = première session non terminée (sessions déjà triées par date asc).
+  const nextSession = ctx.sessions.find((s) => s.status !== 'done') ?? null;
 
   const tiles = [
     {
@@ -150,6 +152,44 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
           </div>
         </div>
       </section>
+
+      {/* Prochaine séance + lien visio */}
+      {nextSession && (
+        <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 mb-6 flex items-center gap-4">
+          <span
+            className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+              nextSession.status === 'in_progress'
+                ? 'bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 animate-pulse'
+                : 'bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300'
+            }`}
+          >
+            <Calendar className="w-5 h-5" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
+              {nextSession.status === 'in_progress' ? 'Séance en cours' : 'Prochaine séance'}
+            </p>
+            <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100 capitalize truncate">
+              {formatSessionDate(nextSession.startsAt)}
+            </p>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {formatSessionTime(nextSession.startsAt)} – {formatSessionTime(nextSession.endsAt)}
+              {nextSession.location && ` · ${nextSession.location}`}
+            </p>
+          </div>
+          {nextSession.remoteUrl && (
+            <a
+              href={nextSession.remoteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3.5 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm transition flex-shrink-0"
+            >
+              <Video className="w-3.5 h-3.5" />
+              Rejoindre la visio
+            </a>
+          )}
+        </section>
+      )}
 
       {/* Tuiles raccourcis */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">

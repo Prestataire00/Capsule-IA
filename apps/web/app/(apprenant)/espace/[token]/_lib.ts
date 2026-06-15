@@ -31,6 +31,8 @@ export type ApprenantContext = {
     startsAt: string;
     endsAt: string;
     location?: string | null;
+    modality?: string | null;
+    remoteUrl?: string | null;
   }>;
   modules: Array<{
     id: string;
@@ -70,6 +72,8 @@ type RealDashboard = {
     ends_at: string;
     status: string;
     location: string | null;
+    modality: string | null;
+    remote_url: string | null;
   }>;
   modules: Array<{ id: string; title: string; position: number; duration_hours: number }>;
   trainer: { first_name: string; last_name: string; email: string } | null;
@@ -130,6 +134,8 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
             startsAt: s.starts_at,
             endsAt: s.ends_at,
             location: s.location,
+            modality: s.modality,
+            remoteUrl: s.remote_url,
           })),
           modules: d.modules.map((m) => ({
             id: m.id,

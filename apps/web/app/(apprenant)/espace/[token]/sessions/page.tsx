@@ -97,6 +97,7 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
               const isLive = s.status === 'in_progress';
               const replay = replays.get(s.id);
               const replayUrl = `/api/espace/${params.token}/replay/${s.id}`;
+              const canJoin = !isDone && !!s.remoteUrl;
 
               return (
                 <li key={s.id} className="py-3 flex items-center justify-between gap-3">
@@ -143,10 +144,29 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
                         </span>
                       )}
                     </div>
-                  ) : isLive ? (
-                    <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400">En cours</span>
                   ) : (
-                    <span className="text-[11px] text-zinc-400">à venir</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {canJoin && (
+                        <a
+                          href={s.remoteUrl as string}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1 rounded-md transition ${
+                            isLive
+                              ? 'text-white bg-violet-600 hover:bg-violet-700 shadow-sm'
+                              : 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-950/60'
+                          }`}
+                        >
+                          <Video className="w-3 h-3" />
+                          Rejoindre la visio
+                        </a>
+                      )}
+                      {isLive ? (
+                        <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400">En cours</span>
+                      ) : (
+                        <span className="text-[11px] text-zinc-400">à venir</span>
+                      )}
+                    </div>
                   )}
                 </li>
               );
