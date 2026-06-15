@@ -25,6 +25,7 @@
 | Opus (catalog+dossier) | `dispatch-events/route.ts` + migrations 0073/0074 (garde-fous dossier) ; déjà mergé : prix module, contrat formateur, snapshot prix, catalogue formations, /inscription (org-scopé) | (push direct main) | 2026-06-14 | mergé |
 | Opus (catalog+dossier) | `shared/ui/logo.tsx` → wordmark « Capsule IA / par IA infinity » (PR #22 n'avait changé que l'alt, image PNG dit encore IA INFINITY) | (push direct main) | 2026-06-15 | mergé |
 | Opus (catalog+dossier) | F-DOC-09 certificat de réalisation : `features/documents/generate-certificat-pdf.ts` + `api/dossiers/[id]/certificat.pdf` + stub espace câblé (sous-lot 3.4, reste = instance //) | (push direct main) | 2026-06-15 | mergé |
+| Opus (catalog+dossier) | F-EMA-01 créneaux demi-journée : migration 0082 (RPC `materialize_attendance_slots` + trigger sessions + backfill, DB-only). UI émargement (emarger/mes-sessions) = instance // | (push direct main) | 2026-06-15 | mergé |
 
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.
