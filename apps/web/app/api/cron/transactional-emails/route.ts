@@ -13,6 +13,7 @@ import {
   endOfTrainingEmail,
 } from '@/shared/lib/email/templates';
 import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
+import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -368,13 +369,156 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
   return { candidates: rows.length, satisfactionSent, certificateSent, errors };
 }
 
+// F-EMA-08 — Alerte signature manquante : feuilles d'émargement non finalisées
+// dont la session est terminée → notification in-app (formateur/admin) + email.
+// Dédup via app.notifications (template_code + related_aggregate) → une alerte
+// par feuille. Le cron étant quotidien, idempotent par construction.
+async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerted: number; errors: string[] }> {
+  const sb = admin();
+  const nowISO = new Date().toISOString();
+  const errors: string[] = [];
+
+  const { data: sheetsRaw, error: shErr } = await sb
+    .schema('app')
+    .from('attendance_sheets')
+    .select('id, half_day, organization_id, session_id, status')
+    .in('status', ['open', 'partial']);
+  if (shErr) return { candidates: 0, alerted: 0, errors: [shErr.message] };
+  const sheets = (sheetsRaw ?? []) as unknown as {
+    id: string; half_day: string; organization_id: string; session_id: string; status: string;
+  }[];
+  if (sheets.length === 0) return { candidates: 0, alerted: 0, errors: [] };
+
+  // Sessions terminées (ends_at < now, non annulées)
+  const sessionIds = [...new Set(sheets.map((s) => s.session_id))];
+  const { data: sessRaw } = await sb
+    .schema('app')
+    .from('sessions')
+    .select('id, starts_at, ends_at, status, dossier_id')
+    .in('id', sessionIds);
+  const sessById = new Map(
+    ((sessRaw ?? []) as unknown as { id: string; starts_at: string; ends_at: string; status: string; dossier_id: string }[])
+      .map((s) => [s.id, s] as const),
+  );
+
+  const candidates = sheets.filter((sh) => {
+    const sess = sessById.get(sh.session_id);
+    return !!sess && sess.status !== 'cancelled' && sess.ends_at < nowISO;
+  });
+  if (candidates.length === 0) return { candidates: 0, alerted: 0, errors: [] };
+
+  // Dédup : feuilles déjà alertées
+  const candIds = candidates.map((s) => s.id);
+  const { data: notifRaw } = await sb
+    .schema('app')
+    .from('notifications')
+    .select('related_aggregate_id')
+    .eq('related_aggregate_type', 'attendance_sheet')
+    .eq('template_code', 'attendance_signature_missing')
+    .in('related_aggregate_id', candIds);
+  const alreadyAlerted = new Set(((notifRaw ?? []) as { related_aggregate_id: string }[]).map((n) => n.related_aggregate_id));
+  const todo = candidates.filter((s) => !alreadyAlerted.has(s.id));
+  if (todo.length === 0) return { candidates: candidates.length, alerted: 0, errors: [] };
+
+  // Dossiers + formations (batch)
+  const dossierIds = [...new Set(todo.map((s) => sessById.get(s.session_id)!.dossier_id))];
+  const { data: dossRaw } = await sb.schema('app').from('dossiers').select('id, reference, formation_id').in('id', dossierIds);
+  const dossById = new Map(((dossRaw ?? []) as { id: string; reference: string; formation_id: string }[]).map((d) => [d.id, d] as const));
+  const formationIds = [...new Set(((dossRaw ?? []) as { formation_id: string }[]).map((d) => d.formation_id))];
+  const { data: formRaw } = formationIds.length
+    ? await sb.schema('app').from('formations').select('id, title').in('id', formationIds)
+    : { data: [] };
+  const formById = new Map(((formRaw ?? []) as { id: string; title: string }[]).map((f) => [f.id, f] as const));
+
+  // Formateurs par session (batch)
+  const { data: partsRaw } = await sb
+    .schema('app')
+    .from('session_participants')
+    .select('session_id, trainer_id, participant_kind')
+    .in('session_id', sessionIds)
+    .eq('participant_kind', 'trainer');
+  const trainerIdsBySession = new Map<string, string[]>();
+  for (const p of (partsRaw ?? []) as { session_id: string; trainer_id: string | null }[]) {
+    if (!p.trainer_id) continue;
+    const arr = trainerIdsBySession.get(p.session_id) ?? [];
+    arr.push(p.trainer_id);
+    trainerIdsBySession.set(p.session_id, arr);
+  }
+  const allTrainerIds = [...new Set([...trainerIdsBySession.values()].flat())];
+  const { data: trainersRaw } = allTrainerIds.length
+    ? await sb.schema('app').from('trainers').select('id, first_name, last_name, email').in('id', allTrainerIds)
+    : { data: [] };
+  const trainerById = new Map(
+    ((trainersRaw ?? []) as { id: string; first_name: string; last_name: string; email: string }[]).map((t) => [t.id, t] as const),
+  );
+
+  const baseUrl = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
+  let alerted = 0;
+
+  for (const sh of todo) {
+    try {
+      const sess = sessById.get(sh.session_id)!;
+      const doss = dossById.get(sess.dossier_id);
+      const formationTitle = doss ? formById.get(doss.formation_id)?.title ?? 'Formation' : 'Formation';
+      const dossierReference = doss?.reference ?? '—';
+      const sessionDateLabel = new Intl.DateTimeFormat('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris',
+      }).format(new Date(sess.starts_at));
+      const dashboardUrl = baseUrl ? `${baseUrl}/dossiers/${sess.dossier_id}/emargements` : null;
+
+      // Marqueur in-app (dédup) — une notif par feuille
+      await sb.schema('app').from('notifications').insert({
+        organization_id: sh.organization_id,
+        channel: 'in_app',
+        template_code: 'attendance_signature_missing',
+        subject: `Émargement manquant — ${formationTitle} (${halfDayLabel(sh.half_day)})`,
+        payload: { attendance_sheet_id: sh.id, session_id: sh.session_id, dossier_id: sess.dossier_id, half_day: sh.half_day },
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        related_aggregate_type: 'attendance_sheet',
+        related_aggregate_id: sh.id,
+      });
+
+      // Emails formateur(s) + admin
+      const recipients: { email: string; name: string | null }[] = [];
+      for (const tid of trainerIdsBySession.get(sh.session_id) ?? []) {
+        const t = trainerById.get(tid);
+        if (t?.email) recipients.push({ email: t.email, name: `${t.first_name} ${t.last_name}` });
+      }
+      if (env.OF_NOTIFICATION_EMAIL) recipients.push({ email: env.OF_NOTIFICATION_EMAIL, name: null });
+
+      for (const r of recipients) {
+        const tpl = attendanceSignatureMissingEmail({
+          recipientName: r.name,
+          formationTitle,
+          dossierReference,
+          sessionDateLabel,
+          halfDay: sh.half_day,
+          dashboardUrl,
+        });
+        const res = await sendEmail({ to: r.email, subject: tpl.subject, html: tpl.html });
+        if (!res.ok && res.reason !== 'no_api_key') errors.push(`alert ${sh.id} / ${r.email}: send_failed`);
+      }
+      alerted++;
+    } catch (e) {
+      errors.push(`alert ${sh.id}: ${(e as Error).message}`);
+    }
+  }
+
+  return { candidates: candidates.length, alerted, errors };
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const startedAt = Date.now();
-  const [convocations, dossierEnd] = await Promise.all([runConvocationsJ7(), runDossierEnd()]);
+  const [convocations, dossierEnd, missingSignatures] = await Promise.all([
+    runConvocationsJ7(),
+    runDossierEnd(),
+    runMissingSignatureAlerts(),
+  ]);
   const durationMs = Date.now() - startedAt;
 
   return NextResponse.json({
@@ -382,6 +526,7 @@ export async function POST(req: Request) {
     durationMs,
     convocationsJ7: convocations,
     dossierEnd,
+    missingSignatures,
   });
 }
 
