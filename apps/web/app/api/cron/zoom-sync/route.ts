@@ -9,6 +9,7 @@ import {
 import { fetchPastMeetingParticipants, fetchMeetingRecordings } from '@/features/attendance/zoom-api-client';
 import { persistSessionRecording } from '@/features/attendance/persist-session-recording';
 import { computeSyncWindow } from '@/features/attendance/zoom-sync-window';
+import { halfDayWindow, overlapMinutes, type HalfDay } from '@/features/attendance/half-day-window';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,22 +58,25 @@ type SyncResult = {
   errorDetail?: string;
 };
 
-const findOrCreateSheet = async (
+// Résout les feuilles d'émargement cibles d'une session : les demi-journées
+// (matin/après-midi, créées par la migration 0082), sinon repli sur une feuille
+// unique 'full' (sessions legacy / non encore matérialisées). Les feuilles
+// finalisées sont exclues (immuables).
+const resolveSheets = async (
   sb: ReturnType<typeof admin>,
   session: SessionRow,
-): Promise<string | null> => {
+): Promise<Array<{ id: string; halfDay: HalfDay }>> => {
   const { data: existing } = await sb
     .schema('app')
     .from('attendance_sheets')
-    .select('id, status')
-    .eq('session_id', session.id)
-    .eq('half_day', 'full')
-    .maybeSingle();
-  if (existing) {
-    const row = existing as { id: string; status: string };
-    if (row.status === 'finalized') return null;
-    return row.id;
+    .select('id, half_day, status')
+    .eq('session_id', session.id);
+  const rows = (existing ?? []) as Array<{ id: string; half_day: HalfDay; status: string }>;
+  const usable = rows.filter((r) => r.status !== 'finalized');
+  if (usable.length > 0) {
+    return usable.map((r) => ({ id: r.id, halfDay: r.half_day }));
   }
+  if (rows.length > 0) return []; // toutes finalisées → ne pas ré-ouvrir
   const { data: created } = await sb
     .schema('app')
     .from('attendance_sheets')
@@ -85,7 +89,8 @@ const findOrCreateSheet = async (
     })
     .select('id')
     .single();
-  return (created as { id: string } | null)?.id ?? null;
+  const id = (created as { id: string } | null)?.id;
+  return id ? [{ id, halfDay: 'full' }] : [];
 };
 
 const loadCredentials = async (
@@ -143,8 +148,8 @@ const syncSession = async (
     };
   }
 
-  const sheetId = await findOrCreateSheet(sb, session);
-  if (!sheetId) {
+  const sheets = await resolveSheets(sb, session);
+  if (sheets.length === 0) {
     return {
       sessionId: session.id,
       meetingId: session.zoom_meeting_id,
@@ -154,6 +159,7 @@ const syncSession = async (
       errorDetail: 'sheet_finalized',
     };
   }
+  const primarySheetId = sheets[0]!.id;
 
   const apiResult = await fetchPastMeetingParticipants(creds, session.zoom_meeting_id);
   if (!apiResult.ok) {
@@ -161,7 +167,7 @@ const syncSession = async (
     await sb.schema('app').from('zoom_sync_logs').insert({
       organization_id: session.organization_id,
       session_id: session.id,
-      attendance_sheet_id: sheetId,
+      attendance_sheet_id: primarySheetId,
       meeting_id: session.zoom_meeting_id,
       status: 'error',
       participants_count: 0,
@@ -192,9 +198,12 @@ const syncSession = async (
     if (email && p.learner_id) lookup.set(email, p.learner_id);
   }
 
-  const sessionMinutes = Math.round(
-    (new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()) / 60_000,
-  );
+  const sessionStart = new Date(session.starts_at);
+  const sessionEnd = new Date(session.ends_at);
+  const sessionMinutes = Math.round((sessionEnd.getTime() - sessionStart.getTime()) / 60_000);
+
+  // Fenêtre horaire de chaque feuille (matin / après-midi / full)
+  const sheetWindows = sheets.map((s) => ({ ...s, window: halfDayWindow(sessionStart, sessionEnd, s.halfDay) }));
 
   let matched = 0;
   let unmatched = 0;
@@ -206,7 +215,7 @@ const syncSession = async (
       unmatched++;
       await sb.schema('app').from('zoom_import_unmatched').insert({
         organization_id: session.organization_id,
-        attendance_sheet_id: sheetId,
+        attendance_sheet_id: primarySheetId,
         source: 'zoom_api',
         raw_email: row.email,
         raw_name: row.name,
@@ -216,31 +225,48 @@ const syncSession = async (
       });
       continue;
     }
-    const statusComputed: 'present' | 'late' =
-      row.durationMinutes >= ATTENDANCE_THRESHOLD * sessionMinutes ? 'present' : 'late';
+
     const hash = createHash('sha256').update(JSON.stringify(row.raw)).digest('hex');
-    const { error } = await sb.rpc('record_zoom_attendance' as never, {
-      p_attendance_sheet_id: sheetId,
-      p_learner_id: learnerId,
-      p_status: statusComputed,
-      p_signature_hash: hash,
-      p_evidence_source: 'zoom_api',
-      p_evidence_payload: {
-        joinTime: row.joinTime?.toISOString() ?? null,
-        leaveTime: row.leaveTime?.toISOString() ?? null,
-        durationMinutes: row.durationMinutes,
-        statusComputed,
-        raw: row.raw,
-      },
-    } as never);
-    if (!error) matched++;
+    let recordedOnAny = false;
+
+    // Émargement par demi-journée : on enregistre sur chaque feuille que la
+    // présence (join/leave) chevauche. Sans horodatage, présence globale
+    // appliquée à chaque feuille.
+    for (const sw of sheetWindows) {
+      let statusComputed: 'present' | 'late';
+      if (row.joinTime && row.leaveTime) {
+        const ov = overlapMinutes(row.joinTime, row.leaveTime, sw.window.start, sw.window.end);
+        if (ov <= 0) continue;
+        const windowMin = Math.max(1, Math.round((sw.window.end.getTime() - sw.window.start.getTime()) / 60_000));
+        statusComputed = ov >= ATTENDANCE_THRESHOLD * windowMin ? 'present' : 'late';
+      } else {
+        statusComputed = row.durationMinutes >= ATTENDANCE_THRESHOLD * sessionMinutes ? 'present' : 'late';
+      }
+      const { error } = await sb.rpc('record_zoom_attendance' as never, {
+        p_attendance_sheet_id: sw.id,
+        p_learner_id: learnerId,
+        p_status: statusComputed,
+        p_signature_hash: hash,
+        p_evidence_source: 'zoom_api',
+        p_evidence_payload: {
+          joinTime: row.joinTime?.toISOString() ?? null,
+          leaveTime: row.leaveTime?.toISOString() ?? null,
+          durationMinutes: row.durationMinutes,
+          halfDay: sw.halfDay,
+          statusComputed,
+          raw: row.raw,
+        },
+      } as never);
+      if (!error) recordedOnAny = true;
+    }
+    if (recordedOnAny) matched++;
   }
 
   const finalStatus: 'success' | 'partial' = unmatched > 0 ? 'partial' : 'success';
   await sb.schema('app').from('zoom_sync_logs').insert({
     organization_id: session.organization_id,
     session_id: session.id,
-    attendance_sheet_id: sheetId,
+    attendance_sheet_id: primarySheetId,
     meeting_id: session.zoom_meeting_id,
     status: finalStatus,
     participants_count: apiResult.participants.length,
