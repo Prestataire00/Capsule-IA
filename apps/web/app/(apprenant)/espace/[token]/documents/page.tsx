@@ -1,10 +1,13 @@
 // ARCHETYPE: command
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { FileText, Download, BookOpen, Award } from 'lucide-react';
+import { FileText, Download, BookOpen, Award, PenLine } from 'lucide-react';
 import { resolveApprenantContext } from '../_lib';
 import { resolveApprenantResources, logResourceAccess } from '../resources';
 
 export const dynamic = 'force-dynamic';
+
+const SIGNABLE_KINDS = new Set(['convention']);
 
 type AdminDoc = {
   id: string;
@@ -14,6 +17,7 @@ type AdminDoc = {
   status: 'signed' | 'available' | 'pending';
   date: string;
   href: string | null;
+  signHref: string | null;
   icon: React.ComponentType<{ className?: string }>;
 };
 
@@ -39,6 +43,10 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
         ? `/api/dossiers/${ctx.dossier.id}/convention.pdf`
         : doc.kind === 'attestation_fin' || doc.kind === 'certificat_realisation'
         ? `/api/dossiers/${ctx.dossier.id}/attestation.pdf`
+        : null,
+    signHref:
+      SIGNABLE_KINDS.has(doc.kind) && doc.displayStatus !== 'signed'
+        ? `/espace/${params.token}/documents/${doc.id}/signer`
         : null,
     icon: doc.kind === 'attestation_fin' || doc.kind === 'certificat_realisation' ? Award : FileText,
   }));
@@ -66,7 +74,18 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
           {adminDocs.map((doc) => {
             const isPending = doc.status === 'pending';
             const isClickable = !isPending && doc.href !== null;
+            const canSign = doc.signHref !== null;
             const Icon = doc.icon;
+
+            const right = canSign ? (
+              <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40 px-2.5 py-1 rounded-md inline-flex items-center gap-1 flex-shrink-0">
+                <PenLine className="w-3 h-3" /> Signer
+              </span>
+            ) : isPending ? (
+              <span className="text-[10px] text-zinc-400 flex-shrink-0">en attente</span>
+            ) : (
+              <Download className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+            );
 
             const inner = (
               <>
@@ -89,33 +108,29 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
                     </p>
                   </div>
                 </div>
-                {isPending ? (
-                  <span className="text-[10px] text-zinc-400 flex-shrink-0">en attente</span>
-                ) : (
-                  <Download className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                )}
+                {right}
               </>
             );
 
+            const rowClass = 'flex items-center justify-between gap-3 px-3 py-3 -mx-3 rounded-lg transition';
+
             return (
               <li key={doc.id}>
-                {isClickable && doc.href ? (
+                {canSign && doc.signHref ? (
+                  <Link href={doc.signHref} className={`${rowClass} hover:bg-violet-50/60 dark:hover:bg-violet-950/20`}>
+                    {inner}
+                  </Link>
+                ) : isClickable && doc.href ? (
                   <a
                     href={doc.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between gap-3 px-3 py-3 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                    className={`${rowClass} hover:bg-zinc-50 dark:hover:bg-zinc-950`}
                   >
                     {inner}
                   </a>
                 ) : (
-                  <div
-                    className={`flex items-center justify-between gap-3 px-3 py-3 -mx-3 rounded-lg ${
-                      isPending ? 'opacity-60' : ''
-                    }`}
-                  >
-                    {inner}
-                  </div>
+                  <div className={`${rowClass} ${isPending ? 'opacity-60' : ''}`}>{inner}</div>
                 )}
               </li>
             );
