@@ -261,10 +261,10 @@ export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
                   : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
               )}
               onMouseEnter={() => setHovered(null)}
-              aria-label="Réglages"
+              aria-label="Paramètres"
             >
               <Settings className="w-5 h-5" />
-              <span className="text-[10px] font-medium leading-tight">Réglages</span>
+              <span className="text-[10px] font-medium leading-tight">Paramètres</span>
             </Link>
           </div>
 

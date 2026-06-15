@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { FormSubmit } from '@/shared/ui/form-submit';
 import {
   ArrowLeft,
   Check,
@@ -33,6 +35,14 @@ type SireneHit = {
 const SEARCH_URL = 'https://recherche-entreprises.api.gouv.fr/search';
 
 export default function NouvelleEntreprisePage() {
+  const errorParam = useSearchParams().get('error');
+  const errorMsg = errorParam
+    ? errorParam === 'name'
+      ? 'Le nom de l’entreprise est obligatoire.'
+      : errorParam === 'no_org'
+        ? 'Organisation introuvable.'
+        : `Erreur : ${decodeURIComponent(errorParam)}`
+    : null;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SireneHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -128,6 +138,12 @@ export default function NouvelleEntreprisePage() {
             </p>
           </div>
         </header>
+
+        {errorMsg && (
+          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-200 rounded-lg px-4 py-3 text-[13px] mb-5">
+            {errorMsg}
+          </div>
+        )}
 
         <form
           action={createCompany}
@@ -352,13 +368,7 @@ export default function NouvelleEntreprisePage() {
             <Link href="/entreprises" className="text-[13px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition">
               Annuler
             </Link>
-            <button
-              type="submit"
-              className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
-            >
-              <Check className="w-3.5 h-3.5" />
-              Créer l'entreprise
-            </button>
+            <FormSubmit label="Créer l'entreprise" pendingLabel="Création…" />
           </div>
         </form>
       </div>
