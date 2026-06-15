@@ -18,6 +18,7 @@
 
 | Instance | Module / chemins | Branche | Depuis | Statut |
 |----------|------------------|---------|--------|--------|
+| Opus (F-FAC) | export comptable CSV (F-FAC-05) + payeur subrogation (F-FAC-04) : `(dashboard)/factures` + route export | feature/factures-export | 2026-06-15 | actif |
 | Opus (F-AUT-08) | logs d'envoi email | feature/email-log | 2026-06-15 | mergé (PR #30) |
 | _(exemple)_ | `apps/web/app/inscription/**` | `feature/xxx` | 2026-06-14 | libéré |
 | Opus (de-mock) | financeurs (de-mock) | feature/financeurs-reels | 2026-06-14 | mergé (PR #21) |
