@@ -1,7 +1,8 @@
 // ARCHETYPE: command
 import { notFound } from 'next/navigation';
 import { FileText, Download, BookOpen, Award } from 'lucide-react';
-import { resolveApprenantContext, MOCK_SUPPORTS_BY_MODULE } from '../_lib';
+import { resolveApprenantContext } from '../_lib';
+import { resolveApprenantResources, logResourceAccess } from '../resources';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,81 +17,31 @@ type AdminDoc = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-function buildAdminDocs(dossierId: string, dossierStatus: string, isReal: boolean): AdminDoc[] {
-  const dossierCompleted = dossierStatus === 'completed' || dossierStatus === 'closed';
-
-  const conventionHref = isReal ? `/api/dossiers/${dossierId}/convention.pdf` : null;
-  const attestationHref = isReal && dossierCompleted ? `/api/dossiers/${dossierId}/attestation.pdf` : null;
-
-  return [
-    {
-      id: 'doc-convention',
-      title: 'Convention de formation signée',
-      type: 'PDF',
-      size: '—',
-      status: 'signed',
-      date: 'à la signature',
-      href: conventionHref,
-      icon: FileText,
-    },
-    {
-      id: 'doc-programme',
-      title: 'Programme détaillé',
-      type: 'PDF',
-      size: '—',
-      status: 'available',
-      date: 'à la souscription',
-      href: null,
-      icon: FileText,
-    },
-    {
-      id: 'doc-accueil',
-      title: "Livret d'accueil",
-      type: 'PDF',
-      size: '—',
-      status: 'available',
-      date: 'à la souscription',
-      href: null,
-      icon: FileText,
-    },
-    {
-      id: 'doc-reglement',
-      title: 'Règlement intérieur',
-      type: 'PDF',
-      size: '—',
-      status: 'available',
-      date: 'à la souscription',
-      href: null,
-      icon: FileText,
-    },
-    {
-      id: 'doc-attestation',
-      title: 'Attestation de réalisation',
-      type: 'PDF',
-      size: '—',
-      status: dossierCompleted ? 'available' : 'pending',
-      date: dossierCompleted ? 'disponible' : 'à la fin de la formation',
-      href: attestationHref,
-      icon: Award,
-    },
-    {
-      id: 'doc-certificat',
-      title: 'Certificat de réalisation',
-      type: 'PDF',
-      size: '—',
-      status: 'pending',
-      date: 'à la fin de la formation',
-      href: null,
-      icon: Award,
-    },
-  ];
-}
-
 export default async function EspaceDocumentsPage({ params }: { params: { token: string } }) {
   const ctx = await resolveApprenantContext(params.token);
   if (!ctx) return notFound();
 
-  const adminDocs = buildAdminDocs(ctx.dossier.id, ctx.dossier.status, ctx.isReal);
+  const resources = await resolveApprenantResources(params.token);
+
+  if (resources) {
+    await logResourceAccess({ token: params.token, targetKind: 'document', targetId: ctx.dossier.id, action: 'view' });
+  }
+
+  const adminDocs: AdminDoc[] = (resources?.documents ?? []).map((doc) => ({
+    id: doc.id,
+    title: doc.title,
+    type: 'PDF',
+    size: doc.fileSizeBytes ? `${Math.round(doc.fileSizeBytes / 1024)} Ko` : '—',
+    status: doc.displayStatus,
+    date: doc.generatedAt ? new Date(doc.generatedAt).toLocaleDateString('fr-FR') : 'à venir',
+    href:
+      doc.kind === 'convention'
+        ? `/api/dossiers/${ctx.dossier.id}/convention.pdf`
+        : doc.kind === 'attestation_fin' || doc.kind === 'certificat_realisation'
+        ? `/api/dossiers/${ctx.dossier.id}/attestation.pdf`
+        : null,
+    icon: doc.kind === 'attestation_fin' || doc.kind === 'certificat_realisation' ? Award : FileText,
+  }));
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-8 space-y-6">
@@ -181,49 +132,47 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
           </p>
         </div>
 
-        {ctx.modules.length === 0 ? (
+        {(resources?.supports ?? []).length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
             Aucun module disponible pour le moment.
           </p>
         ) : (
           <div className="space-y-5">
-            {ctx.modules.map((mod) => {
-              const supports = MOCK_SUPPORTS_BY_MODULE[mod.id] ?? [];
-              return (
-                <div key={mod.id}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-md bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 flex items-center justify-center text-[11px] font-medium">
-                      {mod.position + 1}
-                    </span>
-                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{mod.title}</p>
-                    <span className="text-[10px] text-zinc-400 font-mono">{mod.durationHours} h</span>
-                  </div>
-                  {supports.length === 0 ? (
-                    <p className="text-[11px] text-zinc-400 ml-8">Aucun support disponible pour le moment.</p>
-                  ) : (
-                    <ul className="space-y-1 ml-8">
-                      {supports.map((s, i) => (
-                        <li key={i}>
-                          <a
-                            href="#"
-                            className="flex items-center justify-between gap-3 px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <FileText className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                              <span className="text-[12px] text-zinc-900 dark:text-zinc-100 truncate">{s.title}</span>
-                              <span className="text-[10px] text-zinc-400 font-mono">
-                                {s.type} · {s.size}
-                              </span>
-                            </div>
-                            <Download className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+            {(resources?.supports ?? []).map((mod) => (
+              <div key={mod.moduleId}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-6 h-6 rounded-md bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 flex items-center justify-center text-[11px] font-medium">
+                    {mod.modulePosition + 1}
+                  </span>
+                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{mod.moduleTitle}</p>
                 </div>
-              );
-            })}
+                {mod.resources.length === 0 ? (
+                  <p className="text-[11px] text-zinc-400 ml-8">Aucun support disponible pour le moment.</p>
+                ) : (
+                  <ul className="space-y-1 ml-8">
+                    {mod.resources.map((s) => (
+                      <li key={s.id}>
+                        <a
+                          href={`/api/espace/${params.token}/resource/${s.id}`}
+                          className="flex items-center justify-between gap-3 px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                            <span className="text-[12px] text-zinc-900 dark:text-zinc-100 truncate">{s.title}</span>
+                            {s.fileSizeBytes && (
+                              <span className="text-[10px] text-zinc-400 font-mono">
+                                {Math.round(s.fileSizeBytes / 1024)} Ko
+                              </span>
+                            )}
+                          </div>
+                          <Download className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </section>
