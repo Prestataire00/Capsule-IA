@@ -18,6 +18,7 @@
 
 | Instance | Module / chemins | Branche | Depuis | Statut |
 |----------|------------------|---------|--------|--------|
+| Opus (F-AUT-08) | logs d'envoi email : `email_log` (migration 0082) + `resend.ts` (instrumentation) + `(dashboard)/emails` | feature/email-log | 2026-06-15 | actif |
 | _(exemple)_ | `apps/web/app/inscription/**` | `feature/xxx` | 2026-06-14 | libéré |
 | Opus (de-mock) | financeurs (de-mock) | feature/financeurs-reels | 2026-06-14 | mergé (PR #21) |
 | Opus (de-mock) | de-mock dashboards (apprenants/membres/organisation/questionnaires) | feature/demock-dashboards | 2026-06-15 | mergé (PR #24) |
