@@ -56,6 +56,8 @@ export default async function ApprenantsPage({
         .select('role')
         .eq('user_id', auth.user.id)
         .is('deleted_at', null)
+        .order('is_default_org', { ascending: false })
+        .limit(1)
         .maybeSingle()
     : { data: null };
   const role = (memberData as { role: string } | null)?.role;
