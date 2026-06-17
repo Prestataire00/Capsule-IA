@@ -45,6 +45,7 @@
 | Opus (catalog+dossier) | Suite audit 2 (disjoint) : `/reclamations/nouvelle` (saisie réelle + action) → fin du lien mort ; `shared/ui/form-submit.tsx` ; feedback `entreprises/nouvelle` ; sidebar « Réglages »→« Paramètres ». **Sans migration.** | (push direct main) | 2026-06-15 | mergé |
 | Opus (fix-404) | Liens 404 « page not found » : liens mock codés en dur (`/dossiers/d-1…`) dans home `(dashboard)/page.tsx`, `/documents`, `/planning`, wizard `nouveau/step-3` → repointés sur listes réelles ; onglet Émargements de-mocké (liste réelle `attendance_sheets` + empty state, lecture seule). **Sans migration.** Détail émargement (câblage composants réels) laissé à l'instance attendance. | fix/demock-404-links | 2026-06-15 | actif |
 | Opus (fix-404) | De-mock `/documents` (app.documents + onglets dérivés du statut réel) et `/planning` (calendrier hebdo app.sessions). **Sans migration.** | feature/demock-documents-planning | 2026-06-15 | actif |
+| Opus (prod-hardening) | Gate auth dans `shared/lib/supabase/middleware.ts` (visiteur non connecté → /login, routes publiques exemptées) + fix typo `app.memberships`→`members` (page Zoom) + workflow CI `db-migrate.yml` (applique migrations prod sur merge main). **Sans migration.** | fix/prod-hardening | 2026-06-17 | actif |
 
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.

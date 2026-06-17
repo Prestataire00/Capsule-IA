@@ -1,0 +1,34 @@
+name: DB migrations (prod)
+
+# Applique les migrations Supabase à la prod à chaque merge sur main qui touche
+# supabase/migrations/**. Comble le gap : Railway déploie le code mais n'applique
+# pas les migrations → drift de schéma = 500 récurrents.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: db-migrate-prod
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: asocsynsvryroovdittc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Link prod
+        run: supabase link --project-ref "$PROJECT_REF"
+      - name: Dry-run (liste le pending)
+        run: supabase db push --dry-run
+      - name: Apply migrations
+        run: supabase db push
