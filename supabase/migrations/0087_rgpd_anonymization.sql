@@ -7,6 +7,11 @@
 -- de valeur (email courant de la personne), pas par FK. Des lignes adressées à un ancien
 -- email (si l'adresse a changé) peuvent subsister. Garde l'org scoping = prédicat du SELECT
 -- (app.is_admin_or_owner() ne vérifie que le rôle, pas l'org).
+-- Audit : on écrit une ligne explicite marquée diff.reason='rgpd_erasure'. Le trigger générique
+-- tg_audit (0015) journalise EN PLUS le diff structurel de l'UPDATE learners (donc 2 lignes :
+-- 1 sémantique RGPD + 1 diff). Conséquence assumée : le journal d'audit conserve l'identité
+-- d'avant effacement — volontaire (preuve d'accountability, art. 17.3 RGPD ; audit.audit_log
+-- est admin-only et append-only).
 
 ALTER TABLE app.prospects ADD COLUMN IF NOT EXISTS anonymized_at TIMESTAMPTZ NULL;
 

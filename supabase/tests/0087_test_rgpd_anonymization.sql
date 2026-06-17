@@ -13,9 +13,9 @@ SELECT plan(8);
 
 SELECT tests.as_service_role();
 
-INSERT INTO app.organizations (id, name, legal_name, siret) VALUES
-  ('aaaaaaaa-0000-0000-0000-000000000001', 'OF A', 'OF A SARL', '11111111111111'),
-  ('bbbbbbbb-0000-0000-0000-000000000001', 'OF B', 'OF B SARL', '22222222222222');
+INSERT INTO app.organizations (id, slug, name, legal_name, siret, contact_email) VALUES
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'of-a', 'OF A', 'OF A SARL', '11111111111111', 'contact-a@of.test'),
+  ('bbbbbbbb-0000-0000-0000-000000000001', 'of-b', 'OF B', 'OF B SARL', '22222222222222', 'contact-b@of.test');
 
 INSERT INTO auth.users (id, email, instance_id, aud, role) VALUES
   ('aaaaaaaa-0000-0000-0000-0000000000a1', 'admin-a@of.test', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
@@ -97,12 +97,16 @@ SELECT is(
   'Apprenant|NULL|true', 'Bob : prénom anonymisé, téléphone NULL, anonymized_at posé');
 
 -- ----------------------------------------------------------------------------
--- T6 : 1 ligne d'audit pour Bob
+-- T6 : 1 ligne d'audit RGPD pour Bob.
+-- NB : app.learners est aussi audité par le trigger générique tg_audit (0015), qui
+-- écrit sa propre ligne sur l'UPDATE. On compte donc la ligne RGPD explicite via le
+-- marqueur diff.reason='rgpd_erasure' (la ligne du trigger générique n'a pas ce marqueur).
 -- ----------------------------------------------------------------------------
 SELECT is(
   (SELECT count(*)::int FROM audit.audit_log
-   WHERE table_name = 'learners' AND row_id = 'cccccccc-0000-0000-0000-00000000a002' AND action = 'update'),
-  1, 'audit : 1 entrée pour Bob');
+   WHERE table_name = 'learners' AND row_id = 'cccccccc-0000-0000-0000-00000000a002'
+     AND action = 'update' AND diff->>'reason' = 'rgpd_erasure'),
+  1, 'audit : 1 entrée RGPD explicite pour Bob');
 
 -- ----------------------------------------------------------------------------
 -- T7 : idempotence — ré-appel ne re-scrub pas, renvoie already_anonymized
