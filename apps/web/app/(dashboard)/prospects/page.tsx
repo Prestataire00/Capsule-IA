@@ -3,8 +3,10 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { ConvertButton } from './convert-button';
+import { AnonymizeAction } from '../rgpd/anonymize-action';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +21,7 @@ type ProspectRow = {
   status: string;
   created_at: string;
   converted_dossier_id: string | null;
+  anonymized_at: string | null;
 };
 
 // Lecture en service_role (comme factures/page.tsx) : contourne la RLS et liste TOUS
@@ -32,7 +35,7 @@ async function loadProspects(): Promise<ProspectRow[]> {
     .schema('app')
     .from('prospects' as never)
     .select(
-      'id, organization_id, first_name, last_name, email, company_name, funder_kind, status, created_at, converted_dossier_id',
+      'id, organization_id, first_name, last_name, email, company_name, funder_kind, status, created_at, converted_dossier_id, anonymized_at',
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
@@ -42,6 +45,24 @@ async function loadProspects(): Promise<ProspectRow[]> {
 export default async function ProspectsPage() {
   const prospects = await loadProspects();
   const pending = prospects.filter((p) => p.status === 'new' || p.status === 'qualified');
+
+  // Rôle de l'utilisateur courant (owner/admin) pour autoriser l'anonymisation RGPD.
+  // La liste est chargée en service_role ; le rôle se résout via le client RLS-scopé.
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  const { data: memberData } = auth.user
+    ? await sb
+        .schema('app')
+        .from('members')
+        .select('role')
+        .eq('user_id', auth.user.id)
+        .is('deleted_at', null)
+        .order('is_default_org', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  const role = (memberData as { role: string } | null)?.role;
+  const isOwnerAdmin = role === 'owner' || role === 'admin';
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
@@ -99,7 +120,7 @@ export default async function ProspectsPage() {
                 >
                   {p.status}
                 </StatusPill>
-                <div className="flex justify-end">
+                <div className="flex flex-col items-end gap-2">
                   {p.converted_dossier_id ? (
                     <a
                       href={`/dossiers/${p.converted_dossier_id}`}
@@ -109,6 +130,16 @@ export default async function ProspectsPage() {
                     </a>
                   ) : (
                     <ConvertButton prospectId={p.id} />
+                  )}
+                  {isOwnerAdmin && !p.anonymized_at && (
+                    <div className="space-y-1 w-full">
+                      {p.converted_dossier_id && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                          Converti en apprenant — anonymiser aussi la fiche apprenant si demandé.
+                        </p>
+                      )}
+                      <AnonymizeAction subject={{ kind: 'prospect', id: p.id, lastName: p.last_name }} />
+                    </div>
                   )}
                 </div>
               </li>

@@ -22,6 +22,7 @@
 | Opus (qst-module) | Module Questionnaires F-QST-01/02/04/06/07/08 : éditeur templates (`(dashboard)/questionnaires/**`), affectation apprenant + saisie manuelle (`dossiers/[id]/questionnaires/**` — zone chaude), export PDF, stats, génération IA. **Sans migration.** | feature/questionnaires-module | 2026-06-15 | mergé (PR #34) |
 | Opus (F-FAC) | export CSV + payeur subrogation | feature/factures-export | 2026-06-15 | mergé (PR #32) |
 | Opus (F-AUT-08) | logs d'envoi email | feature/email-log | 2026-06-15 | mergé (PR #30) |
+| Opus (rgpd) | Effacement RGPD (anonymisation apprenants+prospects) : **migration 0087** (`anonymize_learner`/`anonymize_prospect` + `prospects.anonymized_at`), `app/(dashboard)/rgpd/**`, branchement boutons listes apprenants/prospects. **Transverse PII** (lecture seule des autres zones). | feature/rgpd-effacement | 2026-06-15 | en cours |
 | _(exemple)_ | `apps/web/app/inscription/**` | `feature/xxx` | 2026-06-14 | libéré |
 | Opus (de-mock) | financeurs (de-mock) | feature/financeurs-reels | 2026-06-14 | mergé (PR #21) |
 | Opus (de-mock) | de-mock dashboards (apprenants/membres/organisation/questionnaires) | feature/demock-dashboards | 2026-06-15 | mergé (PR #24) |
