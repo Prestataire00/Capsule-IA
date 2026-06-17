@@ -1,5 +1,6 @@
 import 'server-only';
 import { Resend } from 'resend';
+import nodemailer, { type Transporter } from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 
@@ -11,6 +12,26 @@ const client = () => {
   _client ??= new Resend(env.RESEND_API_KEY);
   return _client;
 };
+
+// Transport SMTP (boîte mail existante : IONOS, Gmail, etc.). Activé dès que
+// SMTP_HOST/USER/PASS sont définis → envoi SANS vérification de domaine, en
+// s'authentifiant sur la boîte. Prioritaire sur Resend quand configuré.
+let _smtp: Transporter | null = null;
+const smtpTransport = (): Transporter | null => {
+  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) return null;
+  const port = env.SMTP_PORT ? Number(env.SMTP_PORT) : 587;
+  _smtp ??= nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port,
+    secure: port === 465, // 465 = SSL implicite ; 587 = STARTTLS
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+  });
+  return _smtp;
+};
+
+// Expéditeur : EMAIL_FROM si défini, sinon la boîte SMTP, sinon le bac-à-sable Resend.
+const fromAddress = (): string =>
+  env.EMAIL_FROM ?? (env.SMTP_USER ? `Capsule IA <${env.SMTP_USER}>` : DEFAULT_FROM);
 
 // Pièce jointe Resend : contenu inline (base64) OU lien (path). Le fallback
 // `path` sert quand un document dépasse le seuil d'attache et est transmis en
@@ -38,13 +59,39 @@ export type SendEmailResult =
   | { ok: false; reason: 'no_api_key' | 'send_failed'; error?: unknown };
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
+  const from = fromAddress();
+  let result: SendEmailResult;
+
+  // ── Voie SMTP (prioritaire si configurée) — pas de vérification de domaine ──
+  const transport = smtpTransport();
+  if (transport) {
+    try {
+      const info = await transport.sendMail({
+        from,
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+        replyTo: input.replyTo,
+        attachments: input.attachments?.map((a) => ({
+          filename: a.filename,
+          ...(a.content ? { content: Buffer.from(a.content, 'base64') } : {}),
+          ...(a.path ? { path: a.path } : {}),
+        })),
+      });
+      result = { ok: true, id: info.messageId };
+    } catch (error) {
+      result = { ok: false, reason: 'send_failed', error };
+    }
+    await logEmailSend(input, result);
+    return result;
+  }
+
+  // ── Voie Resend (fallback si pas de SMTP) ──
   const c = client();
   if (!c) return { ok: false, reason: 'no_api_key' };
-
-  let result: SendEmailResult;
   try {
     const { data, error } = await c.emails.send({
-      from: env.EMAIL_FROM ?? DEFAULT_FROM,
+      from,
       to: input.to,
       subject: input.subject,
       html: input.html,

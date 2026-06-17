@@ -6,10 +6,16 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   TOKEN_SIGNING_KEY: z.string().min(32),
   RESEND_API_KEY: z.string().optional(),
+  // SMTP (boîte mail existante) — alternative à Resend, sans vérification de domaine.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   LEGIFRANCE_CLIENT_ID: z.string().optional(),
   LEGIFRANCE_CLIENT_SECRET: z.string().optional(),
-  EMAIL_FROM: z.string().email().optional(),
+  // Accepte « Nom <email> » ou un email simple.
+  EMAIL_FROM: z.string().optional(),
   OF_NOTIFICATION_EMAIL: z.string().email().optional(),
   PUBLIC_APP_URL: z.string().url().optional(),
   ZOOM_API_KEY: z.string().optional(),
