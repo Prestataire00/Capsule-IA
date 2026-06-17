@@ -17,7 +17,7 @@ export default async function ZoomIntegrationPage() {
 
   const { data: member } = await sb
     .schema('app')
-    .from('memberships')
+    .from('members')
     .select('organization_id, role')
     .eq('user_id', user.id)
     .maybeSingle();

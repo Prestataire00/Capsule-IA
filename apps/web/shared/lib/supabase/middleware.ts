@@ -23,6 +23,10 @@ function decodeClaims(token: string | undefined): { role?: string; aal?: string 
 const MFA_ENROLL_PATH = '/parametres/securite';
 const MFA_EXEMPT = ['/parametres/securite', '/login', '/auth', '/signer', '/questionnaire', '/inscription', '/espace'];
 
+// Routes accessibles SANS session (le reste exige une connexion). Volontairement
+// SANS '/parametres/securite' : cette page est protégée (≠ exemption MFA).
+const PUBLIC_PREFIXES = ['/login', '/auth', '/signer', '/questionnaire', '/inscription', '/espace'];
+
 export const updateSession = async (req: NextRequest) => {
   const res = NextResponse.next({ request: { headers: req.headers } });
   const supabase = createServerClient(
@@ -40,7 +44,28 @@ export const updateSession = async (req: NextRequest) => {
       },
     },
   );
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // ── Gate d'authentification ──────────────────────────────────────────────
+  // Un visiteur non connecté sur une route protégée est renvoyé vers /login.
+  // Exemptés : assets, API (auth propre), et les routes publiques (login, auth,
+  // signature/questionnaire/inscription par token, espace apprenant).
+  {
+    const path = req.nextUrl.pathname;
+    const isPublic =
+      path.startsWith('/_next') ||
+      path.startsWith('/api') ||
+      path === '/favicon.ico' ||
+      PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+    if (!user && !isPublic) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/login';
+      url.search = `?redirectedFrom=${encodeURIComponent(path)}`;
+      return NextResponse.redirect(url);
+    }
+  }
 
   // ── Gate 2FA admin (4.1) — INERTE tant que ENFORCE_ADMIN_MFA !== 'true'. ──
   // Un admin/owner sans session AAL2 est redirigé vers le flux d'enrôlement
