@@ -6,6 +6,7 @@ import { Plus, Search, Users, Accessibility, GraduationCap, TrendingUp, Mail, Ph
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { AnonymizeAction } from '../rgpd/anonymize-action';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ type LearnerRow = {
   rqth: boolean;
   position: string | null;
   created_at: string;
+  anonymized_at: string | null;
   company: { name: string } | null;
 };
 
@@ -45,11 +47,25 @@ export default async function ApprenantsPage({
 }) {
   const sb = supabaseServer();
 
+  // Rôle de l'utilisateur courant (owner/admin) pour autoriser l'anonymisation RGPD.
+  const { data: auth } = await sb.auth.getUser();
+  const { data: memberData } = auth.user
+    ? await sb
+        .schema('app')
+        .from('members')
+        .select('role')
+        .eq('user_id', auth.user.id)
+        .is('deleted_at', null)
+        .maybeSingle()
+    : { data: null };
+  const role = (memberData as { role: string } | null)?.role;
+  const isOwnerAdmin = role === 'owner' || role === 'admin';
+
   // Apprenants (RLS-scopé à l'organisation) + entreprise rattachée.
   const { data: learnersData } = await sb
     .schema('app')
     .from('learners')
-    .select('id, first_name, last_name, email, company_id, rqth, position, created_at, company:companies(name)')
+    .select('id, first_name, last_name, email, company_id, rqth, position, created_at, anonymized_at, company:companies(name)')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
   const learners = (learnersData as unknown as LearnerRow[] | null) ?? [];
@@ -254,6 +270,11 @@ export default async function ApprenantsPage({
                   )}
                 </div>
               </Link>
+              {isOwnerAdmin && !l.anonymized_at && (
+                <div className="mt-2 px-1">
+                  <AnonymizeAction subject={{ kind: 'learner', id: l.id, lastName: l.last_name }} />
+                </div>
+              )}
             </li>
           );
         })}
