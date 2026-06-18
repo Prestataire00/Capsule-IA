@@ -20,7 +20,29 @@ export async function GET(req: NextRequest) {
   if (!authorized(req)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
-  const to = new URL(req.url).searchParams.get('to');
+  const params = new URL(req.url).searchParams;
+
+  // Mode debug : reporte quelles variables d'env sont chargées par le conteneur
+  // (booléens seulement, aucune valeur exposée), sans envoyer d'email.
+  if (params.get('debug') === '1') {
+    return NextResponse.json({
+      ok: true,
+      mode: 'debug',
+      env: {
+        SMTP_HOST: Boolean(env.SMTP_HOST),
+        SMTP_PORT: env.SMTP_PORT ?? null,
+        SMTP_USER: Boolean(env.SMTP_USER),
+        SMTP_PASS: Boolean(env.SMTP_PASS),
+        EMAIL_FROM_present: Boolean(env.EMAIL_FROM),
+        EMAIL_FROM_value: env.EMAIL_FROM ?? null,
+        RESEND_API_KEY: Boolean(env.RESEND_API_KEY),
+        PUBLIC_APP_URL: env.PUBLIC_APP_URL ?? null,
+      },
+      transport: env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS ? 'smtp' : 'resend',
+    });
+  }
+
+  const to = params.get('to');
   if (!to) {
     return NextResponse.json({ ok: false, error: 'missing_to' }, { status: 400 });
   }
