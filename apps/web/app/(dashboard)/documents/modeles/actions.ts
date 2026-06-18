@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { DEFAULT_TEMPLATES } from '@/features/documents/templates/default-templates';
-import { SaveTemplateSchema, DeleteTemplateSchema } from './schema';
+import {
+  SaveTemplateSchema,
+  DeleteTemplateSchema,
+  CreateCategorySchema,
+  DeleteCategorySchema,
+} from './schema';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];
@@ -98,6 +103,7 @@ export const saveTemplate = authActionClient
           title: parsedInput.title,
           content_html: parsedInput.contentHtml,
           formation_id: parsedInput.formationId,
+          category_id: parsedInput.categoryId,
           updated_at: new Date().toISOString(),
         } as never)
         .eq('id', parsedInput.id)
@@ -118,6 +124,7 @@ export const saveTemplate = authActionClient
         title: parsedInput.title,
         content_html: parsedInput.contentHtml,
         formation_id: parsedInput.formationId,
+        category_id: parsedInput.categoryId,
         is_active: true,
       } as never)
       .select('id')
@@ -137,6 +144,41 @@ export const deleteTemplate = authActionClient
       .schema('app')
       .from('document_templates')
       .update({ deleted_at: new Date().toISOString() } as never)
+      .eq('id', parsedInput.id)
+      .eq('organization_id', orgId);
+    if (error) return { ok: false as const, error: 'delete_failed', details: error.message };
+    revalidatePath('/documents/modeles');
+    return { ok: true as const };
+  });
+
+export const createCategory = authActionClient
+  .schema(CreateCategorySchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const sb = ctx.supabase;
+    const orgId = await resolveAdminOrgId(ctx.userId as unknown as string);
+    if (!orgId) return { ok: false as const, error: 'forbidden_not_admin' };
+    const { data, error } = await sb
+      .schema('app')
+      .from('document_categories' as never)
+      .insert({ organization_id: orgId, name: parsedInput.name } as never)
+      .select('id')
+      .single();
+    if (error || !data) return { ok: false as const, error: 'create_failed', details: error?.message };
+    revalidatePath('/documents/modeles');
+    return { ok: true as const, id: (data as { id: string }).id };
+  });
+
+export const deleteCategory = authActionClient
+  .schema(DeleteCategorySchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const sb = ctx.supabase;
+    const orgId = await resolveAdminOrgId(ctx.userId as unknown as string);
+    if (!orgId) return { ok: false as const, error: 'forbidden_not_admin' };
+    // Les modèles liés repassent en « non classé » (FK ON DELETE SET NULL).
+    const { error } = await sb
+      .schema('app')
+      .from('document_categories' as never)
+      .delete()
       .eq('id', parsedInput.id)
       .eq('organization_id', orgId);
     if (error) return { ok: false as const, error: 'delete_failed', details: error.message };
