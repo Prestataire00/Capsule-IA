@@ -4,8 +4,8 @@
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { NewDossierForm } from './_components/new-dossier-form';
-import type {
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import type {
   LearnerOption,
   FormationOption,
   TrainerOption,
