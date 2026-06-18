@@ -1,11 +1,16 @@
 // ARCHETYPE: command
-// Justification: aperçu imprimable d'un document généré depuis un modèle.
+// Justification: aperçu imprimable + demande de signature d'un document.
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { PrintButton } from './_components/print-button';
+import {
+  SignaturePanel,
+  type ExistingSignature,
+  type SignerSuggestion,
+} from './_components/signature-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +31,58 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     dossier_id: string | null;
   } | null;
   if (!doc) notFound();
+
+  const { data: sigData } = await sb
+    .schema('app')
+    .from('document_signatures')
+    .select('signer_name, signer_email, signer_kind, status, signed_at')
+    .eq('document_id', doc.id)
+    .order('created_at', { ascending: true });
+  const existing =
+    ((sigData as unknown as Array<{
+      signer_name: string | null;
+      signer_email: string | null;
+      signer_kind: string;
+      status: string;
+      signed_at: string | null;
+    }>) ?? []).map<ExistingSignature>((s) => ({
+      signerName: s.signer_name,
+      signerEmail: s.signer_email,
+      signerKind: s.signer_kind,
+      status: s.status,
+      signedAt: s.signed_at,
+    }));
+
+  // Suggestions de signataires depuis le dossier (apprenant + entreprise).
+  const suggestions: SignerSuggestion[] = [];
+  if (doc.dossier_id) {
+    const { data: dRow } = await sb
+      .schema('app')
+      .from('dossiers')
+      .select('learner:learners(id, first_name, last_name, email), company:companies(name, contact_email)')
+      .eq('id', doc.dossier_id)
+      .maybeSingle();
+    const d = dRow as unknown as {
+      learner:
+        | { id: string; first_name: string; last_name: string; email: string }
+        | { id: string; first_name: string; last_name: string; email: string }[]
+        | null;
+      company: { name: string; contact_email: string | null } | { name: string; contact_email: string | null }[] | null;
+    } | null;
+    const learner = d ? (Array.isArray(d.learner) ? d.learner[0] : d.learner) : null;
+    const company = d ? (Array.isArray(d.company) ? d.company[0] : d.company) : null;
+    if (learner?.email) {
+      suggestions.push({
+        kind: 'learner',
+        name: `${learner.first_name} ${learner.last_name}`,
+        email: learner.email,
+        learnerId: learner.id,
+      });
+    }
+    if (company?.contact_email) {
+      suggestions.push({ kind: 'company_rep', name: company.name, email: company.contact_email, learnerId: null });
+    }
+  }
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 py-8 px-4">
@@ -65,6 +122,10 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
           </p>
         )}
       </article>
+
+      <div className="no-print max-w-[760px] mx-auto mt-5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+        <SignaturePanel documentId={doc.id} suggestions={suggestions} existing={existing} />
+      </div>
     </div>
   );
 }
