@@ -22,7 +22,7 @@
 | Opus (qst-module) | Module Questionnaires F-QST-01/02/04/06/07/08 : éditeur templates (`(dashboard)/questionnaires/**`), affectation apprenant + saisie manuelle (`dossiers/[id]/questionnaires/**` — zone chaude), export PDF, stats, génération IA. **Sans migration.** | feature/questionnaires-module | 2026-06-15 | mergé (PR #34) |
 | Opus (F-FAC) | export CSV + payeur subrogation | feature/factures-export | 2026-06-15 | mergé (PR #32) |
 | Opus (F-AUT-08) | logs d'envoi email | feature/email-log | 2026-06-15 | mergé (PR #30) |
-| Opus (real-login) | Vraie auth email+mot de passe : de-mock `app/(auth)/login/**` (form + actions `login`/`logout` via `signInWithPassword`) + bouton déconnexion dans `shared/components/layout/topbar.tsx`. **Sans migration.** | feature/real-login | 2026-06-17 | en cours |
+| Opus (real-login) | Vraie auth email+mot de passe : de-mock `app/(auth)/login/**` (form + actions `login`/`logout` via `signInWithPassword`) + bouton déconnexion dans `shared/components/layout/topbar.tsx`. **Sans migration.** | feature/real-login | 2026-06-17 | mergé (PR #41) |
 | Opus (rgpd) | Effacement RGPD (anonymisation apprenants+prospects) : **migration 0087** (`anonymize_learner`/`anonymize_prospect` + `prospects.anonymized_at`), `app/(dashboard)/rgpd/**`, branchement boutons listes apprenants/prospects. **Transverse PII** (lecture seule des autres zones). | feature/rgpd-effacement | 2026-06-15 | mergé (PR #39) |
 | _(exemple)_ | `apps/web/app/inscription/**` | `feature/xxx` | 2026-06-14 | libéré |
 | Opus (de-mock) | financeurs (de-mock) | feature/financeurs-reels | 2026-06-14 | mergé (PR #21) |
