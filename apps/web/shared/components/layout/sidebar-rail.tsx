@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
-import { currentUser, dossiers, learnerFullName } from '@/shared/mock/data';
+import { dossiers, learnerFullName } from '@/shared/mock/data';
 
 type Tone = 'violet' | 'amber' | 'rose' | 'emerald' | 'orange';
 
@@ -114,8 +114,13 @@ const avatarPalette = [
 
 const recentDossiers = dossiers.slice(0, 3);
 
-export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
+export function SidebarRail({
+  counts,
+  user,
+}: { counts?: SidebarCounts; user?: { fullName: string; roleLabel: string } } = {}) {
   const pathname = usePathname();
+  const displayName = user?.fullName ?? 'Mon compte';
+  const displayRole = user?.roleLabel ?? '';
   const [hovered, setHovered] = useState<string | null>(null);
   const lastFlyoutKey = useRef<string>('dossiers');
 
@@ -151,7 +156,7 @@ export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
     hovered !== 'accueil' &&
     (GROUPS.find((g) => g.key === hovered)?.items?.length ?? 0) > 0;
 
-  const userInitials = currentUser.full_name
+  const userInitials = displayName
     .split(' ')
     .map((s) => s[0])
     .join('')
@@ -272,8 +277,8 @@ export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
           <Link
             href="/parametres"
             className="my-3 group"
-            aria-label={`Compte de ${currentUser.full_name}`}
-            title={currentUser.full_name}
+            aria-label={`Compte de ${displayName}`}
+            title={displayName}
             onMouseEnter={() => setHovered(null)}
           >
             <span className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-medium text-[12px] flex items-center justify-center shadow-sm ring-2 ring-white/60 dark:ring-zinc-900 group-hover:ring-orange-300 dark:group-hover:ring-orange-700 transition">
@@ -398,10 +403,10 @@ export function SidebarRail({ counts }: { counts?: SidebarCounts } = {}) {
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-[12px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                  {currentUser.full_name}
+                  {displayName}
                 </p>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400 capitalize truncate">
-                  {currentUser.role === 'owner' ? 'Administrateur' : currentUser.role}
+                  {displayRole}
                 </p>
               </div>
             </Link>

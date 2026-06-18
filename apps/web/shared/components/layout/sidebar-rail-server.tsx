@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { SidebarRail, type SidebarCounts } from './sidebar-rail';
+import { getCurrentMember, roleLabel } from '@/shared/lib/auth/current-member';
 
 async function fetchSidebarCounts(): Promise<SidebarCounts> {
   try {
@@ -45,6 +46,7 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
 }
 
 export async function SidebarRailServer() {
-  const counts = await fetchSidebarCounts();
-  return <SidebarRail counts={counts} />;
+  const [counts, me] = await Promise.all([fetchSidebarCounts(), getCurrentMember()]);
+  const user = me ? { fullName: me.fullName, roleLabel: roleLabel(me.role) } : undefined;
+  return <SidebarRail counts={counts} user={user} />;
 }
