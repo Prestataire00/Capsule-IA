@@ -793,6 +793,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          content_html: string | null
           is_system: boolean | null
           kind: string
           organization_id: string | null
@@ -855,6 +856,7 @@ export type Database = {
           id: string
           kind: string
           metadata: Json
+          content_html: string | null
           mime_type: string | null
           organization_id: string
           parent_document_id: string | null
