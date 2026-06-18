@@ -5,7 +5,7 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { login } from './actions';
 
 const inputClass =
-  'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2.5 text-[13px] focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400';
+  'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-200/50 dark:focus:border-orange-500/60 dark:focus:ring-orange-500/20 transition placeholder:text-zinc-400';
 
 export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
   const [email, setEmail] = useState('');
@@ -68,7 +68,7 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
       <button
         type="submit"
         disabled={pending || email.length === 0 || password.length === 0}
-        className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2.5 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition inline-flex items-center justify-center gap-2 disabled:opacity-50"
+        className="w-full bg-orange-500 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm hover:bg-orange-600 hover:shadow-md transition inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-orange-500"
       >
         {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
         Se connecter
