@@ -2,41 +2,14 @@
 // Justification: centre de notifications in-app — lit app.notifications (RLS staff).
 
 import Link from 'next/link';
-import { Bell, AlertTriangle, FileSignature, Clock } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { NOTIF_META, NOTIF_FALLBACK, notifHref, type Notif } from './notif-meta';
 
 export const dynamic = 'force-dynamic';
-
-type Notif = {
-  id: string;
-  channel: string;
-  template_code: string;
-  subject: string | null;
-  payload: Record<string, unknown> | null;
-  status: string;
-  created_at: string;
-  related_aggregate_type: string | null;
-  related_aggregate_id: string | null;
-};
-
-const META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; tone: string }> = {
-  attendance_signature_missing: { label: 'Émargement manquant', icon: FileSignature, tone: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30' },
-  dossier_hours_at_risk: { label: 'Dossier à risque (heures)', icon: Clock, tone: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30' },
-};
-
-function hrefFor(n: Notif): string | null {
-  const p = n.payload ?? {};
-  const dossierId = (p.dossier_id as string | undefined) ?? (n.related_aggregate_type === 'dossier' ? n.related_aggregate_id ?? undefined : undefined);
-  if (dossierId) {
-    if (n.template_code === 'attendance_signature_missing') return `/dossiers/${dossierId}/emargements`;
-    if (n.template_code === 'dossier_hours_at_risk') return `/dossiers/${dossierId}/heures`;
-    return `/dossiers/${dossierId}`;
-  }
-  return null;
-}
 
 export default async function NotificationsPage() {
   const sb = supabaseServer();
@@ -67,9 +40,9 @@ export default async function NotificationsPage() {
       ) : (
         <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
           {notifs.map((n) => {
-            const meta = META[n.template_code] ?? { label: n.subject ?? n.template_code, icon: AlertTriangle, tone: 'text-zinc-500 bg-zinc-100 dark:bg-zinc-800' };
+            const meta = NOTIF_META[n.template_code] ?? NOTIF_FALLBACK;
             const Icon = meta.icon;
-            const href = hrefFor(n);
+            const href = notifHref(n);
             const row = (
               <div className="flex items-start gap-3 px-4 py-3">
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.tone}`}>
