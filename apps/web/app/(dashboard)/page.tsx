@@ -17,11 +17,12 @@ import { LineChart } from '@/shared/ui/line-chart';
 import { ProgressBar } from '@/shared/ui/progress-bar';
 
 import {
-  dossiers, learnerFullName, formationTitle, companyName, currentUser,
+  dossiers, learnerFullName, formationTitle, companyName,
 } from '@/shared/mock/data';
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getOrgKpis } from '@/features/reports/org-kpis.query';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 const greet = () => {
   const h = new Date().getHours();
@@ -64,7 +65,8 @@ export default async function Home() {
     { icon: ClipboardCheck, label: 'Émargements manquants', count: kpis.attendanceMissing, href: '/dossiers', color: 'amber' as const },
     { icon: ClipboardList, label: 'Questionnaires à compléter', count: kpis.questionnairesPending, href: '/dossiers', color: 'blue' as const },
   ];
-  const firstName = currentUser.full_name.split(' ')[0];
+  const me = await getCurrentMember();
+  const firstName = (me?.fullName ?? '').split(' ')[0] ?? '';
   const today = new Date();
   const start = format(today, 'd MMM', { locale: fr });
   const end = format(new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000), 'd MMM yyyy', { locale: fr });

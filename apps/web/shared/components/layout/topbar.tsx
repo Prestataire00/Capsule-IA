@@ -1,15 +1,17 @@
 // ARCHETYPE: shared (command — topbar simplifiée)
 import Link from 'next/link';
 import { Mail, Search } from 'lucide-react';
-import { currentUser } from '@/shared/mock/data';
 import { ThemeToggle } from '@/shared/components/theme/theme-toggle';
 import { LogoutButton } from '@/shared/components/layout/logout-button';
 import { NotificationsBell } from '@/shared/components/layout/notifications-bell';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { getCurrentMember, initialsOf } from '@/shared/lib/auth/current-member';
 import type { Notif } from '@/app/(dashboard)/notifications/notif-meta';
 
 export async function Topbar() {
-  const initials = currentUser.full_name.split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2);
+  const me = await getCurrentMember();
+  const fullName = me?.fullName ?? 'Mon compte';
+  const initials = initialsOf(fullName) || '·';
 
   const sb = supabaseServer();
   const [{ data: recent }, { count: unread }] = await Promise.all([
@@ -57,8 +59,8 @@ export async function Topbar() {
         <Link
           href="/parametres"
           className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-medium text-[11px] flex items-center justify-center hover:opacity-80 transition shadow-sm"
-          aria-label={currentUser.full_name}
-          title={currentUser.full_name}
+          aria-label={fullName}
+          title={fullName}
         >
           {initials}
         </Link>
