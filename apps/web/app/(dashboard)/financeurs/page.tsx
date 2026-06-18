@@ -7,6 +7,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
 import { getFundersOverview } from '@/features/funders/funders-overview.query';
 import { formatEurosCents } from '@/features/funders/funders-overview';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +42,7 @@ export default async function FinanceursPage({
             {overview.totalFunders} financeur{overview.totalFunders > 1 ? 's' : ''} configuré{overview.totalFunders > 1 ? 's' : ''} dans votre OF.
           </p>
         </div>
+        <ManageOnly section="catalogue">
         <Link
           href="/financeurs/nouveau"
           className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
@@ -48,6 +50,7 @@ export default async function FinanceursPage({
           <Plus className="w-3.5 h-3.5" />
           Nouveau financeur
         </Link>
+        </ManageOnly>
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

@@ -6,8 +6,10 @@ import Link from 'next/link';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { FormationForm } from '@/features/formations/ui/formation-form';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export default async function NouvelleFormationPage() {
+  await requireAccess('catalogue', 'manage');
   const sb = supabaseServer();
   const { data: trainerRows } = await sb
     .schema('app')

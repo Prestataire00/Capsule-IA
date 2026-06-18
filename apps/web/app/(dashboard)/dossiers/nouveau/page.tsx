@@ -5,6 +5,7 @@
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { NewDossierForm } from './_components/new-dossier-form';
 import type {
+import { requireAccess } from '@/shared/lib/auth/require-access';
   LearnerOption,
   FormationOption,
   TrainerOption,
@@ -15,6 +16,7 @@ import type {
 export const dynamic = 'force-dynamic';
 
 export default async function NewDossierPage() {
+  await requireAccess('dossiers', 'manage');
   const sb = supabaseServer();
 
   const [learnersRes, formationsRes, trainersRes, fundersRes, formationModulesRes] =

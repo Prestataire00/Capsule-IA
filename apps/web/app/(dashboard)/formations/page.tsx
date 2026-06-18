@@ -7,6 +7,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 const modalityStyles = {
   presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
@@ -84,6 +85,7 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
             Catalogue de {all.length} formation{all.length > 1 ? 's' : ''} dans votre OF.
           </p>
         </div>
+        <ManageOnly section="catalogue">
         <Link
           href="/formations/nouvelle"
           className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
@@ -91,6 +93,7 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
           <Plus className="w-3.5 h-3.5" />
           Nouvelle formation
         </Link>
+        </ManageOnly>
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

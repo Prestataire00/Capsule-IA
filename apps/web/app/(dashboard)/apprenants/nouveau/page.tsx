@@ -7,8 +7,10 @@ import { FormField, inputClass } from '@/shared/ui/form-field';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { createLearner } from './actions';
 import { SubmitButton } from './submit-button';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export default async function NouvelApprenantPage({ searchParams }: { searchParams: { error?: string } }) {
+  await requireAccess('dossiers', 'manage');
   const sb = supabaseServer();
   const errorMsg = searchParams.error
     ? searchParams.error === 'missing'

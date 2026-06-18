@@ -9,6 +9,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 const STATUSES = ['draft', 'pending_validation', 'scheduled', 'active', 'completed', 'closed', 'archived', 'cancelled'] as const;
 
@@ -78,6 +79,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
             {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
           </p>
         </div>
+        <ManageOnly section="dossiers">
         <Link
           href="/dossiers/nouveau"
           className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
@@ -85,6 +87,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
           <Plus className="w-3.5 h-3.5" />
           Nouveau dossier
         </Link>
+        </ManageOnly>
       </header>
 
       <div className="mb-5 flex items-center gap-3 flex-wrap">

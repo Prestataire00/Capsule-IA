@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { ArrowLeft, Check, Wallet, Mail, Hash } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 const KINDS = [
   { value: 'opco', label: 'OPCO', hint: 'Organisme paritaire' },
@@ -12,7 +13,8 @@ const KINDS = [
   { value: 'autofinancement', label: 'Autofinancement', hint: 'L’apprenant paie' },
 ] as const;
 
-export default function NouveauFinanceurPage() {
+export default async function NouveauFinanceurPage() {
+  await requireAccess('catalogue', 'manage');
   return (
     <div className="min-h-[calc(100vh-4rem)]">
       <div className="max-w-2xl w-full mx-auto px-8 py-10">

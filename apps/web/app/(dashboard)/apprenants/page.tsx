@@ -7,6 +7,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { AnonymizeAction } from '../rgpd/anonymize-action';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,6 +125,7 @@ export default async function ApprenantsPage({
             {learners.length} apprenants suivis dans votre OF.
           </p>
         </div>
+        <ManageOnly section="dossiers">
         <Link
           href="/apprenants/nouveau"
           className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
@@ -131,6 +133,7 @@ export default async function ApprenantsPage({
           <Plus className="w-3.5 h-3.5" />
           Nouvel apprenant
         </Link>
+        </ManageOnly>
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
