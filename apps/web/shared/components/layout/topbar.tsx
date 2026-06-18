@@ -1,12 +1,34 @@
 // ARCHETYPE: shared (command — topbar simplifiée)
 import Link from 'next/link';
-import { Bell, Mail, Search } from 'lucide-react';
+import { Mail, Search } from 'lucide-react';
 import { currentUser } from '@/shared/mock/data';
 import { ThemeToggle } from '@/shared/components/theme/theme-toggle';
 import { LogoutButton } from '@/shared/components/layout/logout-button';
+import { NotificationsBell } from '@/shared/components/layout/notifications-bell';
+import { supabaseServer } from '@/shared/lib/supabase/server';
+import type { Notif } from '@/app/(dashboard)/notifications/notif-meta';
 
-export function Topbar() {
+export async function Topbar() {
   const initials = currentUser.full_name.split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2);
+
+  const sb = supabaseServer();
+  const [{ data: recent }, { count: unread }] = await Promise.all([
+    sb
+      .schema('app')
+      .from('notifications')
+      .select('id, template_code, subject, payload, created_at, related_aggregate_type, related_aggregate_id, read_at')
+      .eq('channel', 'in_app')
+      .order('created_at', { ascending: false })
+      .limit(8),
+    sb
+      .schema('app')
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('channel', 'in_app')
+      .is('read_at', null),
+  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const notifications = ((recent as any[]) ?? []) as Notif[];
 
   return (
     <header className="h-16 flex-shrink-0 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-40 flex items-center px-6 gap-4">
@@ -24,14 +46,7 @@ export function Topbar() {
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Link
-          href="/audit"
-          aria-label="Notifications"
-          className="relative w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-violet-600 text-white text-[9px] font-medium flex items-center justify-center">3</span>
-        </Link>
+        <NotificationsBell notifications={notifications} unreadCount={unread ?? 0} />
         <Link
           href="/reclamations"
           aria-label="Messages"
