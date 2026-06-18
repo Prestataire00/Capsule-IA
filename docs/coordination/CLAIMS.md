@@ -18,6 +18,7 @@
 
 | Instance | Module / chemins | Branche | Depuis | Statut |
 |----------|------------------|---------|--------|--------|
+| Opus (logo-capsule) | Nouveau logo Capsule IA (capsule + toque, détouré) partout : assets `public/logo-capsule{,-full}.png` + favicon `app/icon.png` ; `shared/ui/logo.tsx` (icône carrée → sidebars OF + apprenant + login + header formateur) ; 3 templates email. **Sans migration.** | (push direct main) | 2026-06-18 | mergé |
 | Opus (lien-inscription) | Lien d'inscription niveau organisme (`/inscription?org=<id>`) + page `parametres/inscription` (lien + snippet bouton) : `app/inscription/page.tsx` (zone chaude), `features/catalog/public-catalog.ts`, `parametres/**`. **Sans migration, mode lien (pas d'iframe).** | feature/lien-inscription-org | 2026-06-15 | mergé (PR #36) |
 | Opus (qst-module) | Module Questionnaires F-QST-01/02/04/06/07/08 : éditeur templates (`(dashboard)/questionnaires/**`), affectation apprenant + saisie manuelle (`dossiers/[id]/questionnaires/**` — zone chaude), export PDF, stats, génération IA. **Sans migration.** | feature/questionnaires-module | 2026-06-15 | mergé (PR #34) |
 | Opus (F-FAC) | export CSV + payeur subrogation | feature/factures-export | 2026-06-15 | mergé (PR #32) |

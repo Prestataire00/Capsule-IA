@@ -2,6 +2,7 @@ import 'server-only';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { ArrowLeft } from 'lucide-react';
+import { Logo } from '@/shared/ui/logo';
 import { OfSwitcher } from './of-switcher';
 import type { TrainerMembership } from '../application/ports';
 
@@ -17,9 +18,7 @@ export function FormateurHeader({ memberships }: { memberships: TrainerMembershi
         <ArrowLeft className="w-3 h-3" />
         Espace OF
       </Link>
-      <span className="text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 hidden sm:inline">
-        Espace formateur
-      </span>
+      <Logo size="sm" className="hidden sm:inline-flex" />
       <div className="flex items-center gap-2">
         <OfSwitcher memberships={memberships} current={focus} />
       </div>

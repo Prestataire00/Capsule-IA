@@ -3,7 +3,7 @@ import { env } from '@/env.mjs';
 
 // Email isolé (F-FOR-10) — hors templates.ts partagé pour éviter les collisions.
 const LOGO_URL = env.PUBLIC_APP_URL
-  ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/logo-planet.png`
+  ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/logo-capsule-full.png`
   : 'https://i-a-infinity.com/favicon.png';
 const baseStyles =
   'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#18181b;line-height:1.55;';
@@ -20,7 +20,7 @@ export function trainerSatisfactionEmail(d: {
 <body style="margin:0;padding:0;background:#fafafa;${baseStyles}">
   <div style="max-width:580px;margin:0 auto;padding:32px 24px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
-      <img src="${LOGO_URL}" alt="Capsule IA" width="75" height="40" style="width:75px;height:40px;display:block;">
+      <img src="${LOGO_URL}" alt="Capsule IA" width="96" height="96" style="width:96px;height:96px;display:block;">
       <span style="color:#d4d4d8;">·</span>
       <span style="font-size:13px;color:#71717a;">Retour formateur</span>
     </div>
