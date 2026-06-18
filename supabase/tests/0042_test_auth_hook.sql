@@ -7,7 +7,7 @@
 --   - User sans membership : event retourné tel quel (pas crash)
 --   - User avec membership soft-deleted : ignoré
 --   - User_id NULL : pas crash
---   - Claim réservé `role` jamais écrasé (régression 0089)
+--   - Claim réservé `role` jamais écrasé (régression 0091)
 -- ============================================================================
 
 BEGIN;
@@ -154,7 +154,7 @@ SELECT is(
 );
 
 -- ----------------------------------------------------------------------------
--- TEST 9 : claim réservé `role` JAMAIS écrasé (régression 0089)
+-- TEST 9 : claim réservé `role` JAMAIS écrasé (régression 0091)
 -- PostgREST l'utilise pour SET ROLE : doit rester `authenticated`.
 -- ----------------------------------------------------------------------------
 
@@ -164,7 +164,7 @@ SELECT is(
     'claims', jsonb_build_object('role', 'authenticated')
   )) -> 'claims' ->> 'role',
   'authenticated',
-  'régression 0089 : claim réservé role préservé (non écrasé par le rôle métier)'
+  'régression 0091 : claim réservé role préservé (non écrasé par le rôle métier)'
 );
 
 SELECT * FROM finish();

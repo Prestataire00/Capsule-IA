@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0089 — Fix collision du claim réservé `role` dans le JWT
+-- 0091 — Fix collision du claim réservé `role` dans le JWT
 -- ============================================================================
 -- BUG (bloquant, fail-closed) : l'auth hook 0042 écrasait le claim réservé
 -- `role` du JWT (normalement `authenticated`) avec le rôle métier (`owner`,
@@ -62,7 +62,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION app.before_token_emit(jsonb) IS
-  'Supabase Auth Hook (custom_access_token) : injecte organization_id/user_role/member_id depuis app.members.is_default_org. user_role (pas role, réservé PostgREST). Cf. ADR 0003 + migration 0089.';
+  'Supabase Auth Hook (custom_access_token) : injecte organization_id/user_role/member_id depuis app.members.is_default_org. user_role (pas role, réservé PostgREST). Cf. ADR 0003 + migration 0091.';
 
 GRANT USAGE ON SCHEMA app TO supabase_auth_admin;
 GRANT EXECUTE ON FUNCTION app.before_token_emit(jsonb) TO supabase_auth_admin;
