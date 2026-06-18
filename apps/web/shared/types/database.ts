@@ -794,6 +794,7 @@ export type Database = {
           id: string
           is_active: boolean
           content_html: string | null
+          formation_id: string | null
           is_system: boolean | null
           kind: string
           organization_id: string | null

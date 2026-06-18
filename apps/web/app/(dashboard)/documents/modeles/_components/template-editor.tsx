@@ -18,15 +18,25 @@ export type EditorTemplate = {
   kind: TemplateKind;
   title: string;
   contentHtml: string;
+  formationId: string | null;
 };
 
-export function TemplateEditor({ template }: { template?: EditorTemplate }) {
+export type FormationChoice = { id: string; title: string };
+
+export function TemplateEditor({
+  template,
+  formations = [],
+}: {
+  template?: EditorTemplate;
+  formations?: FormationChoice[];
+}) {
   const router = useRouter();
   const { executeAsync: runSave } = useAction(saveTemplate);
   const { executeAsync: runDelete } = useAction(deleteTemplate);
 
   const [kind, setKind] = useState<TemplateKind>(template?.kind ?? 'convention');
   const [title, setTitle] = useState(template?.title ?? '');
+  const [formationId, setFormationId] = useState<string>(template?.formationId ?? '');
   const [html, setHtml] = useState(template?.contentHtml ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,7 +66,13 @@ export function TemplateEditor({ template }: { template?: EditorTemplate }) {
       return;
     }
     setSaving(true);
-    const res = await runSave({ id: template?.id ?? null, kind, title, contentHtml: html });
+    const res = await runSave({
+      id: template?.id ?? null,
+      kind,
+      title,
+      contentHtml: html,
+      formationId: formationId || null,
+    });
     setSaving(false);
     const out = res?.data;
     if (out?.ok) {
@@ -152,6 +168,24 @@ export function TemplateEditor({ template }: { template?: EditorTemplate }) {
               />
             </label>
           </div>
+
+          <label className="block">
+            <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">
+              Formation associée (optionnel)
+            </span>
+            <select
+              value={formationId}
+              onChange={(e) => setFormationId(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+            >
+              <option value="">Modèle global (toutes formations)</option>
+              {formations.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.title}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <label className="block">
             <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">

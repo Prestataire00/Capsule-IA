@@ -1,5 +1,5 @@
 // ARCHETYPE: command
-// Justification: génération (modèles + PDF) + liste réelle des documents du dossier.
+// Justification: génération (modèles + IA + PDF) + liste réelle des documents du dossier.
 
 import Link from 'next/link';
 import { FileText, Download, Eye } from 'lucide-react';
@@ -7,6 +7,8 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { GenerateFromTemplate, type TemplateChoice } from './_components/generate-from-template';
+import { GenerateWithAi } from './_components/generate-with-ai';
+import { EmailDocButton } from './_components/email-doc-button';
 
 // PDF générés à la volée (générateurs pdf-lib existants : génèrent, persistent, renvoient le PDF).
 const GENERATORS = [
@@ -16,7 +18,6 @@ const GENERATORS = [
   { kind: 'certificat_realisation', label: 'Certificat de réalisation (PDF)', route: 'certificat.pdf' },
 ] as const;
 
-// kind persisté → route de (re)génération PDF pour le lien « Ouvrir ».
 const KIND_TO_ROUTE: Record<string, string> = {
   convention: 'convention.pdf',
   attestation_fin: 'attestation.pdf',
@@ -26,17 +27,32 @@ const KIND_TO_ROUTE: Record<string, string> = {
 export default async function DocumentsPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
 
+  // Dossier : formation (héritage modèles) + email apprenant (envoi par défaut).
+  const { data: dRow } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('formation_id, learner:learners(email)')
+    .eq('id', params.id)
+    .maybeSingle();
+  const dossier = dRow as unknown as {
+    formation_id: string | null;
+    learner: { email: string } | { email: string }[] | null;
+  } | null;
+  const learner = dossier ? (Array.isArray(dossier.learner) ? dossier.learner[0] : dossier.learner) : null;
+  const learnerEmail = learner?.email ?? '';
+  const formationId = dossier?.formation_id ?? null;
+
   const [docsRes, tplRes] = await Promise.all([
     sb
       .schema('app')
       .from('documents')
-      .select('id, title, kind, status, content_html, created_at')
+      .select('id, title, kind, status, content_html, storage_path, created_at')
       .eq('dossier_id', params.id)
       .order('created_at', { ascending: false }),
     sb
       .schema('app')
       .from('document_templates')
-      .select('id, title')
+      .select('id, title, formation_id')
       .is('deleted_at', null)
       .order('title', { ascending: true }),
   ]);
@@ -48,13 +64,24 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       kind: string;
       status: string;
       content_html: string | null;
+      storage_path: string | null;
       created_at: string;
     }>) ?? [];
 
-  const templates =
-    ((tplRes.data as unknown as Array<{ id: string; title: string }>) ?? []).map<TemplateChoice>(
-      (t) => ({ id: t.id, title: t.title }),
-    );
+  // Héritage : modèles de la formation du dossier d'abord (étoile), puis globaux.
+  const tplRows =
+    (tplRes.data as unknown as Array<{ id: string; title: string; formation_id: string | null }>) ?? [];
+  const templates: TemplateChoice[] = tplRows
+    .filter((t) => t.formation_id === null || t.formation_id === formationId)
+    .sort((a, b) => {
+      const am = a.formation_id === formationId ? 0 : 1;
+      const bm = b.formation_id === formationId ? 0 : 1;
+      return am - bm;
+    })
+    .map((t) => ({
+      id: t.id,
+      title: t.formation_id && t.formation_id === formationId ? `★ ${t.title}` : t.title,
+    }));
 
   return (
     <div className="space-y-8">
@@ -67,8 +94,9 @@ export default async function DocumentsPage({ params }: { params: { id: string }
         </div>
         <GenerateFromTemplate dossierId={params.id} templates={templates} />
         <p className="text-[11px] text-zinc-400">
-          Le modèle est rempli avec les données du dossier, puis consultable/imprimable.
+          Le modèle est rempli avec les données du dossier, puis consultable/imprimable. ★ = modèle de cette formation.
         </p>
+        <GenerateWithAi dossierId={params.id} />
       </section>
 
       <section className="space-y-3">
@@ -88,6 +116,9 @@ export default async function DocumentsPage({ params }: { params: { id: string }
             </a>
           ))}
         </div>
+        <p className="text-[11px] text-zinc-400">
+          Ouvrez un PDF une fois pour l&apos;enregistrer : il devient alors envoyable par email ci-dessous.
+        </p>
       </section>
 
       <section className="space-y-3">
@@ -106,6 +137,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                   <span className="flex items-center gap-3 flex-shrink-0">
                     <span className="text-[11px] text-zinc-400">{d.kind}</span>
                     <StatusPill tone={d.status === 'ready' ? 'success' : 'neutral'}>{d.status}</StatusPill>
+                    {d.storage_path && <EmailDocButton documentId={d.id} defaultEmail={learnerEmail} />}
                     {d.content_html ? (
                       <Link
                         href={`/documents/${d.id}/apercu`}
