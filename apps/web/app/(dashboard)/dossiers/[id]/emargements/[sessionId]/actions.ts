@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { generateSignatureToken } from '@/shared/lib/signature-token';
 import { parseZoomCsv } from '@/features/attendance/zoom-csv-parser';
 import { renderAttendancePdf, type PdfSignatureLine } from '@/features/attendance/pdf-render';
@@ -375,8 +376,22 @@ export type EnsureSheetsResult =
   | { ok: true; created: number }
   | { ok: false; error: string };
 
+/** Garde multi-tenant : l'appelant ne peut agir que sur une séance de SON organisation (vérifié via RLS). */
+async function assertSessionAccess(sessionId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sb = supabaseServer();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+  const { data } = await sb.schema('app').from('sessions').select('id').eq('id', sessionId).maybeSingle();
+  if (!data) return { ok: false, error: 'forbidden' };
+  return { ok: true };
+}
+
 /** Matérialise (idempotent) les feuilles matin/après-midi de la séance via la RPC. */
 export async function ensureSessionSheets(sessionId: string): Promise<EnsureSheetsResult> {
+  const access = await assertSessionAccess(sessionId);
+  if (!access.ok) return { ok: false, error: access.error };
   const sb = admin();
   const { data, error } = await sb
     .schema('app')
@@ -395,6 +410,8 @@ export type ConvertLegacyResult =
  * (preuve légale intouchable).
  */
 export async function convertLegacyFullSheet(sessionId: string): Promise<ConvertLegacyResult> {
+  const access = await assertSessionAccess(sessionId);
+  if (!access.ok) return { ok: false, error: access.error };
   const sb = admin();
 
   const { data: full } = await sb
