@@ -30,8 +30,15 @@ const smtpTransport = (): Transporter | null => {
 };
 
 // Expéditeur : EMAIL_FROM si défini, sinon la boîte SMTP, sinon le bac-à-sable Resend.
-const fromAddress = (): string =>
-  env.EMAIL_FROM ?? (env.SMTP_USER ? `Capsule IA <${env.SMTP_USER}>` : DEFAULT_FROM);
+const fromAddress = (): string => {
+  // EMAIL_FROM n'est utilisé que s'il contient une vraie adresse (ex. « Nom <a@b.c> »).
+  // Une valeur sans « @ » (ex. « Capsule IA » seul) est invalide → on la ignore et on
+  // reconstruit depuis SMTP_USER, sinon on retombe sur le défaut Resend.
+  const configured = env.EMAIL_FROM?.trim();
+  if (configured && configured.includes('@')) return configured;
+  if (env.SMTP_USER) return `Capsule IA <${env.SMTP_USER}>`;
+  return DEFAULT_FROM;
+};
 
 // Pièce jointe Resend : contenu inline (base64) OU lien (path). Le fallback
 // `path` sert quand un document dépasse le seuil d'attache et est transmis en
