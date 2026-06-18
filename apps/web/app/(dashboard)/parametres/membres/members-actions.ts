@@ -1,9 +1,24 @@
 'use server';
 
+import { randomInt } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import type { AuthCtx } from '@/shared/lib/safe-action';
-import { ChangeMemberRoleSchema, DeactivateMemberSchema } from './members-schema';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { AddMemberSchema, ChangeMemberRoleSchema, DeactivateMemberSchema } from './members-schema';
+
+/** Mot de passe temporaire conforme (≥10, 1 maj, 1 min, 1 chiffre, 1 spécial), sans caractère ambigu. */
+function genTempPassword(): string {
+  const sets = ['abcdefghijkmnpqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789', '!@#$%-_=+'];
+  const all = sets.join('');
+  const chars = sets.map((s) => s[randomInt(s.length)] as string);
+  while (chars.length < 14) chars.push(all[randomInt(all.length)] as string);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j] as string, chars[i] as string];
+  }
+  return chars.join('');
+}
 
 type MemberRow = {
   id: string;
@@ -96,4 +111,70 @@ export const deactivateMemberAction = authActionClient
     if (error) throw new Error(`deactivate_member_failed: ${error.message}`);
     revalidatePath('/parametres/membres');
     return { ok: true as const };
+  });
+
+/**
+ * Ajoute un membre à l'organisation : crée le compte auth (mot de passe temporaire,
+ * email confirmé), le profil et la ligne `members`. Owner/admin uniquement.
+ * Org + rôle résolus via service_role (robuste même si le JWT courant est périmé).
+ */
+export const addMemberAction = authActionClient
+  .schema(AddMemberSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const admin = supabaseAdmin();
+
+    const { data: me } = await admin
+      .schema('app')
+      .from('members')
+      .select('organization_id, role')
+      .eq('user_id', ctx.userId)
+      .is('deleted_at', null)
+      .order('is_default_org', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const meRow = me as { organization_id: string; role: string } | null;
+    if (!meRow) return { ok: false as const, error: 'organization_not_found' };
+    if (meRow.role !== 'owner' && meRow.role !== 'admin') return { ok: false as const, error: 'forbidden' };
+    const orgId = meRow.organization_id;
+
+    const tempPassword = genTempPassword();
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: parsedInput.email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: parsedInput.fullName },
+    });
+    if (createErr || !created?.user) {
+      if (/already|registered|exists/i.test(createErr?.message ?? '')) {
+        return { ok: false as const, error: 'email_already_registered' };
+      }
+      return { ok: false as const, error: 'create_user_failed' };
+    }
+    const userId = created.user.id;
+
+    const { error: profileErr } = await admin
+      .schema('app')
+      .from('profiles')
+      .upsert(
+        { user_id: userId, full_name: parsedInput.fullName, email: parsedInput.email } as never,
+        { onConflict: 'user_id' },
+      );
+    if (profileErr) return { ok: false as const, error: 'profile_failed' };
+
+    const { error: memberErr } = await admin
+      .schema('app')
+      .from('members')
+      .insert({
+        organization_id: orgId,
+        user_id: userId,
+        role: parsedInput.role,
+        invited_by: ctx.userId,
+      } as never);
+    if (memberErr) {
+      if (memberErr.code === '23505') return { ok: false as const, error: 'already_member' };
+      return { ok: false as const, error: 'add_member_failed' };
+    }
+
+    revalidatePath('/parametres/membres');
+    return { ok: true as const, email: parsedInput.email, tempPassword };
   });
