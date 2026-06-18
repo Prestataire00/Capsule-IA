@@ -7,10 +7,11 @@
 --   - User sans membership : event retourné tel quel (pas crash)
 --   - User avec membership soft-deleted : ignoré
 --   - User_id NULL : pas crash
+--   - Claim réservé `role` jamais écrasé (régression 0091)
 -- ============================================================================
 
 BEGIN;
-SELECT plan(8);
+SELECT plan(9);
 
 -- ----------------------------------------------------------------------------
 -- Setup
@@ -74,9 +75,9 @@ SELECT is(
   app.before_token_emit(jsonb_build_object(
     'user_id', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'claims', '{}'::jsonb
-  )) -> 'claims' ->> 'role',
+  )) -> 'claims' ->> 'user_role',
   'admin',
-  'mono-org : role injecté'
+  'mono-org : user_role injecté'
 );
 
 -- ----------------------------------------------------------------------------
@@ -96,9 +97,9 @@ SELECT is(
   app.before_token_emit(jsonb_build_object(
     'user_id', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     'claims', '{}'::jsonb
-  )) -> 'claims' ->> 'role',
+  )) -> 'claims' ->> 'user_role',
   'owner',
-  'multi-org : role de l''OF default (owner)'
+  'multi-org : user_role de l''OF default (owner)'
 );
 
 -- ----------------------------------------------------------------------------
@@ -150,6 +151,20 @@ SELECT is(
   )) -> 'claims' ->> 'custom_x',
   'preserve_me',
   'claims existants préservés (sub, email, custom_x)'
+);
+
+-- ----------------------------------------------------------------------------
+-- TEST 9 : claim réservé `role` JAMAIS écrasé (régression 0091)
+-- PostgREST l'utilise pour SET ROLE : doit rester `authenticated`.
+-- ----------------------------------------------------------------------------
+
+SELECT is(
+  app.before_token_emit(jsonb_build_object(
+    'user_id', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'claims', jsonb_build_object('role', 'authenticated')
+  )) -> 'claims' ->> 'role',
+  'authenticated',
+  'régression 0091 : claim réservé role préservé (non écrasé par le rôle métier)'
 );
 
 SELECT * FROM finish();
