@@ -11,6 +11,7 @@ import {
 } from '@/features/attendance/queries/list-consolidated-attendance';
 import type { Lens } from '@/features/attendance/queries/attendance-consolidated.types';
 import { LensToggle } from './lens-toggle';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export default async function EmargementsPage({
 }: {
   searchParams: { lens?: string; companyId?: string };
 }) {
+  await requireAccess('attendance');
   const lens = parseLens(searchParams.lens);
   const filters: ConsolidatedFilters = { lens, companyId: searchParams.companyId };
   const { groups, summary } = await listConsolidatedAttendance(filters);

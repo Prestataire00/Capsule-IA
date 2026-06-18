@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
+import { can, sectionForPath } from '@/shared/lib/auth/permissions';
 import { dossiers, learnerFullName } from '@/shared/mock/data';
 
 type Tone = 'violet' | 'amber' | 'rose' | 'emerald' | 'orange';
@@ -117,17 +118,24 @@ const recentDossiers = dossiers.slice(0, 3);
 export function SidebarRail({
   counts,
   user,
-}: { counts?: SidebarCounts; user?: { fullName: string; roleLabel: string } } = {}) {
+}: { counts?: SidebarCounts; user?: { fullName: string; roleLabel: string; role: string } } = {}) {
   const pathname = usePathname();
   const displayName = user?.fullName ?? 'Mon compte';
   const displayRole = user?.roleLabel ?? '';
+
+  // Gating par rôle : on masque les items dont la section n'est pas accessible.
+  const groups = GROUPS.map((g) =>
+    g.items
+      ? { ...g, items: g.items.filter((i) => { const s = sectionForPath(i.href); return s ? can(user?.role, s) !== 'none' : true; }) }
+      : g,
+  ).filter((g) => g.items === undefined || g.items.length > 0);
   const [hovered, setHovered] = useState<string | null>(null);
   const lastFlyoutKey = useRef<string>('dossiers');
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   const activeGroupKey =
-    GROUPS.find((g) => {
+    groups.find((g) => {
       if (g.href) return isActive(g.href);
       return g.items?.some((i) => isActive(i.href));
     })?.key ?? null;
@@ -146,15 +154,15 @@ export function SidebarRail({
   };
 
   if (hovered && hovered !== 'accueil') {
-    const g = GROUPS.find((x) => x.key === hovered);
+    const g = groups.find((x) => x.key === hovered);
     if (g?.items?.length) lastFlyoutKey.current = hovered;
   }
 
-  const flyoutGroup = GROUPS.find((g) => g.key === lastFlyoutKey.current);
+  const flyoutGroup = groups.find((g) => g.key === lastFlyoutKey.current);
   const showFlyout =
     hovered !== null &&
     hovered !== 'accueil' &&
-    (GROUPS.find((g) => g.key === hovered)?.items?.length ?? 0) > 0;
+    (groups.find((g) => g.key === hovered)?.items?.length ?? 0) > 0;
 
   const userInitials = displayName
     .split(' ')
@@ -205,7 +213,7 @@ export function SidebarRail({
 
           {/* Groupes */}
           <div className="flex-1 flex flex-col gap-1 w-full px-2 overflow-y-auto scrollbar-thin">
-            {GROUPS.map((g) => {
+            {groups.map((g) => {
               const Icon = g.icon;
               const active = activeGroupKey === g.key;
               const isHover = hovered === g.key;
