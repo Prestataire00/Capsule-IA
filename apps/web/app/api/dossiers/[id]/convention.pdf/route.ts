@@ -5,6 +5,8 @@ import { generateConventionPDF, type ConventionInput } from '@/features/document
 import { loadOrgBranding } from '@/features/documents/load-org-branding';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
+import { canAccessDossier } from '@/features/documents/guard-dossier-access';
+
 export const dynamic = 'force-dynamic';
 
 const admin = () =>
@@ -13,6 +15,9 @@ const admin = () =>
   });
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await canAccessDossier(params.id))) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
   const sb = admin();
 
   const { data: dossierData, error: dossierErr } = await sb
