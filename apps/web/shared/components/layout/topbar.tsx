@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Bell, Mail, Search } from 'lucide-react';
 import { currentUser } from '@/shared/mock/data';
 import { ThemeToggle } from '@/shared/components/theme/theme-toggle';
+import { LogoutButton } from '@/shared/components/layout/logout-button';
 
 export function Topbar() {
   const initials = currentUser.full_name.split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2);
@@ -46,6 +47,7 @@ export function Topbar() {
         >
           {initials}
         </Link>
+        <LogoutButton />
       </div>
     </header>
   );
