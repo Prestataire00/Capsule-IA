@@ -40,10 +40,14 @@ export const SaveTemplateSchema = z.object({
   title: z.string().min(1, 'Titre requis').max(200),
   contentHtml: z.string().min(1, 'Contenu requis').max(100_000),
   formationId: z.string().uuid().nullable().default(null),
+  categoryId: z.string().uuid().nullable().default(null),
 });
 export type SaveTemplateValues = z.infer<typeof SaveTemplateSchema>;
 
 export const DeleteTemplateSchema = z.object({ id: z.string().uuid() });
+
+export const CreateCategorySchema = z.object({ name: z.string().min(1, 'Nom requis').max(80) });
+export const DeleteCategorySchema = z.object({ id: z.string().uuid() });
 
 export const GenerateFromTemplateSchema = z.object({
   dossierId: z.string().uuid(),

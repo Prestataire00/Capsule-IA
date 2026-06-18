@@ -19,16 +19,20 @@ export type EditorTemplate = {
   title: string;
   contentHtml: string;
   formationId: string | null;
+  categoryId: string | null;
 };
 
 export type FormationChoice = { id: string; title: string };
+export type CategoryChoice = { id: string; name: string };
 
 export function TemplateEditor({
   template,
   formations = [],
+  categories = [],
 }: {
   template?: EditorTemplate;
   formations?: FormationChoice[];
+  categories?: CategoryChoice[];
 }) {
   const router = useRouter();
   const { executeAsync: runSave } = useAction(saveTemplate);
@@ -37,6 +41,7 @@ export function TemplateEditor({
   const [kind, setKind] = useState<TemplateKind>(template?.kind ?? 'convention');
   const [title, setTitle] = useState(template?.title ?? '');
   const [formationId, setFormationId] = useState<string>(template?.formationId ?? '');
+  const [categoryId, setCategoryId] = useState<string>(template?.categoryId ?? '');
   const [html, setHtml] = useState(template?.contentHtml ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -72,6 +77,7 @@ export function TemplateEditor({
       title,
       contentHtml: html,
       formationId: formationId || null,
+      categoryId: categoryId || null,
     });
     setSaving(false);
     const out = res?.data;
@@ -182,6 +188,24 @@ export function TemplateEditor({
               {formations.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">
+              Catégorie (optionnel)
+            </span>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+            >
+              <option value="">Non classé</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </select>
