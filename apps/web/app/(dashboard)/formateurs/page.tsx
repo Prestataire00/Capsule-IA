@@ -6,6 +6,7 @@ import { Plus, Search, UserCog, Building, Briefcase, Mail, ArrowUpRight, ShieldC
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 type TrainerRow = {
   id: string;
@@ -49,6 +50,7 @@ export default async function FormateursPage() {
             {trainers.length} formateur{trainers.length > 1 ? 's' : ''} dans votre réseau.
           </p>
         </div>
+        <ManageOnly section="dossiers">
         <Link
           href="/formateurs/nouveau"
           className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
@@ -56,6 +58,7 @@ export default async function FormateursPage() {
           <Plus className="w-3.5 h-3.5" />
           Nouveau formateur
         </Link>
+        </ManageOnly>
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

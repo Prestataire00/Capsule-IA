@@ -13,6 +13,7 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { Receipt } from 'lucide-react';
 import { InvoiceActions } from './invoice-actions';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,6 +130,7 @@ export default async function FacturesPage({
             <Download className="w-3.5 h-3.5" />
             Export FEC
           </button>
+          <ManageOnly section="billing">
           <Link
             href="/factures/nouvelle"
             className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
@@ -136,6 +138,7 @@ export default async function FacturesPage({
             <Plus className="w-3.5 h-3.5" />
             Nouvelle facture
           </Link>
+          </ManageOnly>
         </div>
       </header>
 

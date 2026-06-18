@@ -6,6 +6,7 @@ import { Plus, Building2, MapPin, Mail } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 const palette = [
   'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
@@ -45,6 +46,7 @@ export default async function EntreprisesPage() {
             {companies.length} entreprise{companies.length > 1 ? 's' : ''} dans votre carnet.
           </p>
         </div>
+        <ManageOnly section="crm">
         <Link
           href="/entreprises/nouvelle"
           className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
@@ -52,6 +54,7 @@ export default async function EntreprisesPage() {
           <Plus className="w-3.5 h-3.5" />
           Nouvelle entreprise
         </Link>
+        </ManageOnly>
       </header>
 
       {companies.length === 0 ? (

@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Receipt, Euro, Calendar, FileText } from 'lucide-reac
 import { env } from '@/env.mjs';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { createInvoice } from '../actions';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ async function loadDossiers() {
 }
 
 export default async function NouvelleFacturePage({ searchParams }: { searchParams: { error?: string } }) {
+  await requireAccess('billing', 'manage');
   const dossiersList = await loadDossiers();
 
   return (

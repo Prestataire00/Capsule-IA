@@ -13,3 +13,9 @@ export async function requireAccess(section: Section, min: Access = 'read'): Pro
   const ok = min === 'manage' ? level === 'manage' : level !== 'none';
   if (!ok) redirect('/');
 }
+
+/** Le membre connecté peut-il *gérer* (créer/éditer) cette section ? */
+export async function canManageSection(section: Section): Promise<boolean> {
+  const me = await getCurrentMember();
+  return can(me?.role, section) === 'manage';
+}
