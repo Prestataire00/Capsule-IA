@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 const MONTHS_FR = [
@@ -26,10 +26,12 @@ type Props = {
   className?: string;
 };
 
-const parseIso = (iso: string) => {
+type Parts = { y: string; mo: string; d: string };
+
+const parseIso = (iso: string): Parts => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return { y: '', mo: '', d: '' };
-  return { y: m[1], mo: m[2], d: m[3] };
+  return { y: m[1]!, mo: m[2]!, d: m[3]! };
 };
 
 const composeIso = (d: string, mo: string, y: string): string => {
@@ -53,7 +55,20 @@ export function DateOfBirthInput({
   className,
 }: Props) {
   const baseId = useId();
-  const parsed = parseIso(value);
+
+  // État local des 3 sélecteurs : indispensable pour conserver une saisie
+  // PARTIELLE (jour seul, ou jour+mois) que l'ISO composé ne peut pas
+  // représenter — sinon chaque select reviendrait sur son placeholder.
+  const [parts, setParts] = useState<Parts>(() => parseIso(value));
+
+  // Prefill / contrôle externe : si le parent pousse une date complète
+  // différente, on l'adopte. On n'écrase JAMAIS l'état partiel sur value=''
+  // (value='' est aussi ce qu'on remonte pendant la saisie en cours).
+  useEffect(() => {
+    if (!value) return;
+    const p = parseIso(value);
+    setParts((prev) => (p.y === prev.y && p.mo === prev.mo && p.d === prev.d ? prev : p));
+  }, [value]);
 
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => {
@@ -64,24 +79,29 @@ export function DateOfBirthInput({
     return arr;
   }, [currentYear, minAge, maxAge]);
 
-  const yearNum = parseInt(parsed.y, 10);
-  const monthNum = parseInt(parsed.mo, 10);
+  const yearNum = parseInt(parts.y, 10);
+  const monthNum = parseInt(parts.mo, 10);
   const maxDay = !isNaN(yearNum) && !isNaN(monthNum) ? daysInMonth(yearNum, monthNum - 1) : 31;
 
-  const handleDayChange = (d: string) => onChange(composeIso(d, parsed.mo, parsed.y));
-  const handleMonthChange = (m: string) => {
-    let day = parsed.d ?? '';
-    if (day && parseInt(day, 10) > daysInMonth(parseInt(parsed.y || '2000', 10), parseInt(m || '1', 10) - 1)) {
-      day = '';
+  const commit = (next: Parts) => {
+    setParts(next);
+    onChange(composeIso(next.d, next.mo, next.y));
+  };
+
+  const handleDayChange = (d: string) => commit({ ...parts, d });
+  const handleMonthChange = (mo: string) => {
+    let d = parts.d;
+    if (d && parseInt(d, 10) > daysInMonth(parseInt(parts.y || '2000', 10), parseInt(mo || '1', 10) - 1)) {
+      d = '';
     }
-    onChange(composeIso(day, m, parsed.y));
+    commit({ ...parts, mo, d });
   };
   const handleYearChange = (y: string) => {
-    let day = parsed.d ?? '';
-    if (day && parsed.mo && parseInt(day, 10) > daysInMonth(parseInt(y || '2000', 10), parseInt(parsed.mo, 10) - 1)) {
-      day = '';
+    let d = parts.d;
+    if (d && parts.mo && parseInt(d, 10) > daysInMonth(parseInt(y || '2000', 10), parseInt(parts.mo, 10) - 1)) {
+      d = '';
     }
-    onChange(composeIso(day, parsed.mo, y));
+    commit({ ...parts, y, d });
   };
 
   const selectClass =
@@ -96,7 +116,7 @@ export function DateOfBirthInput({
         <select
           id={`${baseId}-day`}
           aria-label="Jour de naissance"
-          value={parsed.d}
+          value={parts.d}
           onChange={(e) => handleDayChange(e.target.value)}
           className={selectClass}
         >
@@ -114,7 +134,7 @@ export function DateOfBirthInput({
         <select
           id={`${baseId}-month`}
           aria-label="Mois de naissance"
-          value={parsed.mo}
+          value={parts.mo}
           onChange={(e) => handleMonthChange(e.target.value)}
           className={selectClass}
         >
@@ -135,7 +155,7 @@ export function DateOfBirthInput({
         <select
           id={`${baseId}-year`}
           aria-label="Année de naissance"
-          value={parsed.y}
+          value={parts.y}
           onChange={(e) => handleYearChange(e.target.value)}
           className={selectClass}
         >
