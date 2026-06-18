@@ -1,9 +1,9 @@
 // ARCHETYPE: command
-import Link from 'next/link';
-import { Users, UserPlus } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { MemberRowActions } from './member-row-actions';
+import { AddMemberButton } from './add-member-button';
 import { MEMBER_ROLES, type MemberRole } from './members-schema';
 
 export const dynamic = 'force-dynamic';
@@ -74,13 +74,7 @@ export default async function ParametresMembresPage() {
             <Users className="w-3.5 h-3.5 text-violet-500" />
             <SectionLabel>Membres actifs ({members.length})</SectionLabel>
           </div>
-          <Link
-            href="#"
-            className="bg-violet-600 hover:bg-violet-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition shadow-sm inline-flex items-center gap-1.5"
-          >
-            <UserPlus className="w-3 h-3" />
-            Inviter un membre
-          </Link>
+          <div className="relative">{canEdit && <AddMemberButton />}</div>
         </div>
         <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800">
           {members.map((m) => {
