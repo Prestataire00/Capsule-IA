@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, Building2, MapPin, Mail } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 const palette = [
   'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
@@ -15,6 +16,7 @@ const palette = [
 ];
 
 export default async function EntreprisesPage() {
+  await requireAccess('crm');
   const sb = supabaseServer();
   const { data } = await sb
     .schema('app')
