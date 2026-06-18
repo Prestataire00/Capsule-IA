@@ -7,6 +7,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { ConvertButton } from './convert-button';
 import { AnonymizeAction } from '../rgpd/anonymize-action';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,7 @@ async function loadProspects(): Promise<ProspectRow[]> {
 }
 
 export default async function ProspectsPage() {
+  await requireAccess('crm');
   const prospects = await loadProspects();
   const pending = prospects.filter((p) => p.status === 'new' || p.status === 'qualified');
 

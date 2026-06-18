@@ -8,11 +8,13 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { InfoCallout } from '@/shared/ui/info-callout';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 const actionLabel = { insert: 'création', update: 'modification', delete: 'suppression' };
 const actionTone = { insert: 'success', update: 'info', delete: 'danger' } as const;
 
-export default function AuditPage() {
+export default async function AuditPage() {
+  await requireAccess('settings');
   return (
     <div className="max-w-6xl w-full mx-auto px-6 py-8">
       <header className="mb-6">

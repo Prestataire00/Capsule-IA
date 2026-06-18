@@ -12,6 +12,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { Receipt } from 'lucide-react';
 import { InvoiceActions } from './invoice-actions';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +90,7 @@ export default async function FacturesPage({
 }: {
   searchParams: { status?: string };
 }) {
+  await requireAccess('billing');
   const status = STATUSES.includes(searchParams.status as InvoiceStatus)
     ? (searchParams.status as InvoiceStatus)
     : null;

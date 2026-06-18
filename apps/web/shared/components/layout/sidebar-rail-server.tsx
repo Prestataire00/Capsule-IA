@@ -47,6 +47,6 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
 
 export async function SidebarRailServer() {
   const [counts, me] = await Promise.all([fetchSidebarCounts(), getCurrentMember()]);
-  const user = me ? { fullName: me.fullName, roleLabel: roleLabel(me.role) } : undefined;
+  const user = me ? { fullName: me.fullName, roleLabel: roleLabel(me.role), role: me.role } : undefined;
   return <SidebarRail counts={counts} user={user} />;
 }

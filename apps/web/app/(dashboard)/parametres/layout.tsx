@@ -1,8 +1,10 @@
 // ARCHETYPE: shared
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ParametresSubnav } from './_components/parametres-subnav';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 
-export default function ParametresLayout({ children }: { children: React.ReactNode }) {
+export default async function ParametresLayout({ children }: { children: React.ReactNode }) {
+  await requireAccess('settings'); // owner/admin uniquement
   return (
     <div className="max-w-6xl w-full mx-auto px-6 py-8">
       <header className="mb-6">
