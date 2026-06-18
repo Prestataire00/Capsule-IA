@@ -57,19 +57,20 @@ export async function loadSessionEmargement(
   sb: SupabaseClient<any, any, any>,
   sessionId: string,
 ): Promise<SessionEmargementView> {
-  const { data: sessionData } = await sb
+  const { data: sessionData, error: sessionError } = await sb
     .schema('app')
     .from('sessions')
     .select('id, dossier_id, organization_id, title, starts_at, ends_at, modality, location')
     .eq('id', sessionId)
     .maybeSingle();
+  if (sessionError) throw sessionError;
   if (!sessionData) return null;
   const s = sessionData as {
     id: string; dossier_id: string; organization_id: string; title: string | null;
     starts_at: string; ends_at: string; modality: string; location: string | null;
   };
 
-  const [{ data: sheetsData }, { data: partsData }] = await Promise.all([
+  const [{ data: sheetsData, error: sheetsError }, { data: partsData, error: partsError }] = await Promise.all([
     sb
       .schema('app')
       .from('attendance_sheets')
@@ -81,6 +82,8 @@ export async function loadSessionEmargement(
       .select('participant_kind, learner_id, trainer_id, learner:learners(first_name,last_name,email), trainer:trainers(first_name,last_name,email)')
       .eq('session_id', sessionId),
   ]);
+  if (sheetsError) throw sheetsError;
+  if (partsError) throw partsError;
 
   const parts = ((partsData ?? []) as unknown as ParticipantRow[]).map((p) => {
     const isLearner = p.participant_kind === 'learner';
