@@ -24,7 +24,7 @@ AS $$
 DECLARE
   v_org        UUID;
   v_user_id    UUID;
-  v_old_email  CITEXT;
+  v_old_email  TEXT;  -- TEXT (pas CITEXT) : évite de dépendre du schéma de l'extension citext dans le search_path épinglé
   v_already    TIMESTAMPTZ;
   v_paths      TEXT[] := '{}';
   v_before     JSONB;
@@ -65,7 +65,7 @@ BEGIN
   UPDATE app.learners SET
     first_name          = 'Apprenant',
     last_name           = 'anonymisé #' || substr(id::text, 1, 8),
-    email               = ('anon+' || id::text || '@anonymized.invalid')::citext,
+    email               = 'anon+' || id::text || '@anonymized.invalid',
     phone               = NULL,
     birth_date          = NULL,
     birth_place         = NULL,
@@ -134,11 +134,11 @@ BEGIN
   UPDATE app.email_log SET
     recipient = 'anonymized@anonymized.invalid',
     metadata  = '{}'::jsonb
-  WHERE organization_id = v_org AND recipient = v_old_email::text;
+  WHERE organization_id = v_org AND recipient = v_old_email;
 
   DELETE FROM app.notifications
   WHERE organization_id = v_org
-    AND (recipient_email = v_old_email
+    AND (recipient_email::text = v_old_email
          OR (v_user_id IS NOT NULL AND recipient_user_id = v_user_id));
 
   INSERT INTO audit.audit_log(organization_id, actor_user_id, schema_name, table_name, row_id, action, before, after, diff)
