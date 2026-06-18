@@ -39,6 +39,7 @@ export const SaveTemplateSchema = z.object({
   kind: z.enum(TEMPLATE_KINDS),
   title: z.string().min(1, 'Titre requis').max(200),
   contentHtml: z.string().min(1, 'Contenu requis').max(100_000),
+  formationId: z.string().uuid().nullable().default(null),
 });
 export type SaveTemplateValues = z.infer<typeof SaveTemplateSchema>;
 

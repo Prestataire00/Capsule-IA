@@ -97,6 +97,7 @@ export const saveTemplate = authActionClient
           kind: parsedInput.kind,
           title: parsedInput.title,
           content_html: parsedInput.contentHtml,
+          formation_id: parsedInput.formationId,
           updated_at: new Date().toISOString(),
         } as never)
         .eq('id', parsedInput.id)
@@ -116,6 +117,7 @@ export const saveTemplate = authActionClient
         code,
         title: parsedInput.title,
         content_html: parsedInput.contentHtml,
+        formation_id: parsedInput.formationId,
         is_active: true,
       } as never)
       .select('id')
