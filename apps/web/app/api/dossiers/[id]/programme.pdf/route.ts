@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateProgrammePDF, type ProgrammeInput } from '@/features/documents/generate-programme-pdf';
 
+import { canAccessDossier } from '@/features/documents/guard-dossier-access';
+
 export const dynamic = 'force-dynamic';
 
 const admin = () =>
@@ -11,6 +13,9 @@ const admin = () =>
   });
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await canAccessDossier(params.id))) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
   const sb = admin();
 
   const { data: dossierData, error: dossierErr } = await sb
