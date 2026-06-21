@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { generateSignatureToken } from '@/shared/lib/signature-token';
 import { parseZoomCsv } from '@/features/attendance/zoom-csv-parser';
 import { renderAttendancePdf, type PdfSignatureLine } from '@/features/attendance/pdf-render';
@@ -17,42 +18,6 @@ const ATTENDANCE_THRESHOLD = 0.75;
 export type GenerateParticipantLinkResult =
   | { ok: true; url: string; expiresAt: string }
   | { ok: false; error: string };
-
-export async function ensureAttendanceSheet(input: {
-  sessionId: string;
-  organizationId: string;
-  dossierId: string;
-}): Promise<{ ok: true; sheetId: string } | { ok: false; error: string }> {
-  const sb = admin();
-
-  const { data: existing } = await sb
-    .schema('app')
-    .from('attendance_sheets')
-    .select('id')
-    .eq('session_id', input.sessionId)
-    .eq('half_day', 'full')
-    .maybeSingle();
-
-  if (existing) {
-    return { ok: true, sheetId: (existing as { id: string }).id };
-  }
-
-  const { data: created, error } = await sb
-    .schema('app')
-    .from('attendance_sheets')
-    .insert({
-      organization_id: input.organizationId,
-      dossier_id: input.dossierId,
-      session_id: input.sessionId,
-      half_day: 'full',
-      status: 'open',
-    })
-    .select('id')
-    .single();
-
-  if (error || !created) return { ok: false, error: error?.message ?? 'create_failed' };
-  return { ok: true, sheetId: (created as { id: string }).id };
-}
 
 export async function generateParticipantSignatureLink(input: {
   sheetId: string;
@@ -405,4 +370,78 @@ export async function importZoomCsv(input: {
       durationMinutes: r.durationMinutes,
     })),
   };
+}
+
+export type EnsureSheetsResult =
+  | { ok: true; created: number }
+  | { ok: false; error: string };
+
+/** Garde multi-tenant : l'appelant ne peut agir que sur une séance de SON organisation (vérifié via RLS). */
+async function assertSessionAccess(sessionId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sb = supabaseServer();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+  const { data } = await sb.schema('app').from('sessions').select('id').eq('id', sessionId).maybeSingle();
+  if (!data) return { ok: false, error: 'forbidden' };
+  return { ok: true };
+}
+
+/** Matérialise (idempotent) les feuilles matin/après-midi de la séance via la RPC. */
+export async function ensureSessionSheets(sessionId: string): Promise<EnsureSheetsResult> {
+  const access = await assertSessionAccess(sessionId);
+  if (!access.ok) return { ok: false, error: access.error };
+  const sb = admin();
+  const { data, error } = await sb
+    .schema('app')
+    .rpc('materialize_attendance_slots' as never, { p_session_id: sessionId } as never);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, created: (data as number | null) ?? 0 };
+}
+
+export type ConvertLegacyResult =
+  | { ok: true; created: number }
+  | { ok: false; error: string };
+
+/**
+ * Convertit une feuille 'full' legacy VIERGE (0 signature, non finalisée) en
+ * feuilles demi-journée. Refuse si des signatures existent / déjà finalisée
+ * (preuve légale intouchable).
+ */
+export async function convertLegacyFullSheet(sessionId: string): Promise<ConvertLegacyResult> {
+  const access = await assertSessionAccess(sessionId);
+  if (!access.ok) return { ok: false, error: access.error };
+  const sb = admin();
+
+  const { data: full } = await sb
+    .schema('app')
+    .from('attendance_sheets')
+    .select('id, status')
+    .eq('session_id', sessionId)
+    .eq('half_day', 'full')
+    .maybeSingle();
+  if (!full) return { ok: false, error: 'no_full_sheet' };
+  const fullSheet = full as { id: string; status: string };
+  if (fullSheet.status === 'finalized') return { ok: false, error: 'full_sheet_finalized' };
+
+  const { count } = await sb
+    .schema('app')
+    .from('attendance_signatures')
+    .select('*', { count: 'exact', head: true })
+    .eq('attendance_sheet_id', fullSheet.id);
+  if ((count ?? 0) > 0) return { ok: false, error: 'full_sheet_has_signatures' };
+
+  const { error: delErr } = await sb
+    .schema('app')
+    .from('attendance_sheets')
+    .delete()
+    .eq('id', fullSheet.id);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  const { data, error } = await sb
+    .schema('app')
+    .rpc('materialize_attendance_slots' as never, { p_session_id: sessionId } as never);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, created: (data as number | null) ?? 0 };
 }

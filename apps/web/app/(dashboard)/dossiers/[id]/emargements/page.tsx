@@ -1,6 +1,7 @@
 // ARCHETYPE: command
 // Justification: vue consolidée des feuilles d'émargement réelles du dossier (lecture seule).
 
+import Link from 'next/link';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -32,10 +33,11 @@ export default async function EmargementsPage({ params }: { params: { id: string
 
   const sheets = (((data as unknown) as Record<string, unknown>[]) ?? [])
     .map((row) => {
-      const session = row.session as { title: string | null; starts_at: string | null } | null;
+      const session = row.session as { id: string; title: string | null; starts_at: string | null } | null;
       const sigs = (row.signatures as { signed_at: string | null }[] | null) ?? [];
       return {
         id: row.id as string,
+        sessionId: session?.id ?? null,
         title: session?.title ?? 'Séance',
         startsAt: session?.starts_at ?? null,
         halfDay: (row.half_day as string | null) ?? 'full',
@@ -96,11 +98,8 @@ export default async function EmargementsPage({ params }: { params: { id: string
             const ratio = s.total > 0 ? s.signed / s.total : 0;
             const tone = s.finalized || (s.total > 0 && ratio === 1) ? 'success' : s.total === 0 ? 'neutral' : 'warning';
             const label = s.finalized ? 'finalisée' : s.total === 0 ? 'à venir' : ratio === 1 ? 'complète' : 'incomplète';
-            return (
-              <li
-                key={s.id}
-                className="grid grid-cols-[140px_1fr_120px_110px] gap-3 py-3 px-1 text-[13px] items-center"
-              >
+            const inner = (
+              <div className="grid grid-cols-[140px_1fr_120px_110px] gap-3 py-3 px-1 text-[13px] items-center">
                 <span className="font-mono text-[11px] text-zinc-500">{fmtDateTime(s.startsAt)}</span>
                 <span className="text-zinc-900 dark:text-zinc-100 truncate">
                   {s.title}
@@ -110,6 +109,20 @@ export default async function EmargementsPage({ params }: { params: { id: string
                   {s.signed}/{s.total} signé{s.total > 1 ? 's' : ''}
                 </span>
                 <StatusPill tone={tone}>{label}</StatusPill>
+              </div>
+            );
+            return (
+              <li key={s.id}>
+                {s.sessionId ? (
+                  <Link
+                    href={`/dossiers/${params.id}/emargements/${s.sessionId}`}
+                    className="block hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition rounded-lg"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  inner
+                )}
               </li>
             );
           })}
