@@ -154,3 +154,94 @@ export async function sendNeedsAnalysisForDossier(opts: {
 
   return { ok: true, status: 'sent' };
 }
+
+/**
+ * Envoie (idempotent) la fiche besoin à un apprenant créé hors dossier (dashboard).
+ * Crée une assignation positionnement sans dossier_id. Ne lève jamais.
+ */
+export async function sendNeedsAnalysisForLearner(opts: {
+  learnerId: string;
+  baseUrl?: string | null;
+  sb?: Sb;
+}): Promise<NeedsAnalysisSendResult> {
+  const baseUrl = (opts.baseUrl ?? env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const sb = opts.sb ?? admin();
+
+  const { data: learnerRow } = await sb
+    .schema('app')
+    .from('learners')
+    .select('id, organization_id, first_name, last_name, email')
+    .eq('id', opts.learnerId)
+    .maybeSingle();
+  if (!learnerRow) return { ok: true, status: 'not_found' };
+
+  const learner = learnerRow as unknown as {
+    id: string;
+    organization_id: string;
+    first_name: string;
+    last_name: string;
+    email: string | null;
+  };
+  if (!learner.email) return { ok: true, status: 'no_email' };
+
+  const templateId = await ensureNeedsAnalysisTemplate(sb);
+
+  // Anti-doublon : une fiche besoin hors dossier par apprenant.
+  const { data: existing } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('id')
+    .eq('template_id', templateId)
+    .eq('recipient_learner_id', learner.id)
+    .is('dossier_id', null)
+    .maybeSingle();
+  if (existing) return { ok: true, status: 'skipped_existing' };
+
+  if (!baseUrl) return { ok: true, status: 'no_base_url' };
+
+  const tokenHash = createHash('sha256').update(randomBytes(24)).digest('hex');
+  const { data: created, error: assignErr } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .insert({
+      organization_id: learner.organization_id,
+      template_id: templateId,
+      dossier_id: null,
+      recipient_kind: 'learner',
+      recipient_learner_id: learner.id,
+      recipient_email: learner.email,
+      recipient_name: `${learner.first_name} ${learner.last_name}`.trim(),
+      token_hash: tokenHash,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+  if (assignErr || !created) return { ok: false, error: assignErr?.message ?? 'assignment_failed' };
+
+  const assignmentId = (created as { id: string }).id;
+  const { url } = await generateNeedsAnalysisUrl(
+    {
+      assignmentId,
+      dossierId: null,
+      organizationId: learner.organization_id,
+      learnerId: learner.id,
+    },
+    baseUrl,
+  );
+
+  const email = needsAnalysisEmail({
+    firstName: learner.first_name,
+    formationTitle: null,
+    formUrl: url,
+    durationMinutes: 10,
+  });
+  const r = await sendEmail({
+    to: learner.email,
+    subject: email.subject,
+    html: email.html,
+    replyTo: env.OF_NOTIFICATION_EMAIL,
+  });
+  if (!r.ok && r.reason !== 'no_api_key') return { ok: false, error: 'send_failed' };
+
+  return { ok: true, status: 'sent' };
+}

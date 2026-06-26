@@ -15,14 +15,34 @@ async function loadContext(token: string) {
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: dossier } = await sb
-    .schema('app')
-    .from('dossiers')
-    .select('id, reference, learner:learners(first_name, last_name), formation:formations(title)')
-    .eq('id', verified.value.dossierId)
-    .maybeSingle();
 
-  if (!dossier) return { kind: 'invalid' as const, reason: 'not_found' };
+  let firstName = '';
+  let formationTitle: string | null = null;
+
+  if (verified.value.dossierId) {
+    const { data: dossier } = await sb
+      .schema('app')
+      .from('dossiers')
+      .select('id, learner:learners(first_name, last_name), formation:formations(title)')
+      .eq('id', verified.value.dossierId)
+      .maybeSingle();
+    if (!dossier) return { kind: 'invalid' as const, reason: 'not_found' };
+    const d = dossier as unknown as {
+      learner: { first_name: string; last_name: string } | null;
+      formation: { title: string } | null;
+    };
+    firstName = d.learner?.first_name ?? '';
+    formationTitle = d.formation?.title ?? null;
+  } else {
+    const { data: learner } = await sb
+      .schema('app')
+      .from('learners')
+      .select('first_name')
+      .eq('id', verified.value.learnerId)
+      .maybeSingle();
+    if (!learner) return { kind: 'invalid' as const, reason: 'not_found' };
+    firstName = (learner as { first_name: string }).first_name ?? '';
+  }
 
   const { data: existing } = await sb
     .schema('app')
@@ -31,16 +51,7 @@ async function loadContext(token: string) {
     .eq('assignment_id', verified.value.assignmentId)
     .maybeSingle();
 
-  return {
-    kind: 'ok' as const,
-    answered: Boolean(existing),
-    dossier: dossier as unknown as {
-      id: string;
-      reference: string;
-      learner: { first_name: string; last_name: string } | null;
-      formation: { title: string } | null;
-    },
-  };
+  return { kind: 'ok' as const, answered: Boolean(existing), firstName, formationTitle };
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -119,10 +130,8 @@ export default async function FicheBesoinPage({
     );
   }
 
-  const learnerName = ctx.dossier.learner
-    ? `${ctx.dossier.learner.first_name}`
-    : '';
-  const formationTitle = ctx.dossier.formation?.title ?? null;
+  const learnerName = ctx.firstName;
+  const formationTitle = ctx.formationTitle;
 
   return (
     <Shell>
