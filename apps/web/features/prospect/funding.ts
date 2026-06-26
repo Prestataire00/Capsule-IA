@@ -1,5 +1,6 @@
 export const FUNDER_VALUES = [
   'opco',
+  'cpf',
   'faf_ca',
   'agefiph',
   'entreprise',
@@ -19,6 +20,11 @@ export const FUNDER_OPTIONS: readonly FunderOption[] = [
     value: 'opco',
     label: 'OPCO',
     hint: 'Prise en charge par votre opérateur de compétences (salariés).',
+  },
+  {
+    value: 'cpf',
+    label: 'CPF',
+    hint: 'Compte personnel de formation (Mon Compte Formation).',
   },
   {
     value: 'faf_ca',
@@ -62,6 +68,14 @@ const DOCS_BY_FUNDER: Record<string, readonly DocRequirement[]> = {
       label: 'Convention collective',
       hint: 'Référence de la convention collective applicable.',
       required: true,
+    },
+  ],
+  cpf: [
+    {
+      key: 'id',
+      label: 'Pièce d’identité',
+      hint: 'Pièce d’identité du bénéficiaire (facultatif).',
+      required: false,
     },
   ],
   faf_ca: [

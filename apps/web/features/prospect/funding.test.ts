@@ -7,9 +7,10 @@ import {
 } from './funding';
 
 describe('FUNDER_VALUES', () => {
-  it('equals the 5 supported funders', () => {
+  it('equals the 6 supported funders', () => {
     expect(FUNDER_VALUES).toEqual([
       'opco',
+      'cpf',
       'faf_ca',
       'agefiph',
       'entreprise',
