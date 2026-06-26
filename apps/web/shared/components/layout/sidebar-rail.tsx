@@ -85,6 +85,7 @@ const GROUPS: Group[] = [
     icon: ShieldCheck,
     items: [
       { href: '/qualiopi', icon: ShieldCheck, label: 'Qualiopi' },
+      { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/reporting', icon: BarChart3, label: 'Reporting' },
       { href: '/audit', icon: Activity, label: 'Audit' },
     ],
