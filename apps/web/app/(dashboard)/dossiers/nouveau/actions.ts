@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateDossierReference } from '@/features/crm/prospect-conversion/dossier-reference';
+import { sendNeedsAnalysisForDossier } from '@/features/questionnaire/needs-analysis';
 import { CreateDossierSchema } from './schema';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
@@ -130,6 +131,15 @@ export const createDossierAction = authActionClient
             .eq('id', f.id),
         ),
       );
+    }
+
+    // Fiche besoin (analyse des besoins) envoyée automatiquement à l'apprenant
+    // dès son rattachement à un dossier. Non bloquant + idempotent ; le cron
+    // transactional-emails sert de filet si l'envoi échoue ici.
+    try {
+      await sendNeedsAnalysisForDossier({ dossierId });
+    } catch (e) {
+      console.error('[createDossierAction] envoi fiche besoin échoué', e);
     }
 
     revalidatePath('/dossiers');

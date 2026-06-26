@@ -293,6 +293,38 @@ export function satisfactionSurveyEmail(data: SatisfactionSurveyData): { subject
 }
 
 // ────────────────────────────────────────────────────────────────
+// Email — Fiche besoin (analyse des besoins / positionnement)
+// ────────────────────────────────────────────────────────────────
+
+export type NeedsAnalysisEmailData = {
+  firstName: string;
+  formationTitle: string | null;
+  formUrl: string; // lien vers le questionnaire de positionnement
+  durationMinutes: number;
+};
+
+export function needsAnalysisEmail(data: NeedsAnalysisEmailData): { subject: string; html: string } {
+  const subject = data.formationTitle
+    ? `Préparons votre formation « ${data.formationTitle} » — fiche besoin`
+    : 'Préparons votre formation — fiche besoin';
+
+  const html = wrapper(`
+    ${card(`
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bienvenue ${escapeHtml(data.firstName)} 👋</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">
+        Avant de démarrer${data.formationTitle ? ` <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong>` : ' votre formation'}, merci de remplir votre <strong style="color:#18181b;">fiche besoin</strong>. Elle nous permet d'analyser vos attentes et d'adapter le parcours — c'est aussi une exigence <strong>Qualiopi</strong>.
+      </p>
+      <p style="font-size:13px; color:#52525b; margin:0 0 20px;">
+        ⏱ <strong>${data.durationMinutes} minutes</strong> environ · vos réponses restent confidentielles.
+      </p>
+      <div>${button(data.formUrl, 'Remplir ma fiche besoin')}</div>
+    `)}
+  `);
+
+  return { subject, html };
+}
+
+// ────────────────────────────────────────────────────────────────
 // Email 5 — Fin de formation (attestation + certificat)
 // ────────────────────────────────────────────────────────────────
 
