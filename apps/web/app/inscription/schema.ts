@@ -11,6 +11,16 @@ export const PROSPECT_SITUATIONS = [
 
 export const PROSPECT_MODALITIES = ['presentiel', 'distanciel', 'hybride'] as const;
 
+// Fiche besoin (analyse des besoins) saisie en ligne dans le formulaire.
+export const needsAnalysisSchema = z.object({
+  currentLevel: z.coerce.number().int().min(1).max(5),
+  objectives: z.string().trim().min(1, 'Objectifs requis').max(2000),
+  expectations: z.string().trim().max(2000).optional().or(z.literal('')),
+  constraints: z.string().trim().max(2000).optional().or(z.literal('')),
+  accommodations: z.string().trim().max(2000).optional().or(z.literal('')),
+});
+export type NeedsAnalysisFields = z.infer<typeof needsAnalysisSchema>;
+
 export const prospectFieldsSchema = z.object({
   civility: z.enum(['m', 'mme']).optional(),
   firstName: z.string().trim().min(1, 'Prénom requis').max(100),
@@ -39,6 +49,7 @@ export const prospectFieldsSchema = z.object({
   referentEmail: z.string().trim().toLowerCase().email('Email invalide').max(255).optional().or(z.literal('')),
   referentPhone: z.string().trim().max(30).optional().or(z.literal('')),
   funderKinds: z.array(z.enum(FUNDER_VALUES)).min(1, 'Sélectionnez au moins un financement'),
+  needsAnalysis: needsAnalysisSchema.optional(),
 });
 
 export type ProspectFields = z.infer<typeof prospectFieldsSchema>;
@@ -55,6 +66,7 @@ export const employeeSchema = z.object({
   phone: z.string().trim().max(30).optional().or(z.literal('')),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide').optional().or(z.literal('')),
   rqth: z.boolean(),
+  needsAnalysis: needsAnalysisSchema.optional(),
 });
 export type EmployeeFields = z.infer<typeof employeeSchema>;
 
