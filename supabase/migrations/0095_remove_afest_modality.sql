@@ -27,14 +27,19 @@ END $$;
 DROP VIEW IF EXISTS app.attendance_consolidated;
 DROP VIEW IF EXISTS app.v_dossiers_overview;
 
--- 3. Renomme l'ancien type et crée le nouveau sans 'afest'.
+-- 3. Droppe la contrainte CHECK qui compare modality (scalaire) et modalities[]
+--    (0059). Sans ça, convertir une colonne avant l'autre ferait comparer le
+--    nouveau type à l'ancien (operator does not exist). Recréée en étape 6.
+ALTER TABLE app.dossiers DROP CONSTRAINT ck_dossiers_modality_in_set;
+
+-- 4. Renomme l'ancien type et crée le nouveau sans 'afest'.
 ALTER TYPE app.training_modality RENAME TO training_modality_old;
 
 CREATE TYPE app.training_modality AS ENUM (
   'presentiel', 'distanciel', 'hybride'
 );
 
--- 4. Convertit les colonnes (défauts retirés puis restaurés autour de l'ALTER).
+-- 5. Convertit les colonnes (défauts retirés puis restaurés autour de l'ALTER).
 ALTER TABLE app.formations ALTER COLUMN default_modality DROP DEFAULT;
 ALTER TABLE app.dossiers   ALTER COLUMN modalities       DROP DEFAULT;
 
@@ -61,10 +66,15 @@ ALTER TABLE app.prospects
 ALTER TABLE app.formations ALTER COLUMN default_modality SET DEFAULT 'presentiel';
 ALTER TABLE app.dossiers   ALTER COLUMN modalities       SET DEFAULT '{}';
 
--- 5. Supprime l'ancien type (plus aucune colonne ne le référence).
+-- 6. Recrée la contrainte CHECK (identique à 0059) sur les colonnes converties.
+ALTER TABLE app.dossiers
+  ADD CONSTRAINT ck_dossiers_modality_in_set
+  CHECK (cardinality(modalities) = 0 OR modality = ANY(modalities));
+
+-- 7. Supprime l'ancien type (plus aucune colonne ne le référence).
 DROP TYPE app.training_modality_old;
 
--- 6. Recrée les vues à l'identique (cf. 0017 et 0060).
+-- 8. Recrée les vues à l'identique (cf. 0017 et 0060).
 CREATE OR REPLACE VIEW app.v_dossiers_overview AS
 SELECT
   d.id,
