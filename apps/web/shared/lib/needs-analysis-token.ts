@@ -21,7 +21,8 @@ const signingKey = (): Uint8Array => {
 
 export type NeedsAnalysisPayload = {
   readonly assignmentId: string;
-  readonly dossierId: string;
+  // null quand la fiche besoin est envoyée hors dossier (apprenant créé seul).
+  readonly dossierId: string | null;
   readonly organizationId: string;
   readonly learnerId: string;
 };
@@ -43,7 +44,7 @@ export const generateNeedsAnalysisToken = async (
   const token = await new SignJWT({
     sub: payload.learnerId,
     org: payload.organizationId,
-    dos: payload.dossierId,
+    dos: payload.dossierId ?? '',
     asg: payload.assignmentId,
   })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
@@ -80,7 +81,7 @@ export const verifyNeedsAnalysisToken = async (
     return ok({
       learnerId: payload.sub,
       organizationId: payload.org,
-      dossierId: payload.dos,
+      dossierId: payload.dos === '' ? null : payload.dos,
       assignmentId: payload.asg,
       jti: payload.jti,
     });

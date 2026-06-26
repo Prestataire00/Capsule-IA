@@ -16,7 +16,10 @@ import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
 import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
-import { sendNeedsAnalysisForDossier } from '@/features/questionnaire/needs-analysis';
+import {
+  sendNeedsAnalysisForDossier,
+  sendNeedsAnalysisForLearner,
+} from '@/features/questionnaire/needs-analysis';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -670,20 +673,54 @@ async function runNeedsAnalysisOnEnrollment(): Promise<{ candidates: number; sen
   return { candidates: rows.length, sent, errors };
 }
 
+// Filet : fiche besoin pour les apprenants créés récemment sans dossier
+// (création directe au dashboard) — idempotent via le helper.
+async function runNeedsAnalysisForNewLearners(): Promise<{ candidates: number; sent: number; errors: string[] }> {
+  const sb = admin();
+  const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(); // 48h
+  const { data, error } = await sb
+    .schema('app')
+    .from('learners')
+    .select('id')
+    .gte('created_at', cutoff);
+  if (error) return { candidates: 0, sent: 0, errors: [error.message] };
+  const rows = (data ?? []) as { id: string }[];
+
+  let sent = 0;
+  const errors: string[] = [];
+  for (const l of rows) {
+    try {
+      const r = await sendNeedsAnalysisForLearner({ learnerId: l.id, sb });
+      if (r.ok && r.status === 'sent') sent++;
+      else if (!r.ok) errors.push(`needs_learner ${l.id}: ${r.error}`);
+    } catch (e) {
+      errors.push(`needs_learner ${l.id}: ${(e as Error).message}`);
+    }
+  }
+  return { candidates: rows.length, sent, errors };
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const startedAt = Date.now();
-  const [convocations, dossierEnd, missingSignatures, trainerSatisfaction, needsAnalysis] =
-    await Promise.all([
-      runConvocationsJ7(),
-      runDossierEnd(),
-      runMissingSignatureAlerts(),
-      runTrainerSatisfaction(),
-      runNeedsAnalysisOnEnrollment(),
-    ]);
+  const [
+    convocations,
+    dossierEnd,
+    missingSignatures,
+    trainerSatisfaction,
+    needsAnalysis,
+    needsAnalysisLearners,
+  ] = await Promise.all([
+    runConvocationsJ7(),
+    runDossierEnd(),
+    runMissingSignatureAlerts(),
+    runTrainerSatisfaction(),
+    runNeedsAnalysisOnEnrollment(),
+    runNeedsAnalysisForNewLearners(),
+  ]);
   const durationMs = Date.now() - startedAt;
 
   return NextResponse.json({
@@ -694,6 +731,7 @@ export async function POST(req: Request) {
     missingSignatures,
     trainerSatisfaction,
     needsAnalysis,
+    needsAnalysisLearners,
   });
 }
 

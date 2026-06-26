@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { sendNeedsAnalysisForLearner } from '@/features/questionnaire/needs-analysis';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -30,19 +31,36 @@ export async function createLearner(fd: FormData): Promise<void> {
   const statutRaw = str(fd, 'statut');
   const statut = statutRaw && (STATUTS as readonly string[]).includes(statutRaw) ? statutRaw : null;
 
-  const { error } = await sb.schema('app').from('learners').insert({
-    organization_id: orgId,
-    first_name: firstName,
-    last_name: lastName,
-    email,
-    phone: str(fd, 'phone'),
-    birth_date: str(fd, 'birthDate'),
-    company_id: str(fd, 'companyId'),
-    position: str(fd, 'position'),
-    statut,
-    rqth: fd.get('rqth') === 'on',
-    accessibility_notes: str(fd, 'accessibilityNotes'),
-  });
+  const { data: created, error } = await sb
+    .schema('app')
+    .from('learners')
+    .insert({
+      organization_id: orgId,
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone: str(fd, 'phone'),
+      birth_date: str(fd, 'birthDate'),
+      company_id: str(fd, 'companyId'),
+      position: str(fd, 'position'),
+      statut,
+      rqth: fd.get('rqth') === 'on',
+      accessibility_notes: str(fd, 'accessibilityNotes'),
+    })
+    .select('id')
+    .single();
   if (error) redirect(`/apprenants/nouveau?error=${encodeURIComponent(error.message)}`);
+
+  // Fiche besoin (analyse des besoins) envoyée automatiquement à l'apprenant
+  // dès sa création — non bloquant, idempotent (filet cron en complément).
+  const learnerId = (created as { id?: string } | null)?.id;
+  if (learnerId) {
+    try {
+      await sendNeedsAnalysisForLearner({ learnerId });
+    } catch (e) {
+      console.error('[createLearner] envoi fiche besoin échoué', e);
+    }
+  }
+
   redirect('/apprenants');
 }
