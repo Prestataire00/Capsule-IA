@@ -45,10 +45,12 @@ import {
   type DocRequirement,
 } from '@/features/prospect/funding';
 import type { PublicFormation } from '@/features/catalog/public-catalog';
+import { NeedsAnalysisFields, emptyNeeds, type NeedsValue } from './needs-analysis-fields';
 
 const STEPS = [
   { key: 'identity', label: 'Vous', icon: User },
   { key: 'formation', label: 'Formation', icon: GraduationCap },
+  { key: 'besoin', label: 'Fiche besoin', icon: FileText },
   { key: 'funding', label: 'Financement', icon: User },
   { key: 'documents', label: 'Documents', icon: FileText },
 ] as const;
@@ -108,6 +110,7 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
     funderKinds: [],
   });
 
+  const [needs, setNeeds] = useState<NeedsValue>(emptyNeeds());
   const [files, setFiles] = useState<Record<string, File | null>>({});
 
   const docs: DocRequirement[] = useMemo(
@@ -126,7 +129,8 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
       return missing;
     }
     if (step === 1) return formation.formationId ? [] : ['Formation'];
-    if (step === 2) return funding.funderKinds.length > 0 ? [] : ['Mode de financement'];
+    if (step === 2) return needs.objectives.trim() ? [] : ['Objectifs de la fiche besoin'];
+    if (step === 3) return funding.funderKinds.length > 0 ? [] : ['Mode de financement'];
     return [];
   })();
   const canContinue = missingFields.length === 0;
@@ -176,6 +180,7 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
       referentEmail: isIndividual ? '' : funding.referentEmail,
       referentPhone: isIndividual ? '' : funding.referentPhone,
       funderKinds: funding.funderKinds,
+      needsAnalysis: needs,
     };
 
     const fd = new FormData();
@@ -274,8 +279,21 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
           {step === 1 && (
             <FormationStep value={formation} onChange={setFormation} formations={formations} />
           )}
-          {step === 2 && <FundingStep value={funding} onChange={setFunding} />}
-          {step === 3 && (
+          {step === 2 && (
+            <section className="p-6 space-y-5">
+              <div>
+                <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  Votre fiche besoin
+                </h2>
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  Aidez-nous à analyser vos besoins pour adapter le parcours (Qualiopi).
+                </p>
+              </div>
+              <NeedsAnalysisFields value={needs} onChange={setNeeds} />
+            </section>
+          )}
+          {step === 3 && <FundingStep value={funding} onChange={setFunding} />}
+          {step === 4 && (
             <DocumentsStep
               docs={docs}
               files={files}
@@ -1187,6 +1205,7 @@ type Employee = {
   phone: string;
   birthDate: string;
   rqth: boolean;
+  needs: NeedsValue;
 };
 const emptyEmployee = (): Employee => ({
   civility: 'mme',
@@ -1196,6 +1215,7 @@ const emptyEmployee = (): Employee => ({
   phone: '',
   birthDate: '',
   rqth: false,
+  needs: emptyNeeds(),
 });
 
 const COMPANY_STEPS = [
@@ -1203,6 +1223,7 @@ const COMPANY_STEPS = [
   { key: 'formation', label: 'Formation', icon: GraduationCap },
   { key: 'funding', label: 'Financement', icon: User },
   { key: 'employees', label: 'Salariés', icon: Users },
+  { key: 'besoin', label: 'Fiche besoin', icon: FileText },
 ] as const;
 
 function CompanyFlow({
@@ -1250,6 +1271,7 @@ function CompanyFlow({
   const employeesValid =
     employees.length > 0 &&
     employees.every((e) => e.firstName.trim() && e.lastName.trim() && e.email.trim());
+  const needsValid = employees.every((e) => e.needs.objectives.trim());
 
   const missingFields = (() => {
     if (step === 0) {
@@ -1263,6 +1285,7 @@ function CompanyFlow({
     if (step === 1) return formation.formationId ? [] : ['Formation'];
     if (step === 2) return funderKinds.length > 0 ? [] : ['Mode de financement'];
     if (step === 3) return employeesValid ? [] : ['Au moins un salarié (nom, prénom, email)'];
+    if (step === 4) return needsValid ? [] : ['Objectifs de la fiche besoin pour chaque salarié'];
     return [];
   })();
   const canContinue = missingFields.length === 0;
@@ -1277,7 +1300,7 @@ function CompanyFlow({
   };
 
   const handleSubmit = () => {
-    if (!employeesValid || funderKinds.length === 0) return;
+    if (!employeesValid || funderKinds.length === 0 || !needsValid) return;
     setSubmitError(null);
 
     const payload: CompanyEnrollmentFields = {
@@ -1310,6 +1333,7 @@ function CompanyFlow({
         phone: e.phone,
         birthDate: e.birthDate,
         rqth: e.rqth,
+        needsAnalysis: e.needs,
       })),
     };
 
@@ -1402,6 +1426,39 @@ function CompanyFlow({
           )}
           {step === 2 && <CompanyFundingStep funderKinds={funderKinds} onChange={setFunderKinds} />}
           {step === 3 && <EmployeesStep employees={employees} onChange={setEmployees} />}
+          {step === 4 && (
+            <section className="p-6 space-y-5">
+              <div>
+                <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  Fiche besoin par salarié
+                </h2>
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  Décrivez le besoin de chaque salarié pour adapter le parcours (Qualiopi).
+                </p>
+              </div>
+              <div className="space-y-4">
+                {employees.map((emp, idx) => (
+                  <div
+                    key={idx}
+                    className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 bg-zinc-50/40 dark:bg-zinc-950/40"
+                  >
+                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                      {emp.firstName || emp.lastName
+                        ? `${emp.firstName} ${emp.lastName}`.trim()
+                        : `Salarié ${idx + 1}`}
+                    </p>
+                    <NeedsAnalysisFields
+                      compact
+                      value={emp.needs}
+                      onChange={(n) =>
+                        setEmployees((prev) => prev.map((e, i) => (i === idx ? { ...e, needs: n } : e)))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <div className="px-6 py-4 border-t border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40 flex items-center justify-between gap-3 rounded-b-xl">
             {step > 0 ? (
