@@ -19,6 +19,7 @@ import {
 
 const FUNDER_LABELS: Record<ProspectFields['funderKinds'][number], string> = {
   opco: 'OPCO',
+  cpf: 'CPF',
   faf_ca: 'FAF / Chef d’entreprise',
   agefiph: 'Agefiph',
   entreprise: 'Entreprise',
@@ -310,6 +311,8 @@ export async function submitCompanyEnrollment(formData: FormData): Promise<Compa
 
   const primaryFunder = derivePrimaryFunder(fields.funderKinds);
   const companyAddress = fields.companyAddress ?? null;
+  // Regroupe les salariés inscrits en une même soumission (un prospect chacun).
+  const companyBatchId = crypto.randomUUID();
 
   const rows = fields.employees.map((emp) => ({
     organization_id: organizationId,
@@ -327,10 +330,15 @@ export async function submitCompanyEnrollment(formData: FormData): Promise<Compa
     situation: 'salarie' as const,
     company_name: fields.companyName,
     company_siret: fields.companySiret || null,
+    company_siren: fields.companySiren || null,
     company_address: companyAddress,
     referent_name: fields.referentName || null,
     referent_email: fields.referentEmail || null,
     referent_phone: fields.referentPhone || null,
+    company_headcount_n1: fields.companyHeadcountN1 ?? null,
+    employees_to_train: fields.employeesToTrain ?? null,
+    training_budget_used: fields.trainingBudgetUsed ?? null,
+    company_batch_id: companyBatchId,
     funder_kinds: fields.funderKinds,
     funder_kind: primaryFunder,
     source: 'web_form_company',

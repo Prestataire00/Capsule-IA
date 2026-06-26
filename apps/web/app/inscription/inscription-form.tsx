@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { submitProspect, submitCompanyEnrollment } from './actions';
 import type { ProspectFields, CompanyEnrollmentFields } from './schema';
+import { EntrepriseAutocomplete, type CompanyAutofill } from './entreprise-autocomplete';
+import { headcountRangeToNumber } from './sirene';
 import {
   ArrowLeft,
   ArrowRight,
@@ -1222,12 +1224,16 @@ function CompanyFlow({
   const [company, setCompany] = useState({
     companyName: '',
     companySiret: '',
+    companySiren: '',
     companyAddressLine1: '',
     companyAddressCity: '',
     companyAddressPostalCode: '',
     referentName: '',
     referentEmail: '',
     referentPhone: '',
+    companyHeadcountN1: '',
+    employeesToTrain: '',
+    trainingBudgetUsed: null as boolean | null,
   });
   const [formation, setFormation] = useState({
     formationId: preselectedFormation,
@@ -1246,7 +1252,14 @@ function CompanyFlow({
     employees.every((e) => e.firstName.trim() && e.lastName.trim() && e.email.trim());
 
   const missingFields = (() => {
-    if (step === 0) return company.companyName.trim() ? [] : ["Nom de l'entreprise"];
+    if (step === 0) {
+      const missing: string[] = [];
+      if (!company.companyName.trim()) missing.push("Nom de l'entreprise");
+      if (company.companyHeadcountN1.trim() === '') missing.push('Effectif N-1');
+      if (company.employeesToTrain.trim() === '') missing.push('Nombre de salariés à former');
+      if (company.trainingBudgetUsed === null) missing.push('Budget formation déjà utilisé');
+      return missing;
+    }
     if (step === 1) return formation.formationId ? [] : ['Formation'];
     if (step === 2) return funderKinds.length > 0 ? [] : ['Mode de financement'];
     if (step === 3) return employeesValid ? [] : ['Au moins un salarié (nom, prénom, email)'];
@@ -1270,6 +1283,7 @@ function CompanyFlow({
     const payload: CompanyEnrollmentFields = {
       companyName: company.companyName,
       companySiret: company.companySiret,
+      companySiren: company.companySiren,
       companyAddress: {
         line1: company.companyAddressLine1,
         city: company.companyAddressCity,
@@ -1278,6 +1292,11 @@ function CompanyFlow({
       referentName: company.referentName,
       referentEmail: company.referentEmail,
       referentPhone: company.referentPhone,
+      companyHeadcountN1:
+        company.companyHeadcountN1.trim() === '' ? undefined : Number(company.companyHeadcountN1),
+      employeesToTrain:
+        company.employeesToTrain.trim() === '' ? undefined : Number(company.employeesToTrain),
+      trainingBudgetUsed: company.trainingBudgetUsed ?? undefined,
       formationId: formation.formationId,
       preferredModality: formation.preferredModality as CompanyEnrollmentFields['preferredModality'],
       preferredStartDate: formation.preferredStart,
@@ -1453,17 +1472,35 @@ function CompanyStep({
   value: {
     companyName: string;
     companySiret: string;
+    companySiren: string;
     companyAddressLine1: string;
     companyAddressCity: string;
     companyAddressPostalCode: string;
     referentName: string;
     referentEmail: string;
     referentPhone: string;
+    companyHeadcountN1: string;
+    employeesToTrain: string;
+    trainingBudgetUsed: boolean | null;
   };
   onChange: (v: typeof value) => void;
 }) {
   const update = <K extends keyof typeof value>(k: K, v: (typeof value)[K]) =>
     onChange({ ...value, [k]: v });
+
+  const handleAutofill = (c: CompanyAutofill) => {
+    const headcount = headcountRangeToNumber(c.headcountRangeCode);
+    onChange({
+      ...value,
+      companyName: c.name || value.companyName,
+      companySiret: c.siret || value.companySiret,
+      companySiren: c.siren || value.companySiren,
+      companyAddressLine1: c.addressLine1 || value.companyAddressLine1,
+      companyAddressPostalCode: c.postalCode || value.companyAddressPostalCode,
+      companyAddressCity: c.city || value.companyAddressCity,
+      companyHeadcountN1: headcount != null ? String(headcount) : value.companyHeadcountN1,
+    });
+  };
 
   return (
     <section className="p-6 space-y-5">
@@ -1475,6 +1512,8 @@ function CompanyStep({
           Ces informations seront associées à chaque salarié inscrit.
         </p>
       </div>
+
+      <EntrepriseAutocomplete onSelect={handleAutofill} />
 
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Nom de l'entreprise" required>
@@ -1569,6 +1608,60 @@ function CompanyStep({
             </div>
           </FormField>
         </div>
+      </div>
+
+      <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 space-y-5">
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+          Contexte de votre demande de formation.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Effectif de l'entreprise (année N-1)" required>
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={value.companyHeadcountN1}
+              onChange={(e) => update('companyHeadcountN1', e.target.value)}
+              placeholder="Ex. 25"
+              className={inputClass}
+            />
+          </FormField>
+          <FormField label="Nombre de salariés à former" required>
+            <input
+              type="number"
+              min={1}
+              inputMode="numeric"
+              value={value.employeesToTrain}
+              onChange={(e) => update('employeesToTrain', e.target.value)}
+              placeholder="Ex. 4"
+              className={inputClass}
+            />
+          </FormField>
+        </div>
+        <FormField label="Avez-vous déjà utilisé une partie de votre budget formation de l'année en cours ?" required>
+          <div className="flex gap-2">
+            {[
+              { v: true, l: 'Oui' },
+              { v: false, l: 'Non' },
+            ].map((opt) => {
+              const active = value.trainingBudgetUsed === opt.v;
+              return (
+                <button
+                  key={opt.l}
+                  type="button"
+                  onClick={() => update('trainingBudgetUsed', opt.v)}
+                  className={`px-4 py-2 rounded-lg text-[13px] border transition ${
+                    active
+                      ? 'border-violet-300 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-medium'
+                      : 'border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                  }`}
+                >
+                  {opt.l}
+                </button>
+              );
+            })}
+          </div>
+        </FormField>
       </div>
     </section>
   );

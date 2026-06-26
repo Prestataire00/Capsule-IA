@@ -68,9 +68,15 @@ export const companyEnrollmentSchema = z.object({
       postalCode: z.string().trim().max(10).optional().or(z.literal('')),
     })
     .optional(),
+  companySiren: z.string().trim().regex(/^\d{9}$/, 'SIREN invalide').optional().or(z.literal('')),
   referentName: z.string().trim().max(200).optional().or(z.literal('')),
   referentEmail: z.string().trim().toLowerCase().email('Email invalide').max(255).optional().or(z.literal('')),
   referentPhone: z.string().trim().max(30).optional().or(z.literal('')),
+
+  // Contexte entreprise (3 questions posées avant la saisie des salariés).
+  companyHeadcountN1: z.number().int().min(0).max(1_000_000).optional(),
+  employeesToTrain: z.number().int().min(1).max(10_000).optional(),
+  trainingBudgetUsed: z.boolean().optional(),
 
   formationId: z.string().uuid().optional().or(z.literal('')),
   preferredModality: z.enum(PROSPECT_MODALITIES).optional().or(z.literal('')),
@@ -79,6 +85,20 @@ export const companyEnrollmentSchema = z.object({
 
   funderKinds: z.array(z.enum(FUNDER_VALUES)).min(1, 'Sélectionnez au moins un financement'),
   employees: z.array(employeeSchema).min(1, 'Ajoutez au moins un salarié').max(100),
+}).superRefine((v, ctx) => {
+  // Dédoublonnage des emails de salariés (cross-field).
+  const seen = new Set<string>();
+  v.employees.forEach((e, i) => {
+    const key = e.email.trim().toLowerCase();
+    if (seen.has(key)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['employees', i, 'email'],
+        message: 'Cet email est déjà utilisé pour un autre salarié.',
+      });
+    }
+    seen.add(key);
+  });
 });
 export type CompanyEnrollmentFields = z.infer<typeof companyEnrollmentSchema>;
 
