@@ -6,6 +6,13 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
+import {
+  buildBillingPlan,
+  canBill,
+  type FunderAllocationInput,
+  type InvoiceInput,
+  type Payer,
+} from '@/features/billing/domain/billing-plan';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -14,6 +21,8 @@ const admin = () =>
 
 const createInvoiceSchema = z.object({
   dossierId: z.string().uuid('Dossier requis'),
+  // Payeur : un financeur (uuid) du dossier, ou '' = reste à charge (entreprise/apprenant).
+  funderId: z.string().uuid().optional().or(z.literal('')),
   description: z.string().trim().min(3, 'Description trop courte').max(200),
   unitAmountCents: z.coerce.number().int().min(0),
   quantity: z.coerce.number().min(0.01).default(1),
@@ -31,6 +40,7 @@ function generateInvoiceReference(): string {
 export async function createInvoice(formData: FormData): Promise<void> {
   const parsed = createInvoiceSchema.safeParse({
     dossierId: formData.get('dossierId'),
+    funderId: formData.get('funderId') ?? '',
     description: formData.get('description'),
     unitAmountCents: formData.get('unitAmountCents'),
     quantity: formData.get('quantity') || '1',
@@ -43,25 +53,69 @@ export async function createInvoice(formData: FormData): Promise<void> {
     redirect('/factures/nouvelle?error=invalid');
   }
   const data = parsed.data;
+  const payer: Payer = data.funderId ? data.funderId : null;
 
   const sb = admin();
 
-  // Charge le dossier pour récupérer org/funder/company
-  const { data: dossierRow } = await sb
-    .schema('app')
-    .from('dossiers')
-    .select('organization_id, company_id, funder_id')
-    .eq('id', data.dossierId)
-    .maybeSingle();
+  // Charge le dossier (org, entreprise destinataire, total HT) + financeurs + factures existantes.
+  const [{ data: dossierRow }, { data: funderRows }, { data: invoiceRows }] = await Promise.all([
+    sb
+      .schema('app')
+      .from('dossiers')
+      .select('organization_id, company_id, total_amount_cents')
+      .eq('id', data.dossierId)
+      .maybeSingle(),
+    sb
+      .schema('app')
+      .from('dossier_funders')
+      .select('funder_id, amount_cents, status, funder:funders(name, kind)')
+      .eq('dossier_id', data.dossierId),
+    sb
+      .schema('app')
+      .from('invoices')
+      .select('funder_id, subtotal_cents, status')
+      .eq('dossier_id', data.dossierId)
+      .is('deleted_at', null),
+  ]);
 
   if (!dossierRow) {
     redirect('/factures/nouvelle?error=dossier_not_found');
   }
-  const dossier = dossierRow as { organization_id: string; company_id: string | null; funder_id: string | null };
+  const dossier = dossierRow as {
+    organization_id: string;
+    company_id: string | null;
+    total_amount_cents: number | null;
+  };
 
   const subtotalCents = Math.round(data.unitAmountCents * data.quantity);
   const vatCents = Math.round(subtotalCents * (data.vatRate / 100));
   const totalCents = subtotalCents + vatCents;
+
+  // Garde anti-double-facturation : Σ factures ≤ total dossier, et par payeur ≤ son allocation.
+  const allocations: FunderAllocationInput[] = (
+    (funderRows ?? []) as unknown as Array<{
+      funder_id: string;
+      amount_cents: number;
+      status: string;
+      funder: { name: string; kind: string } | null;
+    }>
+  ).map((f) => ({
+    funderId: f.funder_id,
+    name: f.funder?.name ?? 'Financeur',
+    kind: f.funder?.kind ?? 'autre',
+    allocatedHtCents: f.amount_cents,
+    status: (f.status as FunderAllocationInput['status']) ?? 'pending',
+  }));
+  const existingInvoices: InvoiceInput[] = (
+    (invoiceRows ?? []) as unknown as Array<{ funder_id: string | null; subtotal_cents: number; status: string }>
+  ).map((i) => ({ funderId: i.funder_id, subtotalHtCents: i.subtotal_cents, status: i.status }));
+
+  const plan = buildBillingPlan(dossier.total_amount_cents ?? 0, allocations, existingInvoices);
+  const guard = canBill(plan, payer, subtotalCents);
+  if (!guard.ok) {
+    redirect(`/factures/nouvelle?error=${guard.error}&dossierId=${data.dossierId}&payer=${data.funderId || 'reste'}`);
+  }
+
   const reference = generateInvoiceReference();
   const status = data.issuedNow ? 'issued' : 'draft';
 
@@ -73,7 +127,7 @@ export async function createInvoice(formData: FormData): Promise<void> {
       organization_id: dossier.organization_id,
       reference,
       dossier_id: data.dossierId,
-      funder_id: dossier.funder_id,
+      funder_id: payer,
       company_id: dossier.company_id,
       status,
       issued_at: data.issuedNow ? new Date().toISOString().slice(0, 10) : null,

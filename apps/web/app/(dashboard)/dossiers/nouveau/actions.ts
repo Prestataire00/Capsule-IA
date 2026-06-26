@@ -76,19 +76,15 @@ export const createDossierAction = authActionClient
       ? [{ trainer_id: parsedInput.trainerId, is_lead: true }]
       : [];
 
-    const funders = parsedInput.funderId
-      ? [
-          {
-            id: randomUUID(),
-            funder_id: parsedInput.funderId,
-            amount_cents: parsedInput.totalAmountCents ?? 0,
-            status: 'pending',
-          },
-        ]
-      : [];
+    const funders = parsedInput.funders.map((f) => ({
+      id: randomUUID(),
+      funder_id: f.funderId,
+      amount_cents: f.amountCents,
+      external_file_number: f.externalFileNumber,
+      status: 'pending',
+    }));
 
     const metadata: Record<string, unknown> = {};
-    if (parsedInput.fundingReference) metadata.funding_reference = parsedInput.fundingReference;
 
     const { error } = await sb.rpc('save_dossier' as never, {
       p_dossier: {
@@ -119,6 +115,21 @@ export const createDossierAction = authActionClient
         error: 'dossier_create_failed',
         details: (error as { message?: string }).message,
       };
+    }
+
+    // La RPC save_dossier n'upsert pas external_file_number : on le pose après coup
+    // sur les lignes qu'on vient d'insérer (ids générés ci-dessus).
+    const withFileNumber = funders.filter((f) => f.external_file_number);
+    if (withFileNumber.length > 0) {
+      await Promise.all(
+        withFileNumber.map((f) =>
+          sb
+            .schema('app')
+            .from('dossier_funders')
+            .update({ external_file_number: f.external_file_number })
+            .eq('id', f.id),
+        ),
+      );
     }
 
     revalidatePath('/dossiers');

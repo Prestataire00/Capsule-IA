@@ -6,8 +6,40 @@ import { env } from '@/env.mjs';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { createInvoice } from '../actions';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import {
+  buildBillingPlan,
+  type FunderAllocationInput,
+  type InvoiceInput,
+  type PayerLine,
+} from '@/features/billing/domain/billing-plan';
 
 export const dynamic = 'force-dynamic';
+
+const FUNDER_KIND_LABELS: Record<string, string> = {
+  opco: 'OPCO',
+  cpf: 'CPF',
+  pole_emploi: 'France Travail',
+  region: 'Région',
+  autofinancement: 'Autofinancement',
+  entreprise: 'Entreprise',
+  autre: 'Autre',
+};
+
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid: 'Certains champs sont invalides. Vérifiez la saisie.',
+  dossier_not_found: 'Dossier introuvable.',
+  amount_not_positive: 'Le montant doit être strictement positif.',
+  unknown_payer: 'Ce payeur n’est pas rattaché au dossier.',
+  funder_refused: 'Ce financeur a refusé la prise en charge — facturation impossible.',
+  exceeds_payer_allocation:
+    'Le montant dépasse ce qu’il reste à facturer pour ce payeur (anti-double-facturation).',
+  exceeds_dossier_total:
+    'Le montant ferait dépasser le total du dossier (anti-double-facturation).',
+};
+
+function formatEuros(cents: number): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+}
 
 async function loadDossiers() {
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -28,18 +60,81 @@ async function loadDossiers() {
   }>;
 }
 
-export default async function NouvelleFacturePage({ searchParams }: { searchParams: { error?: string } }) {
+/** Charge le plan de facturation d'un dossier (financeurs + reste à charge) pour pré-remplir. */
+async function loadDossierBilling(dossierId: string) {
+  const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const [{ data: dossierRow }, { data: funderRows }, { data: invoiceRows }] = await Promise.all([
+    sb.schema('app').from('dossiers').select('id, total_amount_cents').eq('id', dossierId).maybeSingle(),
+    sb
+      .schema('app')
+      .from('dossier_funders')
+      .select('funder_id, amount_cents, status, funder:funders(name, kind)')
+      .eq('dossier_id', dossierId),
+    sb
+      .schema('app')
+      .from('invoices')
+      .select('funder_id, subtotal_cents, status')
+      .eq('dossier_id', dossierId)
+      .is('deleted_at', null),
+  ]);
+  if (!dossierRow) return null;
+  const dossier = dossierRow as unknown as { id: string; total_amount_cents: number | null };
+
+  const allocations: FunderAllocationInput[] = (
+    (funderRows ?? []) as unknown as Array<{
+      funder_id: string;
+      amount_cents: number;
+      status: string;
+      funder: { name: string; kind: string } | null;
+    }>
+  ).map((f) => ({
+    funderId: f.funder_id,
+    name: f.funder?.name ?? 'Financeur',
+    kind: f.funder?.kind ?? 'autre',
+    allocatedHtCents: f.amount_cents,
+    status: (f.status as FunderAllocationInput['status']) ?? 'pending',
+  }));
+  const invoices: InvoiceInput[] = (
+    (invoiceRows ?? []) as unknown as Array<{ funder_id: string | null; subtotal_cents: number; status: string }>
+  ).map((i) => ({ funderId: i.funder_id, subtotalHtCents: i.subtotal_cents, status: i.status }));
+
+  return buildBillingPlan(dossier.total_amount_cents ?? 0, allocations, invoices);
+}
+
+export default async function NouvelleFacturePage({
+  searchParams,
+}: {
+  searchParams: { error?: string; dossierId?: string; payer?: string };
+}) {
   await requireAccess('billing', 'manage');
   const dossiersList = await loadDossiers();
+
+  const prefillDossierId = searchParams.dossierId ?? '';
+  const plan = prefillDossierId ? await loadDossierBilling(prefillDossierId) : null;
+
+  // Lignes payeur sélectionnables (financeurs non soldés + reste à charge).
+  const payerLines: PayerLine[] = plan ? [...plan.funders, plan.resteACharge] : [];
+  const selectedPayerParam = searchParams.payer ?? '';
+  const selectedFunderId =
+    selectedPayerParam === 'reste' ? '' : selectedPayerParam;
+  const selectedLine =
+    plan && selectedPayerParam
+      ? selectedPayerParam === 'reste'
+        ? plan.resteACharge
+        : plan.funders.find((f) => f.payer === selectedPayerParam) ?? null
+      : null;
+  const prefillAmountCents = selectedLine ? Math.max(0, selectedLine.remainingHtCents) : null;
 
   return (
     <div className="max-w-2xl w-full mx-auto px-8 py-10">
       <Link
-        href="/factures"
+        href={prefillDossierId ? `/dossiers/${prefillDossierId}/facturation` : '/factures'}
         className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
-        Retour aux factures
+        {prefillDossierId ? 'Retour à la facturation du dossier' : 'Retour aux factures'}
       </Link>
 
       <header className="mb-8 flex items-center gap-3">
@@ -51,18 +146,14 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
             Nouvelle facture
           </h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Créez une facture rattachée à un dossier de formation.
+            Une facture par payeur (financeur ou reste à charge) — rattachée à un seul dossier.
           </p>
         </div>
       </header>
 
       {searchParams.error && (
         <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-200 rounded-lg px-4 py-3 text-[13px] mb-6">
-          {searchParams.error === 'invalid'
-            ? 'Certains champs sont invalides. Vérifiez la saisie.'
-            : searchParams.error === 'dossier_not_found'
-            ? 'Dossier introuvable.'
-            : "Une erreur est survenue lors de la création."}
+          {ERROR_MESSAGES[searchParams.error] ?? 'Une erreur est survenue lors de la création.'}
         </div>
       )}
 
@@ -72,7 +163,7 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
             Aucun dossier disponible pour facturer.
           </p>
           <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
-            Créez d'abord un dossier (statut actif, planifié, terminé ou clos).
+            Créez d&apos;abord un dossier (statut actif, planifié, terminé ou clos).
           </p>
         </div>
       ) : (
@@ -85,7 +176,12 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
               Rattachement
             </p>
             <FormField label="Dossier" required>
-              <select name="dossierId" required defaultValue="" className={`${inputClass} appearance-none bg-no-repeat bg-right pr-8`}>
+              <select
+                name="dossierId"
+                required
+                defaultValue={prefillDossierId}
+                className={`${inputClass} appearance-none bg-no-repeat bg-right pr-8`}
+              >
                 <option value="" disabled>
                   — Sélectionner un dossier —
                 </option>
@@ -97,6 +193,33 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
                 ))}
               </select>
             </FormField>
+
+            {plan ? (
+              <FormField label="Payeur" required>
+                <select
+                  name="funderId"
+                  defaultValue={selectedFunderId}
+                  className={`${inputClass} appearance-none bg-no-repeat bg-right pr-8`}
+                >
+                  {payerLines.map((line) => {
+                    const value = line.payer ?? '';
+                    const kindLabel = line.kind ? ` · ${FUNDER_KIND_LABELS[line.kind] ?? line.kind}` : '';
+                    return (
+                      <option key={value || 'reste'} value={value}>
+                        {line.label}
+                        {kindLabel} — restant {formatEuros(Math.max(0, line.remainingHtCents))}
+                      </option>
+                    );
+                  })}
+                </select>
+              </FormField>
+            ) : (
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                💡 Pour facturer un financeur précis (subrogation), passez par l&apos;onglet{' '}
+                <strong>Facturation</strong> du dossier : le payeur et le montant restant y sont
+                pré-remplis. Sans cela, la facture sera imputée au reste à charge.
+              </p>
+            )}
           </section>
 
           <section className="p-6 space-y-4">
@@ -111,6 +234,7 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
                   name="description"
                   required
                   minLength={3}
+                  defaultValue={selectedLine ? `${selectedLine.label} — prise en charge` : ''}
                   placeholder="Formation Comptabilité Niveau 2 (70h, présentiel)"
                   className={`${inputClass} pl-9`}
                 />
@@ -127,6 +251,7 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
                     required
                     min={0}
                     step={1}
+                    defaultValue={prefillAmountCents != null ? String(prefillAmountCents) : ''}
                     placeholder="350000"
                     className={`${inputClass} pl-9`}
                   />
@@ -155,13 +280,20 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
               </FormField>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 -mt-1">
-              💡 Prix HT en <strong>centimes</strong> (ex : 350000 = 3 500,00 €). Les formations professionnelles sont souvent exonérées de TVA (mettre 0).
+              💡 Prix HT en <strong>centimes</strong> (ex : 350000 = 3 500,00 €). Les formations
+              professionnelles sont souvent exonérées de TVA (mettre 0).
+              {prefillAmountCents != null && (
+                <>
+                  {' '}
+                  Montant restant pour ce payeur : <strong>{formatEuros(prefillAmountCents)}</strong>.
+                </>
+              )}
             </p>
           </section>
 
           <section className="p-6 space-y-4">
             <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">
-              Échéance & statut
+              Échéance &amp; statut
             </p>
             <FormField label="Date d'échéance (optionnelle)">
               <div className="relative">
@@ -177,7 +309,7 @@ export default async function NouvelleFacturePage({ searchParams }: { searchPara
                   Émettre immédiatement
                 </span>
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block mt-0.5">
-                  Sinon, la facture sera créée en statut brouillon — vous pourrez l'émettre plus tard.
+                  Sinon, la facture sera créée en statut brouillon — vous pourrez l&apos;émettre plus tard.
                 </span>
               </div>
             </label>

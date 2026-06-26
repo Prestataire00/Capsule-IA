@@ -17,6 +17,22 @@ import { InfoCallout } from '@/shared/ui/info-callout';
 import { createDossierAction } from '../actions';
 import { CreateDossierSchema, MODALITIES, type Modality } from '../schema';
 
+const FUNDER_KIND_LABELS: Record<string, string> = {
+  opco: 'OPCO',
+  cpf: 'CPF',
+  pole_emploi: 'France Travail',
+  region: 'Région',
+  autofinancement: 'Autofinancement',
+  entreprise: 'Entreprise',
+  autre: 'Autre',
+};
+
+// Une ligne de financement saisie dans le wizard (montant en euros, string contrôlé).
+type FunderRow = { funderId: string; amountEuros: string; externalFileNumber: string };
+
+const eurosFromCents = (cents: number): string =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+
 export type LearnerOption = { id: string; name: string; email: string; companyId: string | null };
 export type FormationOption = {
   id: string;
@@ -67,13 +83,35 @@ export function NewDossierForm({
   const [modules, setModules] = useState<ModuleRow[]>([]);
   const [trainerId, setTrainerId] = useState<string>(trainers[0]?.id ?? '');
   const [amountEuros, setAmountEuros] = useState<string>('');
-  const [funderId, setFunderId] = useState<string>('');
-  const [fundingReference, setFundingReference] = useState<string>('');
+  const [funderRows, setFunderRows] = useState<FunderRow[]>([]);
 
   const totalHours = useMemo(
     () => modules.reduce((acc, m) => acc + (Number(m.durationHours) || 0), 0),
     [modules],
   );
+
+  const totalCents = amountEuros.trim() === '' ? null : Math.round(Number(amountEuros) * 100);
+  const fundersTotalCents = useMemo(
+    () => funderRows.reduce((acc, r) => acc + (Math.round(Number(r.amountEuros) * 100) || 0), 0),
+    [funderRows],
+  );
+  const resteAChargeCents = totalCents == null ? null : totalCents - fundersTotalCents;
+  const fundersOverTotal = totalCents != null && fundersTotalCents > totalCents;
+
+  const availableFunders = (rowIdx: number) =>
+    funders.filter(
+      (f) => f.id === funderRows[rowIdx]?.funderId || !funderRows.some((r) => r.funderId === f.id),
+    );
+
+  function addFunderRow() {
+    setFunderRows((prev) => [...prev, { funderId: '', amountEuros: '', externalFileNumber: '' }]);
+  }
+  function updateFunderRow(idx: number, patch: Partial<FunderRow>) {
+    setFunderRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  }
+  function removeFunderRow(idx: number) {
+    setFunderRows((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   const selectedLearner = learners.find((l) => l.id === learnerId) ?? null;
 
@@ -105,7 +143,6 @@ export function NewDossierForm({
 
   async function handleSubmit() {
     setError(null);
-    const amountCents = amountEuros.trim() === '' ? null : Math.round(Number(amountEuros) * 100);
 
     const candidate = {
       learnerId,
@@ -120,9 +157,14 @@ export function NewDossierForm({
         durationHours: Number(m.durationHours) || 0,
       })),
       trainerId: trainerId || null,
-      totalAmountCents: amountCents,
-      funderId: funderId || null,
-      fundingReference: fundingReference.trim() || null,
+      totalAmountCents: totalCents,
+      funders: funderRows
+        .filter((r) => r.funderId)
+        .map((r) => ({
+          funderId: r.funderId,
+          amountCents: Math.round(Number(r.amountEuros) * 100) || 0,
+          externalFileNumber: r.externalFileNumber.trim() || null,
+        })),
     };
 
     const parsed = CreateDossierSchema.safeParse(candidate);
@@ -351,30 +393,101 @@ export function NewDossierForm({
                   </div>
                 </Field>
 
-                <Field label="Financeur principal">
-                  {funders.length === 0 ? (
-                    <EmptyHint href="/financeurs/nouveau" label="Créer un financeur" />
-                  ) : (
-                    <select value={funderId} onChange={(e) => setFunderId(e.target.value)} className={selectCls}>
-                      <option value="">— Aucun / autofinancement —</option>
-                      {funders.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Field>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">
+                      Financements
+                    </span>
+                    {funders.length === 0 ? (
+                      <EmptyHint href="/financeurs/nouveau" label="Créer un financeur" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={addFunderRow}
+                        className="text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Ajouter un financeur
+                      </button>
+                    )}
+                  </div>
 
-                <Field label="Numéro de prise en charge (optionnel)">
-                  <input
-                    type="text"
-                    value={fundingReference}
-                    onChange={(e) => setFundingReference(e.target.value)}
-                    placeholder="ex : 2026-OPCO-12345"
-                    className={`${inputCls} placeholder:text-zinc-400`}
-                  />
-                </Field>
+                  {funderRows.length === 0 ? (
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                      Aucun financeur — la totalité sera en reste à charge (entreprise / apprenant).
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {funderRows.map((row, idx) => (
+                        <li
+                          key={idx}
+                          className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-3 space-y-2 border border-zinc-200/60 dark:border-zinc-800"
+                        >
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={row.funderId}
+                              onChange={(e) => updateFunderRow(idx, { funderId: e.target.value })}
+                              className={`flex-1 ${selectCls}`}
+                            >
+                              <option value="">— Choisir un financeur —</option>
+                              {availableFunders(idx).map((f) => (
+                                <option key={f.id} value={f.id}>
+                                  {f.name}
+                                  {FUNDER_KIND_LABELS[f.kind] ? ` · ${FUNDER_KIND_LABELS[f.kind]}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              aria-label="Retirer ce financeur"
+                              onClick={() => removeFunderRow(idx)}
+                              className="text-zinc-400 hover:text-red-600 transition"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min={0}
+                                value={row.amountEuros}
+                                onChange={(e) => updateFunderRow(idx, { amountEuros: e.target.value })}
+                                placeholder="Montant pris en charge"
+                                className={`flex-1 ${inputCls}`}
+                              />
+                              <span className="text-[12px] text-zinc-500">€</span>
+                            </div>
+                            <input
+                              type="text"
+                              value={row.externalFileNumber}
+                              onChange={(e) => updateFunderRow(idx, { externalFileNumber: e.target.value })}
+                              placeholder="N° prise en charge"
+                              className={`${inputCls} placeholder:text-zinc-400`}
+                            />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {totalCents != null && (funderRows.length > 0 || fundersTotalCents > 0) && (
+                    <div
+                      className={`mt-2 rounded-md px-3 py-2 text-[12px] flex items-center justify-between ${
+                        fundersOverTotal
+                          ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200/60 dark:border-red-900/40'
+                          : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-800'
+                      }`}
+                    >
+                      <span>
+                        Financé : <span className="font-mono">{eurosFromCents(fundersTotalCents)}</span> ·
+                        Reste à charge :{' '}
+                        <span className="font-mono">{eurosFromCents(Math.max(0, resteAChargeCents ?? 0))}</span>
+                      </span>
+                      {fundersOverTotal && <span className="font-medium">dépasse le total</span>}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <InfoCallout tone="info">
@@ -398,7 +511,12 @@ export function NewDossierForm({
                   <ArrowLeft className="w-3.5 h-3.5" />
                   Précédent
                 </button>
-                <button type="button" onClick={handleSubmit} disabled={submitting} className={nextBtnCls}>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={submitting || fundersOverTotal}
+                  className={nextBtnCls}
+                >
                   {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   {submitting ? 'Création…' : 'Créer le dossier'}
                 </button>
