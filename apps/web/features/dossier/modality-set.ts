@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const MODALITIES = ['presentiel', 'distanciel', 'hybride', 'afest'] as const;
+export const MODALITIES = ['presentiel', 'distanciel', 'hybride'] as const;
 export type Modality = (typeof MODALITIES)[number];
 
 export function derivePrimaryModality(modalities: readonly Modality[]): Modality {
@@ -9,4 +9,4 @@ export function derivePrimaryModality(modalities: readonly Modality[]): Modality
   return first;
 }
 
-export const ModalitiesSchema = z.array(z.enum(MODALITIES)).min(1).max(4);
+export const ModalitiesSchema = z.array(z.enum(MODALITIES)).min(1).max(3);

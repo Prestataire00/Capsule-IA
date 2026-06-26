@@ -10,7 +10,6 @@ export const MODALITIES = [
   { value: 'presentiel', label: 'Présentiel' },
   { value: 'distanciel', label: 'Distanciel' },
   { value: 'hybride', label: 'Hybride' },
-  { value: 'afest', label: 'AFEST' },
 ] as const satisfies readonly Option[];
 export type Modality = (typeof MODALITIES)[number]['value'];
 

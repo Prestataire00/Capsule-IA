@@ -9,7 +9,7 @@ export const PROSPECT_SITUATIONS = [
   'particulier',
 ] as const;
 
-export const PROSPECT_MODALITIES = ['presentiel', 'distanciel', 'hybride', 'afest'] as const;
+export const PROSPECT_MODALITIES = ['presentiel', 'distanciel', 'hybride'] as const;
 
 export const prospectFieldsSchema = z.object({
   civility: z.enum(['m', 'mme']).optional(),

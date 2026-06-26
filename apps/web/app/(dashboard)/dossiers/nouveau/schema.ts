@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Schéma partagé entre le formulaire (client) et la Server Action (cf. règle CLAUDE.md).
-export const MODALITIES = ['presentiel', 'distanciel', 'hybride', 'afest'] as const;
+export const MODALITIES = ['presentiel', 'distanciel', 'hybride'] as const;
 export type Modality = (typeof MODALITIES)[number];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

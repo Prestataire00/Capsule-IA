@@ -41,7 +41,7 @@ export const z_uuid = z.string().uuid();
 export const z_isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const z_isoDatetime = z.string().datetime({ offset: true });
 export const z_currency = z.enum(['EUR', 'USD', 'CHF', 'GBP']);
-export const z_modality = z.enum(['presentiel', 'distanciel', 'hybride', 'afest']);
+export const z_modality = z.enum(['presentiel', 'distanciel', 'hybride']);
 export const z_dossierStatus = z.enum([
   'draft', 'pending_validation', 'scheduled', 'active',
   'completed', 'closed', 'archived', 'cancelled',

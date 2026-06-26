@@ -172,7 +172,6 @@ const MODALITY_LABEL: Record<string, string> = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',
   hybride: 'Hybride',
-  afest: 'AFEST',
 };
 
 export function welcomePacketEmail(data: WelcomePacketData): { subject: string; html: string } {

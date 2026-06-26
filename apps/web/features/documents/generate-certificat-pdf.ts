@@ -60,7 +60,7 @@ const fmtHours = (h: number): string => {
 };
 
 const modalityLabel = (m: string): string =>
-  ({ presentiel: 'Présentiel', distanciel: 'À distance', hybride: 'Mixte (présentiel + distance)', afest: 'AFEST (en situation de travail)' } as Record<string, string>)[m] ?? m;
+  ({ presentiel: 'Présentiel', distanciel: 'À distance', hybride: 'Mixte (présentiel + distance)' } as Record<string, string>)[m] ?? m;
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(/\s+/);

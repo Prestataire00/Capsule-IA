@@ -2,7 +2,6 @@ export const TrainingModalityValues = [
   'presentiel',
   'distanciel',
   'hybride',
-  'afest',
 ] as const;
 
 export type TrainingModality = (typeof TrainingModalityValues)[number];

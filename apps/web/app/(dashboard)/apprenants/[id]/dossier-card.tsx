@@ -5,7 +5,7 @@ import type { LearnerDossier } from './summary';
 
 const fmtDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '—');
 const modalityLabel = (m: string) =>
-  (({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride', afest: 'AFEST' }) as Record<string, string>)[m] ?? m;
+  (({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' }) as Record<string, string>)[m] ?? m;
 
 export function DossierCard({ dossier }: { dossier: LearnerDossier }) {
   const h = dossier.hours;

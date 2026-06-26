@@ -11,9 +11,6 @@ describe('panelsForModality', () => {
   it('hybride → les deux', () => {
     expect(panelsForModality('hybride')).toEqual({ signature: true, zoom: true });
   });
-  it('afest → signature seule', () => {
-    expect(panelsForModality('afest')).toEqual({ signature: true, zoom: false });
-  });
   it('modalité inconnue → signature seule (repli sûr)', () => {
     expect(panelsForModality('autre')).toEqual({ signature: true, zoom: false });
   });

@@ -51,7 +51,7 @@ const fmtDate = (iso: string): string => {
 };
 
 const modalityLabel = (m: string): string =>
-  ({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride', afest: 'AFEST' } as Record<string, string>)[m] ?? m;
+  ({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' } as Record<string, string>)[m] ?? m;
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(/\s+/);

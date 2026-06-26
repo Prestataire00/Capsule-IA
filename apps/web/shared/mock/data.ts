@@ -18,7 +18,7 @@ export const currentUser = {
   role: 'owner' as const,
 };
 
-export type Modality = 'presentiel' | 'distanciel' | 'hybride' | 'afest';
+export type Modality = 'presentiel' | 'distanciel' | 'hybride';
 export type DossierStatus =
   | 'draft' | 'pending_validation' | 'scheduled' | 'active'
   | 'completed' | 'closed' | 'archived' | 'cancelled';

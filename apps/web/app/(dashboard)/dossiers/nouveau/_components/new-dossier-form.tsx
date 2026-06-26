@@ -36,7 +36,6 @@ const MODALITY_LABELS: Record<Modality, string> = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',
   hybride: 'Hybride',
-  afest: 'AFEST',
 };
 
 export function NewDossierForm({

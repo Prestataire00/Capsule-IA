@@ -17,7 +17,6 @@ const MODALITY_LABELS: Record<string, string> = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',
   hybride: 'Hybride',
-  afest: 'AFEST',
 };
 
 export default async function EmargementSessionPage({

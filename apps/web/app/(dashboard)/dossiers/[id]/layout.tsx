@@ -12,7 +12,7 @@ const fmtDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(
 const fmtEuros = (cents: number | null) =>
   cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
 const modalityLabel = (m: string) =>
-  (({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride', afest: 'AFEST' }) as Record<string, string>)[m] ?? m;
+  (({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' }) as Record<string, string>)[m] ?? m;
 
 export default async function DossierLayout({
   children,

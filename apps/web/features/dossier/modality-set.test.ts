@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { MODALITIES, derivePrimaryModality, ModalitiesSchema } from './modality-set';
 
 describe('MODALITIES', () => {
-  it('contient les 4 valeurs de l\'enum', () => {
-    expect(MODALITIES).toEqual(['presentiel', 'distanciel', 'hybride', 'afest']);
+  it('contient les 3 valeurs de l\'enum', () => {
+    expect(MODALITIES).toEqual(['presentiel', 'distanciel', 'hybride']);
   });
 });
 
@@ -17,9 +17,9 @@ describe('derivePrimaryModality', () => {
 });
 
 describe('ModalitiesSchema', () => {
-  it('accepte 1 à 4 modalités valides', () => {
+  it('accepte 1 à 3 modalités valides', () => {
     expect(ModalitiesSchema.safeParse(['presentiel']).success).toBe(true);
-    expect(ModalitiesSchema.safeParse(['presentiel', 'afest']).success).toBe(true);
+    expect(ModalitiesSchema.safeParse(['presentiel', 'distanciel']).success).toBe(true);
   });
   it('rejette un ensemble vide', () => {
     expect(ModalitiesSchema.safeParse([]).success).toBe(false);

@@ -26,7 +26,7 @@ export const formationFormSchema = z.object({
   code: z.string().trim().max(60),
   version: z.string().trim().max(10),
   description: z.string().max(20000), // HTML riche
-  modality: z.enum(['presentiel', 'distanciel', 'hybride', 'afest']),
+  modality: z.enum(['presentiel', 'distanciel', 'hybride']),
   durationHours: positiveNumberString,
   durationDays: optionalNonNegativeNumberString,
   effectifMin: optionalNonNegativeNumberString,

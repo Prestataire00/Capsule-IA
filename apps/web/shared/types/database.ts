@@ -4084,7 +4084,7 @@ export type Database = {
         | "expired"
       session_status: "planned" | "in_progress" | "done" | "cancelled"
       signature_status: "pending" | "signed" | "declined" | "expired"
-      training_modality: "presentiel" | "distanciel" | "hybride" | "afest"
+      training_modality: "presentiel" | "distanciel" | "hybride"
       workflow_run_status:
         | "pending"
         | "running"
@@ -4838,7 +4838,7 @@ export const Constants = {
       ],
       session_status: ["planned", "in_progress", "done", "cancelled"],
       signature_status: ["pending", "signed", "declined", "expired"],
-      training_modality: ["presentiel", "distanciel", "hybride", "afest"],
+      training_modality: ["presentiel", "distanciel", "hybride"],
       workflow_run_status: [
         "pending",
         "running",

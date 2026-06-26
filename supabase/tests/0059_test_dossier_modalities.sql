@@ -36,7 +36,7 @@ SELECT is(
 
 -- Primaire hors ensemble : rejeté par le CHECK
 SELECT throws_ok(
-  $$ UPDATE app.dossiers SET modalities = ARRAY['distanciel','afest']::app.training_modality[]
+  $$ UPDATE app.dossiers SET modalities = ARRAY['distanciel','hybride']::app.training_modality[]
      WHERE id = 'd0a00000-aaaa-aaaa-aaaa-aaaaaaaaaaaa' $$,
   '23514',
   NULL,

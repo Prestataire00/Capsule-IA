@@ -7,7 +7,6 @@ const LABELS: Record<Modality, string> = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',
   hybride: 'Hybride',
-  afest: 'AFEST',
 };
 
 // Multi-sélection des modalités. La 1ʳᵉ de `value` est la primaire (badge).

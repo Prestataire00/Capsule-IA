@@ -46,7 +46,6 @@ const MODALITY_LABELS: Record<string, string> = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',
   hybride: 'Hybride',
-  afest: 'AFEST',
 };
 
 // Construit la map de variables {slug → valeur} pour un dossier donné.
