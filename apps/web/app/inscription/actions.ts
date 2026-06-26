@@ -11,6 +11,7 @@ import {
 import { derivePrimaryFunder } from '@/features/prospect/funding';
 import {
   prospectFieldsSchema,
+  companyEnrollmentSchema,
   MAX_FILE_SIZE,
   ALLOWED_FILE_TYPES,
   type ProspectFields,
@@ -252,4 +253,163 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
   }
 
   return { ok: true, prospectId };
+}
+
+export type CompanySubmitResult =
+  | { ok: true; count: number }
+  | { ok: false; error: string; details?: unknown };
+
+/**
+ * Inscription groupée par une entreprise : un prospect par salarié, partageant
+ * entreprise / référent / formation / financement. Pas de documents à ce stade
+ * (l'OF les collecte au triage). Emails non bloquants : confirmation au référent
+ * + notification interne récapitulative.
+ */
+export async function submitCompanyEnrollment(formData: FormData): Promise<CompanySubmitResult> {
+  const payloadRaw = formData.get('payload');
+  if (typeof payloadRaw !== 'string') {
+    return { ok: false, error: 'missing_payload' };
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(payloadRaw);
+  } catch {
+    return { ok: false, error: 'invalid_payload_json' };
+  }
+
+  const parsed = companyEnrollmentSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false, error: 'invalid_input', details: parsed.error.flatten() };
+  }
+  const fields = parsed.data;
+
+  const supabase = adminClient();
+  const h = headers();
+  const ipHeader = h.get('x-forwarded-for') ?? h.get('x-real-ip');
+  const ip = ipHeader ? ipHeader.split(',')[0]?.trim() ?? null : null;
+  const userAgent = h.get('user-agent') ?? null;
+
+  // Rattache au bon OF + récupère le titre via la formation choisie (hors RLS).
+  const formationId = nullify(fields.formationId);
+  let organizationId: string | null = null;
+  let formationTitle: string | null = null;
+  if (formationId) {
+    const { data: formation } = await supabase
+      .schema('app')
+      .from('formations')
+      .select('organization_id, title')
+      .eq('id', formationId)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (formation) {
+      organizationId = (formation as { organization_id: string }).organization_id;
+      formationTitle = (formation as { title: string }).title;
+    }
+  }
+
+  const primaryFunder = derivePrimaryFunder(fields.funderKinds);
+  const companyAddress = fields.companyAddress ?? null;
+
+  const rows = fields.employees.map((emp) => ({
+    organization_id: organizationId,
+    civility: emp.civility ?? null,
+    first_name: emp.firstName,
+    last_name: emp.lastName,
+    email: emp.email,
+    phone: nullify(emp.phone),
+    birth_date: nullify(emp.birthDate),
+    rqth: emp.rqth,
+    formation_id: formationId,
+    preferred_modality: nullify(fields.preferredModality),
+    preferred_start_date: nullify(fields.preferredStartDate),
+    message: nullify(fields.message),
+    situation: 'salarie' as const,
+    company_name: fields.companyName,
+    company_siret: fields.companySiret || null,
+    company_address: companyAddress,
+    referent_name: fields.referentName || null,
+    referent_email: fields.referentEmail || null,
+    referent_phone: fields.referentPhone || null,
+    funder_kinds: fields.funderKinds,
+    funder_kind: primaryFunder,
+    source: 'web_form_company',
+    ip_address: ip,
+    user_agent: userAgent,
+  }));
+
+  const { data: inserted, error: insertErr } = await supabase
+    .schema('app')
+    .from('prospects')
+    .insert(rows as never)
+    .select('id');
+
+  if (insertErr || !inserted) {
+    console.error('[submitCompanyEnrollment] insert failed', insertErr);
+    return { ok: false, error: 'db_insert_failed', details: insertErr?.message };
+  }
+  const insertedRows = inserted as { id: string }[];
+  const count = insertedRows.length;
+  const firstId = insertedRows[0]?.id ?? '';
+
+  const funderLabel = fields.funderKinds.map((k) => FUNDER_LABELS[k]).join(', ');
+
+  // Confirmation au référent (s'il a laissé un email).
+  if (fields.referentEmail) {
+    const confirmation = prospectConfirmationEmail({
+      firstName: fields.referentName || fields.companyName,
+      lastName: '',
+      email: fields.referentEmail,
+      formationTitle,
+      funderLabel,
+      prospectId: firstId,
+    });
+    void sendEmail({
+      to: fields.referentEmail,
+      subject: confirmation.subject,
+      html: confirmation.html,
+      replyTo: env.OF_NOTIFICATION_EMAIL,
+    }).then((r) => {
+      if (!r.ok && r.reason !== 'no_api_key') {
+        console.error('[submitCompanyEnrollment] confirmation email failed', r);
+      }
+    });
+  }
+
+  // Notification interne récapitulative à l'OF.
+  if (env.OF_NOTIFICATION_EMAIL) {
+    const dashboardUrl = env.PUBLIC_APP_URL
+      ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/prospects`
+      : null;
+    const employeesList = fields.employees
+      .map((e) => `${e.firstName} ${e.lastName} (${e.email})`)
+      .join(', ');
+    const notif = prospectInternalNotificationEmail({
+      firstName: fields.companyName,
+      lastName: `${count} salarié${count > 1 ? 's' : ''}`,
+      email: fields.referentEmail || '',
+      formationTitle,
+      funderLabel,
+      prospectId: firstId,
+      situation: `Inscription entreprise — ${count} salarié${count > 1 ? 's' : ''}`,
+      companyName: fields.companyName,
+      message: employeesList,
+      phone: nullify(fields.referentPhone),
+      rqth: false,
+      documentsCount: 0,
+      dashboardUrl,
+    });
+    void sendEmail({
+      to: env.OF_NOTIFICATION_EMAIL,
+      subject: notif.subject,
+      html: notif.html,
+      replyTo: fields.referentEmail || undefined,
+    }).then((r) => {
+      if (!r.ok && r.reason !== 'no_api_key') {
+        console.error('[submitCompanyEnrollment] internal notif email failed', r);
+      }
+    });
+  }
+
+  return { ok: true, count };
 }

@@ -4,8 +4,8 @@
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { submitProspect } from './actions';
-import type { ProspectFields } from './schema';
+import { submitProspect, submitCompanyEnrollment } from './actions';
+import type { ProspectFields, CompanyEnrollmentFields } from './schema';
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,6 +28,9 @@ import {
   AlertCircle,
   Search,
   Building2,
+  Users,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { DateOfBirthInput } from '@/shared/ui/date-of-birth-input';
@@ -61,10 +64,13 @@ type Funding = {
   funderKinds: FunderValue[];
 };
 
+type Mode = 'individuel' | 'entreprise';
+
 export function InscriptionForm({ formations }: { formations: PublicFormation[] }) {
   const searchParams = useSearchParams();
   const preselectedFormation = searchParams.get('formation') ?? '';
 
+  const [mode, setMode] = useState<Mode>('individuel');
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -195,6 +201,10 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
     });
   };
 
+  if (mode === 'entreprise') {
+    return <CompanyFlow formations={formations} onSwitchMode={setMode} />;
+  }
+
   if (submitted) {
     return (
       <SuccessView
@@ -227,6 +237,8 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
             Quelques minutes suffisent. Nous revenons vers vous sous 48 h ouvrées.
           </p>
         </div>
+
+        <ModeToggle mode="individuel" onSwitchMode={setMode} />
 
         <ol className="flex items-center justify-center gap-0.5 mb-8 flex-wrap">
           {STEPS.map((s, i) => {
@@ -1117,6 +1129,700 @@ function SuccessView({
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Revenir à l'accueil
+        </Link>
+      </main>
+    </div>
+  );
+}
+
+// ─── Bascule individuel / entreprise ──────────────────────────────────────
+
+function ModeToggle({
+  mode,
+  onSwitchMode,
+}: {
+  mode: Mode;
+  onSwitchMode: (m: Mode) => void;
+}) {
+  const opts: { v: Mode; label: string; icon: typeof User }[] = [
+    { v: 'individuel', label: 'Je m’inscris', icon: User },
+    { v: 'entreprise', label: 'J’inscris mes salariés', icon: Building2 },
+  ];
+  return (
+    <div className="flex justify-center mb-8">
+      <div className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-full p-1">
+        {opts.map((o) => {
+          const Icon = o.icon;
+          const active = o.v === mode;
+          return (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => onSwitchMode(o.v)}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] font-medium transition ${
+                active
+                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Parcours entreprise (plusieurs salariés) ─────────────────────────────
+
+type Employee = {
+  civility: 'm' | 'mme';
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  birthDate: string;
+  rqth: boolean;
+};
+const emptyEmployee = (): Employee => ({
+  civility: 'mme',
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  birthDate: '',
+  rqth: false,
+});
+
+const COMPANY_STEPS = [
+  { key: 'company', label: 'Entreprise', icon: Building2 },
+  { key: 'formation', label: 'Formation', icon: GraduationCap },
+  { key: 'funding', label: 'Financement', icon: User },
+  { key: 'employees', label: 'Salariés', icon: Users },
+] as const;
+
+function CompanyFlow({
+  formations,
+  onSwitchMode,
+}: {
+  formations: PublicFormation[];
+  onSwitchMode: (m: Mode) => void;
+}) {
+  const searchParams = useSearchParams();
+  const preselectedFormation = searchParams.get('formation') ?? '';
+
+  const [step, setStep] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [createdCount, setCreatedCount] = useState(0);
+
+  const [company, setCompany] = useState({
+    companyName: '',
+    companySiret: '',
+    companyAddressLine1: '',
+    companyAddressCity: '',
+    companyAddressPostalCode: '',
+    referentName: '',
+    referentEmail: '',
+    referentPhone: '',
+  });
+  const [formation, setFormation] = useState({
+    formationId: preselectedFormation,
+    preferredModality: 'presentiel',
+    preferredStart: '',
+    message: '',
+  });
+  const [funderKinds, setFunderKinds] = useState<FunderValue[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([emptyEmployee()]);
+
+  const selectedFormation = formations.find((f) => f.id === formation.formationId);
+  const selectedFunders = FUNDER_OPTIONS.filter((f) => funderKinds.includes(f.value));
+
+  const employeesValid =
+    employees.length > 0 &&
+    employees.every((e) => e.firstName.trim() && e.lastName.trim() && e.email.trim());
+
+  const missingFields = (() => {
+    if (step === 0) return company.companyName.trim() ? [] : ["Nom de l'entreprise"];
+    if (step === 1) return formation.formationId ? [] : ['Formation'];
+    if (step === 2) return funderKinds.length > 0 ? [] : ['Mode de financement'];
+    if (step === 3) return employeesValid ? [] : ['Au moins un salarié (nom, prénom, email)'];
+    return [];
+  })();
+  const canContinue = missingFields.length === 0;
+
+  const tryContinue = () => {
+    if (canContinue) {
+      setStep(step + 1);
+      setSubmitError(null);
+    } else {
+      setSubmitError(`Pour continuer, renseignez : ${missingFields.join(', ')}.`);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!employeesValid || funderKinds.length === 0) return;
+    setSubmitError(null);
+
+    const payload: CompanyEnrollmentFields = {
+      companyName: company.companyName,
+      companySiret: company.companySiret,
+      companyAddress: {
+        line1: company.companyAddressLine1,
+        city: company.companyAddressCity,
+        postalCode: company.companyAddressPostalCode,
+      },
+      referentName: company.referentName,
+      referentEmail: company.referentEmail,
+      referentPhone: company.referentPhone,
+      formationId: formation.formationId,
+      preferredModality: formation.preferredModality as CompanyEnrollmentFields['preferredModality'],
+      preferredStartDate: formation.preferredStart,
+      message: formation.message,
+      funderKinds,
+      employees: employees.map((e) => ({
+        civility: e.civility,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        email: e.email,
+        phone: e.phone,
+        birthDate: e.birthDate,
+        rqth: e.rqth,
+      })),
+    };
+
+    const fd = new FormData();
+    fd.set('payload', JSON.stringify(payload));
+
+    startTransition(async () => {
+      const result = await submitCompanyEnrollment(fd);
+      if (result.ok) {
+        setCreatedCount(result.count);
+        setSubmitted(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setSubmitError(
+          result.error === 'invalid_input'
+            ? 'Certains champs sont invalides. Merci de vérifier votre saisie.'
+            : "Impossible d'envoyer les inscriptions pour le moment. Réessayez dans quelques instants.",
+        );
+      }
+    });
+  };
+
+  if (submitted) {
+    return (
+      <CompanySuccessView
+        count={createdCount}
+        companyName={company.companyName}
+        formation={selectedFormation}
+        funders={selectedFunders}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
+      <header className="px-6 py-5 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <Logo size="md" />
+            <span className="text-zinc-300 dark:text-zinc-700">·</span>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Inscription entreprise</p>
+          </div>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <main className="max-w-3xl mx-auto px-6 py-10">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">
+            Inscrire mes salariés
+          </h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+            Renseignez l&apos;entreprise et la formation, puis ajoutez vos salariés.
+          </p>
+        </div>
+
+        <ModeToggle mode="entreprise" onSwitchMode={onSwitchMode} />
+
+        <ol className="flex items-center justify-center gap-0.5 mb-8 flex-wrap">
+          {COMPANY_STEPS.map((s, i) => {
+            const Icon = s.icon;
+            const isActive = i === step;
+            const isDone = i < step;
+            return (
+              <li key={s.key} className="flex items-center">
+                <div
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition text-[12px] font-medium ${
+                    isActive
+                      ? 'bg-violet-600 text-white shadow-sm'
+                      : isDone
+                      ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300'
+                      : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400'
+                  }`}
+                >
+                  {isDone ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
+                  <span>{s.label}</span>
+                </div>
+                {i < COMPANY_STEPS.length - 1 && (
+                  <ChevronRight className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-700 mx-0.5" />
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm">
+          {step === 0 && <CompanyStep value={company} onChange={setCompany} />}
+          {step === 1 && (
+            <FormationStep value={formation} onChange={setFormation} formations={formations} />
+          )}
+          {step === 2 && <CompanyFundingStep funderKinds={funderKinds} onChange={setFunderKinds} />}
+          {step === 3 && <EmployeesStep employees={employees} onChange={setEmployees} />}
+
+          <div className="px-6 py-4 border-t border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40 flex items-center justify-between gap-3 rounded-b-xl">
+            {step > 0 ? (
+              <button
+                type="button"
+                onClick={() => setStep(step - 1)}
+                className="text-[13px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition inline-flex items-center gap-1.5"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Précédent
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSwitchMode('individuel')}
+                className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+              >
+                Inscription individuelle
+              </button>
+            )}
+
+            {step < COMPANY_STEPS.length - 1 ? (
+              <button
+                type="button"
+                onClick={tryContinue}
+                className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+              >
+                Continuer
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!employeesValid || pending}
+                className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+              >
+                <Check className="w-3.5 h-3.5" />
+                {pending
+                  ? 'Envoi en cours…'
+                  : `Inscrire ${employees.length} salarié${employees.length > 1 ? 's' : ''}`}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {submitError && (
+          <div className="mt-4 flex items-start gap-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-200 rounded-lg px-4 py-3 text-[13px]">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p>{submitError}</p>
+          </div>
+        )}
+
+        <p className="text-center text-[12px] text-zinc-500 dark:text-zinc-400 mt-6 inline-flex items-center justify-center gap-1.5 w-full">
+          <ShieldCheck className="w-3 h-3" />
+          Vos données sont traitées dans le strict respect du RGPD.
+        </p>
+      </main>
+    </div>
+  );
+}
+
+// ─── Entreprise : société + référent ──────────────────────────────────────
+
+function CompanyStep({
+  value,
+  onChange,
+}: {
+  value: {
+    companyName: string;
+    companySiret: string;
+    companyAddressLine1: string;
+    companyAddressCity: string;
+    companyAddressPostalCode: string;
+    referentName: string;
+    referentEmail: string;
+    referentPhone: string;
+  };
+  onChange: (v: typeof value) => void;
+}) {
+  const update = <K extends keyof typeof value>(k: K, v: (typeof value)[K]) =>
+    onChange({ ...value, [k]: v });
+
+  return (
+    <section className="p-6 space-y-5">
+      <div>
+        <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-violet-600" /> Votre entreprise
+        </h2>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+          Ces informations seront associées à chaque salarié inscrit.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FormField label="Nom de l'entreprise" required>
+          <input
+            type="text"
+            value={value.companyName}
+            onChange={(e) => update('companyName', e.target.value)}
+            placeholder="Acme Conseil"
+            className={inputClass}
+          />
+        </FormField>
+        <FormField label="SIRET">
+          <input
+            type="text"
+            value={value.companySiret}
+            onChange={(e) => update('companySiret', e.target.value)}
+            placeholder="123 456 789 00012"
+            className={inputClass}
+          />
+        </FormField>
+      </div>
+
+      <FormField label="Adresse">
+        <input
+          type="text"
+          value={value.companyAddressLine1}
+          onChange={(e) => update('companyAddressLine1', e.target.value)}
+          placeholder="12 rue de la Formation"
+          className={inputClass}
+        />
+      </FormField>
+
+      <div className="grid grid-cols-3 gap-3">
+        <FormField label="Code postal">
+          <input
+            type="text"
+            value={value.companyAddressPostalCode}
+            onChange={(e) => update('companyAddressPostalCode', e.target.value)}
+            placeholder="75001"
+            className={inputClass}
+          />
+        </FormField>
+        <div className="col-span-2">
+          <FormField label="Ville">
+            <input
+              type="text"
+              value={value.companyAddressCity}
+              onChange={(e) => update('companyAddressCity', e.target.value)}
+              placeholder="Paris"
+              className={inputClass}
+            />
+          </FormField>
+        </div>
+      </div>
+
+      <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 space-y-5">
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+          Référent qui suivra les dossiers côté entreprise (recevra la confirmation).
+        </p>
+        <FormField label="Référent">
+          <input
+            type="text"
+            value={value.referentName}
+            onChange={(e) => update('referentName', e.target.value)}
+            placeholder="Jean Dupont — Responsable formation"
+            className={inputClass}
+          />
+        </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Email du référent">
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+              <input
+                type="email"
+                value={value.referentEmail}
+                onChange={(e) => update('referentEmail', e.target.value)}
+                placeholder="j.dupont@acme.fr"
+                className={`${inputClass} pl-9`}
+              />
+            </div>
+          </FormField>
+          <FormField label="Téléphone du référent">
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+              <input
+                type="tel"
+                value={value.referentPhone}
+                onChange={(e) => update('referentPhone', e.target.value)}
+                placeholder="01 23 45 67 89"
+                className={`${inputClass} pl-9`}
+              />
+            </div>
+          </FormField>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Entreprise : financement ─────────────────────────────────────────────
+
+function CompanyFundingStep({
+  funderKinds,
+  onChange,
+}: {
+  funderKinds: FunderValue[];
+  onChange: (v: FunderValue[]) => void;
+}) {
+  const toggle = (funder: FunderValue) => {
+    onChange(
+      funderKinds.includes(funder)
+        ? funderKinds.filter((f) => f !== funder)
+        : [...funderKinds, funder],
+    );
+  };
+
+  return (
+    <section className="p-6 space-y-5">
+      <div>
+        <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">
+          Comment finançons-nous cette formation ?
+        </h2>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+          S&apos;applique à l&apos;ensemble des salariés de ce groupe.
+        </p>
+      </div>
+
+      <FormField label="Mode(s) de financement envisagé(s)" hint="Plusieurs choix possibles." required>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {FUNDER_OPTIONS.map((f) => {
+            const checked = funderKinds.includes(f.value);
+            return (
+              <label
+                key={f.value}
+                className={`flex items-start gap-3 border rounded-lg px-3 py-3 cursor-pointer transition ${
+                  checked
+                    ? 'border-violet-300 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30'
+                    : 'border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggle(f.value)}
+                  className="mt-0.5 accent-violet-600"
+                />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{f.label}</p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{f.hint}</p>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </FormField>
+    </section>
+  );
+}
+
+// ─── Entreprise : liste des salariés ──────────────────────────────────────
+
+function EmployeesStep({
+  employees,
+  onChange,
+}: {
+  employees: Employee[];
+  onChange: (v: Employee[]) => void;
+}) {
+  const update = (idx: number, patch: Partial<Employee>) =>
+    onChange(employees.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+  const add = () => onChange([...employees, emptyEmployee()]);
+  const remove = (idx: number) => onChange(employees.filter((_, i) => i !== idx));
+
+  return (
+    <section className="p-6 space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+            <Users className="w-4 h-4 text-violet-600" /> Vos salariés
+          </h2>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+            Ajoutez chaque salarié à inscrire. Les pièces justificatives seront demandées ensuite par
+            l&apos;organisme.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={add}
+          className="flex-shrink-0 text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1 font-medium"
+        >
+          <Plus className="w-3.5 h-3.5" /> Ajouter
+        </button>
+      </div>
+
+      <ul className="space-y-3">
+        {employees.map((emp, idx) => (
+          <li
+            key={idx}
+            className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 bg-zinc-50/40 dark:bg-zinc-950/40"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                Salarié {idx + 1}
+              </span>
+              {employees.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => remove(idx)}
+                  aria-label="Retirer ce salarié"
+                  className="text-zinc-400 hover:text-rose-600 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Prénom" required>
+                <input
+                  type="text"
+                  value={emp.firstName}
+                  onChange={(e) => update(idx, { firstName: e.target.value })}
+                  placeholder="Alice"
+                  className={inputClass}
+                />
+              </FormField>
+              <FormField label="Nom" required>
+                <input
+                  type="text"
+                  value={emp.lastName}
+                  onChange={(e) => update(idx, { lastName: e.target.value })}
+                  placeholder="Martin"
+                  className={inputClass}
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Email" required>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="email"
+                  value={emp.email}
+                  onChange={(e) => update(idx, { email: e.target.value })}
+                  placeholder="alice.martin@acme.fr"
+                  className={`${inputClass} pl-9`}
+                />
+              </div>
+            </FormField>
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Téléphone">
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="tel"
+                    value={emp.phone}
+                    onChange={(e) => update(idx, { phone: e.target.value })}
+                    placeholder="06 12 34 56 78"
+                    className={`${inputClass} pl-9`}
+                  />
+                </div>
+              </FormField>
+              <FormField label="Date de naissance">
+                <DateOfBirthInput
+                  value={emp.birthDate}
+                  onChange={(iso) => update(idx, { birthDate: iso })}
+                />
+              </FormField>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer text-[12px] text-zinc-600 dark:text-zinc-400">
+              <input
+                type="checkbox"
+                checked={emp.rqth}
+                onChange={(e) => update(idx, { rqth: e.target.checked })}
+                className="accent-violet-600"
+              />
+              <Accessibility className="w-3.5 h-3.5 text-blue-500" />
+              RQTH (aménagement éventuel)
+            </label>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// ─── Entreprise : confirmation ────────────────────────────────────────────
+
+function CompanySuccessView({
+  count,
+  companyName,
+  formation,
+  funders,
+}: {
+  count: number;
+  companyName: string;
+  formation: PublicFormation | undefined;
+  funders: { label: string }[];
+}) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
+      <div className="absolute top-5 right-6">
+        <ThemeToggle />
+      </div>
+      <main className="max-w-xl mx-auto px-6 py-20 text-center">
+        <span className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/60 dark:to-emerald-950/30 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto mb-6 shadow-sm">
+          <CheckCircle2 className="w-8 h-8" />
+        </span>
+        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-3">
+          {count} salarié{count > 1 ? 's' : ''} inscrit{count > 1 ? 's' : ''}
+        </h1>
+        <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-8">
+          Les pré-inscriptions de{' '}
+          <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{companyName}</strong> ont
+          bien été reçues. L&apos;organisme revient vers vous sous 48 h ouvrées.
+        </p>
+
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800 text-left mb-8">
+          {formation && (
+            <div className="px-5 py-3 flex items-center justify-between gap-3">
+              <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Formation</span>
+              <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                {formation.title}
+              </span>
+            </div>
+          )}
+          <div className="px-5 py-3 flex items-center justify-between gap-3">
+            <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Salariés</span>
+            <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{count}</span>
+          </div>
+          {funders.length > 0 && (
+            <div className="px-5 py-3 flex items-center justify-between gap-3">
+              <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Financement</span>
+              <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                {funders.map((f) => f.label).join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-[13px] text-violet-600 hover:text-violet-700 font-medium"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Revenir à l&apos;accueil
         </Link>
       </main>
     </div>

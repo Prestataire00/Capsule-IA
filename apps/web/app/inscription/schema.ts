@@ -43,5 +43,44 @@ export const prospectFieldsSchema = z.object({
 
 export type ProspectFields = z.infer<typeof prospectFieldsSchema>;
 
+// ─── Inscription groupée par une entreprise (plusieurs salariés) ───────────
+// Le référent saisit une fois l'entreprise + la formation + le financement,
+// puis liste ses salariés. Chaque salarié → un prospect (situation 'salarie').
+
+export const employeeSchema = z.object({
+  civility: z.enum(['m', 'mme']).optional(),
+  firstName: z.string().trim().min(1, 'Prénom requis').max(100),
+  lastName: z.string().trim().min(1, 'Nom requis').max(100),
+  email: z.string().trim().toLowerCase().email('Email invalide').max(255),
+  phone: z.string().trim().max(30).optional().or(z.literal('')),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide').optional().or(z.literal('')),
+  rqth: z.boolean(),
+});
+export type EmployeeFields = z.infer<typeof employeeSchema>;
+
+export const companyEnrollmentSchema = z.object({
+  companyName: z.string().trim().min(1, 'Nom de l’entreprise requis').max(200),
+  companySiret: z.string().trim().max(20).optional().or(z.literal('')),
+  companyAddress: z
+    .object({
+      line1: z.string().trim().max(200).optional().or(z.literal('')),
+      city: z.string().trim().max(120).optional().or(z.literal('')),
+      postalCode: z.string().trim().max(10).optional().or(z.literal('')),
+    })
+    .optional(),
+  referentName: z.string().trim().max(200).optional().or(z.literal('')),
+  referentEmail: z.string().trim().toLowerCase().email('Email invalide').max(255).optional().or(z.literal('')),
+  referentPhone: z.string().trim().max(30).optional().or(z.literal('')),
+
+  formationId: z.string().uuid().optional().or(z.literal('')),
+  preferredModality: z.enum(PROSPECT_MODALITIES).optional().or(z.literal('')),
+  preferredStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide').optional().or(z.literal('')),
+  message: z.string().trim().max(2000).optional().or(z.literal('')),
+
+  funderKinds: z.array(z.enum(FUNDER_VALUES)).min(1, 'Sélectionnez au moins un financement'),
+  employees: z.array(employeeSchema).min(1, 'Ajoutez au moins un salarié').max(100),
+});
+export type CompanyEnrollmentFields = z.infer<typeof companyEnrollmentSchema>;
+
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
