@@ -9,6 +9,8 @@ export type PersistArgs = {
   title: string;
   bytes: Uint8Array;
   generationInput: unknown;
+  /** Métadonnées additionnelles écrites dans app.documents.metadata (ex. { payer, funder_kind }). */
+  metadata?: Record<string, unknown>;
 };
 
 export async function persistGeneratedDocument(
@@ -50,6 +52,7 @@ export async function persistGeneratedDocument(
       file_hash: fileHash,
       generated_at: new Date().toISOString(),
       generation_input: args.generationInput,
+      ...(args.metadata ? { metadata: args.metadata } : {}),
     })
     .select('id')
     .single();

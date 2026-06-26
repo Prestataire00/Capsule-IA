@@ -9,10 +9,11 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { GenerateFromTemplate, type TemplateChoice } from './_components/generate-from-template';
 import { GenerateWithAi } from './_components/generate-with-ai';
 import { EmailDocButton } from './_components/email-doc-button';
+import { GenerateConventionsButton } from './_components/generate-conventions-button';
 
 // PDF générés à la volée (générateurs pdf-lib existants : génèrent, persistent, renvoient le PDF).
+// La convention est générée à part (1 par financeur + reste à charge) via GenerateConventionsButton.
 const GENERATORS = [
-  { kind: 'convention', label: 'Convention (PDF)', route: 'convention.pdf' },
   { kind: 'programme', label: 'Programme (PDF)', route: 'programme.pdf' },
   { kind: 'attestation_fin', label: 'Attestation de fin (PDF)', route: 'attestation.pdf' },
   { kind: 'certificat_realisation', label: 'Certificat de réalisation (PDF)', route: 'certificat.pdf' },
@@ -46,7 +47,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
     sb
       .schema('app')
       .from('documents')
-      .select('id, title, kind, status, content_html, storage_path, created_at')
+      .select('id, title, kind, status, content_html, storage_path, metadata, created_at')
       .eq('dossier_id', params.id)
       .order('created_at', { ascending: false }),
     sb
@@ -65,6 +66,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       status: string;
       content_html: string | null;
       storage_path: string | null;
+      metadata: { payer?: string | null } | null;
       created_at: string;
     }>) ?? [];
 
@@ -102,6 +104,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       <section className="space-y-3">
         <SectionLabel>Générer un PDF standard</SectionLabel>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <GenerateConventionsButton dossierId={params.id} />
           {GENERATORS.map((g) => (
             <a
               key={g.kind}
@@ -131,6 +134,12 @@ export default async function DocumentsPage({ params }: { params: { id: string }
           <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
             {rows.map((d) => {
               const pdfRoute = KIND_TO_ROUTE[d.kind];
+              const payer = d.metadata?.payer;
+              const downloadHref = pdfRoute
+                ? `/api/dossiers/${params.id}/${pdfRoute}${
+                    d.kind === 'convention' && payer ? `?payer=${encodeURIComponent(payer)}` : ''
+                  }`
+                : null;
               return (
                 <li key={d.id} className="py-3 px-1 text-[13px] flex items-center justify-between gap-3">
                   <span className="truncate">{d.title}</span>
@@ -147,9 +156,9 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                         Ouvrir
                       </Link>
                     ) : (
-                      pdfRoute && (
+                      downloadHref && (
                         <a
-                          href={`/api/dossiers/${params.id}/${pdfRoute}`}
+                          href={downloadHref}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"

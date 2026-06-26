@@ -39,10 +39,10 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
     status: doc.displayStatus,
     date: doc.generatedAt ? new Date(doc.generatedAt).toLocaleDateString('fr-FR') : 'à venir',
     href:
-      doc.kind === 'convention'
-        ? `/api/dossiers/${ctx.dossier.id}/convention.pdf`
-        : doc.kind === 'attestation_fin' || doc.kind === 'certificat_realisation'
-        ? `/api/dossiers/${ctx.dossier.id}/attestation.pdf`
+      doc.kind === 'convention' ||
+      doc.kind === 'attestation_fin' ||
+      doc.kind === 'certificat_realisation'
+        ? `/api/espace/${params.token}/document/${doc.id}`
         : null,
     signHref:
       SIGNABLE_KINDS.has(doc.kind) && doc.displayStatus !== 'signed'

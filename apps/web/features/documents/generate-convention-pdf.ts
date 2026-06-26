@@ -27,8 +27,14 @@ export type ConventionInput = {
     address: string | null;
   } | null;
   funder: {
+    /** Nom du financeur, ou « Entreprise / apprenant » pour le reste à charge. */
     name: string;
-    kind: string;
+    /** Libellé du mode de financement (CPF, Autofinancement, Reste à charge…). */
+    modeLabel: string;
+    /** Montant pris en charge par ce financeur (centimes), si connu. */
+    amountCents: number | null;
+    /** N° de dossier externe (ex. dossier CPF), si présent. */
+    externalFileNumber: string | null;
   } | null;
   formation: {
     title: string;
@@ -197,7 +203,7 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
     c = drawKeyValue(doc, c, font, fontBold, 'Entreprise', input.company.name);
     if (input.company.siret) c = drawKeyValue(doc, c, font, fontBold, 'SIRET entreprise', input.company.siret);
   }
-  if (input.funder) c = drawKeyValue(doc, c, font, fontBold, 'Financeur', `${input.funder.name} (${input.funder.kind})`);
+  if (input.funder) c = drawKeyValue(doc, c, font, fontBold, 'Financeur', `${input.funder.name} (${input.funder.modeLabel})`);
   c = { ...c, y: c.y - 12 };
 
   // Section 3 — Formation
@@ -211,6 +217,13 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
       : modalityLabel(input.dossier.modality);
   c = drawKeyValue(doc, c, font, fontBold, 'Modalité', modalitiesText);
   c = drawKeyValue(doc, c, font, fontBold, 'Montant total', fmtEuros(input.dossier.totalAmountCents, input.dossier.currency));
+  if (input.funder) {
+    c = drawKeyValue(doc, c, font, fontBold, 'Mode de financement', input.funder.modeLabel);
+    c = drawKeyValue(doc, c, font, fontBold, 'Montant pris en charge', fmtEuros(input.funder.amountCents, input.dossier.currency));
+    if (input.funder.externalFileNumber) {
+      c = drawKeyValue(doc, c, font, fontBold, 'N° de dossier', input.funder.externalFileNumber);
+    }
+  }
   c = { ...c, y: c.y - 8 };
 
   if (input.formation.objectives.length > 0) {

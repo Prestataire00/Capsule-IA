@@ -1,0 +1,48 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAction } from 'next-safe-action/hooks';
+import { FileText, Loader2, Check } from 'lucide-react';
+import { generateConventions } from '../convention-actions';
+
+export function GenerateConventionsButton({ dossierId }: { dossierId: string }) {
+  const router = useRouter();
+  const { executeAsync } = useAction(generateConventions);
+  const [state, setState] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+  const [count, setCount] = useState(0);
+
+  async function run() {
+    setState('running');
+    const res = await executeAsync({ dossierId });
+    if (res?.data?.ok) {
+      setCount(res.data.count);
+      setState('done');
+      router.refresh();
+      setTimeout(() => setState('idle'), 2500);
+    } else {
+      setState('error');
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={run}
+      disabled={state === 'running'}
+      className="group flex items-center gap-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2.5 hover:border-violet-300 dark:hover:border-violet-800 transition disabled:opacity-50 text-left"
+    >
+      {state === 'running' ? (
+        <Loader2 className="w-4 h-4 text-violet-500 flex-shrink-0 animate-spin" />
+      ) : state === 'done' ? (
+        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+      ) : (
+        <FileText className="w-4 h-4 text-violet-500 flex-shrink-0" />
+      )}
+      <span className="text-[13px] text-zinc-900 dark:text-zinc-100 flex-1 truncate">
+        {state === 'done' ? `${count} convention(s) générée(s)` : 'Générer les conventions'}
+      </span>
+      {state === 'error' && <span className="text-[11px] text-red-600">échec</span>}
+    </button>
+  );
+}
