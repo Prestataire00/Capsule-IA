@@ -3,6 +3,12 @@ import Link from 'next/link';
 import { ArrowLeft, Check, Wallet, Mail, Hash } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { createFunder } from './actions';
+
+const ERROR_MESSAGES: Record<string, string> = {
+  missing: 'Le nom du financeur est requis.',
+  no_kind: 'Sélectionnez au moins un type de financeur.',
+};
 
 const KINDS = [
   { value: 'opco', label: 'OPCO', hint: 'Organisme paritaire' },
@@ -13,7 +19,11 @@ const KINDS = [
   { value: 'autofinancement', label: 'Autofinancement', hint: 'L’apprenant paie' },
 ] as const;
 
-export default async function NouveauFinanceurPage() {
+export default async function NouveauFinanceurPage({
+  searchParams,
+}: {
+  searchParams: { error?: string };
+}) {
   await requireAccess('catalogue', 'manage');
   return (
     <div className="min-h-[calc(100vh-4rem)]">
@@ -25,6 +35,12 @@ export default async function NouveauFinanceurPage() {
           <ArrowLeft className="w-3.5 h-3.5" />
           Retour aux financeurs
         </Link>
+
+        {searchParams.error && (
+          <div className="mb-6 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-200 rounded-lg px-4 py-3 text-[13px]">
+            {ERROR_MESSAGES[searchParams.error] ?? 'Une erreur est survenue lors de la création.'}
+          </div>
+        )}
 
         <header className="mb-8 flex items-center gap-3">
           <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/60 dark:to-emerald-950/30 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shadow-sm">
@@ -40,7 +56,7 @@ export default async function NouveauFinanceurPage() {
           </div>
         </header>
 
-        <form action="/financeurs" method="get" className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
+        <form action={createFunder} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
           <section className="p-6 space-y-4">
             <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Identité</p>
             <FormField label="Nom" required>
@@ -67,22 +83,24 @@ export default async function NouveauFinanceurPage() {
 
           <section className="p-6 space-y-4">
             <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Type de financeur</p>
-            <FormField label="Catégorie" required>
+            <FormField label="Catégorie(s)" required hint="Plusieurs types possibles pour un même financeur.">
               <div className="grid grid-cols-2 gap-2">
                 {KINDS.map((k, i) => (
                   <label
                     key={k.value}
-                    className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/40 has-[:checked]:border-violet-300 dark:has-[:checked]:border-violet-800 transition"
+                    className="flex items-start gap-2.5 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/40 has-[:checked]:border-violet-300 dark:has-[:checked]:border-violet-800 transition"
                   >
                     <input
-                      type="radio"
+                      type="checkbox"
                       name="kind"
                       value={k.value}
                       defaultChecked={i === 0}
-                      className="sr-only"
+                      className="mt-0.5 accent-violet-600"
                     />
-                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{k.label}</p>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{k.hint}</p>
+                    <span className="min-w-0">
+                      <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block">{k.label}</span>
+                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 block">{k.hint}</span>
+                    </span>
                   </label>
                 ))}
               </div>
