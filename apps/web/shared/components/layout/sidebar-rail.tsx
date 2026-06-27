@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
-  Bell, BarChart3, Inbox, UserPlus, Eye,
+  Bell, BarChart3, Inbox, UserPlus, Eye, Telescope,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -99,6 +99,7 @@ const GROUPS: Group[] = [
     items: [
       { href: '/qualiopi', icon: ShieldCheck, label: 'Qualiopi' },
       { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
+      { href: '/amelioration-continue', icon: Telescope, label: 'Veille & amélioration' },
       { href: '/reporting', icon: BarChart3, label: 'Reporting' },
       { href: '/audit', icon: Activity, label: 'Audit' },
     ],
