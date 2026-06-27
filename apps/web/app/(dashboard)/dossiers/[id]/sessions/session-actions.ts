@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
-import { requestGoogleMeetLink } from '@/shared/lib/integrations/make-meet';
+import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
+import { loadGoogleCreds } from '@/shared/lib/integrations/google-calendar-store';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -79,18 +80,19 @@ async function provisionMeet(
   ctx: DossierCtx,
 ): Promise<'created' | 'skipped' | 'failed'> {
   const attendeeEmails = ctx.learnerEmail ? [ctx.learnerEmail] : [];
-  const res = await requestGoogleMeetLink({
-    sessionId,
+
+  // Intégration Google Agenda de l'org (connectée dans Paramètres → Intégrations).
+  const creds = await loadGoogleCreds(sb, ctx.organizationId);
+  if (!creds) return 'skipped';
+
+  const res = await createMeetEvent(creds, {
     title,
     startsAt,
     endsAt,
-    organizationId: ctx.organizationId,
-    dossierReference: ctx.reference,
-    formationTitle: ctx.formationTitle,
-    organizerEmail: ctx.organizerEmail,
     attendeeEmails,
+    description: `${ctx.formationTitle} · dossier ${ctx.reference}`,
   });
-  if (!res.ok) return res.error === 'not_configured' ? 'skipped' : 'failed';
+  if (!res.ok) return 'failed';
 
   await sb
     .schema('app')
@@ -101,7 +103,7 @@ async function provisionMeet(
     })
     .eq('id', sessionId);
 
-  // Envoi du lien aux apprenants (en plus de l'invitation Google Agenda côté Make).
+  // Envoi du lien aux apprenants (en plus de l'invitation Google Agenda automatique).
   if (ctx.learnerEmail) {
     void sendEmail({
       to: ctx.learnerEmail,
@@ -179,7 +181,7 @@ export async function generateMeetForSession(sessionId: string, dossierId: strin
 
   const meet = await provisionMeet(sb, sessionId, sess.title ?? 'Séance', sess.starts_at, sess.ends_at, ctx);
   revalidatePath(`/dossiers/${dossierId}/sessions`);
-  if (meet === 'skipped') return { ok: false, error: 'Webhook Make non configuré (MAKE_SESSION_WEBHOOK_URL)' };
+  if (meet === 'skipped') return { ok: false, error: 'Google Agenda non connecté (Paramètres → Intégrations)' };
   if (meet === 'failed') return { ok: false, error: 'Échec de la génération du lien (Make)' };
   return { ok: true, sessionId, meet };
 }

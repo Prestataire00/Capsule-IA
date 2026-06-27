@@ -1,6 +1,6 @@
 // ARCHETYPE: command
 import Link from 'next/link';
-import { Plug, Mail, Video, CreditCard, ArrowUpRight, Settings } from 'lucide-react';
+import { Plug, Mail, Video, CreditCard, ArrowUpRight, Settings, CalendarDays } from 'lucide-react';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 
@@ -17,7 +17,16 @@ type Integration = {
   configureUrl?: string;
 };
 
-const baseIntegrations = (zoomConfigured: boolean): Integration[] => [
+const baseIntegrations = (zoomConfigured: boolean, googleConfigured: boolean): Integration[] => [
+  {
+    key: 'google_calendar',
+    name: 'Google Agenda / Meet',
+    description: 'Crée automatiquement le lien Google Meet des sessions distancielles et invite les apprenants.',
+    icon: CalendarDays,
+    status: googleConfigured ? 'configured' : 'todo',
+    docsUrl: 'https://console.cloud.google.com/apis/credentials',
+    configureUrl: '/parametres/integrations/google-calendar',
+  },
   {
     key: 'resend',
     name: 'Resend',
@@ -54,7 +63,7 @@ async function loadZoomConfigured(): Promise<boolean> {
   if (!user) return false;
   const { data: member } = await sb
     .schema('app')
-    .from('memberships')
+    .from('members')
     .select('organization_id')
     .eq('user_id', user.id)
     .maybeSingle();
@@ -69,6 +78,27 @@ async function loadZoomConfigured(): Promise<boolean> {
   return Boolean(integ && (integ as { status: string }).status === 'active');
 }
 
+async function loadGoogleConfigured(): Promise<boolean> {
+  const sb = supabaseServer();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return false;
+  const { data: member } = await sb
+    .schema('app')
+    .from('members')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!member) return false;
+  const { data: integ } = await sb
+    .schema('app')
+    .from('tenant_integrations')
+    .select('status')
+    .eq('organization_id', (member as { organization_id: string }).organization_id)
+    .eq('kind', 'google_calendar')
+    .maybeSingle();
+  return Boolean(integ && (integ as { status: string }).status === 'active');
+}
+
 const STATUS_STYLES: Record<IntegrationStatus, { bg: string; text: string; label: string }> = {
   configured: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-300', label: 'Configurée' },
   todo: { bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-300', label: 'À configurer' },
@@ -77,7 +107,8 @@ const STATUS_STYLES: Record<IntegrationStatus, { bg: string; text: string; label
 
 export default async function ParametresIntegrationsPage() {
   const zoomConfigured = await loadZoomConfigured();
-  const integrations = baseIntegrations(zoomConfigured);
+  const googleConfigured = await loadGoogleConfigured();
+  const integrations = baseIntegrations(zoomConfigured, googleConfigured);
 
   return (
     <div className="space-y-6">
