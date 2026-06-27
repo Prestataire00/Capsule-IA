@@ -4,7 +4,7 @@
 
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Mail, MailX, Inbox } from 'lucide-react';
+import { Mail, MailX, MailOpen, Inbox, MousePointerClick, CheckCheck } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -25,6 +25,11 @@ type EmailLogRow = {
   provider_id: string | null;
   error: string | null;
   sent_at: string;
+  delivered_at: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  bounced_at: string | null;
+  open_count: number | null;
 };
 
 type SearchParams = { dossier?: string; status?: string };
@@ -37,7 +42,7 @@ async function loadEmailLog(params: SearchParams): Promise<EmailLogRow[]> {
     .schema('app')
     .from('email_log' as never)
     .select(
-      'id, organization_id, dossier_id, kind, recipient, subject, status, provider_id, error, sent_at',
+      'id, organization_id, dossier_id, kind, recipient, subject, status, provider_id, error, sent_at, delivered_at, opened_at, clicked_at, bounced_at, open_count',
     )
     .order('sent_at', { ascending: false })
     .limit(500);
@@ -67,6 +72,7 @@ export default async function EmailsPage({
   const rows = await loadEmailLog(searchParams);
   const sentCount = rows.filter((r) => r.status === 'sent').length;
   const failedCount = rows.filter((r) => r.status === 'failed').length;
+  const openedCount = rows.filter((r) => r.opened_at).length;
 
   const activeDossier = searchParams.dossier;
   const activeStatus =
@@ -86,7 +92,7 @@ export default async function EmailsPage({
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
+      <div className="grid grid-cols-3 gap-4 mb-6 max-w-2xl">
         <StatCard
           label="Envoyés"
           value={sentCount}
@@ -94,6 +100,7 @@ export default async function EmailsPage({
           accent="emerald"
           href="/emails?status=sent"
         />
+        <StatCard label="Ouverts" value={openedCount} icon={MailOpen} accent="violet" />
         <StatCard
           label="Échecs"
           value={failedCount}
@@ -123,12 +130,13 @@ export default async function EmailsPage({
       )}
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-        <div className="grid grid-cols-[140px_1fr_1fr_160px_100px_100px] gap-3 px-5 py-2.5 text-[10px] tracking-wider uppercase text-zinc-400 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
+        <div className="grid grid-cols-[130px_1fr_1fr_140px_90px_150px_90px] gap-3 px-5 py-2.5 text-[10px] tracking-wider uppercase text-zinc-400 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
           <div>Date</div>
           <div>Destinataire</div>
           <div>Sujet</div>
           <div>Type</div>
           <div>Statut</div>
+          <div>Suivi</div>
           <div>Dossier</div>
         </div>
 
@@ -143,7 +151,7 @@ export default async function EmailsPage({
             {rows.map((r) => (
               <li
                 key={r.id}
-                className="grid grid-cols-[140px_1fr_1fr_160px_100px_100px] gap-3 px-5 py-3 items-center text-[13px]"
+                className="grid grid-cols-[130px_1fr_1fr_140px_90px_150px_90px] gap-3 px-5 py-3 items-center text-[13px]"
               >
                 <span className="font-mono text-[11px] text-zinc-500">
                   {format(parseISO(r.sent_at), 'dd MMM HH:mm', { locale: fr })}
@@ -164,6 +172,38 @@ export default async function EmailsPage({
                   <StatusPill tone={r.status === 'sent' ? 'success' : 'danger'}>
                     {r.status === 'sent' ? 'envoyé' : 'échec'}
                   </StatusPill>
+                </span>
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  {r.bounced_at ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400">
+                      <MailX className="w-3 h-3" /> rejeté
+                    </span>
+                  ) : (
+                    <>
+                      {r.delivered_at && (
+                        <span title="Livré" className="text-emerald-600 dark:text-emerald-400">
+                          <CheckCheck className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                      {r.opened_at && (
+                        <span
+                          title={`Ouvert${r.open_count && r.open_count > 1 ? ` ×${r.open_count}` : ''}`}
+                          className="inline-flex items-center gap-0.5 text-[11px] text-violet-600 dark:text-violet-400"
+                        >
+                          <MailOpen className="w-3.5 h-3.5" />
+                          {r.open_count && r.open_count > 1 ? `×${r.open_count}` : ''}
+                        </span>
+                      )}
+                      {r.clicked_at && (
+                        <span title="Cliqué" className="text-blue-600 dark:text-blue-400">
+                          <MousePointerClick className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                      {!r.delivered_at && !r.opened_at && !r.clicked_at && (
+                        <span className="text-zinc-300 dark:text-zinc-600 text-[11px]">—</span>
+                      )}
+                    </>
+                  )}
                 </span>
                 <span className="min-w-0">
                   {r.dossier_id ? (
