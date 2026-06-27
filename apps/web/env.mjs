@@ -20,6 +20,7 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().optional(),
   OF_NOTIFICATION_EMAIL: z.string().email().optional(),
   PUBLIC_APP_URL: z.string().url().optional(),
+  MAKE_SESSION_WEBHOOK_URL: z.string().url().optional(),
   ZOOM_API_KEY: z.string().optional(),
   ZOOM_API_SECRET: z.string().optional(),
   ZOOM_SECRETS_KEY: z.string().optional(),
