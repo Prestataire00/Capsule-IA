@@ -334,7 +334,8 @@ export type EndOfTrainingData = {
   endDate: string; // ISO
   totalHours: number;
   attendanceRate: number; // 0-100
-  certificateUrl: string | null; // PDF certificat de réalisation
+  attestationUrl: string | null; // PDF attestation de fin de formation (apprenant)
+  certificateUrl: string | null; // PDF certificat de réalisation (administratif)
   espaceUrl: string | null;
 };
 
@@ -352,17 +353,60 @@ export function endOfTrainingEmail(data: EndOfTrainingData): { subject: string; 
         ${dataRow('Volume horaire', `${data.totalHours} h`)}
         ${dataRow("Taux d'assiduité", `${Math.round(data.attendanceRate)} %`)}
       </table>
+      ${data.attestationUrl ? `
+        <div style="margin-top:24px;">${button(data.attestationUrl, 'Télécharger mon attestation de fin')}</div>
+      ` : ''}
       ${data.certificateUrl ? `
-        <div style="margin-top:24px;">${button(data.certificateUrl, 'Télécharger mon attestation de réalisation')}</div>
+        <div style="margin-top:12px;">${button(data.certificateUrl, 'Télécharger le certificat de réalisation')}</div>
+      ` : ''}
+      ${data.attestationUrl || data.certificateUrl ? `
         <p style="font-size:12px; color:#71717a; margin:8px 0 0;">
-          Document légal conservé 10 ans dans votre espace personnel.
+          Documents légaux conservés dans votre espace personnel.
         </p>
-      ` : `<p style="font-size:13px; color:#71717a; margin:20px 0 0;">Votre attestation de réalisation est en cours de préparation et vous parviendra sous 48 h.</p>`}
+      ` : `<p style="font-size:13px; color:#71717a; margin:20px 0 0;">Vos documents de fin de formation sont en cours de préparation et vous parviendront sous 48 h.</p>`}
     `)}
 
     ${data.espaceUrl ? `
       <p style="font-size:13px; color:#52525b; margin:24px 0 12px;">
         📁 Retrouvez tous vos documents et supports dans votre <a href="${data.espaceUrl}" style="color:#7c3aed;">espace apprenant</a> (accès 5 ans).
+      </p>
+    ` : ''}
+  `);
+
+  return { subject, html };
+}
+
+// ────────────────────────────────────────────────────────────────
+// Email — Attestation de démarrage (entrée en formation, aux présents)
+// ────────────────────────────────────────────────────────────────
+
+export type StartOfTrainingData = {
+  firstName: string;
+  formationTitle: string;
+  startDate: string; // ISO
+  attestationUrl: string | null; // PDF attestation d'entrée
+  espaceUrl: string | null;
+};
+
+export function startOfTrainingEmail(data: StartOfTrainingData): { subject: string; html: string } {
+  const subject = `Votre entrée en formation « ${data.formationTitle} » est confirmée`;
+  const startFR = new Date(data.startDate).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const html = wrapper(`
+    ${card(`
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bienvenue ${escapeHtml(data.firstName)} 👋</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
+        Votre entrée en formation <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> (démarrée le <strong>${startFR}</strong>) est confirmée. Vous trouverez ci-dessous votre <strong>attestation d'entrée en formation</strong>.
+      </p>
+      ${data.attestationUrl ? `<div>${button(data.attestationUrl, "Télécharger mon attestation d'entrée")}</div>` : ''}
+    `)}
+    ${data.espaceUrl ? `
+      <p style="font-size:13px; color:#52525b; margin:24px 0 12px;">
+        📁 Retrouvez vos documents dans votre <a href="${data.espaceUrl}" style="color:#7c3aed;">espace apprenant</a>.
       </p>
     ` : ''}
   `);

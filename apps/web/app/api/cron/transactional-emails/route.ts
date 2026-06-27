@@ -11,6 +11,7 @@ import {
   sessionConvocationEmail,
   satisfactionSurveyEmail,
   endOfTrainingEmail,
+  startOfTrainingEmail,
 } from '@/shared/lib/email/templates';
 import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
@@ -350,17 +351,19 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
       errors.push(`satisfaction ${d.id}: ${(e as Error).message}`);
     }
 
-    // End-of-training (attestation)
+    // Fin de formation : attestation de fin (apprenant) + certificat de réalisation
+    // (administratif) — les deux pour tous les dossiers terminés.
     try {
-      const certificateUrl = env.PUBLIC_APP_URL
-        ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/dossiers/${d.id}/attestation.pdf`
-        : null;
+      const base = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
+      const attestationUrl = base ? `${base}/api/dossiers/${d.id}/attestation.pdf` : null;
+      const certificateUrl = base ? `${base}/api/dossiers/${d.id}/certificat.pdf` : null;
       const eot = endOfTrainingEmail({
         firstName: learner.first_name,
         formationTitle,
         endDate: d.end_date,
         totalHours: d.total_hours,
         attendanceRate: 95, // TODO: calculer depuis attendance_signatures
+        attestationUrl,
         certificateUrl,
         espaceUrl: espaceUrlFor(d.learner_id),
       });
@@ -700,6 +703,90 @@ async function runNeedsAnalysisForNewLearners(): Promise<{ candidates: number; s
   return { candidates: rows.length, sent, errors };
 }
 
+// Attestation de démarrage : envoyée aux apprenants PRÉSENTS (ayant émargé au
+// moins une fois) qui ne l'ont pas encore reçue. Idempotent via email_log
+// (kind='attestation_demarrage' + dossier_id).
+async function runStartAttestation(): Promise<{ candidates: number; sent: number; errors: string[] }> {
+  const sb = admin();
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: sigs, error } = await sb
+    .schema('app')
+    .from('attendance_signatures')
+    .select('learner_id, signed_at, sheet:attendance_sheets(dossier_id, organization_id)')
+    .eq('participant_kind', 'learner')
+    .not('signed_at', 'is', null)
+    .gte('signed_at', cutoff);
+  if (error) return { candidates: 0, sent: 0, errors: [error.message] };
+
+  // Un présent unique par dossier (le dossier porte 1 apprenant).
+  const byDossier = new Map<string, { learnerId: string; organizationId: string }>();
+  for (const s of (sigs ?? []) as unknown as Array<{
+    learner_id: string | null;
+    sheet: { dossier_id: string | null; organization_id: string } | null;
+  }>) {
+    const dossierId = s.sheet?.dossier_id;
+    if (!dossierId || !s.learner_id || !s.sheet) continue;
+    if (!byDossier.has(dossierId)) {
+      byDossier.set(dossierId, { learnerId: s.learner_id, organizationId: s.sheet.organization_id });
+    }
+  }
+
+  let sent = 0;
+  const errors: string[] = [];
+  const base = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
+
+  for (const [dossierId, ctx] of byDossier) {
+    try {
+      // Dédup : déjà envoyée pour ce dossier ?
+      const { data: already } = await sb
+        .schema('app')
+        .from('email_log')
+        .select('id')
+        .eq('dossier_id', dossierId)
+        .eq('kind', 'attestation_demarrage')
+        .limit(1)
+        .maybeSingle();
+      if (already) continue;
+
+      const [{ data: dossierRow }, { data: learnerRow }] = await Promise.all([
+        sb
+          .schema('app')
+          .from('dossiers')
+          .select('start_date, formation:formations(title)')
+          .eq('id', dossierId)
+          .maybeSingle(),
+        sb.schema('app').from('learners').select('first_name, email').eq('id', ctx.learnerId).maybeSingle(),
+      ]);
+      const dossier = dossierRow as { start_date: string; formation: { title: string } | null } | null;
+      const learner = learnerRow as { first_name: string; email: string } | null;
+      if (!dossier || !learner?.email) continue;
+
+      const tpl = startOfTrainingEmail({
+        firstName: learner.first_name,
+        formationTitle: dossier.formation?.title ?? 'Votre formation',
+        startDate: dossier.start_date,
+        attestationUrl: base ? `${base}/api/dossiers/${dossierId}/attestation-entree.pdf` : null,
+        espaceUrl: espaceUrlFor(ctx.learnerId),
+      });
+      const r = await sendEmail({
+        to: learner.email,
+        subject: tpl.subject,
+        html: tpl.html,
+        organizationId: ctx.organizationId,
+        dossierId,
+        kind: 'attestation_demarrage',
+      });
+      if (r.ok) sent++;
+      else if (r.reason !== 'no_api_key') errors.push(`start_attestation ${dossierId}: send_failed`);
+    } catch (e) {
+      errors.push(`start_attestation ${dossierId}: ${(e as Error).message}`);
+    }
+  }
+
+  return { candidates: byDossier.size, sent, errors };
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -713,6 +800,7 @@ export async function POST(req: Request) {
     trainerSatisfaction,
     needsAnalysis,
     needsAnalysisLearners,
+    startAttestation,
   ] = await Promise.all([
     runConvocationsJ7(),
     runDossierEnd(),
@@ -720,6 +808,7 @@ export async function POST(req: Request) {
     runTrainerSatisfaction(),
     runNeedsAnalysisOnEnrollment(),
     runNeedsAnalysisForNewLearners(),
+    runStartAttestation(),
   ]);
   const durationMs = Date.now() - startedAt;
 
@@ -732,6 +821,7 @@ export async function POST(req: Request) {
     trainerSatisfaction,
     needsAnalysis,
     needsAnalysisLearners,
+    startAttestation,
   });
 }
 
