@@ -100,6 +100,7 @@ const GROUPS: Group[] = [
       { href: '/qualiopi', icon: ShieldCheck, label: 'Qualiopi' },
       { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/amelioration-continue', icon: Telescope, label: 'Veille & amélioration' },
+      { href: '/bpf', icon: FileText, label: 'BPF' },
       { href: '/reporting', icon: BarChart3, label: 'Reporting' },
       { href: '/audit', icon: Activity, label: 'Audit' },
     ],
