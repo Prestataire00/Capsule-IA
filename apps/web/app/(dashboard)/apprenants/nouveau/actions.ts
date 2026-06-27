@@ -3,12 +3,16 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { sendNeedsAnalysisForLearner } from '@/features/questionnaire/needs-analysis';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
+type AdminRole = (typeof ADMIN_ROLES)[number];
 
 const str = (fd: FormData, k: string) => {
   const v = fd.get(k);
@@ -17,11 +21,47 @@ const str = (fd: FormData, k: string) => {
 
 const STATUTS = ['salarie', 'dirigeant', 'independant'] as const;
 
+// Org de l'utilisateur connecté (membership par défaut, rôle admin) — pas « la première org ».
+async function resolveAdminOrgId(userId: string): Promise<string | null> {
+  const sb = admin();
+  const { data: member } = await (sb as never as {
+    schema: (s: string) => {
+      from: (t: string) => {
+        select: (c: string) => {
+          eq: (k: string, v: string) => {
+            is: (k: string, v: null) => {
+              order: (k: string, o: { ascending: boolean }) => {
+                limit: (n: number) => {
+                  maybeSingle: () => Promise<{ data: { organization_id: string; role: string } | null }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  })
+    .schema('app')
+    .from('members')
+    .select('organization_id, role')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .order('is_default_org', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!member?.organization_id) return null;
+  if (!ADMIN_ROLES.includes(member.role as AdminRole)) return null;
+  return member.organization_id;
+}
+
 export async function createLearner(fd: FormData): Promise<void> {
   const sb = admin();
-  const { data: org } = await sb.schema('app').from('organizations').select('id').limit(1).maybeSingle();
-  const orgId = (org as { id?: string } | null)?.id;
-  if (!orgId) redirect('/apprenants?error=no_org');
+  const {
+    data: { user },
+  } = await supabaseServer().auth.getUser();
+  if (!user) redirect('/login');
+  const orgId = await resolveAdminOrgId(user.id);
+  if (!orgId) redirect('/apprenants?error=forbidden');
 
   const firstName = str(fd, 'firstName');
   const lastName = str(fd, 'lastName');
