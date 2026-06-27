@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
-  Bell, BarChart3,
+  Bell, BarChart3, Inbox, UserPlus,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -28,6 +28,7 @@ export type SidebarCounts = {
   emargementsPending?: number;
   questionnairesActive?: number;
   invoicesUnpaid?: number;
+  demandesPending?: number;
 };
 
 type Group = {
@@ -42,6 +43,16 @@ type Group = {
 
 const GROUPS: Group[] = [
   { key: 'accueil', label: 'Accueil', icon: LayoutDashboard, href: '/' },
+  {
+    key: 'crm',
+    label: 'Demandes',
+    icon: Inbox,
+    items: [
+      { href: '/prospects/nouvelles', icon: Inbox, label: 'Nouvelles demandes' },
+      { href: '/prospects', icon: UserPlus, label: 'Pré-inscriptions' },
+    ],
+    countKeys: ['demandesPending'],
+  },
   {
     key: 'dossiers',
     label: 'Dossiers',
@@ -97,6 +108,7 @@ const COUNT_BY_HREF: Record<string, { key: keyof SidebarCounts; tone: Tone }> = 
   '/emargements': { key: 'emargementsPending', tone: 'amber' },
   '/questionnaires': { key: 'questionnairesActive', tone: 'violet' },
   '/factures': { key: 'invoicesUnpaid', tone: 'amber' },
+  '/prospects/nouvelles': { key: 'demandesPending', tone: 'rose' },
 };
 
 const badgeStyles: Record<Tone, string> = {

@@ -4,10 +4,8 @@ import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
-import {
-  prospectConfirmationEmail,
-  prospectInternalNotificationEmail,
-} from '@/shared/lib/email/templates';
+import { prospectConfirmationEmail } from '@/shared/lib/email/templates';
+import { notifyOrgStaffOfNewDemande } from '@/shared/lib/notifications/notify-staff';
 import { derivePrimaryFunder } from '@/features/prospect/funding';
 import {
   prospectFieldsSchema,
@@ -228,31 +226,18 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     }
   });
 
-  if (env.OF_NOTIFICATION_EMAIL) {
-    const dashboardUrl = env.PUBLIC_APP_URL
-      ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/prospects/${prospectId}`
-      : null;
-    const notif = prospectInternalNotificationEmail({
-      ...baseEmailData,
-      situation: SITUATION_LABELS[fields.situation],
+  // Notifie le staff (owner/admin/gestionnaire) : in-app + email. Fallback OF_NOTIFICATION_EMAIL si pas d'org.
+  await notifyOrgStaffOfNewDemande({
+    organizationId,
+    prospectId,
+    replyTo: fields.email,
+    summary: {
+      name: `${fields.firstName} ${fields.lastName}`,
+      situationLabel: SITUATION_LABELS[fields.situation],
       companyName: nullify(fields.companyName),
-      message: nullify(fields.message),
-      phone: nullify(fields.phone),
-      rqth: fields.rqth,
-      documentsCount: uploaded.length,
-      dashboardUrl,
-    });
-    void sendEmail({
-      to: env.OF_NOTIFICATION_EMAIL,
-      subject: notif.subject,
-      html: notif.html,
-      replyTo: fields.email,
-    }).then((r) => {
-      if (!r.ok && r.reason !== 'no_api_key') {
-        console.error('[submitProspect] internal notif email failed', r);
-      }
-    });
-  }
+      employeesCount: null,
+    },
+  });
 
   return { ok: true, prospectId };
 }
@@ -362,6 +347,45 @@ export async function submitCompanyEnrollment(formData: FormData): Promise<Compa
   const count = insertedRows.length;
   const firstId = insertedRows[0]?.id ?? '';
 
+  // Convention collective (pièce justificative entreprise) → stockée sur le prospect représentant.
+  const conventionFile = formData.get('file_collective_agreement');
+  if (
+    firstId &&
+    conventionFile instanceof File &&
+    conventionFile.size > 0 &&
+    conventionFile.size <= MAX_FILE_SIZE &&
+    (ALLOWED_FILE_TYPES as readonly string[]).includes(conventionFile.type)
+  ) {
+    const ext = conventionFile.name.includes('.')
+      ? conventionFile.name.split('.').pop()!.toLowerCase()
+      : 'bin';
+    const path = `${firstId}/collective_agreement.${ext}`;
+    const buffer = Buffer.from(await conventionFile.arrayBuffer());
+    const { error: upErr } = await supabase.storage
+      .from('prospect-documents')
+      .upload(path, buffer, { contentType: conventionFile.type, upsert: true });
+    if (upErr) {
+      console.error('[submitCompanyEnrollment] convention upload failed', upErr);
+    } else {
+      await supabase
+        .schema('app')
+        .from('prospects')
+        .update({
+          documents: [
+            {
+              key: 'collective_agreement',
+              label: conventionFile.name,
+              storage_path: path,
+              size: conventionFile.size,
+              content_type: conventionFile.type,
+              uploaded_at: new Date().toISOString(),
+            },
+          ],
+        } as never)
+        .eq('id', firstId);
+    }
+  }
+
   const funderLabel = fields.funderKinds.map((k) => FUNDER_LABELS[k]).join(', ');
 
   // Confirmation au référent (s'il a laissé un email).
@@ -386,40 +410,18 @@ export async function submitCompanyEnrollment(formData: FormData): Promise<Compa
     });
   }
 
-  // Notification interne récapitulative à l'OF.
-  if (env.OF_NOTIFICATION_EMAIL) {
-    const dashboardUrl = env.PUBLIC_APP_URL
-      ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/prospects`
-      : null;
-    const employeesList = fields.employees
-      .map((e) => `${e.firstName} ${e.lastName} (${e.email})`)
-      .join(', ');
-    const notif = prospectInternalNotificationEmail({
-      firstName: fields.companyName,
-      lastName: `${count} salarié${count > 1 ? 's' : ''}`,
-      email: fields.referentEmail || '',
-      formationTitle,
-      funderLabel,
-      prospectId: firstId,
-      situation: `Inscription entreprise — ${count} salarié${count > 1 ? 's' : ''}`,
+  // Notifie le staff (owner/admin/gestionnaire) : in-app + email récapitulatif. Demande = le batch.
+  await notifyOrgStaffOfNewDemande({
+    organizationId,
+    prospectId: firstId,
+    replyTo: fields.referentEmail || undefined,
+    summary: {
+      name: `${fields.companyName} (référent ${fields.referentName || '—'})`,
+      situationLabel: 'Inscription entreprise',
       companyName: fields.companyName,
-      message: employeesList,
-      phone: nullify(fields.referentPhone),
-      rqth: false,
-      documentsCount: 0,
-      dashboardUrl,
-    });
-    void sendEmail({
-      to: env.OF_NOTIFICATION_EMAIL,
-      subject: notif.subject,
-      html: notif.html,
-      replyTo: fields.referentEmail || undefined,
-    }).then((r) => {
-      if (!r.ok && r.reason !== 'no_api_key') {
-        console.error('[submitCompanyEnrollment] internal notif email failed', r);
-      }
-    });
-  }
+      employeesCount: count,
+    },
+  });
 
   return { ok: true, count };
 }

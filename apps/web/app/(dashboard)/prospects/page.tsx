@@ -123,6 +123,12 @@ export default async function ProspectsPage() {
                   {p.status}
                 </StatusPill>
                 <div className="flex flex-col items-end gap-2">
+                  <a
+                    href={`/prospects/${p.id}`}
+                    className="text-[12px] text-violet-600 hover:underline"
+                  >
+                    Voir la demande
+                  </a>
                   {p.converted_dossier_id ? (
                     <a
                       href={`/dossiers/${p.converted_dossier_id}`}

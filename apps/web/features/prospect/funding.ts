@@ -142,6 +142,49 @@ export function requiredDocsForFunders(
   return result;
 }
 
+// Pièces demandées selon la SITUATION du candidat (en plus des pièces par financeur).
+const DOCS_BY_SITUATION: Record<string, readonly DocRequirement[]> = {
+  independant: [
+    {
+      key: 'urssaf',
+      label: 'Attestation URSSAF',
+      hint: 'Attestation de vigilance / affiliation URSSAF.',
+      required: true,
+    },
+  ],
+  // Le mode entreprise demande la convention collective (même clé que la pièce OPCO → dédoublonnée).
+  entreprise: [
+    {
+      key: 'collective_agreement',
+      label: 'Convention collective',
+      hint: 'Référence ou copie de la convention collective applicable.',
+      required: true,
+    },
+  ],
+};
+
+export function requiredDocsForSituation(situation: string): DocRequirement[] {
+  return [...(DOCS_BY_SITUATION[situation] ?? [])];
+}
+
+/**
+ * Pièces requises = union (dédoublonnée par clé) des pièces par financeur et par situation.
+ * Source unique réutilisée par le formulaire d'inscription et la vérification CRM.
+ */
+export function requiredDocs(
+  funderKinds: readonly string[],
+  situation: string,
+): DocRequirement[] {
+  const seen = new Set<string>();
+  const result: DocRequirement[] = [];
+  for (const doc of [...requiredDocsForFunders(funderKinds), ...requiredDocsForSituation(situation)]) {
+    if (seen.has(doc.key)) continue;
+    seen.add(doc.key);
+    result.push(doc);
+  }
+  return result;
+}
+
 export function derivePrimaryFunder(funderKinds: readonly string[]): string {
   const primary = funderKinds[0];
   if (primary === undefined) {

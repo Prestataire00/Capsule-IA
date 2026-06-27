@@ -4,6 +4,8 @@ import {
   FUNDER_VALUES,
   derivePrimaryFunder,
   requiredDocsForFunders,
+  requiredDocsForSituation,
+  requiredDocs,
 } from './funding';
 
 describe('FUNDER_VALUES', () => {
@@ -42,6 +44,40 @@ describe('requiredDocsForFunders', () => {
 
   it('autofinancement has no required docs', () => {
     const docs = requiredDocsForFunders(['autofinancement']);
+    expect(docs.filter((d) => d.required)).toHaveLength(0);
+  });
+});
+
+describe('requiredDocsForSituation', () => {
+  it('independant requires the URSSAF attestation', () => {
+    const keys = requiredDocsForSituation('independant').map((d) => d.key);
+    expect(keys).toEqual(['urssaf']);
+  });
+
+  it('entreprise requires the convention collective', () => {
+    const keys = requiredDocsForSituation('entreprise').map((d) => d.key);
+    expect(keys).toEqual(['collective_agreement']);
+  });
+
+  it('returns nothing for particulier', () => {
+    expect(requiredDocsForSituation('particulier')).toHaveLength(0);
+  });
+});
+
+describe('requiredDocs (funders + situation, deduped)', () => {
+  it('adds URSSAF for an independant on top of funder docs', () => {
+    const keys = requiredDocs(['faf_ca'], 'independant').map((d) => d.key);
+    expect(keys).toContain('faf_attestation');
+    expect(keys).toContain('urssaf');
+  });
+
+  it('dedupes collective_agreement between OPCO funder and entreprise situation', () => {
+    const keys = requiredDocs(['opco'], 'entreprise').map((d) => d.key);
+    expect(keys.filter((k) => k === 'collective_agreement')).toHaveLength(1);
+  });
+
+  it('is empty for particulier with autofinancement (no required docs)', () => {
+    const docs = requiredDocs(['autofinancement'], 'particulier');
     expect(docs.filter((d) => d.required)).toHaveLength(0);
   });
 });

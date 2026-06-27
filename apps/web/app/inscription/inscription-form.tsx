@@ -41,7 +41,7 @@ import { Logo } from '@/shared/ui/logo';
 import {
   FUNDER_OPTIONS,
   type FunderValue,
-  requiredDocsForFunders,
+  requiredDocs,
   type DocRequirement,
 } from '@/features/prospect/funding';
 import type { PublicFormation } from '@/features/catalog/public-catalog';
@@ -114,8 +114,8 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
   const [files, setFiles] = useState<Record<string, File | null>>({});
 
   const docs: DocRequirement[] = useMemo(
-    () => requiredDocsForFunders(funding.funderKinds),
-    [funding.funderKinds],
+    () => requiredDocs(funding.funderKinds, funding.status),
+    [funding.funderKinds, funding.status],
   );
 
   const requiredFilled = docs.filter((d) => d.required).every((d) => files[d.key]);
@@ -1264,6 +1264,7 @@ function CompanyFlow({
   });
   const [funderKinds, setFunderKinds] = useState<FunderValue[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([emptyEmployee()]);
+  const [conventionFile, setConventionFile] = useState<File | null>(null);
 
   const selectedFormation = formations.find((f) => f.id === formation.formationId);
   const selectedFunders = FUNDER_OPTIONS.filter((f) => funderKinds.includes(f.value));
@@ -1339,6 +1340,7 @@ function CompanyFlow({
 
     const fd = new FormData();
     fd.set('payload', JSON.stringify(payload));
+    if (conventionFile) fd.set('file_collective_agreement', conventionFile);
 
     startTransition(async () => {
       const result = await submitCompanyEnrollment(fd);
@@ -1420,7 +1422,14 @@ function CompanyFlow({
         </ol>
 
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm">
-          {step === 0 && <CompanyStep value={company} onChange={setCompany} />}
+          {step === 0 && (
+            <CompanyStep
+              value={company}
+              onChange={setCompany}
+              conventionFile={conventionFile}
+              onConventionFile={setConventionFile}
+            />
+          )}
           {step === 1 && (
             <FormationStep value={formation} onChange={setFormation} formations={formations} />
           )}
@@ -1525,6 +1534,8 @@ function CompanyFlow({
 function CompanyStep({
   value,
   onChange,
+  conventionFile,
+  onConventionFile,
 }: {
   value: {
     companyName: string;
@@ -1541,6 +1552,8 @@ function CompanyStep({
     trainingBudgetUsed: boolean | null;
   };
   onChange: (v: typeof value) => void;
+  conventionFile: File | null;
+  onConventionFile: (f: File | null) => void;
 }) {
   const update = <K extends keyof typeof value>(k: K, v: (typeof value)[K]) =>
     onChange({ ...value, [k]: v });
@@ -1718,6 +1731,18 @@ function CompanyStep({
               );
             })}
           </div>
+        </FormField>
+
+        <FormField label="Convention collective (pièce justificative)">
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => onConventionFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-[12px] text-zinc-600 dark:text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-50 dark:file:bg-violet-950/40 file:px-3 file:py-1.5 file:text-violet-700 dark:file:text-violet-300 file:text-[12px]"
+          />
+          {conventionFile && (
+            <p className="text-[11px] text-zinc-500 mt-1">{conventionFile.name}</p>
+          )}
         </FormField>
       </div>
     </section>

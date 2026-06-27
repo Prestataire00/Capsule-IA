@@ -10,7 +10,7 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const [complaints, signatures, responses, invoices] = await Promise.all([
+    const [complaints, signatures, responses, invoices, demandes] = await Promise.all([
       sb
         .schema('app')
         .from('complaints')
@@ -31,6 +31,13 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
         .from('invoices')
         .select('id', { count: 'exact', head: true })
         .in('status', ['issued', 'partially_paid', 'overdue']),
+      sb
+        .schema('app')
+        .from('prospects')
+        .select('id', { count: 'exact', head: true })
+        .eq('validation_status', 'pending_validation')
+        .is('converted_dossier_id', null)
+        .is('deleted_at', null),
     ]);
 
     return {
@@ -38,6 +45,7 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
       emargementsPending: signatures.count ?? 0,
       questionnairesActive: responses.count ?? 0,
       invoicesUnpaid: invoices.count ?? 0,
+      demandesPending: demandes.count ?? 0,
     };
   } catch (err) {
     console.error('[sidebar-rail-server] unexpected', err);
