@@ -2,18 +2,11 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/env.mjs';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 
-const admin = () =>
-  createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-const str = (fd: FormData, k: string) => {
-  const v = fd.get(k);
-  return typeof v === 'string' && v.trim() ? v.trim() : null;
-};
+const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
+type AdminRole = (typeof ADMIN_ROLES)[number];
 
 const FUNDER_KINDS = [
   'opco',
@@ -25,16 +18,56 @@ const FUNDER_KINDS = [
   'autre',
 ] as const;
 
-export async function createFunder(fd: FormData): Promise<void> {
-  const sb = admin();
-  const { data: org } = await sb
+const str = (fd: FormData, k: string) => {
+  const v = fd.get(k);
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
+};
+
+// Résout l'org de l'utilisateur connecté (membership par défaut, rôle admin),
+// cf. features/formations/actions.ts — JAMAIS « la première org ».
+async function resolveAdminOrgId(userId: string): Promise<string | null> {
+  const admin = supabaseAdmin();
+  const { data: member } = await (admin as never as {
+    schema: (s: string) => {
+      from: (t: string) => {
+        select: (c: string) => {
+          eq: (k: string, v: string) => {
+            is: (k: string, v: null) => {
+              order: (k: string, o: { ascending: boolean }) => {
+                limit: (n: number) => {
+                  maybeSingle: () => Promise<{
+                    data: { organization_id: string; role: string } | null;
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  })
     .schema('app')
-    .from('organizations')
-    .select('id')
+    .from('members')
+    .select('organization_id, role')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .order('is_default_org', { ascending: false })
     .limit(1)
     .maybeSingle();
-  const orgId = (org as { id?: string } | null)?.id;
-  if (!orgId) redirect('/financeurs?error=no_org');
+  if (!member?.organization_id) return null;
+  if (!ADMIN_ROLES.includes(member.role as AdminRole)) return null;
+  return member.organization_id;
+}
+
+export async function createFunder(fd: FormData): Promise<void> {
+  const supabase = supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const orgId = await resolveAdminOrgId(user.id);
+  if (!orgId) redirect('/financeurs?error=forbidden');
 
   const name = str(fd, 'name');
   if (!name) redirect('/financeurs/nouveau?error=missing');
@@ -48,14 +81,15 @@ export async function createFunder(fd: FormData): Promise<void> {
     );
   if (kinds.length === 0) redirect('/financeurs/nouveau?error=no_kind');
 
-  const { error } = await sb.schema('app').from('funders').insert({
+  const admin = supabaseAdmin();
+  const { error } = await admin.schema('app').from('funders').insert({
     organization_id: orgId,
     name,
     kind: kinds[0], // type principal (rétro-compat)
     kinds,
     contact_email: str(fd, 'email'),
     external_id: str(fd, 'externalId'),
-  });
+  } as never);
   if (error) redirect(`/financeurs/nouveau?error=${encodeURIComponent(error.message)}`);
 
   revalidatePath('/financeurs');
