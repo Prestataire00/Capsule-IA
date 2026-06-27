@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Clock, AlertTriangle } from 'lucide-react';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import type { LearnerDossier } from './summary';
+import { VoirEspaceButton } from './voir-espace-button';
 
 const fmtDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '—');
 const modalityLabel = (m: string) =>
@@ -10,10 +11,8 @@ const modalityLabel = (m: string) =>
 export function DossierCard({ dossier }: { dossier: LearnerDossier }) {
   const h = dossier.hours;
   return (
-    <Link
-      href={`/dossiers/${dossier.id}`}
-      className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
-    >
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition">
+      <Link href={`/dossiers/${dossier.id}`} className="group block">
       <div className="flex items-start justify-between mb-3 gap-3">
         <div className="min-w-0">
           <p className="text-[13px] font-mono text-zinc-500 dark:text-zinc-400">{dossier.reference}</p>
@@ -43,6 +42,11 @@ export function DossierCard({ dossier }: { dossier: LearnerDossier }) {
           </span>
         )}
       </div>
-    </Link>
+      </Link>
+
+      <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+        <VoirEspaceButton dossierId={dossier.id} />
+      </div>
+    </div>
   );
 }
