@@ -33,6 +33,9 @@ export type AttestationInput = {
     attendanceRate: number; // 0-100
   };
   generatedAt: Date;
+  // 'fin' (défaut) = attestation de fin de formation ; 'entree' = attestation
+  // d'entrée / de démarrage (délivrée aux présents en début de formation).
+  variant?: 'fin' | 'entree';
 };
 
 const A4 = { width: 595.28, height: 841.89 };
@@ -125,7 +128,8 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
   c = { ...c, y: c.y - 30 };
 
   // Titre
-  c.page.drawText('ATTESTATION DE RÉALISATION', {
+  const isEntree = input.variant === 'entree';
+  c.page.drawText(isEntree ? "ATTESTATION D'ENTRÉE EN FORMATION" : 'ATTESTATION DE RÉALISATION', {
     x: MARGIN, y: c.y, size: 18, font: fontBold, color: COLOR_BODY,
   });
   c = { ...c, y: c.y - 18 };
@@ -173,15 +177,28 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
   c = { ...c, y: c.y - 22 };
 
   // Texte
-  c = drawText(c, font, "a suivi l'action de formation suivante :", { size: 11 });
+  c = drawText(
+    c,
+    font,
+    isEntree
+      ? "est inscrit(e) et a démarré l'action de formation suivante :"
+      : "a suivi l'action de formation suivante :",
+    { size: 11 },
+  );
   c = { ...c, y: c.y - 14 };
 
   // Détails formation
   c = drawKeyValue(c, font, fontBold, 'Intitulé', input.formation.title);
-  c = drawKeyValue(c, font, fontBold, 'Période', `du ${fmtDate(input.dossier.startDate)} au ${fmtDate(input.dossier.endDate)}`);
-  c = drawKeyValue(c, font, fontBold, 'Durée totale', `${input.dossier.totalHours} heures`);
-  c = drawKeyValue(c, font, fontBold, 'Modalité', modalityLabel(input.dossier.modality));
-  c = drawKeyValue(c, font, fontBold, "Taux d'assiduité", `${Math.round(input.dossier.attendanceRate)} %`);
+  if (isEntree) {
+    c = drawKeyValue(c, font, fontBold, 'Date de démarrage', fmtDate(input.dossier.startDate));
+    c = drawKeyValue(c, font, fontBold, 'Durée prévue', `${input.dossier.totalHours} heures`);
+    c = drawKeyValue(c, font, fontBold, 'Modalité', modalityLabel(input.dossier.modality));
+  } else {
+    c = drawKeyValue(c, font, fontBold, 'Période', `du ${fmtDate(input.dossier.startDate)} au ${fmtDate(input.dossier.endDate)}`);
+    c = drawKeyValue(c, font, fontBold, 'Durée totale', `${input.dossier.totalHours} heures`);
+    c = drawKeyValue(c, font, fontBold, 'Modalité', modalityLabel(input.dossier.modality));
+    c = drawKeyValue(c, font, fontBold, "Taux d'assiduité", `${Math.round(input.dossier.attendanceRate)} %`);
+  }
   c = { ...c, y: c.y - 18 };
 
   // Objectifs (si présents)
