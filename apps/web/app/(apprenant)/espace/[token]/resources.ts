@@ -86,6 +86,22 @@ export async function resolveApprenantResources(token: string): Promise<Apprenan
   };
 }
 
+/** IDs des ressources pédagogiques déjà consultées (vue/téléchargement) par l'apprenant. */
+export async function loadConsultedResourceIds(token: string): Promise<Set<string>> {
+  const verified = await verifyApprenantToken(token);
+  if (!verified.ok) return new Set();
+
+  const admin = supabaseAdmin();
+  const { data } = await admin
+    .schema('app')
+    .from('resource_access_log' as never)
+    .select('target_id')
+    .eq('learner_id', verified.value.learnerId)
+    .eq('target_kind', 'module_resource');
+  const rows = (data ?? []) as unknown as { target_id: string }[];
+  return new Set(rows.map((r) => r.target_id));
+}
+
 /** Journalise un accès apprenant. Écrit via service_role (bypass RLS, INSERT-only). */
 export async function logResourceAccess(opts: {
   token: string;

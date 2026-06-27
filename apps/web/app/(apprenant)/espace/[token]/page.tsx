@@ -16,6 +16,8 @@ import {
   Sparkles,
   BookOpen,
   ClipboardList,
+  Route,
+  ArrowRight,
 } from 'lucide-react';
 import { resolveApprenantContext, MODALITY_LABEL, formatSessionDate, formatSessionTime } from './_lib';
 import { resolveApprenantResources } from './resources';
@@ -98,6 +100,23 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
           Tout ce dont vous avez besoin pour votre formation, organisé par section.
         </p>
       </section>
+
+      {/* Carte parcours — entrée principale façon SoSafe */}
+      <Link
+        href={`/espace/${params.token}/parcours`}
+        className="group flex items-center gap-4 bg-gradient-to-br from-violet-50 via-white to-zinc-50 dark:from-violet-950/30 dark:via-zinc-900 dark:to-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm p-5 mb-6 hover:border-violet-300 dark:hover:border-violet-800 transition"
+      >
+        <span className="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-300 flex items-center justify-center shadow-sm flex-shrink-0">
+          <Route className="w-5 h-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Mon parcours</span>
+          <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+            Suivez votre progression module par module.
+          </span>
+        </span>
+        <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:text-violet-500 transition flex-shrink-0" />
+      </Link>
 
       {/* Dossier card */}
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden mb-6">

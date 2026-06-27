@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
+  Route,
   Video,
   FileText,
   PenLine,
@@ -20,6 +21,7 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: (t) => `/espace/${t}`, exact: true, label: 'Accueil', icon: Home },
+  { href: (t) => `/espace/${t}/parcours`, label: 'Mon parcours', icon: Route },
   { href: (t) => `/espace/${t}/sessions`, label: 'Sessions & replays', icon: Video },
   { href: (t) => `/espace/${t}/documents`, label: 'Documents', icon: FileText },
   { href: (t) => `/espace/${t}/exercices`, label: 'Exercices', icon: PenLine },
