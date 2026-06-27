@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
-  Bell, BarChart3, Inbox, UserPlus,
+  Bell, BarChart3, Inbox, UserPlus, Eye,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -86,6 +86,8 @@ const GROUPS: Group[] = [
       { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
       { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/factures', icon: Receipt, label: 'Facturation' },
+      { href: '/emails', icon: Bell, label: 'Emails' },
+      { href: '/tracabilite', icon: Eye, label: 'Traçabilité docs' },
       { href: '/notifications', icon: Bell, label: 'Notifications' },
     ],
     countKeys: ['reclamationsActive', 'emargementsPending', 'questionnairesActive', 'invoicesUnpaid'],
