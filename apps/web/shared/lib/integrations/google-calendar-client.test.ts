@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEventResponse } from './google-calendar-client';
+import { parseEventResponse, parseEventsList } from './google-calendar-client';
 
 describe('parseEventResponse', () => {
   it('extrait hangoutLink + id', () => {
@@ -21,5 +21,51 @@ describe('parseEventResponse', () => {
     expect(parseEventResponse({ id: 'e' }).ok).toBe(false);
     expect(parseEventResponse({ hangoutLink: 'https://meet.google.com/x' }).ok).toBe(false);
     expect(parseEventResponse(null).ok).toBe(false);
+  });
+});
+
+describe('parseEventsList', () => {
+  it('normalise un événement horaire (dateTime)', () => {
+    const out = parseEventsList({
+      items: [
+        {
+          id: 'e1',
+          summary: 'Session distancielle',
+          status: 'confirmed',
+          start: { dateTime: '2026-07-01T09:00:00+02:00' },
+          end: { dateTime: '2026-07-01T11:00:00+02:00' },
+          hangoutLink: 'https://meet.google.com/abc',
+          htmlLink: 'https://calendar.google.com/e1',
+          location: 'Paris',
+        },
+      ],
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      id: 'e1',
+      title: 'Session distancielle',
+      allDay: false,
+      hangoutLink: 'https://meet.google.com/abc',
+      location: 'Paris',
+    });
+  });
+
+  it('détecte les événements journée entière (date) et titre par défaut', () => {
+    const out = parseEventsList({ items: [{ id: 'e2', start: { date: '2026-07-02' }, end: { date: '2026-07-03' } }] });
+    expect(out[0]).toMatchObject({ id: 'e2', allDay: true, title: '(Sans titre)', start: '2026-07-02' });
+  });
+
+  it('ignore annulés / invalides, trie par début, et gère une entrée vide', () => {
+    expect(parseEventsList(null)).toEqual([]);
+    expect(parseEventsList({})).toEqual([]);
+    const out = parseEventsList({
+      items: [
+        { id: 'late', start: { dateTime: '2026-07-05T10:00:00Z' } },
+        { id: 'cancelled', status: 'cancelled', start: { dateTime: '2026-07-04T10:00:00Z' } },
+        { id: 'nostart', summary: 'x' },
+        { id: 'early', start: { dateTime: '2026-07-03T10:00:00Z' } },
+      ],
+    });
+    expect(out.map((e) => e.id)).toEqual(['early', 'late']);
   });
 });
