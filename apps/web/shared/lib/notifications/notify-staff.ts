@@ -60,6 +60,30 @@ async function deliver(args: {
   const subject = `Nouvelle demande — ${args.summary.companyName ?? args.summary.name}`;
   const admin = supabaseAdmin() as unknown as SupabaseClient;
 
+  // In-app : UNE seule notification org-wide (la page Notifications est un inbox
+  // partagé staff, sans filtre par destinataire → 1 ligne = 1 notif pour tous).
+  if (args.organizationId) {
+    await admin
+      .schema('app')
+      .from('notifications')
+      .insert({
+        organization_id: args.organizationId,
+        channel: 'in_app',
+        template_code: 'prospect.new_demande',
+        subject,
+        payload: {
+          prospect_id: args.prospectId,
+          name: args.summary.name,
+          company_name: args.summary.companyName,
+        },
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        related_aggregate_type: 'prospect',
+        related_aggregate_id: args.prospectId,
+      } as never);
+  }
+
+  // Emails : à chaque membre owner/admin/gestionnaire (sinon email global de l'OF).
   let recipients: Recipient[] = [];
   if (args.organizationId) {
     const { data } = await admin
@@ -69,7 +93,6 @@ async function deliver(args: {
   }
 
   if (recipients.length === 0) {
-    // Fallback : email global de l'OF.
     if (env.OF_NOTIFICATION_EMAIL) {
       void sendEmail({ to: env.OF_NOTIFICATION_EMAIL, subject, html, replyTo: args.replyTo }).then((r) => {
         if (!r.ok) console.error('[notify-staff] fallback email failed', r);
@@ -78,26 +101,6 @@ async function deliver(args: {
     return;
   }
 
-  // In-app : 1 notification par destinataire.
-  const rows = recipients.map((r) => ({
-    organization_id: args.organizationId,
-    channel: 'in_app',
-    template_code: 'prospect.new_demande',
-    recipient_user_id: r.user_id,
-    subject,
-    payload: {
-      prospect_id: args.prospectId,
-      name: args.summary.name,
-      company_name: args.summary.companyName,
-    },
-    status: 'sent',
-    sent_at: new Date().toISOString(),
-    related_aggregate_type: 'prospect',
-    related_aggregate_id: args.prospectId,
-  }));
-  await admin.schema('app').from('notifications').insert(rows as never);
-
-  // Emails : fire-and-forget.
   void Promise.all(
     recipients.map((r) =>
       sendEmail({ to: r.email, subject, html, replyTo: args.replyTo }).then((res) => {

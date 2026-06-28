@@ -7,6 +7,7 @@ import {
   FileText,
   FileCheck2,
   ClipboardCheck,
+  Inbox,
 } from 'lucide-react';
 
 export type Notif = {
@@ -29,6 +30,7 @@ export const NOTIF_META: Record<string, Meta> = {
   document_generated: { label: 'Document généré', icon: FileText, tone: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30' },
   document_signed: { label: 'Document signé', icon: FileCheck2, tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' },
   questionnaire_completed: { label: 'Questionnaire complété', icon: ClipboardCheck, tone: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30' },
+  'prospect.new_demande': { label: 'Nouvelle demande', icon: Inbox, tone: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30' },
 };
 
 export const NOTIF_FALLBACK: Meta = {
@@ -40,6 +42,11 @@ export const NOTIF_FALLBACK: Meta = {
 /** Lien cible d'une notification (vers le dossier concerné quand on le connaît). */
 export function notifHref(n: Notif): string | null {
   const p = n.payload ?? {};
+  // Demandes (prospects) : lien vers la fiche de la demande.
+  if (n.related_aggregate_type === 'prospect') {
+    const prospectId = (p.prospect_id as string | undefined) ?? n.related_aggregate_id ?? undefined;
+    if (prospectId) return `/prospects/${prospectId}`;
+  }
   const dossierId =
     (p.dossier_id as string | undefined) ??
     (n.related_aggregate_type === 'dossier' ? n.related_aggregate_id ?? undefined : undefined);
