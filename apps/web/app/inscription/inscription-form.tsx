@@ -48,10 +48,10 @@ import type { PublicFormation } from '@/features/catalog/public-catalog';
 import { NeedsAnalysisFields, emptyNeeds, type NeedsValue } from './needs-analysis-fields';
 
 const STEPS = [
+  { key: 'funding', label: 'Situation', icon: User },
   { key: 'identity', label: 'Vous', icon: User },
   { key: 'formation', label: 'Formation', icon: GraduationCap },
   { key: 'besoin', label: 'Fiche besoin', icon: FileText },
-  { key: 'funding', label: 'Financement', icon: User },
   { key: 'documents', label: 'Documents', icon: FileText },
 ] as const;
 
@@ -121,16 +121,16 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
   const requiredFilled = docs.filter((d) => d.required).every((d) => files[d.key]);
 
   const missingFields = (() => {
-    if (step === 0) {
+    if (step === 0) return funding.funderKinds.length > 0 ? [] : ['Mode de financement'];
+    if (step === 1) {
       const missing: string[] = [];
       if (!identity.firstName?.trim()) missing.push('Prénom');
       if (!identity.lastName?.trim()) missing.push('Nom');
       if (!identity.email?.trim()) missing.push('Email');
       return missing;
     }
-    if (step === 1) return formation.formationId ? [] : ['Formation'];
-    if (step === 2) return needs.objectives.trim() ? [] : ['Objectifs de la fiche besoin'];
-    if (step === 3) return funding.funderKinds.length > 0 ? [] : ['Mode de financement'];
+    if (step === 2) return formation.formationId ? [] : ['Formation'];
+    if (step === 3) return needs.objectives.trim() ? [] : ['Objectifs de la fiche besoin'];
     return [];
   })();
   const canContinue = missingFields.length === 0;
@@ -275,11 +275,12 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
         </ol>
 
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm">
-          {step === 0 && <IdentityStep value={identity} onChange={setIdentity} />}
-          {step === 1 && (
+          {step === 0 && <FundingStep value={funding} onChange={setFunding} />}
+          {step === 1 && <IdentityStep value={identity} onChange={setIdentity} />}
+          {step === 2 && (
             <FormationStep value={formation} onChange={setFormation} formations={formations} />
           )}
-          {step === 2 && (
+          {step === 3 && (
             <section className="p-6 space-y-5">
               <div>
                 <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">
@@ -289,10 +290,9 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
                   Aidez-nous à analyser vos besoins pour adapter le parcours (Qualiopi).
                 </p>
               </div>
-              <NeedsAnalysisFields value={needs} onChange={setNeeds} />
+              <NeedsAnalysisFields value={needs} onChange={setNeeds} typology={funding.status} />
             </section>
           )}
-          {step === 3 && <FundingStep value={funding} onChange={setFunding} />}
           {step === 4 && (
             <DocumentsStep
               docs={docs}
@@ -1458,6 +1458,7 @@ function CompanyFlow({
                     </p>
                     <NeedsAnalysisFields
                       compact
+                      typology="salarie"
                       value={emp.needs}
                       onChange={(n) =>
                         setEmployees((prev) => prev.map((e, i) => (i === idx ? { ...e, needs: n } : e)))

@@ -18,6 +18,8 @@ export const needsAnalysisSchema = z.object({
   expectations: z.string().trim().max(2000).optional().or(z.literal('')),
   constraints: z.string().trim().max(2000).optional().or(z.literal('')),
   accommodations: z.string().trim().max(2000).optional().or(z.literal('')),
+  // Réponse à la question spécifique à la typologie (salarié, demandeur…).
+  typologyContext: z.string().trim().max(2000).optional().or(z.literal('')),
 });
 export type NeedsAnalysisFields = z.infer<typeof needsAnalysisSchema>;
 
