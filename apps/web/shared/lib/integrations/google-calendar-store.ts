@@ -16,20 +16,20 @@ export function googleRedirectUri(): string | null {
   return `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/integrations/google-calendar/callback`;
 }
 
-// État OAuth signé (anti-CSRF) : orgId.HMAC(orgId).
-export function signState(organizationId: string): string {
-  const mac = createHmac('sha256', env.TOKEN_SIGNING_KEY).update(organizationId).digest('base64url');
-  return `${organizationId}.${mac}`;
+// État OAuth signé (anti-CSRF) : userId.HMAC(userId).
+export function signState(userId: string): string {
+  const mac = createHmac('sha256', env.TOKEN_SIGNING_KEY).update(userId).digest('base64url');
+  return `${userId}.${mac}`;
 }
 
 export function verifyState(state: string | null): string | null {
   if (!state || !state.includes('.')) return null;
   const idx = state.lastIndexOf('.');
-  const orgId = state.slice(0, idx);
+  const userId = state.slice(0, idx);
   const mac = state.slice(idx + 1);
-  const expected = createHmac('sha256', env.TOKEN_SIGNING_KEY).update(orgId).digest('base64url');
+  const expected = createHmac('sha256', env.TOKEN_SIGNING_KEY).update(userId).digest('base64url');
   try {
-    if (mac.length === expected.length && timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return orgId;
+    if (mac.length === expected.length && timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return userId;
   } catch {
     /* longueurs différentes */
   }
@@ -39,9 +39,12 @@ export function verifyState(state: string | null): string | null {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Sb = SupabaseClient<any, any, any>;
 
-export async function saveGoogleCreds(
+// PostgREST attend le bytea en hex `\x…` — on encode ainsi (et bytesToBuffer relit ce format).
+const toByteaHex = (buf: Buffer): string => `\\x${buf.toString('hex')}`;
+
+export async function saveGoogleCredsForUser(
   sb: Sb,
-  organizationId: string,
+  args: { userId: string; organizationId: string },
   creds: GoogleCalendarCredentials,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   let enc: ReturnType<typeof encryptGoogleCredentials>;
@@ -52,32 +55,37 @@ export async function saveGoogleCreds(
   }
   const { error } = await sb
     .schema('app')
-    .from('tenant_integrations')
+    .from('user_integrations')
     .upsert(
       {
-        organization_id: organizationId,
+        user_id: args.userId,
+        organization_id: args.organizationId,
         kind: KIND,
         status: 'active',
-        config_encrypted: enc.ciphertextWithTag,
-        config_nonce: enc.iv,
+        account_email: creds.accountEmail,
+        config_encrypted: toByteaHex(enc.ciphertextWithTag),
+        config_nonce: toByteaHex(enc.iv),
         config_key_id: enc.keyId,
         last_test_at: new Date().toISOString(),
         last_test_status: 'success',
         last_test_error: null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'organization_id,kind' },
+      { onConflict: 'user_id,kind' },
     );
   if (error) return { ok: false, error: `persistence_failed:${error.message}` };
   return { ok: true };
 }
 
-export async function loadGoogleCreds(sb: Sb, organizationId: string): Promise<GoogleCalendarCredentials | null> {
+export async function loadGoogleCredsForUser(
+  sb: Sb,
+  userId: string,
+): Promise<GoogleCalendarCredentials | null> {
   const { data } = await sb
     .schema('app')
-    .from('tenant_integrations')
+    .from('user_integrations')
     .select('config_encrypted, config_nonce, config_key_id')
-    .eq('organization_id', organizationId)
+    .eq('user_id', userId)
     .eq('kind', KIND)
     .maybeSingle();
   if (!data) return null;

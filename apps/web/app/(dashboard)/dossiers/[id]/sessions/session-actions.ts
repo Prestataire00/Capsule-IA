@@ -6,7 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { loadGoogleCreds } from '@/shared/lib/integrations/google-calendar-store';
+import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -71,8 +72,14 @@ function meetEmailHtml(args: { meetUrl: string; title: string; startsAt: string;
 }
 
 /** Génère le lien Meet (via Make) pour une session distancielle/hybride, le stocke et l'envoie aux apprenants. */
+async function currentUserId(): Promise<string | null> {
+  const { data } = await supabaseServer().auth.getUser();
+  return data?.user?.id ?? null;
+}
+
 async function provisionMeet(
   sb: ReturnType<typeof admin>,
+  userId: string | null,
   sessionId: string,
   title: string,
   startsAt: string,
@@ -81,8 +88,9 @@ async function provisionMeet(
 ): Promise<'created' | 'skipped' | 'failed'> {
   const attendeeEmails = ctx.learnerEmail ? [ctx.learnerEmail] : [];
 
-  // Intégration Google Agenda de l'org (connectée dans Paramètres → Intégrations).
-  const creds = await loadGoogleCreds(sb, ctx.organizationId);
+  // Par utilisateur : on crée le Meet sur l'agenda Google du créateur de la session.
+  if (!userId) return 'skipped';
+  const creds = await loadGoogleCredsForUser(sb, userId);
   if (!creds) return 'skipped';
 
   const res = await createMeetEvent(creds, {
@@ -124,6 +132,7 @@ export async function createSession(input: CreateInput): Promise<CreateResult> {
   if (new Date(input.endsAt) <= new Date(input.startsAt)) return { ok: false, error: 'Fin avant début' };
 
   const sb = admin();
+  const userId = await currentUserId();
   const ctx = await loadDossierCtx(sb, input.dossierId);
   if (!ctx) return { ok: false, error: 'Dossier introuvable' };
 
@@ -157,7 +166,7 @@ export async function createSession(input: CreateInput): Promise<CreateResult> {
   if (manualRemote) {
     meet = 'manual';
   } else if (REMOTE_MODALITIES.has(input.modality)) {
-    meet = await provisionMeet(sb, sessionId, input.title.trim(), input.startsAt, input.endsAt, ctx);
+    meet = await provisionMeet(sb, userId, sessionId, input.title.trim(), input.startsAt, input.endsAt, ctx);
   }
 
   revalidatePath(`/dossiers/${input.dossierId}/sessions`);
@@ -167,6 +176,7 @@ export async function createSession(input: CreateInput): Promise<CreateResult> {
 /** (Re)génère le lien Google Meet d'une session distancielle existante. */
 export async function generateMeetForSession(sessionId: string, dossierId: string): Promise<CreateResult> {
   const sb = admin();
+  const userId = await currentUserId();
   const { data: s } = await sb
     .schema('app')
     .from('sessions')
@@ -179,9 +189,9 @@ export async function generateMeetForSession(sessionId: string, dossierId: strin
   const ctx = await loadDossierCtx(sb, dossierId);
   if (!ctx) return { ok: false, error: 'Dossier introuvable' };
 
-  const meet = await provisionMeet(sb, sessionId, sess.title ?? 'Séance', sess.starts_at, sess.ends_at, ctx);
+  const meet = await provisionMeet(sb, userId, sessionId, sess.title ?? 'Séance', sess.starts_at, sess.ends_at, ctx);
   revalidatePath(`/dossiers/${dossierId}/sessions`);
-  if (meet === 'skipped') return { ok: false, error: 'Google Agenda non connecté (Paramètres → Intégrations)' };
-  if (meet === 'failed') return { ok: false, error: 'Échec de la génération du lien (Make)' };
+  if (meet === 'skipped') return { ok: false, error: 'Votre Google Agenda n’est pas connecté (Paramètres → Intégrations)' };
+  if (meet === 'failed') return { ok: false, error: 'Échec de la création du lien Google Meet' };
   return { ok: true, sessionId, meet };
 }

@@ -1,6 +1,7 @@
 // ARCHETYPE: command
 import Link from 'next/link';
 import { Plug, Mail, Video, CreditCard, ArrowUpRight, Settings, CalendarDays } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 
@@ -82,21 +83,16 @@ async function loadGoogleConfigured(): Promise<boolean> {
   const sb = supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return false;
-  const { data: member } = await sb
+  // Par utilisateur : la connexion Google de l'utilisateur courant.
+  // (table user_integrations absente des types générés → client non typé)
+  const { data: integ } = await (sb as unknown as SupabaseClient)
     .schema('app')
-    .from('members')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (!member) return false;
-  const { data: integ } = await sb
-    .schema('app')
-    .from('tenant_integrations')
+    .from('user_integrations')
     .select('status')
-    .eq('organization_id', (member as { organization_id: string }).organization_id)
+    .eq('user_id', user.id)
     .eq('kind', 'google_calendar')
     .maybeSingle();
-  return Boolean(integ && (integ as { status: string }).status === 'active');
+  return Boolean(integ && (integ as { status: string } | null)?.status === 'active');
 }
 
 const STATUS_STYLES: Record<IntegrationStatus, { bg: string; text: string; label: string }> = {
