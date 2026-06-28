@@ -152,6 +152,82 @@ export async function createMeetEvent(
   }
 }
 
+export type CalEvent = {
+  id: string;
+  title: string;
+  start: string; // ISO (dateTime) ou date (YYYY-MM-DD pour journée entière)
+  end: string | null;
+  allDay: boolean;
+  location: string | null;
+  htmlLink: string | null;
+  hangoutLink: string | null;
+};
+
+/** Logique pure : normalise la réponse `events.list` de Google en CalEvent[] triés par début. */
+export function parseEventsList(json: unknown): CalEvent[] {
+  if (!json || typeof json !== 'object') return [];
+  const items = (json as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  const events: CalEvent[] = [];
+  for (const raw of items) {
+    if (!raw || typeof raw !== 'object') continue;
+    const e = raw as {
+      id?: unknown;
+      summary?: unknown;
+      status?: unknown;
+      location?: unknown;
+      htmlLink?: unknown;
+      hangoutLink?: unknown;
+      start?: { dateTime?: unknown; date?: unknown };
+      end?: { dateTime?: unknown; date?: unknown };
+    };
+    if (e.status === 'cancelled') continue;
+    const startDateTime = typeof e.start?.dateTime === 'string' ? e.start.dateTime : null;
+    const startDate = typeof e.start?.date === 'string' ? e.start.date : null;
+    const start = startDateTime ?? startDate;
+    if (typeof e.id !== 'string' || !start) continue;
+    const endDateTime = typeof e.end?.dateTime === 'string' ? e.end.dateTime : null;
+    const endDate = typeof e.end?.date === 'string' ? e.end.date : null;
+    events.push({
+      id: e.id,
+      title: typeof e.summary === 'string' && e.summary.trim() ? e.summary : '(Sans titre)',
+      start,
+      end: endDateTime ?? endDate,
+      allDay: !startDateTime,
+      location: typeof e.location === 'string' ? e.location : null,
+      htmlLink: typeof e.htmlLink === 'string' ? e.htmlLink : null,
+      hangoutLink: typeof e.hangoutLink === 'string' ? e.hangoutLink : null,
+    });
+  }
+  return events.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+/** Liste les évènements de l'agenda de l'utilisateur sur une fenêtre [timeMin, timeMax]. */
+export async function listEvents(
+  creds: GoogleCalendarCredentials,
+  range: { timeMin: string; timeMax: string },
+): Promise<Result<CalEvent[], GoogleApiError>> {
+  const t = await accessTokenFor(creds.refreshToken);
+  if (!t.ok) return err(t.error);
+  const calendarId = encodeURIComponent(creds.calendarId || 'primary');
+  const p = new URLSearchParams({
+    timeMin: range.timeMin,
+    timeMax: range.timeMax,
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '100',
+  });
+  try {
+    const res = await fetch(`${CAL_API}/calendars/${calendarId}/events?${p.toString()}`, {
+      headers: { Authorization: `Bearer ${t.value}` },
+    });
+    if (!res.ok) return err('request_failed');
+    return ok(parseEventsList(await res.json().catch(() => null)));
+  } catch {
+    return err('request_failed');
+  }
+}
+
 /** Test léger de la connexion (liste des agendas). */
 export async function testConnection(
   creds: GoogleCalendarCredentials,

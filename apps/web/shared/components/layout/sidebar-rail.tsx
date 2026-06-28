@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
-  Bell, BarChart3, Inbox, UserPlus, Eye, Telescope,
+  Bell, BarChart3, Inbox, UserPlus, Eye, Telescope, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -43,6 +43,7 @@ type Group = {
 
 const GROUPS: Group[] = [
   { key: 'accueil', label: 'Accueil', icon: LayoutDashboard, href: '/' },
+  { key: 'agenda', label: 'Agenda', icon: CalendarDays, href: '/agenda' },
   {
     key: 'crm',
     label: 'Demandes',
