@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     { userId, organizationId },
     { refreshToken: tokens.value.refreshToken, accountEmail, calendarId: 'primary' },
   );
-  if (!saved.ok) return NextResponse.redirect(settings('?error=save_failed'));
+  if (!saved.ok) return NextResponse.redirect(settings(`?error=${encodeURIComponent(saved.error)}`));
 
   return NextResponse.redirect(settings('?connected=1'));
 }

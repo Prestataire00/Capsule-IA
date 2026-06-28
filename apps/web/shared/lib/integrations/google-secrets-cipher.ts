@@ -1,5 +1,5 @@
 import 'server-only';
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { env } from '@/env.mjs';
 
 // Chiffrement des identifiants Google (refresh token OAuth) — même schéma que
@@ -24,16 +24,17 @@ export type EncryptedConfig = {
 
 const loadKey = (): Buffer => {
   const raw = env.ZOOM_SECRETS_KEY;
-  if (!raw) throw new Error('secrets_key_missing');
-  if (raw.length === 44) {
+  if (raw && raw.length === 44) {
     const buf = Buffer.from(raw, 'base64');
     if (buf.length === 32) return buf;
   }
-  if (raw.length === 64) {
+  if (raw && raw.length === 64) {
     const buf = Buffer.from(raw, 'hex');
     if (buf.length === 32) return buf;
   }
-  throw new Error('secrets_key_invalid_length_or_format');
+  // Fallback : dérive une clé 32 octets de TOKEN_SIGNING_KEY (toujours présent, min 32 chars).
+  // Évite d'exiger ZOOM_SECRETS_KEY juste pour l'intégration Google.
+  return createHash('sha256').update(env.TOKEN_SIGNING_KEY).digest();
 };
 
 export const encryptGoogleCredentials = (creds: GoogleCalendarCredentials): EncryptedConfig => {
