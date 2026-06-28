@@ -16,6 +16,23 @@ export const dynamic = 'force-dynamic';
 
 type ProspectDoc = { key: string; label: string; storage_path: string };
 
+type NeedsAnalysis = {
+  currentLevel?: number | null;
+  objectives?: string | null;
+  expectations?: string | null;
+  constraints?: string | null;
+  accommodations?: string | null;
+  typologyContext?: string | null;
+};
+
+const LEVEL_LABELS: Record<number, string> = {
+  1: 'Débutant',
+  2: 'Bases',
+  3: 'Intermédiaire',
+  4: 'Avancé',
+  5: 'Expert',
+};
+
 type Prospect = {
   id: string;
   organization_id: string | null;
@@ -32,8 +49,19 @@ type Prospect = {
   validation_status: 'pending_validation' | 'validated' | 'rejected';
   validation_rejected_reason: string | null;
   documents: ProspectDoc[] | null;
+  needs_analysis: NeedsAnalysis | null;
   created_at: string;
 };
+
+function Answer({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 mb-0.5">{label}</p>
+      <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{value}</p>
+    </div>
+  );
+}
 
 type Review = { doc_key: string; status: string; rejected_reason: string | null };
 type Event = { id: string; kind: string; payload: Record<string, unknown>; occurred_at: string };
@@ -60,7 +88,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     .schema('app')
     .from('prospects' as never)
     .select(
-      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, created_at',
+      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, created_at',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -159,6 +187,32 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
           <p className="text-zinc-700 dark:text-zinc-300">{new Date(prospect.created_at).toLocaleDateString('fr-FR')}</p>
         </div>
       </section>
+
+      {(() => {
+        const n = prospect.needs_analysis;
+        if (!n || (!n.objectives && !n.expectations && !n.constraints && !n.accommodations && !n.typologyContext && n.currentLevel == null)) {
+          return null;
+        }
+        return (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <SectionLabel>Fiche besoin</SectionLabel>
+              {n.currentLevel != null && (
+                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+                  Niveau : {LEVEL_LABELS[n.currentLevel] ?? n.currentLevel}
+                </span>
+              )}
+            </div>
+            <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-4 py-4 space-y-3 bg-zinc-50/40 dark:bg-zinc-950/40">
+              <Answer label="Objectifs" value={n.objectives} />
+              <Answer label="Attentes" value={n.expectations} />
+              <Answer label="Contraintes" value={n.constraints} />
+              <Answer label="Besoin d'aménagement" value={n.accommodations} />
+              <Answer label="Contexte / typologie" value={n.typologyContext} />
+            </div>
+          </section>
+        );
+      })()}
 
       <section className="space-y-3">
         <SectionLabel>Pièces justificatives</SectionLabel>
