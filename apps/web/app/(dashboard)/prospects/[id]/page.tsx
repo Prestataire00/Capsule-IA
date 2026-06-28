@@ -3,16 +3,28 @@
 
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { Fraunces } from 'next/font/google';
 import { createClient } from '@supabase/supabase-js';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  Briefcase,
+  Wallet,
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  History,
+  FileCheck2,
+} from 'lucide-react';
 import { env } from '@/env.mjs';
 import { requireAccess } from '@/shared/lib/auth/require-access';
-import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { requiredDocs } from '@/features/prospect/funding';
 import { ProspectDetailActions, type DocChecklistItem } from './prospect-detail-actions';
 
 export const dynamic = 'force-dynamic';
+
+// Police éditoriale chaleureuse pour les titres (change le rendu « fade » par défaut).
+const display = Fraunces({ subsets: ['latin'], weight: ['500', '600'], display: 'swap' });
 
 type ProspectDoc = { key: string; label: string; storage_path: string };
 
@@ -31,6 +43,13 @@ const LEVEL_LABELS: Record<number, string> = {
   3: 'Intermédiaire',
   4: 'Avancé',
   5: 'Expert',
+};
+
+const SITUATION_LABELS: Record<string, string> = {
+  salarie: 'Salarié(e)',
+  demandeur: "Demandeur d'emploi",
+  independant: 'Indépendant(e)',
+  particulier: 'Particulier',
 };
 
 type Prospect = {
@@ -53,11 +72,45 @@ type Prospect = {
   created_at: string;
 };
 
+const INFO_TONES = {
+  blue: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 ring-blue-100 dark:ring-blue-900/40',
+  amber: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 ring-amber-100 dark:ring-amber-900/40',
+  rose: 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 ring-rose-100 dark:ring-rose-900/40',
+  emerald:
+    'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 ring-emerald-100 dark:ring-emerald-900/40',
+} as const;
+
+function InfoCard({
+  icon: Icon,
+  tone,
+  label,
+  value,
+}: {
+  icon: typeof Briefcase;
+  tone: keyof typeof INFO_TONES;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
+      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ring-1 ${INFO_TONES[tone]}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+        {label}
+      </p>
+      <p className="text-[13px] text-zinc-800 dark:text-zinc-200 mt-0.5 break-words">{value}</p>
+    </div>
+  );
+}
+
 function Answer({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
     <div>
-      <p className="text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 mb-0.5">{label}</p>
+      <p className="text-[11px] tracking-wider uppercase text-amber-600/80 dark:text-amber-400/70 mb-0.5 font-semibold">
+        {label}
+      </p>
       <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{value}</p>
     </div>
   );
@@ -78,6 +131,15 @@ function admin() {
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+function SectionTitle({ icon: Icon, children }: { icon: typeof ClipboardList; children: React.ReactNode }) {
+  return (
+    <h2 className={`${display.className} text-[18px] font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2`}>
+      <Icon className="h-4 w-4 text-orange-500" />
+      {children}
+    </h2>
+  );
 }
 
 export default async function ProspectDetailPage({ params }: { params: { id: string } }) {
@@ -107,11 +169,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
   const uploaded = prospect.documents ?? [];
   const uploadedByKey = new Map(uploaded.map((d) => [d.key, d]));
 
-  // Pièces requises = financeurs + situation (entreprise si demande groupée).
   const situationForDocs = prospect.company_batch_id ? 'entreprise' : prospect.situation ?? '';
   const required = requiredDocs(prospect.funder_kinds ?? [], situationForDocs);
 
-  // Checklist = pièces requises + pièces téléversées non requises.
   const keys = new Set<string>(required.map((d) => d.key));
   uploaded.forEach((d) => keys.add(d.key));
   const labelByKey = new Map<string, { label: string; required: boolean }>();
@@ -139,53 +199,72 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     .filter((d) => d.required)
     .every((d) => reviewByKey.get(d.key)?.status === 'verified');
 
+  const initials = `${prospect.first_name?.[0] ?? ''}${prospect.last_name?.[0] ?? ''}`.toUpperCase();
+  const situationLabel = prospect.situation
+    ? (SITUATION_LABELS[prospect.situation] ?? prospect.situation)
+    : '—';
+  const funders = (prospect.funder_kinds ?? [prospect.funder_kind]).filter(Boolean);
+
   return (
-    <div className="max-w-4xl w-full mx-auto px-8 py-8 space-y-6">
-      <Link href="/prospects/nouvelles" className="text-[13px] text-zinc-500 hover:text-violet-600 inline-flex items-center gap-1">
-        <ArrowLeft className="w-3.5 h-3.5" /> Nouvelles demandes
+    <div className="max-w-4xl w-full mx-auto px-8 py-8 space-y-7">
+      <Link
+        href="/prospects"
+        className="text-[13px] text-zinc-500 hover:text-orange-600 inline-flex items-center gap-1 transition"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" /> Demandes
       </Link>
 
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            {prospect.first_name} {prospect.last_name}
-          </h1>
-          <p className="text-[13px] text-zinc-500 mt-1">{prospect.email}{prospect.phone ? ` · ${prospect.phone}` : ''}</p>
-        </div>
-        <StatusPill
-          tone={
-            prospect.validation_status === 'validated'
-              ? 'success'
+      {/* Hero chaleureux (orange → rose), avatar initiales */}
+      <header className="rounded-3xl border border-orange-100/80 dark:border-zinc-800 bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white text-[18px] font-semibold shadow-sm">
+              {initials || '?'}
+            </span>
+            <div className="min-w-0">
+              <h1 className={`${display.className} text-[30px] leading-tight font-semibold text-zinc-900 dark:text-zinc-100`}>
+                {prospect.first_name} {prospect.last_name}
+              </h1>
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                {prospect.email}
+                {prospect.phone ? ` · ${prospect.phone}` : ''}
+              </p>
+            </div>
+          </div>
+          <StatusPill
+            tone={
+              prospect.validation_status === 'validated'
+                ? 'success'
+                : prospect.validation_status === 'rejected'
+                  ? 'danger'
+                  : 'warning'
+            }
+          >
+            {prospect.validation_status === 'validated'
+              ? 'Validée'
               : prospect.validation_status === 'rejected'
-                ? 'danger'
-                : 'warning'
-          }
-        >
-          {prospect.validation_status === 'validated'
-            ? 'Validée'
-            : prospect.validation_status === 'rejected'
-              ? 'Refusée'
-              : 'En attente de validation'}
-        </StatusPill>
+                ? 'Refusée'
+                : 'En attente'}
+          </StatusPill>
+        </div>
       </header>
 
-      <section className="grid grid-cols-2 gap-4 text-[13px]">
-        <div className="space-y-1">
-          <SectionLabel>Situation</SectionLabel>
-          <p className="text-zinc-700 dark:text-zinc-300">{prospect.situation ?? '—'}{prospect.company_batch_id ? ' (inscription entreprise)' : ''}</p>
-        </div>
-        <div className="space-y-1">
-          <SectionLabel>Financement</SectionLabel>
-          <p className="text-zinc-700 dark:text-zinc-300 uppercase">{(prospect.funder_kinds ?? [prospect.funder_kind]).join(', ')}</p>
-        </div>
-        <div className="space-y-1">
-          <SectionLabel>Entreprise</SectionLabel>
-          <p className="text-zinc-700 dark:text-zinc-300">{prospect.company_name ?? '—'}{prospect.company_siret ? ` · ${prospect.company_siret}` : ''}</p>
-        </div>
-        <div className="space-y-1">
-          <SectionLabel>Reçue le</SectionLabel>
-          <p className="text-zinc-700 dark:text-zinc-300">{new Date(prospect.created_at).toLocaleDateString('fr-FR')}</p>
-        </div>
+      {/* Infos clés colorées */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <InfoCard
+          icon={Briefcase}
+          tone="blue"
+          label="Situation"
+          value={`${situationLabel}${prospect.company_batch_id ? ' · entreprise' : ''}`}
+        />
+        <InfoCard icon={Wallet} tone="amber" label="Financement" value={funders.join(', ').toUpperCase() || '—'} />
+        <InfoCard icon={Building2} tone="rose" label="Entreprise" value={prospect.company_name ?? '—'} />
+        <InfoCard
+          icon={CalendarDays}
+          tone="emerald"
+          label="Reçue le"
+          value={new Date(prospect.created_at).toLocaleDateString('fr-FR')}
+        />
       </section>
 
       {(() => {
@@ -196,14 +275,14 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
         return (
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <SectionLabel>Fiche besoin</SectionLabel>
+              <SectionTitle icon={ClipboardList}>Fiche besoin</SectionTitle>
               {n.currentLevel != null && (
-                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-medium">
                   Niveau : {LEVEL_LABELS[n.currentLevel] ?? n.currentLevel}
                 </span>
               )}
             </div>
-            <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-4 py-4 space-y-3 bg-zinc-50/40 dark:bg-zinc-950/40">
+            <div className="border border-amber-100/80 dark:border-zinc-800 rounded-2xl px-5 py-4 space-y-3 bg-amber-50/40 dark:bg-zinc-950/40">
               <Answer label="Objectifs" value={n.objectives} />
               <Answer label="Attentes" value={n.expectations} />
               <Answer label="Contraintes" value={n.constraints} />
@@ -215,7 +294,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
       })()}
 
       <section className="space-y-3">
-        <SectionLabel>Pièces justificatives</SectionLabel>
+        <SectionTitle icon={FileCheck2}>Pièces justificatives</SectionTitle>
         <ProspectDetailActions
           prospectId={prospect.id}
           validationStatus={prospect.validation_status}
@@ -225,17 +304,31 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
       </section>
 
       <section className="space-y-3">
-        <SectionLabel>Historique</SectionLabel>
+        <SectionTitle icon={History}>Historique</SectionTitle>
         {events.length === 0 ? (
           <p className="text-[13px] text-zinc-400">Aucune action enregistrée.</p>
         ) : (
-          <ul className="space-y-2">
-            {events.map((e) => (
-              <li key={e.id} className="text-[12px] text-zinc-500 flex items-center gap-2">
-                <span className="text-zinc-400">{new Date(e.occurred_at).toLocaleString('fr-FR')}</span>
-                <span className="text-zinc-700 dark:text-zinc-300">{EVENT_LABELS[e.kind] ?? e.kind}</span>
-                {typeof e.payload?.doc_key === 'string' && <span className="text-zinc-400">· {e.payload.doc_key as string}</span>}
-                {typeof e.payload?.reason === 'string' && <span className="text-zinc-400 truncate">— {e.payload.reason as string}</span>}
+          <ul className="space-y-0">
+            {events.map((e, i) => (
+              <li key={e.id} className="flex items-start gap-3 text-[12px]">
+                <span className="flex flex-col items-center self-stretch">
+                  <span className="mt-1.5 h-2 w-2 rounded-full bg-orange-400 ring-2 ring-orange-100 dark:ring-orange-900/40" />
+                  {i < events.length - 1 && <span className="w-px flex-1 bg-zinc-200 dark:bg-zinc-800" />}
+                </span>
+                <span className="pb-3">
+                  <span className="text-zinc-800 dark:text-zinc-200 font-medium">
+                    {EVENT_LABELS[e.kind] ?? e.kind}
+                  </span>
+                  {typeof e.payload?.doc_key === 'string' && (
+                    <span className="text-zinc-400"> · {e.payload.doc_key as string}</span>
+                  )}
+                  {typeof e.payload?.reason === 'string' && (
+                    <span className="text-zinc-400 truncate"> — {e.payload.reason as string}</span>
+                  )}
+                  <span className="block text-zinc-400 dark:text-zinc-500">
+                    {new Date(e.occurred_at).toLocaleString('fr-FR')}
+                  </span>
+                </span>
               </li>
             ))}
           </ul>
