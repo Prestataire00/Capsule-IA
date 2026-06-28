@@ -159,7 +159,9 @@ export async function testConnection(
   const t = await accessTokenFor(creds.refreshToken);
   if (!t.ok) return err(t.error);
   try {
-    const res = await fetch(`${CAL_API}/users/me/calendarList?maxResults=1`, {
+    // Endpoint couvert par le scope calendar.events (calendarList exigerait calendar.readonly).
+    const calendarId = encodeURIComponent(creds.calendarId || 'primary');
+    const res = await fetch(`${CAL_API}/calendars/${calendarId}/events?maxResults=1`, {
       headers: { Authorization: `Bearer ${t.value}` },
     });
     return res.ok ? ok(true) : err('request_failed');
