@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { Search, Loader2, Sparkles } from 'lucide-react';
 import { inputClass } from '@/shared/ui/form-field';
 
-// API publique gratuite (sans authentification) de recherche d'entreprises (INSEE/SIRENE).
-const SEARCH_URL = 'https://recherche-entreprises.api.gouv.fr/search';
+// Recherche d'entreprises via notre proxy serveur (évite le blocage CORS/CSP d'un
+// appel direct depuis le navigateur vers recherche-entreprises.api.gouv.fr).
+const SEARCH_URL = '/api/sirene/search';
 
 type SireneHit = {
   siren: string;
