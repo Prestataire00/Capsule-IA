@@ -48,8 +48,7 @@ const GROUPS: Group[] = [
     label: 'Demandes',
     icon: Inbox,
     items: [
-      { href: '/prospects/nouvelles', icon: Inbox, label: 'Nouvelles demandes' },
-      { href: '/prospects', icon: UserPlus, label: 'Pré-inscriptions' },
+      { href: '/prospects', icon: Inbox, label: 'Demandes' },
     ],
     countKeys: ['demandesPending'],
   },
@@ -112,7 +111,7 @@ const COUNT_BY_HREF: Record<string, { key: keyof SidebarCounts; tone: Tone }> = 
   '/emargements': { key: 'emargementsPending', tone: 'amber' },
   '/questionnaires': { key: 'questionnairesActive', tone: 'violet' },
   '/factures': { key: 'invoicesUnpaid', tone: 'amber' },
-  '/prospects/nouvelles': { key: 'demandesPending', tone: 'rose' },
+  '/prospects': { key: 'demandesPending', tone: 'rose' },
 };
 
 const badgeStyles: Record<Tone, string> = {
