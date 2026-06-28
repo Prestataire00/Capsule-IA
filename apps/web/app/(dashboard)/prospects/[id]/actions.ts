@@ -6,6 +6,7 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { requiredDocs } from '@/features/prospect/funding';
+import { convertProspectToDossier } from '@/features/crm/prospect-conversion/convert-core';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
 
@@ -185,9 +186,23 @@ export const validateProspectDemande = authActionClient
     await recordEvent(rowOrg, parsedInput.prospectId, 'demande_validated', userId, {
       count: targetIds.length || 1,
     });
+
+    // Conversion systématique en dossier dès validation des pièces (best-effort,
+    // idempotent ; les prospects sans formation sont simplement ignorés).
+    let convertedCount = 0;
+    for (const id of targetIds.length ? targetIds : [parsedInput.prospectId]) {
+      try {
+        const r = await convertProspectToDossier(admin, rowOrg, id);
+        if (r.ok) convertedCount++;
+      } catch (e) {
+        console.error('[validateProspectDemande] conversion échouée', id, e);
+      }
+    }
+
     revalidatePath(`/prospects/${parsedInput.prospectId}`);
     revalidatePath('/prospects/nouvelles');
-    return { ok: true as const, count: targetIds.length || 1 };
+    revalidatePath('/prospects');
+    return { ok: true as const, count: targetIds.length || 1, converted: convertedCount };
   });
 
 export const rejectProspectDemande = authActionClient
