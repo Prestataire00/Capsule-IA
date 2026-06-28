@@ -9,6 +9,8 @@ export type NeedsValue = {
   expectations: string;
   constraints: string;
   accommodations: string;
+  // Réponse à la question spécifique selon la typologie (salarié, demandeur…).
+  typologyContext: string;
 };
 
 export const emptyNeeds = (): NeedsValue => ({
@@ -17,7 +19,28 @@ export const emptyNeeds = (): NeedsValue => ({
   expectations: '',
   constraints: '',
   accommodations: '',
+  typologyContext: '',
 });
+
+// Question spécifique à poser selon la situation de la personne qui s'inscrit.
+const TYPOLOGY_QUESTION: Record<string, { label: string; placeholder: string }> = {
+  salarie: {
+    label: 'Poste actuel et accord de votre employeur',
+    placeholder: 'Votre poste, et si votre employeur a validé / finance la formation…',
+  },
+  demandeur: {
+    label: 'Votre projet professionnel / accompagnement France Travail',
+    placeholder: 'Objectif de retour à l’emploi, conseiller France Travail, projet de reconversion…',
+  },
+  independant: {
+    label: 'Votre activité et vos objectifs de développement',
+    placeholder: 'Secteur d’activité, ce que la formation doit vous apporter pour votre activité…',
+  },
+  particulier: {
+    label: 'Votre projet personnel et vos motivations',
+    placeholder: 'Ce qui vous motive, le projet personnel derrière cette formation…',
+  },
+};
 
 const LEVELS = [
   { v: 1, l: 'Débutant' },
@@ -34,13 +57,16 @@ export function NeedsAnalysisFields({
   value,
   onChange,
   compact = false,
+  typology,
 }: {
   value: NeedsValue;
   onChange: (v: NeedsValue) => void;
   compact?: boolean;
+  typology?: string;
 }) {
   const update = <K extends keyof NeedsValue>(k: K, v: NeedsValue[K]) =>
     onChange({ ...value, [k]: v });
+  const typoQuestion = typology ? TYPOLOGY_QUESTION[typology] : undefined;
 
   return (
     <div className={compact ? 'space-y-3' : 'space-y-5'}>
@@ -121,6 +147,21 @@ export function NeedsAnalysisFields({
           className={inputCls}
         />
       </label>
+
+      {typoQuestion && (
+        <label className="block">
+          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
+            {typoQuestion.label}
+          </span>
+          <textarea
+            value={value.typologyContext}
+            onChange={(e) => update('typologyContext', e.target.value)}
+            rows={2}
+            placeholder={typoQuestion.placeholder}
+            className={inputCls}
+          />
+        </label>
+      )}
     </div>
   );
 }
