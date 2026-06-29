@@ -7,7 +7,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 const ROW_H = 64; // px par heure (h-16)
-const DAY_LABELS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.'];
+const DAY_LABELS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
@@ -108,7 +108,7 @@ export default async function PlanningPage({
         timeLabel: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
       };
     })
-    .filter((e) => e.dayIdx >= 0 && e.dayIdx <= 4);
+    .filter((e) => e.dayIdx >= 0 && e.dayIdx <= 5);
 
   const hiddenWeekend = sessions.length - events.length;
   const monthLabel = `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
@@ -120,7 +120,7 @@ export default async function PlanningPage({
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Planning</h1>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
             {sessions.length} session{sessions.length > 1 ? 's' : ''} cette semaine
-            {hiddenWeekend > 0 && ` · ${hiddenWeekend} le week-end (non affichée${hiddenWeekend > 1 ? 's' : ''})`}.
+            {hiddenWeekend > 0 && ` · ${hiddenWeekend} le dimanche (non affichée)`}.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ export default async function PlanningPage({
         </div>
 
         {/* En-tête des jours */}
-        <div className="grid grid-cols-[60px_repeat(5,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
+        <div className="grid grid-cols-[60px_repeat(6,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
           <div className="border-r border-zinc-200/60 dark:border-zinc-800" />
           {days.map((d) => (
             <div key={d.label} className="px-3 py-3 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800">
@@ -182,7 +182,7 @@ export default async function PlanningPage({
         </div>
 
         <div className="relative">
-          <div className="grid grid-cols-[60px_repeat(5,1fr)]">
+          <div className="grid grid-cols-[60px_repeat(6,1fr)]">
             {HOURS.map((h) => (
               <div key={h} className="contents">
                 <div className="h-16 border-b border-r border-zinc-100 dark:border-zinc-800/60 px-2 py-1">
@@ -199,7 +199,7 @@ export default async function PlanningPage({
           </div>
 
           {/* Events overlay */}
-          <div className="absolute inset-0 grid grid-cols-[60px_repeat(5,1fr)] pointer-events-none">
+          <div className="absolute inset-0 grid grid-cols-[60px_repeat(6,1fr)] pointer-events-none">
             <div />
             {days.map((_, dayIdx) => (
               <div key={dayIdx} className="relative border-r last:border-r-0 border-transparent">
