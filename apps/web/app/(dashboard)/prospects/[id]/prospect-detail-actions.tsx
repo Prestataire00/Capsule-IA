@@ -33,7 +33,7 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
   const tone =
     doc.reviewStatus === 'verified' ? 'success' : doc.reviewStatus === 'rejected' ? 'danger' : 'neutral';
   const statusLabel =
-    doc.reviewStatus === 'verified' ? 'vérifiée' : doc.reviewStatus === 'rejected' ? 'refusée' : 'à vérifier';
+    doc.reviewStatus === 'verified' ? 'validé' : doc.reviewStatus === 'rejected' ? 'refusée' : 'à vérifier';
 
   async function doVerify() {
     const r = await verify.executeAsync({ prospectId, docKey: doc.key });
@@ -94,25 +94,32 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
             <Download className="w-3 h-3" /> Voir
           </a>
         )}
-        {doc.uploaded && !rejecting && (
-          <>
-            <button
-              type="button"
-              onClick={doVerify}
-              disabled={busy}
-              className="text-[12px] text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1 disabled:opacity-40"
-            >
-              {verify.isExecuting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Vérifier
-            </button>
-            <button
-              type="button"
-              onClick={() => setRejecting(true)}
-              disabled={busy}
-              className="text-[12px] text-red-600 hover:text-red-700 inline-flex items-center gap-1 disabled:opacity-40"
-            >
-              <X className="w-3 h-3" /> Refuser
-            </button>
-          </>
+        {doc.reviewStatus === 'verified' ? (
+          <span className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+            <Check className="w-3.5 h-3.5" /> Validé
+          </span>
+        ) : (
+          doc.uploaded &&
+          !rejecting && (
+            <>
+              <button
+                type="button"
+                onClick={doVerify}
+                disabled={busy}
+                className="text-[12px] text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1 disabled:opacity-40"
+              >
+                {verify.isExecuting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Vérifier
+              </button>
+              <button
+                type="button"
+                onClick={() => setRejecting(true)}
+                disabled={busy}
+                className="text-[12px] text-red-600 hover:text-red-700 inline-flex items-center gap-1 disabled:opacity-40"
+              >
+                <X className="w-3 h-3" /> Refuser
+              </button>
+            </>
+          )
         )}
       </div>
     </li>
