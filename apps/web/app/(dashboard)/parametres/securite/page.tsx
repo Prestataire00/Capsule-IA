@@ -1,11 +1,23 @@
 // ARCHETYPE: command
-import { ShieldCheck, Lock, History, FileCheck } from 'lucide-react';
+import { ShieldCheck, Lock, History, FileCheck, KeyRound } from 'lucide-react';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { DataList, DataRow } from '@/shared/ui/data-row';
+import { ChangePasswordForm } from './_components/change-password-form.client';
 
 export default function ParametresSecuritePage() {
   return (
     <div className="space-y-8">
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <KeyRound className="w-3.5 h-3.5 text-violet-500" />
+          <SectionLabel>Mot de passe</SectionLabel>
+        </div>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-4 max-w-md">
+          Modifiez votre mot de passe de connexion. Votre mot de passe actuel vous sera demandé.
+        </p>
+        <ChangePasswordForm />
+      </section>
+
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Lock className="w-3.5 h-3.5 text-violet-500" />
