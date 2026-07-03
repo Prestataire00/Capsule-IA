@@ -8,7 +8,8 @@ const OAUTH_AUTHORIZE = 'https://accounts.google.com/o/oauth2/v2/auth';
 const OAUTH_TOKEN = 'https://oauth2.googleapis.com/token';
 const USERINFO = 'https://openidconnect.googleapis.com/v1/userinfo';
 const CAL_API = 'https://www.googleapis.com/calendar/v3';
-const SCOPE = 'https://www.googleapis.com/auth/calendar.events openid email';
+const SCOPE =
+  'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly openid email';
 
 export type GoogleApiError = 'not_configured' | 'token_failed' | 'request_failed' | 'invalid_response';
 
@@ -202,14 +203,15 @@ export function parseEventsList(json: unknown): CalEvent[] {
   return events.sort((a, b) => a.start.localeCompare(b.start));
 }
 
-/** Liste les évènements de l'agenda de l'utilisateur sur une fenêtre [timeMin, timeMax]. */
+/** Liste les évènements d'UN agenda sur une fenêtre [timeMin, timeMax]. */
 export async function listEvents(
   creds: GoogleCalendarCredentials,
   range: { timeMin: string; timeMax: string },
+  calendarId?: string,
 ): Promise<Result<CalEvent[], GoogleApiError>> {
   const t = await accessTokenFor(creds.refreshToken);
   if (!t.ok) return err(t.error);
-  const calendarId = encodeURIComponent(creds.calendarId || 'primary');
+  const cal = encodeURIComponent(calendarId || creds.calendarId || 'primary');
   const p = new URLSearchParams({
     timeMin: range.timeMin,
     timeMax: range.timeMax,
@@ -218,7 +220,7 @@ export async function listEvents(
     maxResults: '100',
   });
   try {
-    const res = await fetch(`${CAL_API}/calendars/${calendarId}/events?${p.toString()}`, {
+    const res = await fetch(`${CAL_API}/calendars/${cal}/events?${p.toString()}`, {
       headers: { Authorization: `Bearer ${t.value}` },
     });
     if (!res.ok) return err('request_failed');
@@ -226,6 +228,65 @@ export async function listEvents(
   } catch {
     return err('request_failed');
   }
+}
+
+/** Logique pure : ids des agendas depuis la réponse `calendarList.list`. */
+export function parseCalendarIds(json: unknown): string[] {
+  if (!json || typeof json !== 'object') return [];
+  const items = (json as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  const ids: string[] = [];
+  for (const raw of items) {
+    if (raw && typeof raw === 'object' && typeof (raw as { id?: unknown }).id === 'string') {
+      ids.push((raw as { id: string }).id);
+    }
+  }
+  return ids;
+}
+
+/** Liste les identifiants de tous les agendas de l'utilisateur (nécessite le scope calendar.readonly). */
+export async function listCalendarIds(
+  creds: GoogleCalendarCredentials,
+): Promise<Result<string[], GoogleApiError>> {
+  const t = await accessTokenFor(creds.refreshToken);
+  if (!t.ok) return err(t.error);
+  try {
+    const res = await fetch(`${CAL_API}/users/me/calendarList?maxResults=250`, {
+      headers: { Authorization: `Bearer ${t.value}` },
+    });
+    if (!res.ok) return err('request_failed');
+    return ok(parseCalendarIds(await res.json().catch(() => null)));
+  } catch {
+    return err('request_failed');
+  }
+}
+
+/** Logique pure : fusionne des listes d'évènements, dédoublonne par id et trie par début. */
+export function mergeEvents(lists: CalEvent[][]): CalEvent[] {
+  const byId = new Map<string, CalEvent>();
+  for (const list of lists) {
+    for (const e of list) if (!byId.has(e.id)) byId.set(e.id, e);
+  }
+  return Array.from(byId.values()).sort((a, b) => a.start.localeCompare(b.start));
+}
+
+/**
+ * Agenda complet de l'utilisateur : agrège les évènements de TOUS ses agendas.
+ * Repli sur l'agenda `primary` seul si l'énumération des agendas échoue
+ * (scope calendar.readonly pas encore accordé → reconnexion requise pour tout voir).
+ */
+export async function listAgenda(
+  creds: GoogleCalendarCredentials,
+  range: { timeMin: string; timeMax: string },
+): Promise<Result<CalEvent[], GoogleApiError>> {
+  const cals = await listCalendarIds(creds);
+  if (!cals.ok || cals.value.length === 0) {
+    return listEvents(creds, range); // repli primary
+  }
+  const perCal = await Promise.all(cals.value.map((id) => listEvents(creds, range, id)));
+  const ok0 = perCal.filter((r): r is Extract<typeof r, { ok: true }> => r.ok);
+  if (ok0.length === 0) return listEvents(creds, range);
+  return ok(mergeEvents(ok0.map((r) => r.value)));
 }
 
 /** Test léger de la connexion (liste des agendas). */
