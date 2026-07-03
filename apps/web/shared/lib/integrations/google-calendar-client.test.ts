@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEventResponse, parseEventsList } from './google-calendar-client';
+import { parseEventResponse, parseEventsList, parseCalendarIds, mergeEvents, type CalEvent } from './google-calendar-client';
 
 describe('parseEventResponse', () => {
   it('extrait hangoutLink + id', () => {
@@ -67,5 +67,30 @@ describe('parseEventsList', () => {
       ],
     });
     expect(out.map((e) => e.id)).toEqual(['early', 'late']);
+  });
+});
+
+describe('parseCalendarIds', () => {
+  it('extrait les ids de calendarList, ignore le bruit', () => {
+    expect(parseCalendarIds({ items: [{ id: 'primary' }, { id: 'work@group.calendar.google.com' }, { foo: 1 }] })).toEqual([
+      'primary',
+      'work@group.calendar.google.com',
+    ]);
+    expect(parseCalendarIds(null)).toEqual([]);
+    expect(parseCalendarIds({})).toEqual([]);
+  });
+});
+
+describe('mergeEvents', () => {
+  it('fusionne, dédoublonne par id et trie par début', () => {
+    const a: CalEvent[] = [
+      { id: 'x', title: 'A', start: '2026-07-05T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
+      { id: 'y', title: 'B', start: '2026-07-03T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
+    ];
+    const b: CalEvent[] = [
+      { id: 'x', title: 'A-dup', start: '2026-07-05T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
+      { id: 'z', title: 'C', start: '2026-07-04T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
+    ];
+    expect(mergeEvents([a, b]).map((e) => e.id)).toEqual(['y', 'z', 'x']);
   });
 });

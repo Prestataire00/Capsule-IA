@@ -8,12 +8,12 @@ import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
-import { listEvents, type CalEvent } from '@/shared/lib/integrations/google-calendar-client';
+import { listAgenda, type CalEvent } from '@/shared/lib/integrations/google-calendar-client';
 
 export const dynamic = 'force-dynamic';
 
 const TZ = 'Europe/Paris';
-const DAYS_AHEAD = 21;
+const DAYS_AHEAD = 60;
 
 function admin() {
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -86,9 +86,12 @@ export default async function AgendaPage() {
   }
 
   const now = new Date();
-  const timeMin = now.toISOString();
+  // Depuis le début de la journée (pour ne pas masquer les événements plus tôt aujourd'hui).
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const timeMin = startOfToday.toISOString();
   const timeMax = new Date(now.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000).toISOString();
-  const result = await listEvents(creds, { timeMin, timeMax });
+  const result = await listAgenda(creds, { timeMin, timeMax });
 
   if (!result.ok) {
     return (
@@ -128,6 +131,15 @@ export default async function AgendaPage() {
         <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-2xl px-6 py-10 text-center bg-zinc-50/40 dark:bg-zinc-950/40">
           <CalendarDays className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
           <p className="text-[14px] text-zinc-600 dark:text-zinc-300">Aucun événement dans les {DAYS_AHEAD} prochains jours.</p>
+          <p className="text-[12px] text-zinc-400 dark:text-zinc-500 mt-1 max-w-md mx-auto">
+            Si votre agenda contient bien des événements, déconnectez puis reconnectez Google Agenda pour autoriser la lecture de tous vos agendas.
+          </p>
+          <Link
+            href="/parametres/integrations/google-calendar"
+            className="mt-3 inline-flex items-center gap-2 text-[13px] font-medium text-violet-600 dark:text-violet-400 hover:underline"
+          >
+            <Plug className="w-4 h-4" /> Reconnecter Google Agenda
+          </Link>
         </div>
       ) : (
         <div className="space-y-5">
