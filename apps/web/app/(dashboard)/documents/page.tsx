@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FileText, Search, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
+import { DocumentUploadButton, AttachToDossier, type DossierOption } from './document-tools';
 
 type TabId = 'a-signer' | 'generes' | 'archives';
 
@@ -73,7 +74,27 @@ export default async function DocumentsPage({
     .order('created_at', { ascending: false })
     .limit(300);
   if (q) query = query.ilike('title', `%${q}%`);
-  const { data } = await query;
+  const [{ data }, { data: dossierData }] = await Promise.all([
+    query,
+    sb
+      .schema('app')
+      .from('dossiers')
+      .select('id, reference, learner:learners(first_name, last_name)')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(200),
+  ]);
+  const dossiers: DossierOption[] = (
+    (dossierData ?? []) as unknown as Array<{
+      id: string;
+      reference: string;
+      learner: { first_name: string | null; last_name: string | null } | null;
+    }>
+  ).map((d) => ({
+    id: d.id,
+    reference: d.reference,
+    learner: d.learner ? [d.learner.first_name, d.learner.last_name].filter(Boolean).join(' ') || null : null,
+  }));
 
   const all = (((data as unknown) as DocRow[]) ?? []).map((d) => {
     const hasPendingSignature = (d.signatures ?? []).some((s) => s.status === 'pending');
@@ -115,6 +136,7 @@ export default async function DocumentsPage({
           >
             Générer depuis un dossier
           </Link>
+          <DocumentUploadButton />
         </div>
       </header>
 
@@ -184,21 +206,43 @@ export default async function DocumentsPage({
                         ? { label: 'Échec', cls: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400' }
                         : { label: 'En cours', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' };
               const action = activeTab === 'a-signer' ? 'Signer' : activeTab === 'archives' ? 'Voir' : 'Télécharger';
+              const rowGrid =
+                'grid grid-cols-[28px_1.5fr_140px_1.2fr_140px_120px_100px] gap-3 px-5 py-3 items-center text-[13px]';
+
+              // Document sans dossier : ligne non-lien avec rattachement + téléchargement.
+              if (!d.dossier) {
+                return (
+                  <li key={d.id} className={`${rowGrid} hover:bg-zinc-50 dark:hover:bg-zinc-950 transition`}>
+                    <span className="w-7 h-7 rounded-md bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.title}</span>
+                    <AttachToDossier documentId={d.id} dossiers={dossiers} />
+                    <span className="text-zinc-400">—</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 truncate">{kindLabel(d.kind)}</span>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusPill.cls}`}>
+                      {statusPill.label}
+                    </span>
+                    <a
+                      href={`/api/documents/${d.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[12px] font-medium text-orange-600 hover:text-orange-700 transition text-right inline-flex items-center gap-1 justify-end"
+                    >
+                      Télécharger <Download className="w-3 h-3" />
+                    </a>
+                  </li>
+                );
+              }
+
               return (
                 <li key={d.id}>
-                  <Link
-                    href={href}
-                    className="grid grid-cols-[28px_1.5fr_140px_1.2fr_140px_120px_100px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group"
-                  >
+                  <Link href={href} className={`${rowGrid} hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group`}>
                     <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">
                       <FileText className="w-3.5 h-3.5" />
                     </span>
                     <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.title}</span>
-                    {d.dossier ? (
-                      <IdPill className="!text-[10px]">{d.dossier.reference}</IdPill>
-                    ) : (
-                      <span className="text-zinc-400">—</span>
-                    )}
+                    <IdPill className="!text-[10px]">{d.dossier.reference}</IdPill>
                     <span className="text-zinc-700 dark:text-zinc-300 truncate">{learnerName(d.dossier?.learner ?? null)}</span>
                     <span className="text-zinc-500 dark:text-zinc-400 truncate">{kindLabel(d.kind)}</span>
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusPill.cls}`}>
