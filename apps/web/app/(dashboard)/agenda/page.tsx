@@ -1,9 +1,9 @@
 // ARCHETYPE: command
-// Justification: vue de lecture de l'agenda Google synchronisé de l'utilisateur courant (événements à venir, groupés par jour).
+// Justification: vue calendaire hebdomadaire de l'agenda Google synchronisé de l'utilisateur (couleurs Google conservées).
 
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import { CalendarDays, Video, MapPin, ExternalLink, Plug } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plug, Video } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -13,7 +13,15 @@ import { listAgenda, type CalEvent } from '@/shared/lib/integrations/google-cale
 export const dynamic = 'force-dynamic';
 
 const TZ = 'Europe/Paris';
-const DAYS_AHEAD = 60;
+const START_HOUR = 7;
+const END_HOUR = 21;
+const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
+const ROW_H = 52; // px par heure
+const DAY_LABELS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
+const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+const DEFAULT_BG = '#e8eaed';
+const DEFAULT_FG = '#3c4043';
 
 function admin() {
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -22,23 +30,52 @@ function admin() {
 }
 
 const dayKeyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
-const dayLabelFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
-const timeFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+const partsFmt = new Intl.DateTimeFormat('en-GB', {
+  timeZone: TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
 
-function dayKey(iso: string): string {
-  // Pour une journée entière (YYYY-MM-DD), pas de décalage de fuseau.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  return dayKeyFmt.format(new Date(iso));
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
 }
 
-function timeRange(e: CalEvent): string {
-  if (e.allDay) return 'Journée';
-  const start = timeFmt.format(new Date(e.start));
-  if (!e.end) return start;
-  return `${start} – ${timeFmt.format(new Date(e.end))}`;
+/** {key: 'YYYY-MM-DD', hour, minute} d'un instant ISO, exprimé en Europe/Paris. */
+function parisParts(iso: string): { key: string; hour: number; minute: number } {
+  const parts = partsFmt.formatToParts(new Date(iso));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
+  const hour = get('hour') === '24' ? 0 : Number(get('hour'));
+  return { key: `${get('year')}-${get('month')}-${get('day')}`, hour, minute: Number(get('minute')) };
 }
 
-export default async function AgendaPage() {
+type Timed = CalEvent & { startHour: number; durationH: number; timeLabel: string };
+type Positioned = Timed & { lane: number; lanes: number };
+
+/** Assigne des « lanes » côte-à-côte aux évènements qui se chevauchent dans une journée. */
+function packLanes(evts: Timed[]): Positioned[] {
+  const sorted = [...evts].sort((a, b) => a.startHour - b.startHour || b.durationH - a.durationH);
+  const laneEnds: number[] = [];
+  const withLane = sorted.map((e) => {
+    let lane = laneEnds.findIndex((end) => end <= e.startHour + 1e-6);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(e.startHour + e.durationH);
+    } else {
+      laneEnds[lane] = e.startHour + e.durationH;
+    }
+    return { ...e, lane };
+  });
+  const lanes = Math.max(1, laneEnds.length);
+  return withLane.map((e) => ({ ...e, lanes }));
+}
+
+export default async function AgendaPage({ searchParams }: { searchParams?: { week?: string } }) {
+  const weekOffset = Number.parseInt(searchParams?.week ?? '0', 10) || 0;
+
   const { data: auth } = await supabaseServer().auth.getUser();
   const userId = auth?.user?.id ?? null;
 
@@ -52,21 +89,18 @@ export default async function AgendaPage() {
   const accountEmail = (integRow?.data as { account_email: string | null } | null)?.account_email ?? null;
 
   const header = (
-    <header>
+    <div>
       <SectionLabel className="mb-1">Mon espace</SectionLabel>
       <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Agenda</h1>
       <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-        {accountEmail
-          ? `Synchronisé avec votre Google Agenda — ${accountEmail}`
-          : 'Vos événements Google Agenda, synchronisés dans Capsule IA.'}
+        {accountEmail ? `Synchronisé avec votre Google Agenda — ${accountEmail}` : 'Vos événements Google Agenda, synchronisés dans Capsule IA.'}
       </p>
-    </header>
+    </div>
   );
 
-  // Pas connecté → CTA vers les réglages d'intégration.
   if (!creds) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
         {header}
         <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-2xl px-6 py-10 text-center bg-zinc-50/40 dark:bg-zinc-950/40">
           <CalendarDays className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
@@ -85,27 +119,58 @@ export default async function AgendaPage() {
     );
   }
 
-  const now = new Date();
-  // Depuis le début de la journée (pour ne pas masquer les événements plus tôt aujourd'hui).
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const timeMin = startOfToday.toISOString();
-  const timeMax = new Date(now.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000).toISOString();
-  const result = await listAgenda(creds, { timeMin, timeMax });
+  // Semaine (lundi→dimanche), ancrée à midi UTC pour éviter les décalages de fuseau.
+  const [ty, tm, td] = dayKeyFmt.format(new Date()).split('-').map(Number);
+  const monday = new Date(Date.UTC(ty!, (tm ?? 1) - 1, td ?? 1, 12));
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) + weekOffset * 7);
+  const todayKey = dayKeyFmt.format(new Date());
+
+  const days = DAY_LABELS.map((label, i) => {
+    const d = new Date(monday);
+    d.setUTCDate(monday.getUTCDate() + i);
+    const key = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    return { label, key, dayNum: d.getUTCDate(), isToday: key === todayKey };
+  });
+  const weekKeys = new Set(days.map((d) => d.key));
+
+  // Fenêtre de requête élargie de ±1 jour (filtrage précis ensuite par jour Paris).
+  const from = new Date(monday);
+  from.setUTCDate(monday.getUTCDate() - 1);
+  from.setUTCHours(0, 0, 0, 0);
+  const to = new Date(monday);
+  to.setUTCDate(monday.getUTCDate() + 8);
+  to.setUTCHours(0, 0, 0, 0);
+
+  const result = await listAgenda(creds, { timeMin: from.toISOString(), timeMax: to.toISOString() });
+
+  const monthLabel = `${MONTHS[monday.getUTCMonth()]} ${monday.getUTCFullYear()}`;
+  const nav = (
+    <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/60 dark:border-zinc-800">
+      <div className="flex items-center gap-3">
+        <Link href={`/agenda?week=${weekOffset - 1}`} aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+          <ChevronLeft className="w-4 h-4" />
+        </Link>
+        <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 capitalize">{monthLabel}</p>
+        <Link href={`/agenda?week=${weekOffset + 1}`} aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+          <ChevronRight className="w-4 h-4" />
+        </Link>
+      </div>
+      {weekOffset !== 0 && (
+        <Link href="/agenda" className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline transition">
+          Cette semaine
+        </Link>
+      )}
+    </div>
+  );
 
   if (!result.ok) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
         {header}
         <div className="border border-amber-200/70 dark:border-amber-900/50 rounded-2xl px-6 py-8 text-center bg-amber-50/60 dark:bg-amber-950/30">
           <p className="text-[14px] font-medium text-amber-800 dark:text-amber-200">Agenda momentanément indisponible</p>
-          <p className="text-[13px] text-amber-700/80 dark:text-amber-300/70 mt-1">
-            Impossible de récupérer vos événements. L'accès a peut-être été révoqué côté Google.
-          </p>
-          <Link
-            href="/parametres/integrations/google-calendar"
-            className="mt-3 inline-flex items-center gap-2 text-[13px] font-medium text-amber-800 dark:text-amber-200 hover:underline"
-          >
+          <p className="text-[13px] text-amber-700/80 dark:text-amber-300/70 mt-1">Impossible de récupérer vos événements. L'accès a peut-être été révoqué côté Google.</p>
+          <Link href="/parametres/integrations/google-calendar" className="mt-3 inline-flex items-center gap-2 text-[13px] font-medium text-amber-800 dark:text-amber-200 hover:underline">
             <Plug className="w-4 h-4" /> Reconnecter
           </Link>
         </div>
@@ -113,82 +178,155 @@ export default async function AgendaPage() {
     );
   }
 
-  // Regroupement par jour (fuseau Europe/Paris).
-  const groups = new Map<string, CalEvent[]>();
+  // Répartition all-day / horaires, filtrés sur la semaine affichée.
+  const allDayByDay = new Map<string, CalEvent[]>();
+  const timedByDay = new Map<string, Timed[]>();
+
   for (const e of result.value) {
-    const k = dayKey(e.start);
-    const arr = groups.get(k) ?? [];
-    arr.push(e);
-    groups.set(k, arr);
+    if (e.allDay) {
+      const key = e.start.slice(0, 10);
+      if (!weekKeys.has(key)) continue;
+      const arr = allDayByDay.get(key) ?? [];
+      arr.push(e);
+      allDayByDay.set(key, arr);
+    } else {
+      const p = parisParts(e.start);
+      if (!weekKeys.has(p.key)) continue;
+      const startHour = p.hour + p.minute / 60;
+      const durationH = e.end ? Math.max(0.25, (new Date(e.end).getTime() - new Date(e.start).getTime()) / 3_600_000) : 1;
+      const arr = timedByDay.get(p.key) ?? [];
+      arr.push({ ...e, startHour, durationH, timeLabel: `${pad(p.hour)}:${pad(p.minute)}` });
+      timedByDay.set(p.key, arr);
+    }
   }
-  const orderedDays = Array.from(groups.keys()).sort();
+
+  const positionedByDay = new Map<string, Positioned[]>();
+  for (const [key, evts] of timedByDay) positionedByDay.set(key, packLanes(evts));
+
+  const gridHeight = HOURS.length * ROW_H;
+  let eventCount = 0;
+  allDayByDay.forEach((v) => (eventCount += v.length));
+  timedByDay.forEach((v) => (eventCount += v.length));
 
   return (
-    <div className="space-y-6">
-      {header}
+    <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        {header}
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+          {eventCount} événement{eventCount > 1 ? 's' : ''} cette semaine
+        </p>
+      </div>
 
-      {result.value.length === 0 ? (
-        <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-2xl px-6 py-10 text-center bg-zinc-50/40 dark:bg-zinc-950/40">
-          <CalendarDays className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-300">Aucun événement dans les {DAYS_AHEAD} prochains jours.</p>
-          <p className="text-[12px] text-zinc-400 dark:text-zinc-500 mt-1 max-w-md mx-auto">
-            Si votre agenda contient bien des événements, déconnectez puis reconnectez Google Agenda pour autoriser la lecture de tous vos agendas.
-          </p>
-          <Link
-            href="/parametres/integrations/google-calendar"
-            className="mt-3 inline-flex items-center gap-2 text-[13px] font-medium text-violet-600 dark:text-violet-400 hover:underline"
-          >
-            <Plug className="w-4 h-4" /> Reconnecter Google Agenda
-          </Link>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+        {nav}
+
+        {/* En-tête des jours */}
+        <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
+          <div className="border-r border-zinc-200/60 dark:border-zinc-800" />
+          {days.map((d) => (
+            <div key={d.key} className="px-2 py-2 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800">
+              <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
+              <p className={`text-[15px] mt-0.5 tabular-nums ${d.isToday ? 'font-semibold text-orange-600 dark:text-orange-400' : 'font-medium text-zinc-900 dark:text-zinc-100'}`}>{d.dayNum}</p>
+            </div>
+          ))}
         </div>
-      ) : (
-        <div className="space-y-5">
-          {orderedDays.map((k) => {
-            const list = groups.get(k)!;
-            const label = dayLabelFmt.format(new Date(`${k}T12:00:00`));
-            return (
-              <section key={k}>
-                <h2 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 capitalize mb-2">{label}</h2>
-                <ul className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
-                  {list.map((e) => (
-                    <li key={e.id} className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition">
-                      <span className="w-24 shrink-0 text-[12px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums">{timeRange(e)}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate block">{e.title}</span>
-                        {e.location && (
-                          <span className="text-[11px] text-zinc-400 inline-flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-3 h-3" /> {e.location}
-                          </span>
-                        )}
-                      </span>
-                      {e.hangoutLink && (
-                        <a
-                          href={e.hangoutLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0 inline-flex items-center gap-1 text-[12px] font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
-                        >
-                          <Video className="w-3.5 h-3.5" /> Visio
-                        </a>
+
+        {/* Bandeau journée entière */}
+        {days.some((d) => (allDayByDay.get(d.key)?.length ?? 0) > 0) && (
+          <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/30">
+            <div className="border-r border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center">
+              <span className="text-[9px] uppercase tracking-wider text-zinc-400">jour</span>
+            </div>
+            {days.map((d) => (
+              <div key={d.key} className="p-1 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800 space-y-1 min-h-[28px]">
+                {(allDayByDay.get(d.key) ?? []).map((e) => (
+                  <div
+                    key={e.id}
+                    className="text-[10px] leading-tight rounded px-1.5 py-0.5 truncate"
+                    style={{ backgroundColor: e.bgColor ?? DEFAULT_BG, color: e.fgColor ?? DEFAULT_FG }}
+                    title={e.title}
+                  >
+                    {e.title}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Grille horaire */}
+        <div className="relative">
+          <div className="grid grid-cols-[52px_repeat(7,1fr)]">
+            {HOURS.map((h) => (
+              <div key={h} className="contents">
+                <div className="border-b border-r border-zinc-100 dark:border-zinc-800/60 px-1.5 py-1" style={{ height: ROW_H }}>
+                  <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{pad(h)}:00</p>
+                </div>
+                {days.map((d) => (
+                  <div key={`${h}-${d.key}`} className="border-b border-r last:border-r-0 border-zinc-100 dark:border-zinc-800/60" style={{ height: ROW_H }} />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Overlay évènements */}
+          <div className="absolute inset-0 grid grid-cols-[52px_repeat(7,1fr)] pointer-events-none">
+            <div />
+            {days.map((d) => (
+              <div key={d.key} className="relative">
+                {(positionedByDay.get(d.key) ?? []).map((e) => {
+                  const rawTop = (e.startHour - START_HOUR) * ROW_H;
+                  const top = Math.max(0, Math.min(rawTop, gridHeight - 20));
+                  const height = Math.max(20, Math.min(e.durationH * ROW_H - 2, gridHeight - top - 1));
+                  const widthPct = 100 / e.lanes;
+                  const leftPct = e.lane * widthPct;
+                  const content = (
+                    <>
+                      <p className="text-[11px] font-medium leading-tight truncate">{e.title}</p>
+                      {height > 30 && (
+                        <p className="text-[10px] opacity-80 truncate leading-tight inline-flex items-center gap-1">
+                          {e.hangoutLink && <Video className="w-2.5 h-2.5" />}
+                          {e.timeLabel}
+                        </p>
                       )}
-                      {e.htmlLink && (
-                        <a
-                          href={e.htmlLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0 text-zinc-400 hover:text-violet-600 transition"
-                          aria-label="Ouvrir dans Google Agenda"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
+                    </>
+                  );
+                  const style = {
+                    top,
+                    height,
+                    left: `calc(${leftPct}% + 2px)`,
+                    width: `calc(${widthPct}% - 4px)`,
+                    backgroundColor: e.bgColor ?? DEFAULT_BG,
+                    color: e.fgColor ?? DEFAULT_FG,
+                  };
+                  return e.htmlLink ? (
+                    <a
+                      key={e.id}
+                      href={e.htmlLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute rounded-md px-1.5 py-0.5 overflow-hidden pointer-events-auto hover:shadow-md hover:brightness-95 transition block"
+                      style={style}
+                      title={`${e.timeLabel} · ${e.title}`}
+                    >
+                      {content}
+                    </a>
+                  ) : (
+                    <div key={e.id} className="absolute rounded-md px-1.5 py-0.5 overflow-hidden" style={style} title={`${e.timeLabel} · ${e.title}`}>
+                      {content}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
+
+      {eventCount === 0 && (
+        <p className="text-[13px] text-zinc-400 dark:text-zinc-500 text-center">
+          Aucun événement cette semaine. Si votre agenda en contient, déconnectez puis reconnectez Google Agenda pour autoriser la lecture de tous vos agendas.
+        </p>
       )}
     </div>
   );
