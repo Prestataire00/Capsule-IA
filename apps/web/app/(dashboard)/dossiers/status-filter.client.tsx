@@ -7,7 +7,7 @@ import { Check, ChevronDown, ListFilter } from 'lucide-react';
 type Option = { value: string; label: string };
 
 /** Filtre statut des dossiers : menu déroulant multi-sélection (source de vérité = URL). */
-export function StatusFilter({ options, selected, q }: { options: Option[]; selected: string[]; q?: string }) {
+export function StatusFilter({ options, selected, q, view }: { options: Option[]; selected: string[]; q?: string; view?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -25,6 +25,7 @@ export function StatusFilter({ options, selected, q }: { options: Option[]; sele
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     next.forEach((s) => params.append('status', s));
+    if (view) params.set('view', view);
     const qs = params.toString();
     return qs ? `/dossiers?${qs}` : '/dossiers';
   };

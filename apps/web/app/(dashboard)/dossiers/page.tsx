@@ -1,8 +1,8 @@
 // ARCHETYPE: command
-// Justification: pipeline réel des dossiers — recherche + filtres statut, RLS-scopé (chaque formateur voit ses dossiers).
+// Justification: pipeline réel des dossiers — recherche + filtres statut, vues liste/grille/kanban colorées par statut, RLS-scopé.
 
 import Link from 'next/link';
-import { Plus, Search, FolderOpen } from 'lucide-react';
+import { Plus, Search, FolderOpen, List, LayoutGrid, Columns3 } from 'lucide-react';
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -14,7 +14,20 @@ import { StatusFilter } from './status-filter.client';
 
 const STATUSES = ['draft', 'pending_validation', 'scheduled', 'active', 'completed', 'closed', 'archived', 'cancelled'] as const;
 
-type SearchParams = { q?: string; status?: string | string[] };
+// Couleur par statut : barre latérale des cartes + en-tête de colonne kanban.
+const STATUS_ACCENT: Record<string, { bar: string; head: string }> = {
+  draft: { bar: 'border-l-zinc-400', head: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300' },
+  pending_validation: { bar: 'border-l-amber-500', head: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300' },
+  scheduled: { bar: 'border-l-sky-500', head: 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300' },
+  active: { bar: 'border-l-emerald-500', head: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300' },
+  completed: { bar: 'border-l-violet-500', head: 'bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-300' },
+  closed: { bar: 'border-l-slate-500', head: 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300' },
+  archived: { bar: 'border-l-stone-400', head: 'bg-stone-100 text-stone-600 dark:bg-stone-800/50 dark:text-stone-300' },
+  cancelled: { bar: 'border-l-rose-500', head: 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300' },
+};
+
+type ViewMode = 'list' | 'grid' | 'kanban';
+type SearchParams = { q?: string; status?: string | string[]; view?: string };
 
 type Row = {
   id: string;
@@ -35,9 +48,33 @@ type Row = {
 const fmtDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 const fmtEuros = (cents: number | null) =>
   cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
+const learnerName = (d: Row) => [d.learner?.first_name, d.learner?.last_name].filter(Boolean).join(' ') || '—';
+
+function DossierCard({ d }: { d: Row }) {
+  const accent = STATUS_ACCENT[d.status] ?? STATUS_ACCENT.draft!;
+  return (
+    <Link
+      href={`/dossiers/${d.id}`}
+      className={`block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 border-l-4 ${accent.bar} rounded-lg p-3.5 hover:shadow-md transition`}
+    >
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <IdPill>{d.reference}</IdPill>
+        <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
+      </div>
+      <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{learnerName(d)}</p>
+      <p className="text-[12px] text-zinc-600 dark:text-zinc-400 truncate">{d.formation?.title ?? '—'}</p>
+      {d.company?.name && <p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate mt-0.5">{d.company.name}</p>}
+      <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800/60">
+        <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
+        <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtEuros(d.total_amount_cents)}</span>
+      </div>
+    </Link>
+  );
+}
 
 export default async function DossiersPage({ searchParams }: { searchParams: SearchParams }) {
   const q = (searchParams.q ?? '').trim();
+  const view: ViewMode = searchParams.view === 'grid' || searchParams.view === 'kanban' ? searchParams.view : 'list';
   const statuses = Array.isArray(searchParams.status)
     ? searchParams.status
     : searchParams.status
@@ -70,8 +107,36 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
       })
     : rows;
 
+  // Href de vue en préservant recherche + statuts.
+  const withView = (v: ViewMode) => {
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    statuses.forEach((s) => p.append('status', s));
+    if (v !== 'list') p.set('view', v);
+    const qs = p.toString();
+    return qs ? `/dossiers?${qs}` : '/dossiers';
+  };
+
+  const viewBtn = (v: ViewMode, Icon: typeof List, label: string) => (
+    <Link
+      href={withView(v)}
+      aria-label={label}
+      title={label}
+      className={`h-8 w-8 flex items-center justify-center rounded-md transition ${
+        view === v ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+    </Link>
+  );
+
+  // Colonnes kanban : statuts filtrés si sélection, sinon tous.
+  const kanbanStatuses = statuses.length ? STATUSES.filter((s) => statuses.includes(s)) : STATUSES;
+
+  const maxW = view === 'kanban' ? 'max-w-[1600px]' : 'max-w-6xl';
+
   return (
-    <div className="max-w-6xl w-full mx-auto px-8 py-10">
+    <div className={`${maxW} w-full mx-auto px-8 py-10`}>
       <header className="flex items-end justify-between mb-8">
         <div>
           <SectionLabel className="mb-2">Tous les dossiers</SectionLabel>
@@ -81,13 +146,13 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
           </p>
         </div>
         <ManageOnly section="dossiers">
-        <Link
-          href="/dossiers/nouveau"
-          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nouveau dossier
-        </Link>
+          <Link
+            href="/dossiers/nouveau"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nouveau dossier
+          </Link>
         </ManageOnly>
       </header>
 
@@ -104,17 +169,26 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
           {statuses.map((s) => (
             <input key={s} type="hidden" name="status" value={s} />
           ))}
+          {view !== 'list' && <input type="hidden" name="view" value={view} />}
         </form>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Sélecteur de vue */}
+          <div className="flex items-center gap-1 bg-zinc-100/70 dark:bg-zinc-800/50 rounded-lg p-1">
+            {viewBtn('list', List, 'Vue liste')}
+            {viewBtn('grid', LayoutGrid, 'Vue grille')}
+            {viewBtn('kanban', Columns3, 'Vue kanban')}
+          </div>
+
           <StatusFilter
             options={STATUSES.map((s) => ({ value: s, label: dossierStatusLabel(s) }))}
             selected={statuses}
             q={q || undefined}
+            view={view !== 'list' ? view : undefined}
           />
           {(statuses.length > 0 || q) && (
             <Link
-              href="/dossiers"
+              href={view !== 'list' ? `/dossiers?view=${view}` : '/dossiers'}
               className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
             >
               Réinitialiser
@@ -131,13 +205,41 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
             description="Élargissez la recherche ou réinitialisez les filtres."
             action={
               <Link
-                href="/dossiers"
+                href={view !== 'list' ? `/dossiers?view=${view}` : '/dossiers'}
                 className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
               >
                 Réinitialiser
               </Link>
             }
           />
+        </div>
+      ) : view === 'kanban' ? (
+        <div className="flex gap-3 overflow-x-auto pb-3">
+          {kanbanStatuses.map((s) => {
+            const col = filtered.filter((d) => d.status === s);
+            const accent = STATUS_ACCENT[s]!;
+            return (
+              <div key={s} className="w-72 shrink-0 flex flex-col">
+                <div className={`flex items-center justify-between px-3 py-2 rounded-t-lg text-[12px] font-medium ${accent.head}`}>
+                  <span>{dossierStatusLabel(s)}</span>
+                  <span className="tabular-nums opacity-70">{col.length}</span>
+                </div>
+                <div className="flex-1 bg-zinc-50/60 dark:bg-zinc-950/40 rounded-b-lg p-2 space-y-2 min-h-[80px]">
+                  {col.length === 0 ? (
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-600 text-center py-4">—</p>
+                  ) : (
+                    col.map((d) => <DossierCard key={d.id} d={d} />)
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filtered.map((d) => (
+            <DossierCard key={d.id} d={d} />
+          ))}
         </div>
       ) : (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg overflow-hidden">
@@ -158,9 +260,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   className="grid grid-cols-[110px_1fr_140px_1fr_120px_110px_100px] gap-3 py-3 px-4 text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition items-center"
                 >
                   <div><IdPill>{d.reference}</IdPill></div>
-                  <div className="text-zinc-900 dark:text-zinc-100 truncate">
-                    {[d.learner?.first_name, d.learner?.last_name].filter(Boolean).join(' ') || '—'}
-                  </div>
+                  <div className="text-zinc-900 dark:text-zinc-100 truncate">{learnerName(d)}</div>
                   <div className="text-zinc-500 dark:text-zinc-400 truncate">{d.company?.name ?? '—'}</div>
                   <div className="text-zinc-700 dark:text-zinc-300 truncate">{d.formation?.title ?? '—'}</div>
                   <div className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
