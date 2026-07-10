@@ -66,8 +66,13 @@ export async function GET() {
     checks,
   };
 
+  // Le healthcheck Railway ne doit PAS mettre toute l'app hors ligne quand une
+  // dépendance externe est dégradée (ex. projet Supabase en pause) : tant que le
+  // process Node répond, on renvoie 200 ; le détail « degraded » reste dans le
+  // corps pour le monitoring. Avant : 503 → déploiement jugé non sain par Railway
+  // → « The train has not arrived at the station » = app entièrement inaccessible.
   return NextResponse.json(body, {
-    status: allOk ? 200 : 503,
+    status: 200,
     headers: { 'Cache-Control': 'no-store, max-age=0' },
   });
 }
