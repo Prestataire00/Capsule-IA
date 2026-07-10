@@ -10,6 +10,7 @@ import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/s
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { StatusFilter } from './status-filter.client';
 
 const STATUSES = ['draft', 'pending_validation', 'scheduled', 'active', 'completed', 'closed', 'archived', 'cancelled'] as const;
 
@@ -105,28 +106,20 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
           ))}
         </form>
 
-        <div className="ml-auto flex items-center gap-1 text-[11px] flex-wrap">
-          <span className="text-zinc-500 dark:text-zinc-400 mr-1">Filtrer:</span>
-          {STATUSES.map((s) => {
-            const isOn = statuses.includes(s);
-            const next = isOn ? statuses.filter((x) => x !== s) : [...statuses, s];
-            const params = new URLSearchParams();
-            if (q) params.set('q', q);
-            next.forEach((r) => params.append('status', r));
-            return (
-              <Link
-                key={s}
-                href={`/dossiers?${params.toString()}`}
-                className={
-                  isOn
-                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-2.5 py-1 rounded-md transition'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition'
-                }
-              >
-                {dossierStatusLabel(s)}
-              </Link>
-            );
-          })}
+        <div className="ml-auto flex items-center gap-2">
+          <StatusFilter
+            options={STATUSES.map((s) => ({ value: s, label: dossierStatusLabel(s) }))}
+            selected={statuses}
+            q={q || undefined}
+          />
+          {(statuses.length > 0 || q) && (
+            <Link
+              href="/dossiers"
+              className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+            >
+              Réinitialiser
+            </Link>
+          )}
         </div>
       </div>
 
