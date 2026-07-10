@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { parseEventResponse, parseEventsList, parseCalendarIds, mergeEvents, type CalEvent } from './google-calendar-client';
+import {
+  parseEventResponse,
+  parseEventsList,
+  parseCalendarIds,
+  parseCalendars,
+  parseColorPalette,
+  mergeEvents,
+  type CalEvent,
+} from './google-calendar-client';
+
+const baseEvent = { end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null, colorId: null, bgColor: null, fgColor: null };
 
 describe('parseEventResponse', () => {
   it('extrait hangoutLink + id', () => {
@@ -81,15 +91,51 @@ describe('parseCalendarIds', () => {
   });
 });
 
+describe('parseEventsList colorId', () => {
+  it('capture le colorId de l’évènement', () => {
+    const out = parseEventsList({ items: [{ id: 'e1', start: { dateTime: '2026-07-01T09:00:00Z' }, colorId: '6' }] });
+    expect(out[0]).toMatchObject({ id: 'e1', colorId: '6', bgColor: null, fgColor: null });
+  });
+});
+
+describe('parseCalendars', () => {
+  it('extrait id + couleurs des agendas', () => {
+    const out = parseCalendars({
+      items: [
+        { id: 'primary', backgroundColor: '#ac725e', foregroundColor: '#1d1d1d' },
+        { id: 'work@g.com' },
+        { foo: 1 },
+      ],
+    });
+    expect(out).toEqual([
+      { id: 'primary', bgColor: '#ac725e', fgColor: '#1d1d1d' },
+      { id: 'work@g.com', bgColor: null, fgColor: null },
+    ]);
+    expect(parseCalendars(null)).toEqual([]);
+  });
+});
+
+describe('parseColorPalette', () => {
+  it('mappe id → {bg,fg} depuis event, ignore le reste', () => {
+    const out = parseColorPalette({
+      calendar: { '1': { background: '#x', foreground: '#y' } },
+      event: { '6': { background: '#ffb878', foreground: '#1d1d1d' }, '9': { background: 42 } },
+    });
+    expect(out).toEqual({ '6': { bg: '#ffb878', fg: '#1d1d1d' } });
+    expect(parseColorPalette(null)).toEqual({});
+    expect(parseColorPalette({})).toEqual({});
+  });
+});
+
 describe('mergeEvents', () => {
   it('fusionne, dédoublonne par id et trie par début', () => {
     const a: CalEvent[] = [
-      { id: 'x', title: 'A', start: '2026-07-05T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
-      { id: 'y', title: 'B', start: '2026-07-03T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
+      { ...baseEvent, id: 'x', title: 'A', start: '2026-07-05T10:00:00Z' },
+      { ...baseEvent, id: 'y', title: 'B', start: '2026-07-03T10:00:00Z' },
     ];
     const b: CalEvent[] = [
-      { id: 'x', title: 'A-dup', start: '2026-07-05T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
-      { id: 'z', title: 'C', start: '2026-07-04T10:00:00Z', end: null, allDay: false, location: null, htmlLink: null, hangoutLink: null },
+      { ...baseEvent, id: 'x', title: 'A-dup', start: '2026-07-05T10:00:00Z' },
+      { ...baseEvent, id: 'z', title: 'C', start: '2026-07-04T10:00:00Z' },
     ];
     expect(mergeEvents([a, b]).map((e) => e.id)).toEqual(['y', 'z', 'x']);
   });

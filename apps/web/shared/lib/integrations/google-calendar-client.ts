@@ -162,6 +162,9 @@ export type CalEvent = {
   location: string | null;
   htmlLink: string | null;
   hangoutLink: string | null;
+  colorId: string | null; // couleur d'évènement Google (1-11), sinon couleur de l'agenda
+  bgColor: string | null; // hex résolu (couleur d'évènement ou d'agenda), rempli par listAgenda
+  fgColor: string | null; // hex texte lisible associé
 };
 
 /** Logique pure : normalise la réponse `events.list` de Google en CalEvent[] triés par début. */
@@ -179,6 +182,7 @@ export function parseEventsList(json: unknown): CalEvent[] {
       location?: unknown;
       htmlLink?: unknown;
       hangoutLink?: unknown;
+      colorId?: unknown;
       start?: { dateTime?: unknown; date?: unknown };
       end?: { dateTime?: unknown; date?: unknown };
     };
@@ -198,6 +202,9 @@ export function parseEventsList(json: unknown): CalEvent[] {
       location: typeof e.location === 'string' ? e.location : null,
       htmlLink: typeof e.htmlLink === 'string' ? e.htmlLink : null,
       hangoutLink: typeof e.hangoutLink === 'string' ? e.hangoutLink : null,
+      colorId: typeof e.colorId === 'string' ? e.colorId : null,
+      bgColor: null,
+      fgColor: null,
     });
   }
   return events.sort((a, b) => a.start.localeCompare(b.start));
@@ -261,6 +268,72 @@ export async function listCalendarIds(
   }
 }
 
+export type CalInfo = { id: string; bgColor: string | null; fgColor: string | null };
+
+/** Logique pure : agendas + leurs couleurs par défaut depuis `calendarList.list`. */
+export function parseCalendars(json: unknown): CalInfo[] {
+  if (!json || typeof json !== 'object') return [];
+  const items = (json as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  const cals: CalInfo[] = [];
+  for (const raw of items) {
+    if (!raw || typeof raw !== 'object') continue;
+    const c = raw as { id?: unknown; backgroundColor?: unknown; foregroundColor?: unknown; selected?: unknown };
+    if (typeof c.id !== 'string') continue;
+    cals.push({
+      id: c.id,
+      bgColor: typeof c.backgroundColor === 'string' ? c.backgroundColor : null,
+      fgColor: typeof c.foregroundColor === 'string' ? c.foregroundColor : null,
+    });
+  }
+  return cals;
+}
+
+async function listCalendars(creds: GoogleCalendarCredentials): Promise<Result<CalInfo[], GoogleApiError>> {
+  const t = await accessTokenFor(creds.refreshToken);
+  if (!t.ok) return err(t.error);
+  try {
+    const res = await fetch(`${CAL_API}/users/me/calendarList?maxResults=250`, {
+      headers: { Authorization: `Bearer ${t.value}` },
+    });
+    if (!res.ok) return err('request_failed');
+    return ok(parseCalendars(await res.json().catch(() => null)));
+  } catch {
+    return err('request_failed');
+  }
+}
+
+export type ColorMap = Record<string, { bg: string; fg: string }>;
+
+/** Logique pure : palette des couleurs d'évènement (id → {bg,fg}) depuis `colors.get`. */
+export function parseColorPalette(json: unknown): ColorMap {
+  if (!json || typeof json !== 'object') return {};
+  const evt = (json as { event?: unknown }).event;
+  if (!evt || typeof evt !== 'object') return {};
+  const map: ColorMap = {};
+  for (const [id, val] of Object.entries(evt as Record<string, unknown>)) {
+    if (val && typeof val === 'object') {
+      const v = val as { background?: unknown; foreground?: unknown };
+      if (typeof v.background === 'string' && typeof v.foreground === 'string') {
+        map[id] = { bg: v.background, fg: v.foreground };
+      }
+    }
+  }
+  return map;
+}
+
+async function getColorPalette(creds: GoogleCalendarCredentials): Promise<ColorMap> {
+  const t = await accessTokenFor(creds.refreshToken);
+  if (!t.ok) return {};
+  try {
+    const res = await fetch(`${CAL_API}/colors`, { headers: { Authorization: `Bearer ${t.value}` } });
+    if (!res.ok) return {};
+    return parseColorPalette(await res.json().catch(() => null));
+  } catch {
+    return {};
+  }
+}
+
 /** Logique pure : fusionne des listes d'évènements, dédoublonne par id et trie par début. */
 export function mergeEvents(lists: CalEvent[][]): CalEvent[] {
   const byId = new Map<string, CalEvent>();
@@ -270,8 +343,21 @@ export function mergeEvents(lists: CalEvent[][]): CalEvent[] {
   return Array.from(byId.values()).sort((a, b) => a.start.localeCompare(b.start));
 }
 
+/** Applique la couleur Google (couleur d'évènement sinon couleur de l'agenda) à chaque évènement. */
+function withColors(events: CalEvent[], cal: CalInfo, palette: ColorMap): CalEvent[] {
+  return events.map((e) => {
+    const evColor = e.colorId ? palette[e.colorId] : undefined;
+    return {
+      ...e,
+      bgColor: evColor?.bg ?? cal.bgColor,
+      fgColor: evColor?.fg ?? cal.fgColor,
+    };
+  });
+}
+
 /**
- * Agenda complet de l'utilisateur : agrège les évènements de TOUS ses agendas.
+ * Agenda complet de l'utilisateur : agrège les évènements de TOUS ses agendas,
+ * avec les codes couleurs Google (couleur d'évènement, sinon couleur de l'agenda).
  * Repli sur l'agenda `primary` seul si l'énumération des agendas échoue
  * (scope calendar.readonly pas encore accordé → reconnexion requise pour tout voir).
  */
@@ -279,14 +365,24 @@ export async function listAgenda(
   creds: GoogleCalendarCredentials,
   range: { timeMin: string; timeMax: string },
 ): Promise<Result<CalEvent[], GoogleApiError>> {
-  const cals = await listCalendarIds(creds);
-  if (!cals.ok || cals.value.length === 0) {
-    return listEvents(creds, range); // repli primary
-  }
-  const perCal = await Promise.all(cals.value.map((id) => listEvents(creds, range, id)));
-  const ok0 = perCal.filter((r): r is Extract<typeof r, { ok: true }> => r.ok);
-  if (ok0.length === 0) return listEvents(creds, range);
-  return ok(mergeEvents(ok0.map((r) => r.value)));
+  const cals = await listCalendars(creds);
+  const calList: CalInfo[] =
+    cals.ok && cals.value.length > 0
+      ? cals.value
+      : [{ id: creds.calendarId || 'primary', bgColor: null, fgColor: null }];
+
+  const palette = await getColorPalette(creds); // best-effort ({} si indisponible)
+
+  const perCal = await Promise.all(
+    calList.map(async (cal) => {
+      const r = await listEvents(creds, range, cal.id);
+      return r.ok ? { ok: true as const, events: withColors(r.value, cal, palette) } : { ok: false as const };
+    }),
+  );
+
+  const oks = perCal.filter((r): r is { ok: true; events: CalEvent[] } => r.ok);
+  if (oks.length === 0) return err('request_failed');
+  return ok(mergeEvents(oks.map((r) => r.events)));
 }
 
 /** Test léger de la connexion (liste des agendas). */

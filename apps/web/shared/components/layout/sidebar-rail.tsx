@@ -43,7 +43,7 @@ type Group = {
 
 const GROUPS: Group[] = [
   { key: 'accueil', label: 'Accueil', icon: LayoutDashboard, href: '/' },
-  { key: 'agenda', label: 'Agenda', icon: CalendarDays, href: '/planning' },
+  { key: 'agenda', label: 'Agenda', icon: CalendarDays, href: '/agenda' },
   {
     key: 'crm',
     label: 'Demandes',
