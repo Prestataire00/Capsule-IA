@@ -5,7 +5,12 @@ import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import type { AuthCtx } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
-import { AddMemberSchema, ChangeMemberRoleSchema, DeactivateMemberSchema } from './members-schema';
+import {
+  AddMemberSchema,
+  ChangeMemberRoleSchema,
+  DeactivateMemberSchema,
+  SetMemberPasswordSchema,
+} from './members-schema';
 
 /** Mot de passe temporaire conforme (≥10, 1 maj, 1 min, 1 chiffre, 1 spécial), sans caractère ambigu. */
 function genTempPassword(): string {
@@ -85,6 +90,28 @@ export const changeMemberRoleAction = authActionClient
     if (error) throw new Error(`change_role_failed: ${error.message}`);
     revalidatePath('/parametres/membres');
     return { ok: true as const };
+  });
+
+export const setMemberPasswordAction = authActionClient
+  .schema(SetMemberPasswordSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { currentRole, members } = await loadContext(ctx);
+    if (!isAdminOrOwner(currentRole)) return { ok: false as const, error: 'forbidden' };
+
+    const target = members.find((m) => m.id === parsedInput.memberId);
+    if (!target) return { ok: false as const, error: 'not_found' };
+
+    // Mot de passe fourni, sinon on en génère un temporaire (renvoyé à l'admin).
+    const provided = parsedInput.password?.trim();
+    const password = provided && provided.length >= 8 ? provided : genTempPassword();
+    const generated = !(provided && provided.length >= 8);
+
+    const { error } = await supabaseAdmin().auth.admin.updateUserById(target.user_id, { password });
+    if (error) return { ok: false as const, error: 'update_failed', details: error.message };
+
+    revalidatePath('/parametres/membres');
+    // On ne renvoie le mot de passe que s'il a été généré (pour le communiquer au membre).
+    return { ok: true as const, password: generated ? password : null };
   });
 
 export const deactivateMemberAction = authActionClient
