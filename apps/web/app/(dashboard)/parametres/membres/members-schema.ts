@@ -24,3 +24,10 @@ export const AddMemberSchema = z.object({
   role: z.enum(ADD_MEMBER_ROLES),
 });
 export type AddMemberInput = z.infer<typeof AddMemberSchema>;
+
+/** Modifier le mot de passe d'un membre (admin/owner). Vide → génère un mot de passe temporaire. */
+export const SetMemberPasswordSchema = z.object({
+  memberId: z.string().uuid(),
+  password: z.string().min(8, 'Au moins 8 caractères').max(72).optional().or(z.literal('')),
+});
+export type SetMemberPasswordInput = z.infer<typeof SetMemberPasswordSchema>;
