@@ -52,6 +52,14 @@ function parisParts(iso: string): { key: string; hour: number; minute: number } 
   return { key: `${get('year')}-${get('month')}-${get('day')}`, hour, minute: Number(get('minute')) };
 }
 
+/** Heure « HH:MM » (Europe/Paris) d'un instant ISO. */
+function hm(iso: string): string {
+  const p = parisParts(iso);
+  return `${pad(p.hour)}:${pad(p.minute)}`;
+}
+
+const FULL_DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
 type Timed = CalEvent & { startHour: number; durationH: number; timeLabel: string };
 type Positioned = Timed & { lane: number; lanes: number };
 
@@ -73,8 +81,41 @@ function packLanes(evts: Timed[]): Positioned[] {
   return withLane.map((e) => ({ ...e, lanes }));
 }
 
-export default async function AgendaPage({ searchParams }: { searchParams?: { week?: string } }) {
+/** Une ligne d'événement dans la vue Liste (heure + titre + lieu + Meet). */
+function AgendaListRow({ e, timeText }: { e: CalEvent; timeText: string }) {
+  const inner = (
+    <div className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950/40 transition">
+      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: e.bgColor ?? DEFAULT_BG }} />
+      <span className="font-mono text-[12px] text-zinc-500 dark:text-zinc-400 w-[92px] flex-shrink-0 tabular-nums">
+        {timeText}
+      </span>
+      <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate flex-1">{e.title || '(sans titre)'}</span>
+      {e.location && (
+        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate hidden sm:inline max-w-[200px]">
+          {e.location}
+        </span>
+      )}
+      {e.hangoutLink && <Video className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+    </div>
+  );
+  return e.htmlLink ? (
+    <li>
+      <a href={e.htmlLink} target="_blank" rel="noopener noreferrer" className="block">
+        {inner}
+      </a>
+    </li>
+  ) : (
+    <li>{inner}</li>
+  );
+}
+
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams?: { week?: string; view?: string };
+}) {
   const weekOffset = Number.parseInt(searchParams?.week ?? '0', 10) || 0;
+  const view: 'liste' | 'semaine' = searchParams?.view === 'semaine' ? 'semaine' : 'liste';
 
   const { data: auth } = await supabaseServer().auth.getUser();
   const userId = auth?.user?.id ?? null;
@@ -212,11 +253,79 @@ export default async function AgendaPage({ searchParams }: { searchParams?: { we
     <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         {header}
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-          {eventCount} événement{eventCount > 1 ? 's' : ''} cette semaine
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+            {eventCount} événement{eventCount > 1 ? 's' : ''} cette semaine
+          </p>
+          <div className="inline-flex items-center gap-0.5 bg-zinc-100 dark:bg-zinc-900 rounded-lg p-0.5">
+            {(['liste', 'semaine'] as const).map((v) => (
+              <Link
+                key={v}
+                href={`/agenda?week=${weekOffset}&view=${v}`}
+                className={`px-3 py-1 rounded-md text-[12px] font-medium capitalize transition ${
+                  view === v
+                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+                }`}
+              >
+                {v}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
 
+      {view === 'liste' && (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+          {nav}
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {days.map((d, i) => {
+              const allDay = allDayByDay.get(d.key) ?? [];
+              const timed = [...(timedByDay.get(d.key) ?? [])].sort((a, b) => a.startHour - b.startHour);
+              const total = allDay.length + timed.length;
+              return (
+                <div
+                  key={d.key}
+                  className={`px-4 sm:px-5 py-3 ${d.isToday ? 'bg-orange-50/40 dark:bg-orange-950/10' : ''}`}
+                >
+                  <div className="flex items-baseline gap-2 mb-1.5">
+                    <span
+                      className={`text-[13px] font-semibold ${
+                        d.isToday ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'
+                      }`}
+                    >
+                      {FULL_DAY_LABELS[i]} {d.dayNum}
+                    </span>
+                    {total > 0 && (
+                      <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                        · {total} évt
+                      </span>
+                    )}
+                  </div>
+                  {total === 0 ? (
+                    <p className="text-[12px] text-zinc-400 dark:text-zinc-500 pl-1">Rien de prévu</p>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {allDay.map((e) => (
+                        <AgendaListRow key={e.id} e={e} timeText="Journée" />
+                      ))}
+                      {timed.map((e) => (
+                        <AgendaListRow
+                          key={e.id}
+                          e={e}
+                          timeText={e.end ? `${e.timeLabel}–${hm(e.end)}` : e.timeLabel}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {view === 'semaine' && (
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         {nav}
 
@@ -322,6 +431,7 @@ export default async function AgendaPage({ searchParams }: { searchParams?: { we
           </div>
         </div>
       </div>
+      )}
 
       {eventCount === 0 && (
         <p className="text-[13px] text-zinc-400 dark:text-zinc-500 text-center">
