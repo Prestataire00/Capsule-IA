@@ -51,6 +51,28 @@ const dataRow = (label: string, value: string) => `
   </tr>
 `;
 
+// ────────────────────────────────────────────────────────────────
+// Email — Réinitialisation de mot de passe
+// ────────────────────────────────────────────────────────────────
+
+export function passwordResetEmail(data: { resetUrl: string }): { subject: string; html: string } {
+  const subject = 'Réinitialisation de votre mot de passe';
+  const html = wrapper(`
+    ${card(`
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Réinitialiser votre mot de passe</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
+        Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous —
+        ce lien est valable une heure et à usage unique.
+      </p>
+      <div>${button(data.resetUrl, 'Choisir un nouveau mot de passe')}</div>
+      <p style="font-size:12px; color:#71717a; margin:20px 0 0;">
+        Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email : votre mot de passe reste inchangé.
+      </p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;

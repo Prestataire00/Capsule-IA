@@ -3,7 +3,9 @@
 import { headers } from 'next/headers';
 import { z } from 'zod';
 import { env } from '@/env.mjs';
-import { supabaseServer } from '@/shared/lib/supabase/server';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { sendEmail } from '@/shared/lib/email/resend';
+import { passwordResetEmail } from '@/shared/lib/email/templates';
 
 const EmailSchema = z.object({ email: z.string().email() });
 
@@ -18,17 +20,41 @@ function baseUrl(): string {
 }
 
 /**
- * Envoie un email de réinitialisation de mot de passe. Réponse volontairement
- * identique que l'adresse existe ou non (pas d'énumération de comptes).
+ * Réinitialisation de mot de passe. On génère nous-mêmes le lien de récupération
+ * (admin API) puis on l'envoie via l'email de l'app (Resend/SMTP) — l'email
+ * intégré de Supabase Auth n'est pas fiable en prod sans SMTP custom.
+ * Réponse volontairement identique que l'adresse existe ou non (anti-énumération).
  */
 export async function requestPasswordReset(input: { email: string }): Promise<ForgotResult> {
   const parsed = EmailSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'Adresse email invalide.' };
 
-  const sb = supabaseServer();
-  await sb.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${baseUrl()}/auth/callback?next=${encodeURIComponent('/auth/reset-password')}`,
-  });
+  const email = parsed.data.email;
+  const redirectTo = `${baseUrl()}/auth/callback?next=${encodeURIComponent('/auth/reset-password')}`;
+
+  try {
+    const admin = supabaseAdmin();
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo },
+    });
+
+    const link = (data as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+    // Compte inexistant / erreur : on répond ok sans rien divulguer (anti-énumération).
+    if (error || !link) {
+      if (error) console.error('[requestPasswordReset] generateLink', error.message);
+      return { ok: true };
+    }
+
+    const tpl = passwordResetEmail({ resetUrl: link });
+    const r = await sendEmail({ to: email, subject: tpl.subject, html: tpl.html, kind: 'password_reset' });
+    if (!r.ok && r.reason !== 'no_api_key') {
+      console.error('[requestPasswordReset] sendEmail', r);
+    }
+  } catch (e) {
+    console.error('[requestPasswordReset] failed', e);
+  }
 
   return { ok: true };
 }
