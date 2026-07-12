@@ -32,8 +32,10 @@ const modalityLabel: Record<string, string> = { presentiel: 'Présentiel', dista
 
 function SessionItem({ s }: { s: SessionRow }) {
   const st = STATUS[s.status] ?? { label: s.status, tone: 'neutral' as const };
+  const isGroup = !s.dossier?.id;
   const learner = s.dossier?.learner ? [s.dossier.learner.first_name, s.dossier.learner.last_name].filter(Boolean).join(' ') : null;
-  const formation = s.dossier?.formation;
+  const formation = s.formation ?? s.dossier?.formation;
+  const titleHref = s.dossier?.id ? `/dossiers/${s.dossier.id}/sessions` : formation ? `/formations/${formation.id}` : '/sessions';
   return (
     <li className="grid grid-cols-[150px_1fr_1fr_130px_100px] gap-3 py-3 px-4 text-[13px] items-center hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
       <div className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -42,10 +44,10 @@ function SessionItem({ s }: { s: SessionRow }) {
         {timeFmt.format(new Date(s.starts_at))} – {timeFmt.format(new Date(s.ends_at))}
       </div>
       <div className="min-w-0">
-        <Link href={`/dossiers/${s.dossier?.id}/sessions`} className="text-zinc-900 dark:text-zinc-100 hover:text-violet-600 truncate block">
+        <Link href={titleHref} className="text-zinc-900 dark:text-zinc-100 hover:text-violet-600 truncate block">
           {s.title || 'Session'}
         </Link>
-        {learner && <span className="text-[11px] text-zinc-400">{learner}</span>}
+        <span className="text-[11px] text-zinc-400">{isGroup ? 'Session de groupe' : learner ?? '—'}</span>
       </div>
       <div className="min-w-0">
         {formation ? (
@@ -80,6 +82,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
       .from('sessions')
       .select(
         'id, title, status, starts_at, ends_at, modality, remote_url, ' +
+          'formation:formations(id, title), ' +
           'dossier:dossiers(id, reference, learner:learners(first_name, last_name), formation:formations(id, title))',
       )
       .order('starts_at', { ascending: false })
@@ -92,10 +95,12 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   const formations = ((formationData as any[]) ?? []) as { id: string; title: string }[];
 
   const filtered = all.filter((s) => {
-    if (formationId && s.dossier?.formation?.id !== formationId) return false;
+    const fid = s.formation?.id ?? s.dossier?.formation?.id;
+    if (formationId && fid !== formationId) return false;
     if (q) {
       const learner = s.dossier?.learner ? `${s.dossier.learner.first_name ?? ''} ${s.dossier.learner.last_name ?? ''}` : '';
-      const hay = `${s.title ?? ''} ${s.dossier?.reference ?? ''} ${s.dossier?.formation?.title ?? ''} ${learner}`.toLowerCase();
+      const formationTitle = s.formation?.title ?? s.dossier?.formation?.title ?? '';
+      const hay = `${s.title ?? ''} ${s.dossier?.reference ?? ''} ${formationTitle} ${learner}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;

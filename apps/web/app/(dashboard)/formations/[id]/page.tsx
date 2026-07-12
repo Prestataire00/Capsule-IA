@@ -2,6 +2,7 @@
 // Justification: fiche détail formation en données réelles — KPIs, programme (formation_modules), dossiers liés, lien d'inscription.
 
 import Link from 'next/link';
+import { GroupSessionForm } from './group-session-form.client';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft, Clock, Video, MapPin, GraduationCap, BookOpen, Eye, EyeOff,
@@ -75,18 +76,18 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const relatedDossiers = ((dossierData as any[]) ?? []);
 
-  // Sessions de cette formation = sessions des dossiers rattachés.
+  // Sessions de cette formation = sessions de groupe (formation_id) + sessions des dossiers rattachés.
   const dossierIds = relatedDossiers.map((d) => d.id);
-  const { data: sessionData } = dossierIds.length
-    ? await sb
-        .schema('app')
-        .from('sessions')
-        .select('id, title, status, starts_at, ends_at, modality, remote_url, dossier_id')
-        .in('dossier_id', dossierIds)
-        .order('starts_at', { ascending: false })
-        .limit(50)
-    : // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { data: [] as any[] };
+  const orFilter = dossierIds.length
+    ? `formation_id.eq.${id},dossier_id.in.(${dossierIds.join(',')})`
+    : `formation_id.eq.${id}`;
+  const { data: sessionData } = await sb
+    .schema('app')
+    .from('sessions')
+    .select('id, title, status, starts_at, ends_at, modality, remote_url, dossier_id, formation_id')
+    .or(orFilter)
+    .order('starts_at', { ascending: false })
+    .limit(50);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sessions = ((sessionData as any[]) ?? []);
 
@@ -285,24 +286,42 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           </Card>
 
           <Card title={`Sessions (${sessions.length})`}>
+            <div className="mb-3 pb-3 border-b border-zinc-100 dark:border-zinc-800/60">
+              <GroupSessionForm formationId={id} />
+            </div>
             {sessions.length === 0 ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                Aucune session planifiée pour cette formation. Planifiez-en depuis un dossier.
+                Aucune session pour cette formation. Créez une session de groupe ci-dessus, ou planifiez-en depuis un dossier.
               </p>
             ) : (
               <ul className="space-y-2 -my-1">
-                {sessions.slice(0, 8).map((s) => (
-                  <li key={s.id}>
-                    <Link href={`/dossiers/${s.dossier_id}/sessions`} className="block px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">{s.title || 'Session'}</p>
-                        <span className="font-mono text-[10px] text-zinc-400 shrink-0">
-                          {new Date(s.starts_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                        </span>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
+                {sessions.slice(0, 8).map((s) => {
+                  const isGroup = !s.dossier_id;
+                  const row = (
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">
+                        {s.title || 'Session'}
+                        {isGroup && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">groupe</span>
+                        )}
+                      </p>
+                      <span className="font-mono text-[10px] text-zinc-400 shrink-0">
+                        {new Date(s.starts_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                      </span>
+                    </div>
+                  );
+                  return (
+                    <li key={s.id}>
+                      {isGroup ? (
+                        <div className="block px-3 py-2 -mx-3">{row}</div>
+                      ) : (
+                        <Link href={`/dossiers/${s.dossier_id}/sessions`} className="block px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
+                          {row}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
                 <li>
                   <Link href={`/sessions?formation=${id}`} className="inline-block px-3 text-[12px] text-violet-600 dark:text-violet-400 hover:underline">
                     Voir toutes les sessions →
