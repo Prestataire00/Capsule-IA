@@ -16,6 +16,7 @@ import {
   type InvoiceInput,
   type PayerLine,
 } from '@/features/billing/domain/billing-plan';
+import { setDossierTotalAmount } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,12 +114,20 @@ async function loadData(dossierId: string) {
   };
 }
 
-export default async function FacturationPage({ params }: { params: { id: string } }) {
+export default async function FacturationPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { amountSaved?: string; amountError?: string };
+}) {
   const { dossier, funders, invoices } = await loadData(params.id);
   if (!dossier) notFound();
 
   const currency = dossier.currency || 'EUR';
   const totalHt = dossier.total_amount_cents ?? 0;
+  const amountMissing = dossier.total_amount_cents == null;
+  const editable = !['closed', 'archived', 'cancelled'].includes(dossier.status);
 
   const allocations: FunderAllocationInput[] = funders.map((f) => ({
     funderId: f.funder_id,
@@ -150,6 +159,74 @@ export default async function FacturationPage({ params }: { params: { id: string
           Restant {formatEuros(Math.max(0, plan.remainingHtCents), currency)} HT
         </p>
       </header>
+
+      {searchParams?.amountError && (
+        <InfoCallout tone="danger">
+          Montant invalide. Saisissez un nombre, par ex. 1500 ou 1500,50.
+        </InfoCallout>
+      )}
+      {searchParams?.amountSaved && !amountMissing && (
+        <InfoCallout tone="success">Montant total du dossier enregistré.</InfoCallout>
+      )}
+
+      {editable &&
+        (amountMissing ? (
+          <div className="border border-amber-300/70 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/20 rounded-xl p-4">
+            <p className="text-[13px] font-medium text-amber-900 dark:text-amber-200 mb-1">
+              Renseignez le montant total HT du dossier
+            </p>
+            <p className="text-[12px] text-amber-800/80 dark:text-amber-300/80 mb-3">
+              Sans montant total, aucun payeur n&apos;est facturable et le bouton « Facturer » ne
+              s&apos;affiche pas. Indiquez le montant HT total de la formation pour ce dossier.
+            </p>
+            <form action={setDossierTotalAmount} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="dossierId" value={dossier.id} />
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                  Montant total HT
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    name="amount"
+                    inputMode="decimal"
+                    placeholder="1500,00"
+                    required
+                    className="w-36 rounded-lg border border-zinc-200/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                  />
+                  <span className="text-[13px] text-zinc-500 dark:text-zinc-400">€ HT</span>
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-3.5 py-2 shadow-sm transition"
+              >
+                Enregistrer
+              </button>
+            </form>
+          </div>
+        ) : (
+          <details className="group">
+            <summary className="cursor-pointer select-none text-[12px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition">
+              Modifier le montant total HT ({formatEuros(totalHt, currency)})
+            </summary>
+            <form action={setDossierTotalAmount} className="flex flex-wrap items-end gap-2 mt-3">
+              <input type="hidden" name="dossierId" value={dossier.id} />
+              <input
+                name="amount"
+                inputMode="decimal"
+                defaultValue={(totalHt / 100).toFixed(2).replace('.', ',')}
+                className="w-36 rounded-lg border border-zinc-200/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+              />
+              <span className="text-[13px] text-zinc-500 dark:text-zinc-400">€ HT</span>
+              <button
+                type="submit"
+                className="rounded-lg border border-zinc-200/70 dark:border-zinc-700 text-[13px] px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
+              >
+                Enregistrer
+              </button>
+            </form>
+          </details>
+        ))}
 
       {plan.overBilled && (
         <InfoCallout tone="danger">
@@ -238,7 +315,9 @@ export default async function FacturationPage({ params }: { params: { id: string
           <InfoCallout tone="info">
             {dossier.status === 'closed'
               ? 'Aucune facture liée à ce dossier.'
-              : 'Aucune facture émise — utilisez « Facturer » ci-dessus pour en créer une par payeur.'}
+              : amountMissing
+                ? 'Aucune facture — renseignez d’abord le montant total HT du dossier ci-dessus pour pouvoir facturer.'
+                : 'Aucune facture émise — cliquez sur « Facturer » en face d’un payeur pour en créer une.'}
           </InfoCallout>
         ) : (
           <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
