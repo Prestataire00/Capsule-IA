@@ -79,7 +79,7 @@ type RealDashboard = {
     start_date: string;
     end_date: string;
     total_hours: number;
-    formation: { id: string; title: string };
+    formation: { id: string; title: string } | null;
   };
   sessions: Array<{
     id: string;
@@ -109,9 +109,15 @@ type RealComplaint = {
 export async function resolveApprenantContext(token: string): Promise<ApprenantContext | null> {
   if (!token || token.length < 3) return null;
 
-  // Voie nominale : JWT valide → DB
+  // JWT valide → DB. Aucune donnée fictive : un lien invalide/expiré ou un
+  // apprenant introuvable renvoie null (page "lien invalide"), jamais un
+  // apprenant de démonstration.
   const verified = await verifyApprenantToken(token);
-  if (verified.ok) {
+  if (!verified.ok) {
+    console.warn('[espace-apprenant] token invalide/expiré:', verified.error);
+    return null;
+  }
+  {
     const sb = supabaseServer();
     // Les RPC vivent dans le schéma `app` ; le client par défaut cible `public`.
     // Sans `.schema('app')`, l'appel échoue → on retombait sur le mock (Alice).
@@ -119,7 +125,11 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
       sb.schema('app').rpc('get_apprenant_dashboard' as never, { p_learner_id: verified.value.learnerId } as never),
       sb.schema('app').rpc('get_learner_complaints' as never, { p_learner_id: verified.value.learnerId } as never),
     ]);
-    if (!dash.error && dash.data) {
+    if (dash.error) {
+      console.error('[espace-apprenant] RPC get_apprenant_dashboard a échoué:', dash.error);
+      return null;
+    }
+    if (dash.data) {
       const d = dash.data as unknown as RealDashboard;
       if (d.learner && d.dossier) {
         const complaintsArr = (comp.data ?? []) as unknown as RealComplaint[];
@@ -140,14 +150,16 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
           dossier: {
             id: d.dossier.id,
             reference: d.dossier.reference,
-            formationId: d.dossier.formation.id,
+            formationId: d.dossier.formation?.id ?? '',
             modality: d.dossier.modality,
             startDate: d.dossier.start_date,
             endDate: d.dossier.end_date,
             totalHours: d.dossier.total_hours,
             status: d.dossier.status,
           },
-          formation: { id: d.dossier.formation.id, title: d.dossier.formation.title },
+          formation: d.dossier.formation
+            ? { id: d.dossier.formation.id, title: d.dossier.formation.title }
+            : null,
           trainer: d.trainer
             ? { firstName: d.trainer.first_name, lastName: d.trainer.last_name, email: d.trainer.email }
             : null,
@@ -182,10 +194,11 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
     }
   }
 
-  // Token invalide/expiré ou dossier introuvable → aucun accès.
-  // JAMAIS de fallback vers un apprenant fictif : montrer les données d'un
-  // tiers (ancien mock « Alice ») serait une fuite RGPD et rendrait l'espace
-  // non personnalisé pour tous.
+  // Token valide mais apprenant/dossier introuvable en base (lien généré sur une
+  // autre base, apprenant supprimé…). JAMAIS de fallback vers un apprenant
+  // fictif : montrer les données d'un tiers (ancien mock « Alice ») serait une
+  // fuite RGPD et rendrait l'espace non personnalisé.
+  console.warn('[espace-apprenant] apprenant ou dossier introuvable pour ce lien');
   return null;
 }
 
