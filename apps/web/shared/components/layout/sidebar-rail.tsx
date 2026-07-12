@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
-  Bell, BarChart3, Inbox, UserPlus, Eye, Telescope, CalendarDays,
+  Bell, BarChart3, Inbox, UserPlus, Eye, Telescope, CalendarDays, CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -59,6 +59,7 @@ const GROUPS: Group[] = [
     icon: FolderOpen,
     items: [
       { href: '/dossiers', icon: FolderOpen, label: 'Tous les dossiers' },
+      { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
       { href: '/planning', icon: Calendar, label: 'Planning' },
     ],
     showRecents: false,
