@@ -19,6 +19,8 @@ export default async function EspaceLayout({
     <div className="flex min-h-[calc(100vh-3rem)] bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/15 dark:to-zinc-950">
       <EspaceSidebar
         token={params.token}
+        organizationName={ctx.organization.name}
+        organizationLogoUrl={ctx.organization.logoUrl}
         learnerFirstName={ctx.learner.firstName}
         learnerLastName={ctx.learner.lastName}
         dossierReference={ctx.dossier.reference}

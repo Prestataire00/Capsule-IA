@@ -9,9 +9,32 @@ import {
 } from '@/shared/mock/data';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+
+// Charge le logo de l'organisme pour l'espace apprenant. L'apprenant n'est pas
+// membre de l'org : on passe par le service role (bucket org_assets privé) et on
+// renvoie une URL signée (1 h). Renvoie null si aucun logo.
+async function loadOrgLogoSignedUrl(organizationId: string): Promise<string | null> {
+  try {
+    const admin = supabaseAdmin();
+    const { data: orgRow } = await admin
+      .schema('app')
+      .from('organizations')
+      .select('logo_path')
+      .eq('id', organizationId)
+      .maybeSingle();
+    const path = (orgRow as { logo_path?: string | null } | null)?.logo_path ?? null;
+    if (!path) return null;
+    const { data: signed } = await admin.storage.from('org_assets').createSignedUrl(path, 3600);
+    return signed?.signedUrl ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export type ApprenantContext = {
   isReal: boolean;
+  organization: { id: string; name: string; logoUrl: string | null };
   learner: { id: string; firstName: string; lastName: string; email: string };
   dossier: {
     id: string;
@@ -106,8 +129,14 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
       const d = dash.data as unknown as RealDashboard;
       if (d.learner && d.dossier) {
         const complaintsArr = (comp.data ?? []) as unknown as RealComplaint[];
+        const logoUrl = d.organization?.id ? await loadOrgLogoSignedUrl(d.organization.id) : null;
         return {
           isReal: true,
+          organization: {
+            id: d.organization?.id ?? '',
+            name: d.organization?.name ?? 'Organisme de formation',
+            logoUrl,
+          },
           learner: {
             id: d.learner.id,
             firstName: d.learner.first_name,
@@ -169,6 +198,7 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
 
   return {
     isReal: false,
+    organization: { id: 'org-mock', name: 'Organisme de formation', logoUrl: null },
     learner: { id: learner.id, firstName: learner.firstName, lastName: learner.lastName, email: learner.email },
     dossier: {
       id: dossier.id,

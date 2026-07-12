@@ -10,7 +10,6 @@ import {
   PenLine,
   MessageSquareWarning,
 } from 'lucide-react';
-import { Logo } from '@/shared/ui/logo';
 
 type NavItem = {
   href: (token: string) => string;
@@ -30,11 +29,15 @@ const NAV: NavItem[] = [
 
 export function EspaceSidebar({
   token,
+  organizationName,
+  organizationLogoUrl,
   learnerFirstName,
   learnerLastName,
   dossierReference,
 }: {
   token: string;
+  organizationName: string;
+  organizationLogoUrl: string | null;
   learnerFirstName: string;
   learnerLastName: string;
   dossierReference: string;
@@ -46,9 +49,20 @@ export function EspaceSidebar({
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm flex flex-col">
-      {/* Brand */}
+      {/* Brand — organisme de formation */}
       <div className="px-4 py-5 border-b border-zinc-200/60 dark:border-zinc-800">
-        <Logo size="md" />
+        {organizationLogoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={organizationLogoUrl}
+            alt={organizationName}
+            className="max-h-12 max-w-[180px] object-contain"
+          />
+        ) : (
+          <span className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+            {organizationName}
+          </span>
+        )}
       </div>
 
       {/* Apprenant identity */}
