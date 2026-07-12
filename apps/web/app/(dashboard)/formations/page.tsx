@@ -8,6 +8,7 @@ import { StatCard } from '@/shared/ui/stat-card';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 
 const modalityStyles = {
   presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
@@ -67,13 +68,6 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
     return true;
   });
 
-  const modalityHref = (m: string) => {
-    const p = new URLSearchParams();
-    if (q) p.set('q', q);
-    if (m) p.set('modality', m);
-    const s = p.toString();
-    return s ? `/formations?${s}` : '/formations';
-  };
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
@@ -114,23 +108,23 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
           />
           {modality && <input type="hidden" name="modality" value={modality} />}
         </form>
-        <div className="flex items-center gap-1.5 text-[12px]">
-          <span className="text-zinc-500 dark:text-zinc-400 mr-2">Modalité :</span>
-          <Link
-            href={modalityHref('')}
-            className={!modality ? 'bg-violet-600 text-white px-2.5 py-1 rounded-md font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition'}
-          >
-            Toutes
-          </Link>
-          {MODALITIES.map((m) => (
+        <div className="flex items-center gap-2">
+          <FilterDropdown
+            label="Modalité"
+            paramName="modality"
+            options={MODALITIES.map((m) => ({ value: m, label: modalityStyles[m].label }))}
+            selected={modality ? [modality] : []}
+            basePath="/formations"
+            preserved={{ q: searchParams.q || undefined }}
+          />
+          {(modality || searchParams.q) && (
             <Link
-              key={m}
-              href={modalityHref(m)}
-              className={modality === m ? 'bg-violet-600 text-white px-2.5 py-1 rounded-md font-medium' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition'}
+              href="/formations"
+              className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
             >
-              {modalityStyles[m].label}
+              Réinitialiser
             </Link>
-          ))}
+          )}
         </div>
       </div>
 
