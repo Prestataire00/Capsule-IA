@@ -2,7 +2,7 @@
 // Justification: page Documents org-wide — onglets dérivés du statut réel, table dense, recherche.
 
 import Link from 'next/link';
-import { FileText, Search, Download } from 'lucide-react';
+import { FileText, Search, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
 import { DocumentUploadButton, AttachToDossier, type DossierOption } from './document-tools';
@@ -206,7 +206,7 @@ export default async function DocumentsPage({
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {rows.map((d) => {
-              const href = d.dossier ? `/dossiers/${d.dossier.id}/documents` : '/dossiers';
+              const href = `/documents/${d.id}/apercu`;
               const statusPill =
                 activeTab === 'archives'
                   ? { label: 'Archivé', cls: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400' }
@@ -217,7 +217,7 @@ export default async function DocumentsPage({
                       : d.status === 'failed'
                         ? { label: 'Échec', cls: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400' }
                         : { label: 'En cours', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' };
-              const action = activeTab === 'a-signer' ? 'Signer' : activeTab === 'archives' ? 'Voir' : 'Télécharger';
+              const action = activeTab === 'a-signer' ? 'Signer' : 'Voir';
               const rowGrid =
                 'grid grid-cols-[28px_1.5fr_140px_1.2fr_140px_120px_100px] gap-3 px-5 py-3 items-center text-[13px]';
 
@@ -235,14 +235,12 @@ export default async function DocumentsPage({
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusPill.cls}`}>
                       {statusPill.label}
                     </span>
-                    <a
-                      href={`/api/documents/${d.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <Link
+                      href={`/documents/${d.id}/apercu`}
                       className="text-[12px] font-medium text-orange-600 hover:text-orange-700 transition text-right inline-flex items-center gap-1 justify-end"
                     >
-                      Télécharger <Download className="w-3 h-3" />
-                    </a>
+                      Voir <Eye className="w-3 h-3" />
+                    </Link>
                   </li>
                 );
               }
@@ -262,7 +260,7 @@ export default async function DocumentsPage({
                     </span>
                     <span className="text-[12px] font-medium text-violet-600 dark:text-violet-400 group-hover:text-violet-700 dark:group-hover:text-violet-300 transition text-right inline-flex items-center gap-1 justify-end group-hover:underline">
                       {action}
-                      {action === 'Télécharger' && <Download className="w-3 h-3" />}
+                      {action === 'Voir' && <Eye className="w-3 h-3" />}
                     </span>
                   </Link>
                 </li>

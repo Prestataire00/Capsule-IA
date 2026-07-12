@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { PrintButton } from './_components/print-button';
 import {
@@ -19,7 +19,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
   const { data } = await sb
     .schema('app')
     .from('documents')
-    .select('id, title, content_html, dossier_id')
+    .select('id, title, content_html, dossier_id, storage_path, mime_type')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -29,8 +29,13 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     title: string;
     content_html: string | null;
     dossier_id: string | null;
+    storage_path: string | null;
+    mime_type: string | null;
   } | null;
   if (!doc) notFound();
+
+  // Fichier PDF (pas de HTML inline) → aperçu embarqué dans le navigateur.
+  const isPdf = !doc.content_html && !!doc.storage_path;
 
   const { data: sigData } = await sb
     .schema('app')
@@ -106,31 +111,56 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
         .doc-sheet .signatures { margin-top: 36px; }
       `}</style>
 
-      <div className="no-print max-w-[760px] mx-auto mb-4 flex items-center justify-between">
+      <div className={`no-print mx-auto mb-4 flex items-center justify-between ${isPdf ? 'max-w-[900px]' : 'max-w-[760px]'}`}>
         <Link
-          href={doc.dossier_id ? `/dossiers/${doc.dossier_id}/documents` : '/dossiers'}
+          href={doc.dossier_id ? `/dossiers/${doc.dossier_id}/documents` : '/documents'}
           className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Retour au dossier
+          {doc.dossier_id ? 'Retour au dossier' : 'Retour aux documents'}
         </Link>
-        <PrintButton />
-      </div>
-
-      <article className="doc-sheet bg-white text-zinc-900 max-w-[760px] mx-auto rounded-sm shadow-lg px-12 py-12">
-        {doc.content_html ? (
-          // eslint-disable-next-line react/no-danger
-          <div dangerouslySetInnerHTML={{ __html: doc.content_html }} />
+        {isPdf ? (
+          <a
+            href={`/api/documents/${doc.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[13px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Ouvrir / Télécharger
+          </a>
         ) : (
-          <p className="text-[13px] text-zinc-500">
-            Ce document est un fichier (PDF) — utilisez le bouton de téléchargement dans l&apos;onglet Documents.
-          </p>
+          <PrintButton />
         )}
-      </article>
-
-      <div className="no-print max-w-[760px] mx-auto mt-5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6">
-        <SignaturePanel documentId={doc.id} suggestions={suggestions} existing={existing} />
       </div>
+
+      {isPdf ? (
+        <div className="max-w-[900px] mx-auto rounded-sm shadow-lg overflow-hidden bg-white">
+          <iframe
+            src={`/api/documents/${doc.id}`}
+            title={doc.title}
+            className="w-full bg-white"
+            style={{ height: '85vh', border: 'none' }}
+          />
+        </div>
+      ) : (
+        <>
+          <article className="doc-sheet bg-white text-zinc-900 max-w-[760px] mx-auto rounded-sm shadow-lg px-12 py-12">
+            {doc.content_html ? (
+              // eslint-disable-next-line react/no-danger
+              <div dangerouslySetInnerHTML={{ __html: doc.content_html }} />
+            ) : (
+              <p className="text-[13px] text-zinc-500">
+                Ce document n&apos;a pas encore de contenu consultable.
+              </p>
+            )}
+          </article>
+
+          <div className="no-print max-w-[760px] mx-auto mt-5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+            <SignaturePanel documentId={doc.id} suggestions={suggestions} existing={existing} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
