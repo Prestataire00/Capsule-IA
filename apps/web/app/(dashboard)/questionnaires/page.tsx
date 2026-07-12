@@ -10,6 +10,7 @@ import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { StatCard } from '@/shared/ui/stat-card';
 import { TemplatesSection, type TemplateItem } from './templates-section';
+import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,7 +91,6 @@ export default async function QuestionnairesPage({
       : activeStatus === 'pending'
         ? all.filter((q) => q.status === 'pending' || q.status === 'in_progress')
         : all;
-  const filterLabels: Record<string, string> = { completed: 'Complétés', pending: 'En attente' };
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
@@ -132,16 +132,29 @@ export default async function QuestionnairesPage({
         )}
       </section>
 
-      {activeStatus && (
-        <div className="flex items-center gap-2 mb-4 text-[13px]">
-          <span className="text-zinc-500 dark:text-zinc-400">
-            Filtré sur <span className="font-medium text-zinc-700 dark:text-zinc-300">{filterLabels[activeStatus]}</span>
-          </span>
-          <Link href="/questionnaires" className="inline-flex items-center gap-1 text-orange-600 hover:underline">
-            ✕ Tout afficher
-          </Link>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h2 className="text-[13px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium">Envois</h2>
+        <div className="flex items-center gap-2">
+          <FilterDropdown
+            label="Statut"
+            paramName="status"
+            options={[
+              { value: 'completed', label: 'Complétés' },
+              { value: 'pending', label: 'En attente' },
+            ]}
+            selected={activeStatus ? [activeStatus] : []}
+            basePath="/questionnaires"
+          />
+          {activeStatus && (
+            <Link
+              href="/questionnaires"
+              className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+            >
+              Réinitialiser
+            </Link>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-[180px_140px_1fr_140px_140px_120px] gap-3 px-5 py-2.5 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">

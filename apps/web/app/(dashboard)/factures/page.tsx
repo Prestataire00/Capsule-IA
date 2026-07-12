@@ -13,6 +13,7 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { Receipt } from 'lucide-react';
 import { InvoiceActions } from './invoice-actions';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 export const dynamic = 'force-dynamic';
@@ -148,6 +149,24 @@ export default async function FacturesPage({
         <StatCard label="En attente" value={formatEuros(totalIssued - totalPaid)} hint={`${invoices.filter((i) => i.status === 'issued').length} émise${invoices.filter((i) => i.status === 'issued').length > 1 ? 's' : ''}`} />
         <StatCard label="En retard" value={overdue.length} hint={overdue.length > 0 ? formatEuros(totalOverdue) : '—'} />
       </section>
+
+      <div className="mb-5 flex items-center justify-end gap-2">
+        <FilterDropdown
+          label="Statut"
+          paramName="status"
+          options={STATUSES.map((s) => ({ value: s, label: statusLabel[s] }))}
+          selected={status ? [status] : []}
+          basePath="/factures"
+        />
+        {status && (
+          <Link
+            href="/factures"
+            className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+          >
+            Réinitialiser
+          </Link>
+        )}
+      </div>
 
       {invoices.length === 0 ? (
         <EmptyState

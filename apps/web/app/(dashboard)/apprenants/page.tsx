@@ -8,6 +8,7 @@ import { StatCard } from '@/shared/ui/stat-card';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { AnonymizeAction } from '../rgpd/anonymize-action';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -157,24 +158,23 @@ export default async function ApprenantsPage({
             className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-[13px] w-80 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
           />
         </form>
-        <div className="flex items-center gap-1.5 text-[12px]">
-          <span className="text-zinc-500 dark:text-zinc-400 mr-2">Filtre :</span>
-          {FILTERS.map((f) => {
-            const active = f.key === activeFilter;
-            return (
-              <Link
-                key={f.key}
-                href={filterHref(f.key)}
-                className={
-                  active
-                    ? 'bg-violet-600 text-white px-2.5 py-1 rounded-md font-medium'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 px-2.5 py-1 rounded-md transition'
-                }
-              >
-                {f.label}
-              </Link>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          <FilterDropdown
+            label="Filtre"
+            paramName="filter"
+            options={FILTERS.filter((f) => f.key !== 'all').map((f) => ({ value: f.key, label: f.label }))}
+            selected={activeFilter !== 'all' ? [activeFilter] : []}
+            basePath="/apprenants"
+            preserved={{ q: q || undefined }}
+          />
+          {(q || activeFilter !== 'all') && (
+            <Link
+              href="/apprenants"
+              className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+            >
+              Réinitialiser
+            </Link>
+          )}
         </div>
       </div>
 
