@@ -52,7 +52,7 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
   }));
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-8 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       <header className="flex items-center gap-3">
         <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-950/60 dark:to-blue-950/30 text-blue-700 dark:text-blue-300 flex items-center justify-center shadow-sm">
           <FileText className="w-5 h-5" />

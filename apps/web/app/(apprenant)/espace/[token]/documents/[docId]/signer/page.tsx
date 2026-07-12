@@ -56,7 +56,7 @@ export default async function SignDocumentPage({ params }: { params: { token: st
   const readHref = DOC_HREF[document.kind]?.(verified.value.dossierId) ?? null;
 
   return (
-    <div className="max-w-2xl mx-auto px-8 py-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <Link href={back} className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6">
         <ArrowLeft className="w-3.5 h-3.5" /> Mes documents
       </Link>

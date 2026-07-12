@@ -26,7 +26,7 @@ export default async function EspaceQuestionnairesPage({
   const done = questionnaires.filter((q) => q.status === 'completed');
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <header className="mb-6 flex items-center gap-3">
         <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-950/60 dark:to-violet-950/30 text-violet-700 dark:text-violet-300 flex items-center justify-center shadow-sm">
           <ClipboardList className="w-5 h-5" />

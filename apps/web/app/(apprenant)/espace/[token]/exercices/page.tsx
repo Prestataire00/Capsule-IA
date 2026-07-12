@@ -16,7 +16,7 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
   const total = exercises.length;
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <header className="mb-6 flex items-center gap-3">
         <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/60 dark:to-amber-950/30 text-amber-700 dark:text-amber-300 flex items-center justify-center shadow-sm">
           <PenLine className="w-5 h-5" />

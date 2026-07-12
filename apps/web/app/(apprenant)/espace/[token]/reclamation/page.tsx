@@ -35,7 +35,7 @@ export default async function EspaceReclamationPage({ params }: { params: { toke
   if (!ctx) return notFound();
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-8 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       <header className="flex items-center gap-3">
         <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-950/60 dark:to-rose-950/30 text-rose-700 dark:text-rose-300 flex items-center justify-center shadow-sm">
           <MessageSquareWarning className="w-5 h-5" />

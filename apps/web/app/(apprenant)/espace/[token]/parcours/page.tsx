@@ -62,7 +62,7 @@ export default async function ParcoursPage({ params }: { params: { token: string
   const completedModules = parcours.modules.filter((m) => m.completed).length;
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-8 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* En-tête : progression globale */}
       <section className="bg-gradient-to-br from-violet-50 via-white to-zinc-50 dark:from-violet-950/30 dark:via-zinc-900 dark:to-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-3">
