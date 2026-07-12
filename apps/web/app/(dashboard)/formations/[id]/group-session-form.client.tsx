@@ -12,9 +12,19 @@ const MODALITIES = [
   { v: 'hybride', l: 'Hybride' },
 ];
 
-export function GroupSessionForm({ formationId }: { formationId: string }) {
+export function GroupSessionForm({
+  formationId,
+  defaultOpen = false,
+  redirectTo,
+}: {
+  formationId: string;
+  /** Ouvre le formulaire d'emblée (page dédiée) au lieu du bouton repliable. */
+  defaultOpen?: boolean;
+  /** Où rediriger après création (ex. /sessions). Sinon on rafraîchit sur place. */
+  redirectTo?: string;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -65,9 +75,13 @@ export function GroupSessionForm({ formationId }: { formationId: string }) {
           return;
         }
       }
-      setOpen(false);
       setForm(initialForm);
-      router.refresh();
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        setOpen(false);
+        router.refresh();
+      }
     });
   }
 

@@ -2,13 +2,14 @@
 // Justification: vue transversale de toutes les sessions de l'organisme — retrouver/filtrer par formation, RLS-scopé.
 
 import Link from 'next/link';
-import { Search, Video, CalendarClock } from 'lucide-react';
+import { Search, Video, CalendarClock, Plus } from 'lucide-react';
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,12 +123,23 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
 
   return (
     <div className="max-w-6xl w-full mx-auto px-8 py-10">
-      <header className="mb-8">
-        <SectionLabel className="mb-2">Planification</SectionLabel>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Sessions</h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
-          {filtered.length} session{filtered.length > 1 ? 's' : ''} · toutes formations confondues
-        </p>
+      <header className="mb-8 flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <SectionLabel className="mb-2">Planification</SectionLabel>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Sessions</h1>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
+            {filtered.length} session{filtered.length > 1 ? 's' : ''} · toutes formations confondues
+          </p>
+        </div>
+        <ManageOnly section="catalogue">
+          <Link
+            href="/sessions/nouvelle"
+            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Planifier une session
+          </Link>
+        </ManageOnly>
       </header>
 
       <div className="mb-5 flex items-center gap-3 flex-wrap">
@@ -168,7 +180,17 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
           <EmptyState
             icon={CalendarClock}
             title="Aucune session."
-            description="Planifiez des sessions depuis un dossier ; elles apparaîtront ici, regroupées par formation."
+            description="Planifiez une session de groupe rattachée à une formation (sans passer par un dossier), ou depuis un dossier. Elles apparaîtront ici, regroupées par formation."
+            action={
+              <ManageOnly section="catalogue">
+                <Link
+                  href="/sessions/nouvelle"
+                  className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] px-3 py-1.5 rounded-md transition inline-flex items-center gap-2"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Planifier une session
+                </Link>
+              </ManageOnly>
+            }
           />
         </div>
       ) : (
