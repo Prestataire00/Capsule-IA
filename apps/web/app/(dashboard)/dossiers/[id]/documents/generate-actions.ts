@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { renderTemplate } from '@/features/documents/templates/render-template';
 import { resolveDossierVariables } from '@/features/documents/templates/resolve-dossier-variables';
+import { wrapGeneratedHtml } from '@/features/documents/templates/wrap-generated-html';
 import { GenerateFromTemplateSchema } from '../../../documents/modeles/schema';
 
 export const generateFromTemplate = authActionClient
@@ -35,6 +36,11 @@ export const generateFromTemplate = authActionClient
 
     // 3. Rendre le HTML.
     const { html } = renderTemplate(tpl.content_html, resolved.variables);
+    // En-tête de marque (logo + identité OF) + pied de page légal, sauf si le
+    // modèle place déjà lui-même le logo via la variable {organisme_logo}.
+    const finalHtml = tpl.content_html.includes('organisme_logo')
+      ? html
+      : wrapGeneratedHtml(html, resolved.variables);
 
     // 4. Persister le document (HTML inline, consultable/imprimable).
     const { data: inserted, error } = await sb
@@ -47,7 +53,7 @@ export const generateFromTemplate = authActionClient
         kind: tpl.kind,
         title: tpl.title,
         status: 'ready',
-        content_html: html,
+        content_html: finalHtml,
         generated_at: new Date().toISOString(),
         generation_input: { template_id: tpl.id },
       } as never)

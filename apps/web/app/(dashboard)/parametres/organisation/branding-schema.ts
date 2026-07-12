@@ -8,7 +8,7 @@ export type OrgRepresentativeInput = z.infer<typeof OrgRepresentativeSchema>;
 
 // Upload : le fichier est envoyé en base64 (data URL décodée côté action).
 export const OrgAssetUploadSchema = z.object({
-  kind: z.enum(['signature', 'stamp']),
+  kind: z.enum(['signature', 'stamp', 'logo']),
   pngBase64: z.string().min(1),
 });
 export type OrgAssetUploadInput = z.infer<typeof OrgAssetUploadSchema>;

@@ -10,6 +10,7 @@ export function SignatureStampSection(props: {
   representativeTitle: string | null;
   hasSignature: boolean;
   hasStamp: boolean;
+  hasLogo: boolean;
 }) {
   const [name, setName] = useState(props.representativeName ?? '');
   const [title, setTitle] = useState(props.representativeTitle ?? '');
@@ -29,7 +30,7 @@ export function SignatureStampSection(props: {
       setTimeout(() => setSaved(false), 2000);
     });
 
-  const upload = (kind: 'signature' | 'stamp') => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const upload = (kind: 'signature' | 'stamp' | 'logo') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -45,11 +46,21 @@ export function SignatureStampSection(props: {
   return (
     <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
       <div>
-        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Signature & cachet</h2>
+        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Logo, signature & cachet</h2>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-          Apposés automatiquement sur tous les documents générés (convention, attestation, facture).
+          Le logo apparaît en en-tête de tous les documents ; signature et cachet sont apposés automatiquement
+          (convention, attestation, certificat, facture).
         </p>
       </div>
+
+      <label className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950">
+        <UploadCloud className="w-4 h-4 text-zinc-400" />
+        <span>
+          Logo de l&apos;organisme (PNG)
+          {props.hasLogo && <Check className="inline w-3.5 h-3.5 text-emerald-500 ml-1" />}
+        </span>
+        <input type="file" accept="image/png" className="hidden" onChange={upload('logo')} disabled={pending} />
+      </label>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="text-[13px] text-zinc-700 dark:text-zinc-300">

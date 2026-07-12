@@ -50,7 +50,12 @@ export const uploadOrgAssetAction = authActionClient
       .from('org_assets')
       .upload(path, bytes, { contentType: 'image/png', upsert: true });
     if (upErr) throw new Error(`upload_asset_failed: ${upErr.message}`);
-    const column = parsedInput.kind === 'signature' ? 'signature_path' : 'stamp_path';
+    const column =
+      parsedInput.kind === 'signature'
+        ? 'signature_path'
+        : parsedInput.kind === 'logo'
+          ? 'logo_path'
+          : 'stamp_path';
     const { error: updErr } = await ctx.supabase
       .schema('app')
       .from('organizations')

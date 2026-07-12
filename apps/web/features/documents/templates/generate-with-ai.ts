@@ -1,13 +1,16 @@
 import 'server-only';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
+import { legalPromptBlock } from '@/features/documents/legal/requirements';
 
 export type AiDocResult =
   | { ok: true; html: string; model: string }
   | { ok: false; reason: 'no_api_key' | 'generation_failed'; error?: unknown };
 
-// Génère le corps HTML d'un document à partir d'une instruction + des données du
-// dossier (déjà résolues et formatées en français).
+// Génère le corps HTML d'un document à partir d'un TYPE de document, d'une
+// instruction et des données du dossier (déjà résolues et formatées en français).
+// Le bloc de conformité légale correspondant au type est injecté dans le prompt.
 export async function generateDocumentHtml(
+  kind: string,
   instruction: string,
   variables: Record<string, string>,
 ): Promise<AiDocResult> {
@@ -19,20 +22,23 @@ export async function generateDocumentHtml(
     .map(([k, v]) => `- ${k}: ${v}`)
     .join('\n');
 
-  const prompt = `Tu es l'assistant d'un organisme de formation français (conforme Qualiopi).
-Rédige le CORPS HTML d'un document professionnel selon la demande ci-dessous.
+  const prompt = `Tu es le juriste-rédacteur d'un organisme de formation français (conforme Qualiopi).
+Rédige le CORPS HTML d'un document ADMINISTRATIF et JURIDIQUEMENT CONFORME selon le type et la demande ci-dessous.
 
 CONTRAINTES DE SORTIE :
 - Réponds UNIQUEMENT avec du HTML (pas de \`\`\`, pas de <html>/<head>/<body>).
-- Utilise uniquement <h1>, <h2>, <p>, <ul>, <li>, <strong>, <table> si pertinent.
-- Français professionnel, ton institutionnel, mentions légales adaptées si le document l'exige.
-- Insère les données réelles fournies ci-dessous (n'invente pas de chiffres/dates).
+- Utilise uniquement <h1>, <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>, <table>, <thead>, <tbody>, <tr>, <th>, <td>.
+- Français juridique et institutionnel, précis et sobre.
+- Insère UNIQUEMENT les données réelles fournies ci-dessous. N'invente jamais un montant, une date, un SIRET, un numéro ou une raison sociale. Pour toute donnée manquante mais nécessaire, insère un champ explicite « [à compléter] ».
+- Toutes les mentions obligatoires listées ci-dessous DOIVENT figurer dans le document.
 
-DONNÉES DU DOSSIER :
+${legalPromptBlock(kind)}
+
+DONNÉES DU DOSSIER (source de vérité — ne rien inventer au-delà) :
 ${context || '(aucune donnée fournie)'}
 
-DEMANDE :
-${instruction}`;
+DEMANDE COMPLÉMENTAIRE DE L'UTILISATEUR :
+${instruction || '(aucune — produire le document standard du type indiqué)'}`;
 
   try {
     const stream = client.messages.stream({

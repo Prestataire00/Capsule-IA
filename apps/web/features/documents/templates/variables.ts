@@ -43,6 +43,7 @@ export const TEMPLATE_VARIABLES: TemplateVariable[] = [
   { slug: 'organisme_nda', label: "N° de déclaration d'activité", group: 'Organisme' },
   { slug: 'organisme_adresse', label: 'Adresse', group: 'Organisme' },
   { slug: 'organisme_representant', label: 'Représentant légal', group: 'Organisme' },
+  { slug: 'organisme_logo', label: 'Logo (image)', group: 'Organisme' },
   // Divers
   { slug: 'date_du_jour', label: 'Date du jour', group: 'Divers' },
 ];

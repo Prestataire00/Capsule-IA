@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { escapeHtml } from './render-template';
+import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 
 type AddressJson = {
   line1?: string;
@@ -95,7 +96,7 @@ export async function resolveDossierVariables(
   const company = Array.isArray(d.company) ? d.company[0] : d.company;
   const formation = Array.isArray(d.formation) ? d.formation[0] : d.formation;
 
-  const [{ data: orgData }, { data: modulesData }, { data: trainersData }] = await Promise.all([
+  const [{ data: orgData }, { data: modulesData }, { data: trainersData }, logoDataUri] = await Promise.all([
     sb
       .schema('app')
       .from('organizations')
@@ -113,7 +114,13 @@ export async function resolveDossierVariables(
       .from('dossier_trainers')
       .select('is_lead, trainer:trainers(first_name, last_name)')
       .eq('dossier_id', dossierId),
+    loadOrgLogoDataUri(sb, d.organization_id),
   ]);
+
+  // Logo prêt à insérer dans un <img> (data URI base64) ou chaîne vide.
+  const logoImg = logoDataUri
+    ? `<img src="${logoDataUri}" alt="Logo" style="max-height:64px;max-width:200px;object-fit:contain;" />`
+    : '';
 
   const org = (orgData as {
     name: string;
@@ -173,6 +180,7 @@ export async function resolveDossierVariables(
     organisme_nda: e(org?.declaration_activite ?? ''),
     organisme_adresse: e(composeAddress(org?.address)),
     organisme_representant: e(org?.contact_email ?? ''),
+    organisme_logo: logoImg,
 
     date_du_jour: formatDateFr(new Date().toISOString()),
   };

@@ -21,6 +21,7 @@ type OrgRow = {
   representative_title: string | null;
   signature_path: string | null;
   stamp_path: string | null;
+  logo_path: string | null;
 };
 
 const addr = (address: Record<string, unknown> | null, key: string): string => {
@@ -36,7 +37,7 @@ export default async function ParametresOrganisationPage() {
     .schema('app')
     .from('organizations')
     .select(
-      'name, legal_name, siret, declaration_activite, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path',
+      'name, legal_name, siret, declaration_activite, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path, logo_path',
     )
     .is('deleted_at', null)
     .limit(1)
@@ -54,6 +55,7 @@ export default async function ParametresOrganisationPage() {
     representative_title: null,
     signature_path: null,
     stamp_path: null,
+    logo_path: null,
   };
   return (
     <div className="space-y-8">
@@ -105,6 +107,7 @@ export default async function ParametresOrganisationPage() {
         representativeTitle={org.representative_title ?? null}
         hasSignature={!!org.signature_path}
         hasStamp={!!org.stamp_path}
+        hasLogo={!!org.logo_path}
       />
     </div>
   );

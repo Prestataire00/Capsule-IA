@@ -5,11 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
 import { Loader2, Sparkles, ChevronDown } from 'lucide-react';
 import { generateDocumentWithAI } from '../ai-actions';
+import { TEMPLATE_KINDS } from '@/app/(dashboard)/documents/modeles/schema';
+import { getLegalRequirement } from '@/features/documents/legal/requirements';
+
+const KIND_OPTIONS = TEMPLATE_KINDS.map((k) => ({ value: k, label: getLegalRequirement(k).label }));
 
 export function GenerateWithAi({ dossierId }: { dossierId: string }) {
   const router = useRouter();
   const { executeAsync } = useAction(generateDocumentWithAI);
   const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<(typeof TEMPLATE_KINDS)[number]>('convention');
   const [title, setTitle] = useState('');
   const [instruction, setInstruction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,12 +22,12 @@ export function GenerateWithAi({ dossierId }: { dossierId: string }) {
 
   async function handleGenerate() {
     setError(null);
-    if (!title.trim() || instruction.trim().length < 5) {
-      setError('Donnez un titre et une description du document.');
+    if (instruction.trim().length < 5) {
+      setError('Décrivez en quelques mots ce que le document doit contenir.');
       return;
     }
     setLoading(true);
-    const res = await executeAsync({ dossierId, title: title.trim(), instruction: instruction.trim() });
+    const res = await executeAsync({ dossierId, kind, title: title.trim(), instruction: instruction.trim() });
     setLoading(false);
     const out = res?.data;
     if (out?.ok) {
@@ -52,10 +57,24 @@ export function GenerateWithAi({ dossierId }: { dossierId: string }) {
 
   return (
     <div className="space-y-2 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-3">
+      <div className="flex items-center gap-2">
+        <label className="text-[12px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Type de document</label>
+        <select
+          value={kind}
+          onChange={(e) => setKind(e.target.value as (typeof TEMPLATE_KINDS)[number])}
+          className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+        >
+          {KIND_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Titre du document (ex : Note pédagogique individualisée)"
+        placeholder="Titre (optionnel — sinon le type sera utilisé)"
         className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
       />
       <textarea
