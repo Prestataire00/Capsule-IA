@@ -89,11 +89,11 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
   ] as const;
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Hero */}
       <section className="mb-8">
         <p className="text-[12px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold mb-2">Espace apprenant</p>
-        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">
+        <h1 className="text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">
           Bonjour {ctx.learner.firstName} 👋
         </h1>
         <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
@@ -186,7 +186,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
 
       {/* Prochaine séance + lien visio */}
       {nextSession && (
-        <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 mb-6 flex items-center gap-4">
+        <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
           <span
             className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
               nextSession.status === 'in_progress'
@@ -213,7 +213,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
               href={nextSession.remoteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3.5 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm transition flex-shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 text-[13px] font-medium px-3.5 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm transition flex-shrink-0 w-full sm:w-auto"
             >
               <Video className="w-3.5 h-3.5" />
               Rejoindre la visio

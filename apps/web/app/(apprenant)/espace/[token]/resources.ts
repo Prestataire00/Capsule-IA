@@ -51,7 +51,7 @@ export async function resolveApprenantResources(token: string): Promise<Apprenan
   if (!verified.ok) return null;
 
   const sb = supabaseServer();
-  const { data, error } = await sb.rpc(
+  const { data, error } = await sb.schema('app').rpc(
     'get_apprenant_resources' as never,
     { p_learner_id: verified.value.learnerId } as never,
   );

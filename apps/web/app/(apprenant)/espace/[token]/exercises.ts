@@ -39,7 +39,7 @@ export async function resolveApprenantExercises(token: string): Promise<Apprenan
   if (!verified.ok) return [];
 
   const sb = supabaseServer();
-  const { data, error } = await sb.rpc(
+  const { data, error } = await sb.schema('app').rpc(
     'get_apprenant_exercises' as never,
     { p_learner_id: verified.value.learnerId } as never,
   );

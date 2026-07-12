@@ -102,7 +102,7 @@ export async function submitComplaint(formData: FormData): Promise<void> {
       .maybeSingle();
     orgName = (orgRow as { name: string } | null)?.name ?? 'OF';
 
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('submit_learner_complaint' as never, {
+    const { data: rpcData, error: rpcErr } = await supabase.schema('app').rpc('submit_learner_complaint' as never, {
       p_learner_id: learnerId,
       p_organization_id: organizationId,
       p_dossier_id: dossierId,

@@ -1,12 +1,4 @@
 import 'server-only';
-import {
-  learners,
-  dossiers,
-  formations,
-  trainers,
-  sessionsByDossier,
-  modulesByDossier,
-} from '@/shared/mock/data';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
@@ -121,9 +113,11 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
   const verified = await verifyApprenantToken(token);
   if (verified.ok) {
     const sb = supabaseServer();
+    // Les RPC vivent dans le schéma `app` ; le client par défaut cible `public`.
+    // Sans `.schema('app')`, l'appel échoue → on retombait sur le mock (Alice).
     const [dash, comp] = await Promise.all([
-      sb.rpc('get_apprenant_dashboard' as never, { p_learner_id: verified.value.learnerId } as never),
-      sb.rpc('get_learner_complaints' as never, { p_learner_id: verified.value.learnerId } as never),
+      sb.schema('app').rpc('get_apprenant_dashboard' as never, { p_learner_id: verified.value.learnerId } as never),
+      sb.schema('app').rpc('get_learner_complaints' as never, { p_learner_id: verified.value.learnerId } as never),
     ]);
     if (!dash.error && dash.data) {
       const d = dash.data as unknown as RealDashboard;
@@ -188,34 +182,11 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
     }
   }
 
-  // Fallback mock — tous les tokens >= 3 chars mappent à Alice
-  const learner = learners.find((l) => l.id === 'l-1');
-  if (!learner) return null;
-  const dossier = dossiers.find((d) => d.learnerId === learner.id);
-  if (!dossier) return null;
-  const formation = formations.find((f) => f.id === dossier.formationId) ?? null;
-  const trainer = trainers.find((t) => dossier.trainerIds.includes(t.id)) ?? null;
-
-  return {
-    isReal: false,
-    organization: { id: 'org-mock', name: 'Organisme de formation', logoUrl: null },
-    learner: { id: learner.id, firstName: learner.firstName, lastName: learner.lastName, email: learner.email },
-    dossier: {
-      id: dossier.id,
-      reference: dossier.reference,
-      formationId: dossier.formationId,
-      modality: dossier.modality,
-      startDate: dossier.startDate,
-      endDate: dossier.endDate,
-      totalHours: dossier.totalHours,
-      status: dossier.status,
-    },
-    formation: formation ? { id: formation.id, title: formation.title } : null,
-    trainer: trainer ? { firstName: trainer.firstName, lastName: trainer.lastName, email: trainer.email } : null,
-    sessions: sessionsByDossier[dossier.id] ?? [],
-    modules: modulesByDossier[dossier.id] ?? [],
-    complaints: [],
-  };
+  // Token invalide/expiré ou dossier introuvable → aucun accès.
+  // JAMAIS de fallback vers un apprenant fictif : montrer les données d'un
+  // tiers (ancien mock « Alice ») serait une fuite RGPD et rendrait l'espace
+  // non personnalisé pour tous.
+  return null;
 }
 
 export const MODALITY_LABEL: Record<string, string> = {
