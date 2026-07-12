@@ -108,6 +108,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     },
     signaturePng: branding.signaturePng,
     stampPng: branding.stampPng,
+    logoPng: branding.logoPng,
     representativeTitle: branding.representativeTitle,
     place: org?.address?.city ?? null,
     learner: {

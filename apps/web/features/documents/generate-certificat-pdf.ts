@@ -1,6 +1,7 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawSignatureBlock } from './apply-org-signature';
+import { drawOrgLogo } from './pdf-logo';
 
 // Certificat de réalisation (F-DOC-09) — document administratif obligatoire,
 // signé UNIQUEMENT par l'organisme (pas de signature apprenant). Généré pour
@@ -16,6 +17,7 @@ export type CertificatInput = {
   };
   signaturePng: Uint8Array | null;
   stampPng: Uint8Array | null;
+  logoPng: Uint8Array | null;
   representativeTitle: string | null;
   place: string | null;
   learner: {
@@ -111,6 +113,9 @@ export async function generateCertificatPDF(input: CertificatInput): Promise<Uin
 
   const page = doc.addPage([A4.width, A4.height]);
   let c: Cursor = { page, y: A4.height - MARGIN };
+
+  // Logo de l'organisme — coin supérieur droit
+  await drawOrgLogo(doc, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
 
   // Header — barre d'accent + organisme
   c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });

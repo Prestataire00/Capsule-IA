@@ -7,6 +7,7 @@ import { articlesFor, type LegalKind } from '@/shared/lib/legifrance/mapping';
 import { fetchArticle } from '@/shared/lib/legifrance/client';
 import { generateLegalDoc } from '@/shared/lib/ai/generate-legal-doc';
 import { generateLegalDocPDF } from '@/features/documents/generate-legal-doc-pdf';
+import { loadOrgBranding } from '@/features/documents/load-org-branding';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -89,9 +90,11 @@ export async function validateLegalDoc(orgId: string, kind: LegalKind): Promise<
   if (!d?.content_md) return { ok: false, error: 'Brouillon vide' };
 
   const org = await orgInfo(sb, orgId);
+  const branding = await loadOrgBranding(sb as never, orgId);
   const pdf = await generateLegalDocPDF({
     title: KIND_TITLE[kind],
     organization: { name: org.name, nda: org.nda, address: null },
+    logoPng: branding.logoPng,
     contentMd: d.content_md,
   });
   const path = `${orgId}/legal/${kind}-v${d.version ?? 1}.pdf`;

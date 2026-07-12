@@ -1,5 +1,6 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { drawOrgLogo } from './pdf-logo';
 
 export type ProgrammeInput = {
   organization: {
@@ -8,6 +9,7 @@ export type ProgrammeInput = {
     nda: string | null;
     address: string | null;
   };
+  logoPng: Uint8Array | null;
   formation: {
     title: string;
     objectives: string[];
@@ -152,6 +154,9 @@ export async function generateProgrammePDF(input: ProgrammeInput): Promise<Uint8
 
   let page = doc.addPage([A4.width, A4.height]);
   let c: Cursor = { page, y: A4.height - MARGIN };
+
+  // Logo de l'organisme — coin supérieur droit
+  await drawOrgLogo(doc, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
 
   // Header
   c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });

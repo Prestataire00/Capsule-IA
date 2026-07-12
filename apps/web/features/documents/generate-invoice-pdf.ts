@@ -1,6 +1,7 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawSignatureBlock } from './apply-org-signature';
+import { drawOrgLogo } from './pdf-logo';
 
 export type InvoiceLine = {
   description: string;
@@ -25,6 +26,7 @@ export type InvoiceInput = {
   };
   signaturePng: Uint8Array | null;
   stampPng: Uint8Array | null;
+  logoPng: Uint8Array | null;
   representativeName: string | null;
   representativeTitle: string | null;
   place: string | null;
@@ -105,6 +107,9 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
 
   const page = doc.addPage([A4.width, A4.height]);
   let c: Cursor = { page, y: A4.height - MARGIN };
+
+  // Logo de l'organisme — coin supérieur droit
+  await drawOrgLogo(doc, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
 
   // Header avec accent
   c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });

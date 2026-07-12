@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { generateQuestionnairePDF, type QuestionnairePdfInput } from '@/features/documents/generate-questionnaire-pdf';
+import { loadOrgBranding } from '@/features/documents/load-org-branding';
 import type { QuestionnaireSchema } from '@/features/questionnaire/schema';
 
 export const dynamic = 'force-dynamic';
@@ -79,12 +80,15 @@ export async function GET(_req: NextRequest, { params }: { params: { assignmentI
   const org = oData as { name: string; siret: string | null; declaration_activite: string | null } | null;
   const dossier = dData as { reference: string; formation: { title: string } | null } | null;
 
+  const branding = await loadOrgBranding(sb as never, orgId);
+
   const input: QuestionnairePdfInput = {
     organization: {
       name: org?.name ?? 'Organisme de formation',
       siret: org?.siret ?? null,
       nda: org?.declaration_activite ?? null,
     },
+    logoPng: branding.logoPng,
     dossierReference: dossier?.reference ?? '—',
     formationTitle: dossier?.formation?.title ?? '—',
     questionnaireTitle: template.title,

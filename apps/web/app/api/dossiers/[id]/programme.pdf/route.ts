@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateProgrammePDF, type ProgrammeInput } from '@/features/documents/generate-programme-pdf';
+import { loadOrgBranding } from '@/features/documents/load-org-branding';
 
 import { canAccessDossier } from '@/features/documents/guard-dossier-access';
 
@@ -108,6 +109,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return parts.length ? parts.join(', ') : null;
   };
 
+  const branding = await loadOrgBranding(sb as never, d.organization_id);
+
   const input: ProgrammeInput = {
     organization: {
       name: org?.name ?? 'Organisme de formation',
@@ -115,6 +118,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       nda: org?.declaration_activite ?? null,
       address: composeAddress(org?.address),
     },
+    logoPng: branding.logoPng,
     formation: {
       title: d.formation?.title ?? '—',
       objectives: d.formation?.objectives ?? [],

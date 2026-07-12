@@ -1,9 +1,11 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { drawOrgLogo } from './pdf-logo';
 
 export type LegalPdfInput = {
   title: string;
   organization: { name: string; nda: string | null; address: string | null };
+  logoPng: Uint8Array | null;
   contentMd: string;
 };
 
@@ -17,6 +19,9 @@ export async function generateLegalDocPDF(input: LegalPdfInput): Promise<Uint8Ar
   const height = 841.89;
   let page = pdf.addPage([width, height]);
   let y = height - margin;
+
+  // Logo de l'organisme — coin supérieur droit
+  await drawOrgLogo(pdf, page, input.logoPng, { right: width - margin, top: height - margin + 6, maxW: 150, maxH: 48 });
 
   const line = (text: string, f = font, fs = 10) => {
     if (y < margin + 20) {

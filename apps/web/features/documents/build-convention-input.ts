@@ -92,6 +92,7 @@ export async function buildConventionInput(
     },
     signaturePng: branding.signaturePng,
     stampPng: branding.stampPng,
+    logoPng: branding.logoPng,
     representativeTitle: branding.representativeTitle,
     place: org?.address?.city ?? null,
     learner: {

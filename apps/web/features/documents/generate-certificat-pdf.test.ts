@@ -11,6 +11,7 @@ const baseInput: CertificatInput = {
   },
   signaturePng: null,
   stampPng: null,
+  logoPng: null,
   representativeTitle: 'Gérante',
   place: 'Paris',
   learner: {

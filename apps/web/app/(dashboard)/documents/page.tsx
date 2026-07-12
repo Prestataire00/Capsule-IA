@@ -6,6 +6,8 @@ import { FileText, Search, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
 import { DocumentUploadButton, AttachToDossier, type DossierOption } from './document-tools';
+import { KindFilter } from './kind-filter';
+import { StandaloneGenerateButton } from './standalone-generate';
 
 type TabId = 'a-signer' | 'generes' | 'archives';
 
@@ -33,6 +35,8 @@ const KIND_LABELS: Record<string, string> = {
 
 const kindLabel = (kind: string) => KIND_LABELS[kind] ?? kind.replace(/_/g, ' ');
 
+const KIND_OPTIONS = Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }));
+
 const learnerName = (l: { first_name: string | null; last_name: string | null } | null) =>
   l ? [l.first_name, l.last_name].filter(Boolean).join(' ') || '—' : '—';
 
@@ -53,12 +57,13 @@ type DocRow = {
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams?: { tab?: string; q?: string };
+  searchParams?: { tab?: string; q?: string; kind?: string };
 }) {
   const activeTab: TabId = TABS.some((t) => t.id === searchParams?.tab)
     ? (searchParams?.tab as TabId)
     : 'a-signer';
   const q = (searchParams?.q ?? '').trim();
+  const kind = (searchParams?.kind ?? '').trim();
 
   const sb = supabaseServer();
   // Prod-safe : si app.documents n'est pas migrée → data=null → liste vide.
@@ -74,6 +79,7 @@ export default async function DocumentsPage({
     .order('created_at', { ascending: false })
     .limit(300);
   if (q) query = query.ilike('title', `%${q}%`);
+  if (kind) query = query.eq('kind', kind);
   const [{ data }, { data: dossierData }] = await Promise.all([
     query,
     sb
@@ -121,6 +127,7 @@ export default async function DocumentsPage({
         <div className="flex items-center gap-2">
           <form action="/documents" method="get" className="relative">
             <input type="hidden" name="tab" value={activeTab} />
+            {kind && <input type="hidden" name="kind" value={kind} />}
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
             <input
               type="search"
@@ -130,12 +137,14 @@ export default async function DocumentsPage({
               className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-[13px] w-72 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
             />
           </form>
+          <KindFilter options={KIND_OPTIONS} value={kind} />
           <Link
             href="/dossiers"
             className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-medium px-4 py-2 rounded-lg transition hover:bg-zinc-50 dark:hover:bg-zinc-900 inline-flex items-center gap-2"
           >
             Générer depuis un dossier
           </Link>
+          <StandaloneGenerateButton />
           <DocumentUploadButton />
         </div>
       </header>
@@ -145,10 +154,13 @@ export default async function DocumentsPage({
           <ul className="flex items-center gap-1 overflow-x-auto">
             {TABS.map((t) => {
               const active = t.id === activeTab;
+              const tabParams = new URLSearchParams({ tab: t.id });
+              if (q) tabParams.set('q', q);
+              if (kind) tabParams.set('kind', kind);
               return (
                 <li key={t.id}>
                   <Link
-                    href={`/documents?tab=${t.id}`}
+                    href={`/documents?${tabParams.toString()}`}
                     className={
                       active
                         ? 'text-[13px] font-medium text-violet-700 dark:text-violet-400 border-b-2 border-violet-600 px-3 py-2 -mb-px transition whitespace-nowrap inline-block'
@@ -185,7 +197,7 @@ export default async function DocumentsPage({
         {rows.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-[14px] text-zinc-700 dark:text-zinc-300">
-              {q ? 'Aucun document ne correspond à cette recherche.' : 'Aucun document dans cet onglet.'}
+              {q || kind ? 'Aucun document ne correspond à ces filtres.' : 'Aucun document dans cet onglet.'}
             </p>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
               Les documents sont générés depuis l&apos;onglet Documents d&apos;un dossier.

@@ -94,10 +94,15 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
         }
         .doc-sheet h1 { font-size: 22px; font-weight: 600; margin: 0 0 12px; }
         .doc-sheet h2 { font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
+        .doc-sheet h3 { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
         .doc-sheet p { margin: 8px 0; line-height: 1.55; }
         .doc-sheet ul { margin: 6px 0 6px 18px; list-style: disc; }
         .doc-sheet li { margin: 2px 0; }
+        .doc-sheet table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+        .doc-sheet th, .doc-sheet td { border: 1px solid #e4e4e7; padding: 6px 9px; text-align: left; vertical-align: top; }
+        .doc-sheet th { background: #f4f4f5; font-weight: 600; }
         .doc-sheet .doc-header { font-size: 12px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 18px; }
+        .doc-sheet .doc-brand-header img { max-height: 64px; max-width: 200px; object-fit: contain; }
         .doc-sheet .signatures { margin-top: 36px; }
       `}</style>
 

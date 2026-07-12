@@ -1,8 +1,10 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { drawOrgLogo } from './pdf-logo';
 
 export type QuestionnairePdfInput = {
   organization: { name: string; siret: string | null; nda: string | null };
+  logoPng: Uint8Array | null;
   dossierReference: string;
   formationTitle: string;
   questionnaireTitle: string;
@@ -48,6 +50,9 @@ export async function generateQuestionnairePDF(input: QuestionnairePdfInput): Pr
 
   let page: PDFPage = pdf.addPage([A4.width, A4.height]);
   let y = A4.height - MARGIN;
+
+  // Logo de l'organisme — coin supérieur droit
+  await drawOrgLogo(pdf, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
 
   const ensureSpace = (needed: number) => {
     if (y - needed < MARGIN) {
