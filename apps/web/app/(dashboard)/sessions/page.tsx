@@ -77,24 +77,44 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   const formationId = searchParams.formation ?? '';
 
   const sb = supabaseServer();
-  const [{ data: sessionData, error: sessionErr }, { data: formationData }] = await Promise.all([
+
+  // Colonnes de base, sans `formation_id` (colonne ajoutée par la migration 0106).
+  const SESSION_BASE =
+    'id, title, status, starts_at, ends_at, modality, remote_url, ' +
+    'dossier:dossiers(id, reference, learner:learners(first_name, last_name), formation:formations(id, title))';
+
+  const [sessionRes, { data: formationData }] = await Promise.all([
     sb
       .schema('app')
       .from('sessions')
-      // On récupère `formation_id` en scalaire (résolu ci-dessous via la liste des
-      // formations) plutôt qu'en embed PostgREST : évite qu'une erreur de relation
-      // sur la nouvelle FK sessions.formation_id ne vide TOUTE la liste ("0 session").
-      .select(
-        'id, title, status, starts_at, ends_at, modality, remote_url, formation_id, ' +
-          'dossier:dossiers(id, reference, learner:learners(first_name, last_name), formation:formations(id, title))',
-      )
+      // `formation_id` en scalaire (résolu ci-dessous via la liste des formations)
+      // plutôt qu'en embed PostgREST : évite qu'une erreur de relation ne vide la liste.
+      .select(`formation_id, ${SESSION_BASE}`)
       .order('starts_at', { ascending: false })
       .limit(500),
     sb.schema('app').from('formations').select('id, title').is('deleted_at', null).order('title', { ascending: true }),
   ]);
 
+  let sessionData: SessionRow[] | null = sessionRes.data as SessionRow[] | null;
+  let sessionErr: { message?: string } | null = sessionRes.error;
+
+  // Repli : juste après la migration 0106, le cache de schéma PostgREST peut ne
+  // pas encore connaître `formation_id` (NOTIFY reload éphémère parfois manqué si
+  // le projet sort de pause) → la requête échoue. Plutôt que d'afficher « erreur
+  // base de données » sur toute la page, on recharge SANS `formation_id`. Les
+  // sessions de groupe s'affichent (leur formation sera résolue via `dossier`
+  // quand disponible), et la liste reste utilisable jusqu'au rechargement du cache.
   if (sessionErr) {
-    console.error('[sessions] échec de la requête sessions:', sessionErr);
+    console.error('[sessions] échec avec formation_id, repli sans:', sessionErr);
+    const fb = await sb
+      .schema('app')
+      .from('sessions')
+      .select(SESSION_BASE)
+      .order('starts_at', { ascending: false })
+      .limit(500);
+    sessionData = fb.data as SessionRow[] | null;
+    sessionErr = fb.error;
+    if (sessionErr) console.error('[sessions] échec du repli sessions:', sessionErr);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
