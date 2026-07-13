@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
-  Bell, BarChart3, Inbox, UserPlus, Eye, Telescope, CalendarDays, CalendarClock,
+  Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -45,53 +45,53 @@ const GROUPS: Group[] = [
   { key: 'accueil', label: 'Accueil', icon: LayoutDashboard, href: '/' },
   { key: 'agenda', label: 'Agenda', icon: CalendarDays, href: '/agenda' },
   {
-    key: 'crm',
-    label: 'Demandes',
+    key: 'commercial',
+    label: 'Commercial',
     icon: Inbox,
     items: [
       { href: '/prospects', icon: Inbox, label: 'Demandes' },
+      { href: '/entreprises', icon: Building2, label: 'Entreprises' },
+      { href: '/financeurs', icon: Wallet, label: 'Financeurs' },
     ],
     countKeys: ['demandesPending'],
   },
   {
-    key: 'dossiers',
-    label: 'Dossiers',
-    icon: FolderOpen,
+    key: 'catalogue',
+    label: 'Catalogue',
+    icon: GraduationCap,
     items: [
-      { href: '/dossiers', icon: FolderOpen, label: 'Tous les dossiers' },
-      { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
-      { href: '/planning', icon: Calendar, label: 'Planning' },
-    ],
-    showRecents: false,
-  },
-  {
-    key: 'carnet',
-    label: 'Carnet',
-    icon: BookOpen,
-    items: [
-      { href: '/apprenants', icon: Users, label: 'Apprenants' },
-      { href: '/formateurs', icon: UserCog, label: 'Formateurs' },
-      { href: '/entreprises', icon: Building2, label: 'Entreprises' },
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
       { href: '/modules', icon: BookOpen, label: 'Modules' },
-      { href: '/financeurs', icon: Wallet, label: 'Financeurs' },
     ],
   },
   {
-    key: 'suivi',
-    label: 'Suivi',
-    icon: ClipboardCheck,
+    key: 'deroulement',
+    label: 'Déroulement',
+    icon: FolderOpen,
+    items: [
+      { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
+      { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
+      { href: '/planning', icon: Calendar, label: 'Planning' },
+      { href: '/apprenants', icon: Users, label: 'Apprenants' },
+      { href: '/formateurs', icon: UserCog, label: 'Formateurs' },
+      { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
+    ],
+    countKeys: ['emargementsPending'],
+  },
+  {
+    key: 'documents',
+    label: 'Documents',
+    icon: FileText,
     items: [
       { href: '/documents', icon: FileText, label: 'Documents' },
-      { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
       { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
-      { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/factures', icon: Receipt, label: 'Facturation' },
       { href: '/emails', icon: Bell, label: 'Emails' },
       { href: '/tracabilite', icon: Eye, label: 'Traçabilité docs' },
+      { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/notifications', icon: Bell, label: 'Notifications' },
     ],
-    countKeys: ['reclamationsActive', 'emargementsPending', 'questionnairesActive', 'invoicesUnpaid'],
+    countKeys: ['questionnairesActive', 'invoicesUnpaid', 'reclamationsActive'],
   },
   {
     key: 'qualite',
@@ -148,7 +148,7 @@ export function SidebarRail({
       : g,
   ).filter((g) => g.items === undefined || g.items.length > 0);
   const [hovered, setHovered] = useState<string | null>(null);
-  const lastFlyoutKey = useRef<string>('dossiers');
+  const lastFlyoutKey = useRef<string>('deroulement');
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
