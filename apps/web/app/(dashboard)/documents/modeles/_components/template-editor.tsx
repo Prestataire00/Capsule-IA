@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAction } from 'next-safe-action/hooks';
-import { ArrowLeft, Save, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Loader2, AlertCircle, Eye, Sparkles } from 'lucide-react';
 import { RichTextEditor } from '@/features/documents/editor/rich-text-editor';
 import { pillsToTokens } from '@/features/documents/editor/template-variable-node';
-import { saveTemplate, deleteTemplate } from '../actions';
+import { saveTemplate, deleteTemplate, previewTemplateWithDossier } from '../actions';
 import {
   TEMPLATE_KINDS,
   TEMPLATE_KIND_LABELS,
@@ -25,19 +25,23 @@ export type EditorTemplate = {
 
 export type FormationChoice = { id: string; title: string };
 export type CategoryChoice = { id: string; name: string };
+export type DossierChoice = { id: string; label: string };
 
 export function TemplateEditor({
   template,
   formations = [],
   categories = [],
+  dossiers = [],
 }: {
   template?: EditorTemplate;
   formations?: FormationChoice[];
   categories?: CategoryChoice[];
+  dossiers?: DossierChoice[];
 }) {
   const router = useRouter();
   const { executeAsync: runSave } = useAction(saveTemplate);
   const { executeAsync: runDelete } = useAction(deleteTemplate);
+  const { executeAsync: runPreview } = useAction(previewTemplateWithDossier);
 
   const [kind, setKind] = useState<TemplateKind>(template?.kind ?? 'convention');
   const [title, setTitle] = useState(template?.title ?? '');
@@ -46,6 +50,28 @@ export function TemplateEditor({
   const [html, setHtml] = useState(template?.contentHtml ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Aperçu "valeurs réelles" : rendu du modèle avec les données d'un dossier.
+  const [previewDossier, setPreviewDossier] = useState<string>(dossiers[0]?.id ?? '');
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewMissing, setPreviewMissing] = useState<string[]>([]);
+  const [previewing, setPreviewing] = useState(false);
+
+  async function handlePreview() {
+    if (!previewDossier) return;
+    setPreviewing(true);
+    setPreviewHtml(null);
+    const res = await runPreview({ contentHtml: pillsToTokens(html), dossierId: previewDossier });
+    setPreviewing(false);
+    const out = res?.data;
+    if (out?.ok) {
+      setPreviewHtml(out.html);
+      setPreviewMissing(out.missing ?? []);
+    } else {
+      setPreviewHtml('<p style="color:#dc2626">Aperçu impossible (dossier introuvable).</p>');
+      setPreviewMissing([]);
+    }
+  }
 
   async function handleSave() {
     setError(null);
@@ -202,6 +228,55 @@ export function TemplateEditor({
               sous forme de pastille ; elle sera remplacée par la vraie valeur à la génération.
             </p>
             <RichTextEditor value={html} onChange={setHtml} />
+          </div>
+
+          {/* Aperçu valeurs réelles */}
+          <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] uppercase tracking-wider text-zinc-500 inline-flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5" /> Aperçu avec valeurs réelles
+              </span>
+              {dossiers.length === 0 ? (
+                <span className="text-[12px] text-zinc-400">Aucun dossier disponible.</span>
+              ) : (
+                <>
+                  <select
+                    value={previewDossier}
+                    onChange={(e) => setPreviewDossier(e.target.value)}
+                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-2.5 py-1.5 text-[12px]"
+                  >
+                    {dossiers.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handlePreview}
+                    disabled={previewing}
+                    className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 disabled:opacity-40"
+                  >
+                    {previewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                    Générer l&apos;aperçu
+                  </button>
+                </>
+              )}
+            </div>
+
+            {previewMissing.length > 0 && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                Variables sans valeur dans ce dossier : {previewMissing.join(', ')}
+              </p>
+            )}
+
+            {previewHtml !== null && (
+              <article
+                className="doc-sheet bg-white text-zinc-900 rounded-md border border-zinc-200 shadow-sm px-8 py-8 max-w-[760px] mx-auto"
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            )}
           </div>
       </div>
     </div>

@@ -1,15 +1,28 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { DEFAULT_TEMPLATES } from '@/features/documents/templates/default-templates';
+import { resolveDossierVariables } from '@/features/documents/templates/resolve-dossier-variables';
+import { renderTemplate } from '@/features/documents/templates/render-template';
 import {
   SaveTemplateSchema,
   DeleteTemplateSchema,
   CreateCategorySchema,
   DeleteCategorySchema,
 } from './schema';
+
+// Rendu d'un modèle avec les VRAIES valeurs d'un dossier — aperçu "valeurs réelles".
+export const previewTemplateWithDossier = authActionClient
+  .schema(z.object({ contentHtml: z.string().max(100_000), dossierId: z.string().uuid() }))
+  .action(async ({ parsedInput, ctx }) => {
+    const resolved = await resolveDossierVariables(ctx.supabase, parsedInput.dossierId);
+    if (!resolved) return { ok: false as const, error: 'dossier_not_found' as const };
+    const { html, missing } = renderTemplate(parsedInput.contentHtml, resolved.variables);
+    return { ok: true as const, html, missing };
+  });
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];

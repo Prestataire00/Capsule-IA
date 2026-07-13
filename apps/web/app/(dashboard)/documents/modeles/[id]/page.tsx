@@ -4,14 +4,14 @@
 import { notFound } from 'next/navigation';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { TemplateEditor, type EditorTemplate } from '../_components/template-editor';
-import { loadFormations, loadCategories } from '../_options';
+import { loadFormations, loadCategories, loadDossiers } from '../_options';
 import type { TemplateKind } from '../schema';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditTemplatePage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
-  const [tplRes, formations, categories] = await Promise.all([
+  const [tplRes, formations, categories, dossiers] = await Promise.all([
     sb
       .schema('app')
       .from('document_templates')
@@ -21,6 +21,7 @@ export default async function EditTemplatePage({ params }: { params: { id: strin
       .maybeSingle(),
     loadFormations(),
     loadCategories(),
+    loadDossiers(),
   ]);
 
   const row = tplRes.data as unknown as {
@@ -44,7 +45,7 @@ export default async function EditTemplatePage({ params }: { params: { id: strin
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
-      <TemplateEditor template={template} formations={formations} categories={categories} />
+      <TemplateEditor template={template} formations={formations} categories={categories} dossiers={dossiers} />
     </div>
   );
 }

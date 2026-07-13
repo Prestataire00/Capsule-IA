@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { PrintButton } from './_components/print-button';
+import { EditableDocument } from './_components/editable-document';
 import {
   SignaturePanel,
   type ExistingSignature,
@@ -145,16 +146,15 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
         </div>
       ) : (
         <>
-          <article className="doc-sheet bg-white text-zinc-900 max-w-[760px] mx-auto rounded-sm shadow-lg px-12 py-12">
-            {doc.content_html ? (
-              // eslint-disable-next-line react/no-danger
-              <div dangerouslySetInnerHTML={{ __html: doc.content_html }} />
-            ) : (
+          {doc.content_html ? (
+            <EditableDocument documentId={doc.id} initialHtml={doc.content_html} />
+          ) : (
+            <article className="doc-sheet bg-white text-zinc-900 max-w-[760px] mx-auto rounded-sm shadow-lg px-12 py-12">
               <p className="text-[13px] text-zinc-500">
                 Ce document n&apos;a pas encore de contenu consultable.
               </p>
-            )}
-          </article>
+            </article>
+          )}
 
           <div className="no-print max-w-[760px] mx-auto mt-5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6">
             <SignaturePanel documentId={doc.id} suggestions={suggestions} existing={existing} />
