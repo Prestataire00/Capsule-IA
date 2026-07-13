@@ -78,7 +78,7 @@ export default async function EntreprisesPage() {
             const city = c.address?.city ?? '';
             return (
               <li key={c.id}>
-                <div className="block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+                <Link href={`/entreprises/${c.id}`} className="block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition">
                   <div className="flex items-center gap-3 min-w-0 mb-3">
                     <span className={`w-12 h-12 rounded-xl flex items-center justify-center text-[14px] font-semibold flex-shrink-0 shadow-sm ${palette[idx]}`}>
                       {initials}
@@ -102,7 +102,7 @@ export default async function EntreprisesPage() {
                   <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800 text-[12px] text-zinc-600 dark:text-zinc-400">
                     {learnerCount.get(c.id) ?? 0} apprenant{(learnerCount.get(c.id) ?? 0) > 1 ? 's' : ''} rattaché{(learnerCount.get(c.id) ?? 0) > 1 ? 's' : ''}
                   </div>
-                </div>
+                </Link>
               </li>
             );
           })}
