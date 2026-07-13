@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
-  MessageSquareWarning, Settings, Plus, Activity, ShieldCheck, BookOpen,
+  MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
@@ -61,7 +61,6 @@ const GROUPS: Group[] = [
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
-      { href: '/modules', icon: BookOpen, label: 'Modules' },
     ],
   },
   {
