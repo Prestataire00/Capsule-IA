@@ -1,11 +1,11 @@
 // ARCHETYPE: command
-// Justification: fiche détail formation en données réelles — KPIs, programme (formation_modules), dossiers liés, lien d'inscription.
+// Justification: fiche détail formation en données réelles — KPIs, dossiers liés, sessions de groupe, lien d'inscription.
 
 import Link from 'next/link';
 import { GroupSessionForm } from './group-session-form.client';
 import { notFound } from 'next/navigation';
 import {
-  ArrowLeft, Clock, Video, MapPin, GraduationCap, BookOpen, Eye, EyeOff,
+  ArrowLeft, Clock, Video, MapPin, GraduationCap, Eye, EyeOff,
   Users as UsersIcon, Banknote, FileText, Sparkles, ExternalLink, Award, Pencil,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
@@ -59,20 +59,14 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   const f = data as any;
   if (!f) return notFound();
 
-  const [{ data: programData }, { data: dossierData }] = await Promise.all([
-    sb.schema('app').from('formation_modules')
-      .select('position, duration_hours, module:modules(title)')
-      .eq('formation_id', id)
-      .order('position', { ascending: true }),
-    sb.schema('app').from('dossiers')
-      .select('id, reference, status, total_amount_cents, learner:learners(first_name, last_name)')
-      .eq('formation_id', id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-  ]);
+  const { data: dossierData } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('id, reference, status, total_amount_cents, learner:learners(first_name, last_name)')
+    .eq('formation_id', id)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const program = ((programData as any[]) ?? []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const relatedDossiers = ((dossierData as any[]) ?? []);
 
@@ -167,9 +161,8 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         </div>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <section className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
         <KpiTile label="Apprenants actifs" value={activeCount} icon={UsersIcon} accent="rose" />
-        <KpiTile label="Modules" value={program.length} icon={BookOpen} accent="blue" hint="au programme" />
         <KpiTile label="CA généré" value={formatEuros(totalRevenue)} icon={Banknote} accent="amber" hint="actifs + clos" />
         <KpiTile label="Dossiers" value={relatedDossiers.length} icon={FileText} accent="violet" />
       </section>
@@ -214,29 +207,6 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             </Card>
           )}
 
-          <Card title={`Programme (${program.length})`}>
-            {program.length === 0 ? (
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                Aucun module rattaché à cette formation. Ajoutez des modules au catalogue puis composez le programme.
-              </p>
-            ) : (
-              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 -my-3">
-                {program.map((p, i) => (
-                  <li key={i} className="flex items-center justify-between py-3 gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center text-[12px] font-medium flex-shrink-0">
-                        {p.position + 1}
-                      </span>
-                      <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                        {p.module?.title ?? 'Module'}
-                      </p>
-                    </div>
-                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 font-mono tabular-nums">{Number(p.duration_hours)} h</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
         </div>
 
         <div className="space-y-6">
