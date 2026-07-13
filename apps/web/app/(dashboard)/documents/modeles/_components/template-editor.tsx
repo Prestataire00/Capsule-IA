@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAction } from 'next-safe-action/hooks';
 import { ArrowLeft, Save, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import { TEMPLATE_VARIABLES } from '@/features/documents/templates/variables';
+import { RichTextEditor } from '@/features/documents/editor/rich-text-editor';
+import { pillsToTokens } from '@/features/documents/editor/template-variable-node';
 import { saveTemplate, deleteTemplate } from '../actions';
 import {
   TEMPLATE_KINDS,
@@ -45,28 +46,12 @@ export function TemplateEditor({
   const [html, setHtml] = useState(template?.contentHtml ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const taRef = useRef<HTMLTextAreaElement>(null);
-
-  function insertVariable(slug: string) {
-    const ta = taRef.current;
-    const token = `{${slug}}`;
-    if (!ta) {
-      setHtml((h) => h + token);
-      return;
-    }
-    const start = ta.selectionStart ?? html.length;
-    const end = ta.selectionEnd ?? html.length;
-    const next = html.slice(0, start) + token + html.slice(end);
-    setHtml(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.selectionStart = ta.selectionEnd = start + token.length;
-    });
-  }
 
   async function handleSave() {
     setError(null);
-    if (!title.trim() || !html.trim()) {
+    // Reconvertit les pastilles en tokens {slug} pour le pipeline de rendu.
+    const contentHtml = pillsToTokens(html);
+    if (!title.trim() || !contentHtml.trim()) {
       setError('Titre et contenu requis.');
       return;
     }
@@ -75,7 +60,7 @@ export function TemplateEditor({
       id: template?.id ?? null,
       kind,
       title,
-      contentHtml: html,
+      contentHtml,
       formationId: formationId || null,
       categoryId: categoryId || null,
     });
@@ -103,8 +88,6 @@ export function TemplateEditor({
       setError('La suppression a échoué.');
     }
   }
-
-  const groups = [...new Set(TEMPLATE_VARIABLES.map((v) => v.group))];
 
   return (
     <div className="space-y-6">
@@ -147,8 +130,7 @@ export function TemplateEditor({
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
               <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">Type</span>
@@ -211,55 +193,16 @@ export function TemplateEditor({
             </select>
           </label>
 
-          <label className="block">
+          <div>
             <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">
-              Contenu (HTML, variables entre accolades)
+              Contenu du document
             </span>
-            <textarea
-              ref={taRef}
-              value={html}
-              onChange={(e) => setHtml(e.target.value)}
-              rows={22}
-              spellCheck={false}
-              className="w-full font-mono text-[12px] bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 leading-relaxed"
-              placeholder="<h1>{formation_titre}</h1> ..."
-            />
-          </label>
-
-          <details className="border border-zinc-200/60 dark:border-zinc-800 rounded-md">
-            <summary className="text-[12px] text-zinc-600 dark:text-zinc-300 px-3 py-2 cursor-pointer select-none">
-              Aperçu (variables non remplacées)
-            </summary>
-            {/* eslint-disable-next-line react/no-danger */}
-            <div
-              className="doc-preview prose prose-sm dark:prose-invert max-w-none px-4 py-3 border-t border-zinc-200/60 dark:border-zinc-800"
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
-          </details>
-        </div>
-
-        <aside className="space-y-4">
-          <p className="text-[11px] uppercase tracking-wider text-zinc-500">Variables</p>
-          <p className="text-[11px] text-zinc-400">Cliquez pour insérer.</p>
-          {groups.map((g) => (
-            <div key={g}>
-              <p className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300 mb-1">{g}</p>
-              <div className="flex flex-wrap gap-1">
-                {TEMPLATE_VARIABLES.filter((v) => v.group === g).map((v) => (
-                  <button
-                    key={v.slug}
-                    type="button"
-                    onClick={() => insertVariable(v.slug)}
-                    title={v.label}
-                    className="text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-zinc-600 dark:text-zinc-300 rounded px-1.5 py-0.5"
-                  >
-                    {v.slug}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </aside>
+            <p className="text-[11px] text-zinc-400 mb-2">
+              Rédigez comme un traitement de texte. Cliquez une variable dans le panneau pour l&apos;insérer
+              sous forme de pastille ; elle sera remplacée par la vraie valeur à la génération.
+            </p>
+            <RichTextEditor value={html} onChange={setHtml} />
+          </div>
       </div>
     </div>
   );
