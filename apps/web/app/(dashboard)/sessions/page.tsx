@@ -77,13 +77,15 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   const formationId = searchParams.formation ?? '';
 
   const sb = supabaseServer();
-  const [{ data: sessionData }, { data: formationData }] = await Promise.all([
+  const [{ data: sessionData, error: sessionErr }, { data: formationData }] = await Promise.all([
     sb
       .schema('app')
       .from('sessions')
+      // On récupère `formation_id` en scalaire (résolu ci-dessous via la liste des
+      // formations) plutôt qu'en embed PostgREST : évite qu'une erreur de relation
+      // sur la nouvelle FK sessions.formation_id ne vide TOUTE la liste ("0 session").
       .select(
-        'id, title, status, starts_at, ends_at, modality, remote_url, ' +
-          'formation:formations(id, title), ' +
+        'id, title, status, starts_at, ends_at, modality, remote_url, formation_id, ' +
           'dossier:dossiers(id, reference, learner:learners(first_name, last_name), formation:formations(id, title))',
       )
       .order('starts_at', { ascending: false })
@@ -91,9 +93,20 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
     sb.schema('app').from('formations').select('id, title').is('deleted_at', null).order('title', { ascending: true }),
   ]);
 
-  const all = (sessionData as SessionRow[] | null) ?? [];
+  if (sessionErr) {
+    console.error('[sessions] échec de la requête sessions:', sessionErr);
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formations = ((formationData as any[]) ?? []) as { id: string; title: string }[];
+  const formationsById = new Map(formations.map((f) => [f.id, f]));
+
+  // Rattache la formation d'une session de groupe (formation_id) depuis la liste
+  // déjà chargée — sans dépendre d'un embed.
+  const all = ((sessionData as SessionRow[] | null) ?? []).map((s) => ({
+    ...s,
+    formation: s.formation_id ? formationsById.get(s.formation_id) ?? null : (s.formation ?? null),
+  }));
 
   const filtered = all.filter((s) => {
     const fid = s.formation?.id ?? s.dossier?.formation?.id;
@@ -174,6 +187,13 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
           )}
         </div>
       </div>
+
+      {sessionErr && (
+        <div className="mb-4 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-[13px] text-amber-800 dark:text-amber-300">
+          Impossible de charger les sessions pour le moment (erreur base de données). Réessayez dans un instant ;
+          si le problème persiste, contactez le support.
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg">
