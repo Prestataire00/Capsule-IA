@@ -71,11 +71,13 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   const relatedDossiers = ((dossierData as any[]) ?? []);
 
   // Sessions de cette formation = sessions de groupe (formation_id) + sessions des dossiers rattachés.
+  // Repli sur les seules sessions par dossier si `formation_id` n'est pas encore connu du
+  // cache de schéma PostgREST (migration 0106) — évite « erreur base de données » sur la fiche.
   const dossierIds = relatedDossiers.map((d) => d.id);
   const orFilter = dossierIds.length
     ? `formation_id.eq.${id},dossier_id.in.(${dossierIds.join(',')})`
     : `formation_id.eq.${id}`;
-  const { data: sessionData } = await sb
+  const primary = await sb
     .schema('app')
     .from('sessions')
     .select('id, title, status, starts_at, ends_at, modality, remote_url, dossier_id, formation_id')
@@ -83,7 +85,22 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     .order('starts_at', { ascending: false })
     .limit(50);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sessions = ((sessionData as any[]) ?? []);
+  let sessionData = primary.data as any[] | null;
+  if (primary.error) {
+    console.error('[formation] sessions avec formation_id échouées, repli par dossier:', primary.error);
+    if (dossierIds.length) {
+      const fb = await sb
+        .schema('app')
+        .from('sessions')
+        .select('id, title, status, starts_at, ends_at, modality, remote_url, dossier_id')
+        .in('dossier_id', dossierIds)
+        .order('starts_at', { ascending: false })
+        .limit(50);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sessionData = fb.data as any[] | null;
+    }
+  }
+  const sessions = sessionData ?? [];
 
   const activeCount = relatedDossiers.filter((d) => ACTIVE.includes(d.status)).length;
   const totalRevenue = relatedDossiers
