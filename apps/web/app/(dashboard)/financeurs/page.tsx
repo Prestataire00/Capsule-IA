@@ -82,12 +82,15 @@ export default async function FinanceursPage({
             const Icon = k.icon;
             return (
               <li key={f.id}>
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+                <Link
+                  href={`/financeurs/${f.id}`}
+                  className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
+                >
                   <div className="flex items-start justify-between mb-4">
                     <span className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${k.bg}`}>
                       <Icon className={`w-5 h-5 ${k.text}`} />
                     </span>
-                    <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 flex-shrink-0" />
+                    <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-violet-600 transition flex-shrink-0" />
                   </div>
 
                   <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 mb-1 truncate">{f.name}</p>
@@ -106,7 +109,7 @@ export default async function FinanceursPage({
                       <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5 tabular-nums truncate">{formatEurosCents(f.fundedCents)}</p>
                     </div>
                   </div>
-                </div>
+                </Link>
               </li>
             );
           })}
