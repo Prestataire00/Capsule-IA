@@ -33,7 +33,7 @@ export async function resolveOrgVariables(
     sb
       .schema('app')
       .from('organizations')
-      .select('name, siret, declaration_activite, address, contact_email, legal_name')
+      .select('name, siret, declaration_activite, address, contact_email, contact_phone, legal_name, representative_name, representative_title')
       .eq('id', organizationId)
       .maybeSingle(),
     loadOrgLogoDataUri(sb, organizationId),
@@ -45,7 +45,10 @@ export async function resolveOrgVariables(
     declaration_activite: string | null;
     address: AddressJson | null;
     contact_email: string | null;
+    contact_phone: string | null;
     legal_name: string | null;
+    representative_name: string | null;
+    representative_title: string | null;
   } | null) ?? null;
 
   const e = escapeHtml;
@@ -58,7 +61,10 @@ export async function resolveOrgVariables(
     organisme_siret: e(org?.siret ?? ''),
     organisme_nda: e(org?.declaration_activite ?? ''),
     organisme_adresse: e(composeAddress(org?.address)),
-    organisme_representant: e(org?.contact_email ?? ''),
+    organisme_representant: e(org?.representative_name || org?.contact_email || ''),
+    organisme_representant_qualite: e(org?.representative_title ?? ''),
+    organisme_email: e(org?.contact_email ?? ''),
+    organisme_telephone: e(org?.contact_phone ?? ''),
     organisme_logo: logoImg,
     date_du_jour: new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date()),
   };

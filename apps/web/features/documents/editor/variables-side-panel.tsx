@@ -11,6 +11,7 @@ const GROUP_COLORS: Record<string, string> = {
   Dossier: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
   Formateur: 'bg-rose-100 text-rose-700 hover:bg-rose-200 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
   Organisme: 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800',
+  Conditions: 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200 border-cyan-300 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800',
   Divers: 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
 };
 

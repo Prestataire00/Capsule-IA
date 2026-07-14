@@ -100,7 +100,7 @@ export async function resolveDossierVariables(
     sb
       .schema('app')
       .from('organizations')
-      .select('name, siret, declaration_activite, address, contact_email, legal_name')
+      .select('name, siret, declaration_activite, address, contact_email, contact_phone, legal_name, representative_name, representative_title')
       .eq('id', d.organization_id)
       .maybeSingle(),
     sb
@@ -128,7 +128,10 @@ export async function resolveDossierVariables(
     declaration_activite: string | null;
     address: AddressJson | null;
     contact_email: string | null;
+    contact_phone: string | null;
     legal_name: string | null;
+    representative_name: string | null;
+    representative_title: string | null;
   } | null) ?? null;
 
   const modules =
@@ -153,10 +156,14 @@ export async function resolveDossierVariables(
     apprenant_email: learner ? e(learner.email) : '',
     apprenant_date_naissance: formatDateFr(learner?.birth_date),
     apprenant_adresse: e(composeAddress(learner?.address)),
+    apprenant_ville: e(learner?.address?.city ?? ''),
+    apprenant_code_postal: e(learner?.address?.postal_code ?? ''),
 
     entreprise_nom: company ? e(company.name) : '',
     entreprise_siret: company?.siret ? e(company.siret) : '',
     entreprise_adresse: e(composeAddress(company?.address)),
+    entreprise_ville: e(company?.address?.city ?? ''),
+    entreprise_code_postal: e(company?.address?.postal_code ?? ''),
 
     formation_titre: formation ? e(formation.title) : '',
     formation_objectifs: listHtml(formation?.objectives ?? []),
@@ -179,8 +186,18 @@ export async function resolveDossierVariables(
     organisme_siret: e(org?.siret ?? ''),
     organisme_nda: e(org?.declaration_activite ?? ''),
     organisme_adresse: e(composeAddress(org?.address)),
-    organisme_representant: e(org?.contact_email ?? ''),
+    organisme_representant: e(org?.representative_name || org?.contact_email || ''),
+    organisme_representant_qualite: e(org?.representative_title ?? ''),
+    organisme_email: e(org?.contact_email ?? ''),
+    organisme_telephone: e(org?.contact_phone ?? ''),
     organisme_logo: logoImg,
+
+    // Drapeaux conditionnels (valeur non vide = « vrai » pour les blocs {si …}).
+    est_presentiel: d.modality === 'presentiel' ? '1' : '',
+    est_distanciel: d.modality === 'distanciel' ? '1' : '',
+    est_hybride: d.modality === 'hybride' ? '1' : '',
+    est_entreprise: company ? '1' : '',
+    est_particulier: company ? '' : '1',
 
     date_du_jour: formatDateFr(new Date().toISOString()),
   };

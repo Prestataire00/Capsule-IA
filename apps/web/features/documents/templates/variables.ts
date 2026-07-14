@@ -16,10 +16,14 @@ export const TEMPLATE_VARIABLES: TemplateVariable[] = [
   { slug: 'apprenant_email', label: 'Email', group: 'Apprenant' },
   { slug: 'apprenant_date_naissance', label: 'Date de naissance', group: 'Apprenant' },
   { slug: 'apprenant_adresse', label: 'Adresse', group: 'Apprenant' },
+  { slug: 'apprenant_ville', label: 'Ville', group: 'Apprenant' },
+  { slug: 'apprenant_code_postal', label: 'Code postal', group: 'Apprenant' },
   // Entreprise
   { slug: 'entreprise_nom', label: 'Raison sociale', group: 'Entreprise' },
   { slug: 'entreprise_siret', label: 'SIRET', group: 'Entreprise' },
   { slug: 'entreprise_adresse', label: 'Adresse', group: 'Entreprise' },
+  { slug: 'entreprise_ville', label: 'Ville', group: 'Entreprise' },
+  { slug: 'entreprise_code_postal', label: 'Code postal', group: 'Entreprise' },
   // Formation
   { slug: 'formation_titre', label: 'Intitulé', group: 'Formation' },
   { slug: 'formation_objectifs', label: 'Objectifs (liste)', group: 'Formation' },
@@ -43,7 +47,16 @@ export const TEMPLATE_VARIABLES: TemplateVariable[] = [
   { slug: 'organisme_nda', label: "N° de déclaration d'activité", group: 'Organisme' },
   { slug: 'organisme_adresse', label: 'Adresse', group: 'Organisme' },
   { slug: 'organisme_representant', label: 'Représentant légal', group: 'Organisme' },
+  { slug: 'organisme_representant_qualite', label: 'Qualité du représentant', group: 'Organisme' },
+  { slug: 'organisme_email', label: 'Email', group: 'Organisme' },
+  { slug: 'organisme_telephone', label: 'Téléphone', group: 'Organisme' },
   { slug: 'organisme_logo', label: 'Logo (image)', group: 'Organisme' },
+  // Conditions (drapeaux pour les blocs conditionnels : non vide = vrai)
+  { slug: 'est_presentiel', label: 'Si présentiel', group: 'Conditions' },
+  { slug: 'est_distanciel', label: 'Si distanciel', group: 'Conditions' },
+  { slug: 'est_hybride', label: 'Si hybride', group: 'Conditions' },
+  { slug: 'est_entreprise', label: 'Si financé par une entreprise', group: 'Conditions' },
+  { slug: 'est_particulier', label: 'Si particulier', group: 'Conditions' },
   // Divers
   { slug: 'date_du_jour', label: 'Date du jour', group: 'Divers' },
 ];
