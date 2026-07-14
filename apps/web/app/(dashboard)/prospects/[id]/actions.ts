@@ -133,6 +133,29 @@ export const rejectProspectDocument = authActionClient
     return { ok: true as const };
   });
 
+/** Dévalide une pièce : supprime l'avis de vérification → repasse « à vérifier ». */
+export const unreviewProspectDocument = authActionClient
+  .schema(docSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const userId = ctx.userId as unknown as string;
+    const orgId = await resolveAdminOrgId(userId);
+    if (!orgId) return { ok: false as const, error: 'forbidden_not_admin' };
+    const p = await loadProspect(parsedInput.prospectId);
+    if (!p) return { ok: false as const, error: 'prospect_not_found' };
+    const rowOrg = p.organization_id ?? orgId;
+
+    const admin = (supabaseAdmin() as unknown as SupabaseClient);
+    await admin
+      .schema('app')
+      .from('prospect_document_reviews')
+      .delete()
+      .eq('prospect_id', parsedInput.prospectId)
+      .eq('doc_key', parsedInput.docKey);
+    await recordEvent(rowOrg, parsedInput.prospectId, 'document_unverified', userId, { doc_key: parsedInput.docKey });
+    revalidatePath(`/prospects/${parsedInput.prospectId}`);
+    return { ok: true as const };
+  });
+
 export const validateProspectDemande = authActionClient
   .schema(demandeSchema)
   .action(async ({ parsedInput, ctx }) => {

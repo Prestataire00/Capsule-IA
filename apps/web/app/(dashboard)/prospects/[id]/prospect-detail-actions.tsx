@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
-import { Check, X, Download, Loader2, ShieldCheck, Ban } from 'lucide-react';
+import { Check, X, Download, Loader2, ShieldCheck, Ban, RotateCcw } from 'lucide-react';
 import { StatusPill } from '@/shared/ui/status-pill';
 import {
   verifyProspectDocument,
   rejectProspectDocument,
+  unreviewProspectDocument,
   validateProspectDemande,
   rejectProspectDemande,
 } from './actions';
@@ -26,9 +27,15 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
   const router = useRouter();
   const verify = useAction(verifyProspectDocument);
   const reject = useAction(rejectProspectDocument);
+  const unreview = useAction(unreviewProspectDocument);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
-  const busy = verify.isExecuting || reject.isExecuting;
+  const busy = verify.isExecuting || reject.isExecuting || unreview.isExecuting;
+
+  async function doUnreview() {
+    const r = await unreview.executeAsync({ prospectId, docKey: doc.key });
+    if (r?.data?.ok) router.refresh();
+  }
 
   const tone =
     doc.reviewStatus === 'verified' ? 'success' : doc.reviewStatus === 'rejected' ? 'danger' : 'neutral';
@@ -95,9 +102,20 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
           </a>
         )}
         {doc.reviewStatus === 'verified' ? (
-          <span className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
-            <Check className="w-3.5 h-3.5" /> Validé
-          </span>
+          <>
+            <span className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+              <Check className="w-3.5 h-3.5" /> Validé
+            </span>
+            <button
+              type="button"
+              onClick={doUnreview}
+              disabled={busy}
+              title="Annuler la validation"
+              className="text-[12px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 inline-flex items-center gap-1 disabled:opacity-40"
+            >
+              {unreview.isExecuting ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />} Dévalider
+            </button>
+          </>
         ) : (
           doc.uploaded &&
           !rejecting && (
