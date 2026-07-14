@@ -11,6 +11,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { StatCard } from '@/shared/ui/stat-card';
 import { TemplatesSection, type TemplateItem } from './templates-section';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
+import { SeedQuestionnairesButton } from './seed-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +102,8 @@ export default async function QuestionnairesPage({
             Positionnement, satisfaction à chaud et à froid — preuves Qualiopi I10, I26, I27.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <SeedQuestionnairesButton />
           <Link href="/questionnaires/analytics" className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
             <BarChart3 className="w-3.5 h-3.5" /> Statistiques
           </Link>

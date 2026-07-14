@@ -7,8 +7,42 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { templateFormSchema, toRuntimeSchema, TEMPLATE_KINDS } from '@/features/questionnaire/template.schema';
 import { generateQuestionnaireDraft } from '@/features/questionnaire/generate-with-ai';
+import { DEFAULT_QUESTIONNAIRES } from '@/features/questionnaire/default-questionnaires';
 
 const KIND_VALUES = TEMPLATE_KINDS.map((k) => k.value) as [string, ...string[]];
+
+// Importe les questionnaires Qualiopi par défaut (contenu Sosafe). Idempotent :
+// n'insère que les codes système absents pour l'organisation.
+export const seedDefaultQuestionnaires = authActionClient.action(async ({ ctx }) => {
+  const sb = ctx.supabase;
+  const orgId = await resolveOrgId(sb);
+  if (!orgId) return { ok: false as const, error: 'no_org' };
+
+  const { data: existing } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .select('code')
+    .eq('organization_id', orgId);
+  const existingCodes = new Set(((existing as unknown as Array<{ code: string }>) ?? []).map((r) => r.code));
+
+  const toInsert = DEFAULT_QUESTIONNAIRES.filter((q) => !existingCodes.has(q.code)).map((q) => ({
+    organization_id: orgId,
+    code: q.code,
+    kind: q.kind,
+    title: q.title,
+    schema: q.schema,
+    thank_you_message: q.thankYou,
+    is_active: true,
+  }));
+
+  if (toInsert.length === 0) return { ok: true as const, created: 0 };
+
+  const { error } = await sb.schema('app').from('questionnaire_templates').insert(toInsert as never);
+  if (error) return { ok: false as const, error: 'seed_failed', details: error.message };
+
+  revalidatePath('/questionnaires');
+  return { ok: true as const, created: toInsert.length };
+});
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveOrgId(sb: SupabaseClient<any>): Promise<string | null> {
