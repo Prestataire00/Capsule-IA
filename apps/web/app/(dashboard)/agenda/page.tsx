@@ -115,7 +115,7 @@ export default async function AgendaPage({
   searchParams?: { week?: string; view?: string };
 }) {
   const weekOffset = Number.parseInt(searchParams?.week ?? '0', 10) || 0;
-  const view: 'liste' | 'semaine' = searchParams?.view === 'semaine' ? 'semaine' : 'liste';
+  const view: 'liste' | 'semaine' = searchParams?.view === 'liste' ? 'liste' : 'semaine';
 
   const { data: auth } = await supabaseServer().auth.getUser();
   const userId = auth?.user?.id ?? null;
