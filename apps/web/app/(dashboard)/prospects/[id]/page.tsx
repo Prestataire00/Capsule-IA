@@ -122,6 +122,7 @@ type Event = { id: string; kind: string; payload: Record<string, unknown>; occur
 const EVENT_LABELS: Record<string, string> = {
   document_verified: 'Pièce vérifiée',
   document_rejected: 'Pièce refusée',
+  document_unverified: 'Validation annulée',
   demande_validated: 'Demande validée',
   demande_rejected: 'Demande refusée',
   comment: 'Commentaire',
