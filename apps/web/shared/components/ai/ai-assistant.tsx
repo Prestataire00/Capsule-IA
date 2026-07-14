@@ -2,8 +2,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useAction } from 'next-safe-action/hooks';
 import { Sparkles, X, Send, ArrowRight, Bot, User as UserIcon } from 'lucide-react';
-import { askAi, initialSuggestions } from './mock-responses';
+import { initialSuggestions } from './mock-responses';
+import { askAssistant } from './actions';
 import { cn } from '@/shared/lib/cn';
 
 type Msg = { role: 'user' | 'assistant'; content: string; suggestions?: string[] };
@@ -51,20 +53,40 @@ export function AiAssistant() {
     return () => window.removeEventListener('keydown', handler);
   }, [open]);
 
-  const send = (text?: string) => {
+  const { executeAsync } = useAction(askAssistant);
+
+  const send = async (text?: string) => {
     const content = (text ?? input).trim();
-    if (!content) return;
+    if (!content || typing) return;
     setInput('');
-    setMessages((m) => [...m, { role: 'user', content }]);
+    const nextMessages: Msg[] = [...messages, { role: 'user', content }];
+    setMessages(nextMessages);
     setTyping(true);
 
-    // Simulate latence d'API
-    const delay = 600 + Math.random() * 600;
-    setTimeout(() => {
-      const reply = askAi(content);
-      setMessages((m) => [...m, { role: 'assistant', ...reply }]);
+    // Historique envoyé à l'API : commence obligatoirement par un tour "user".
+    const payload = nextMessages.map((m) => ({ role: m.role, content: m.content }));
+    while (payload.length && payload[0]!.role === 'assistant') payload.shift();
+
+    try {
+      const res = await executeAsync({ messages: payload });
+      const out = res?.data;
+      if (out?.ok) {
+        setMessages((m) => [...m, { role: 'assistant', content: out.reply }]);
+      } else {
+        setMessages((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            content:
+              out?.error === 'ai_unavailable'
+                ? "L'assistant n'est pas configuré (clé API IA manquante). Contactez votre administrateur."
+                : "Désolé, je n'ai pas pu répondre pour le moment. Réessayez dans un instant.",
+          },
+        ]);
+      }
+    } finally {
       setTyping(false);
-    }, delay);
+    }
   };
 
   return (
@@ -175,7 +197,7 @@ export function AiAssistant() {
             </button>
           </div>
           <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1.5 px-1">
-            Réponses générées localement · pas de vraie API IA branchée
+            Propulsé par Claude · réponses basées sur vos données réelles
           </p>
         </form>
       </aside>
