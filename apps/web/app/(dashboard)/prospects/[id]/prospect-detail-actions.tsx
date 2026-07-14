@@ -3,7 +3,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
-import { Check, X, Download, Loader2, ShieldCheck, Ban, RotateCcw } from 'lucide-react';
+import {
+  Check,
+  X,
+  Download,
+  Loader2,
+  ShieldCheck,
+  Ban,
+  RotateCcw,
+  AlertTriangle,
+  Clock,
+  CircleDashed,
+} from 'lucide-react';
 import { StatusPill } from '@/shared/ui/status-pill';
 import {
   verifyProspectDocument,
@@ -23,6 +34,63 @@ export type DocChecklistItem = {
   rejectedReason: string | null;
 };
 
+type DocState = 'missing' | 'rejected' | 'verified' | 'pending' | 'optional';
+
+/** État visuel d'une pièce : couleur, icône, libellé — pour un repérage immédiat. */
+function docState(doc: DocChecklistItem): DocState {
+  if (doc.reviewStatus === 'verified') return 'verified';
+  if (doc.reviewStatus === 'rejected') return 'rejected';
+  if (!doc.uploaded) return doc.required ? 'missing' : 'optional';
+  return 'pending';
+}
+
+const STATE_VISUAL: Record<
+  DocState,
+  {
+    card: string;
+    iconWrap: string;
+    badge: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }
+> = {
+  missing: {
+    card: 'border-red-300 dark:border-red-800/70 bg-red-50 dark:bg-red-950/30',
+    iconWrap: 'bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-300',
+    badge: 'bg-red-600 text-white',
+    label: 'Pièce manquante',
+    icon: AlertTriangle,
+  },
+  rejected: {
+    card: 'border-red-300 dark:border-red-800/70 bg-red-50 dark:bg-red-950/30',
+    iconWrap: 'bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-300',
+    badge: 'bg-red-600 text-white',
+    label: 'Refusée',
+    icon: X,
+  },
+  pending: {
+    card: 'border-amber-300 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/25',
+    iconWrap: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300',
+    badge: 'bg-amber-500 text-white',
+    label: 'À vérifier',
+    icon: Clock,
+  },
+  verified: {
+    card: 'border-emerald-300 dark:border-emerald-800/70 bg-emerald-50 dark:bg-emerald-950/25',
+    iconWrap: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300',
+    badge: 'bg-emerald-600 text-white',
+    label: 'Validé',
+    icon: Check,
+  },
+  optional: {
+    card: 'border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900',
+    iconWrap: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500',
+    badge: 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+    label: 'Non fournie · optionnel',
+    icon: CircleDashed,
+  },
+};
+
 function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem }) {
   const router = useRouter();
   const verify = useAction(verifyProspectDocument);
@@ -37,10 +105,9 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
     if (r?.data?.ok) router.refresh();
   }
 
-  const tone =
-    doc.reviewStatus === 'verified' ? 'success' : doc.reviewStatus === 'rejected' ? 'danger' : 'neutral';
-  const statusLabel =
-    doc.reviewStatus === 'verified' ? 'validé' : doc.reviewStatus === 'rejected' ? 'refusée' : 'à vérifier';
+  const state = docState(doc);
+  const v = STATE_VISUAL[state];
+  const Icon = v.icon;
 
   async function doVerify() {
     const r = await verify.executeAsync({ prospectId, docKey: doc.key });
@@ -57,87 +124,89 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
   }
 
   return (
-    <li className="py-3 px-1 flex items-start justify-between gap-3 text-[13px]">
-      <div className="min-w-0">
-        <span className="text-zinc-900 dark:text-zinc-100">
-          {doc.label}
-          {doc.required && <span className="text-red-500"> *</span>}
-        </span>
-        <div className="mt-0.5 flex items-center gap-2">
-          {doc.uploaded ? (
-            <StatusPill tone={tone}>{statusLabel}</StatusPill>
-          ) : (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400">pièce manquante</span>
-          )}
-          {doc.reviewStatus === 'rejected' && doc.rejectedReason && (
-            <span className="text-[11px] text-zinc-500 truncate">— {doc.rejectedReason}</span>
-          )}
+    <li className={`rounded-xl border p-3.5 flex items-start gap-3 ${v.card}`}>
+      <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${v.iconWrap}`}>
+        <Icon className="w-4 h-4" />
+      </span>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+            {doc.label}
+            {doc.required && <span className="text-red-500" title="Pièce obligatoire"> *</span>}
+          </p>
+          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${v.badge}`}>{v.label}</span>
         </div>
-        {rejecting && (
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Motif du refus…"
-              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded px-2 py-1 text-[12px] w-64"
-            />
-            <button type="button" onClick={doReject} disabled={busy} className="text-[12px] text-red-600 hover:text-red-700">
-              Confirmer
-            </button>
-            <button type="button" onClick={() => setRejecting(false)} className="text-[12px] text-zinc-400">
-              Annuler
-            </button>
-          </div>
+
+        {state === 'rejected' && doc.rejectedReason && (
+          <p className="mt-1 text-[12px] text-red-700 dark:text-red-300">Motif : {doc.rejectedReason}</p>
         )}
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        {doc.downloadHref && (
-          <a
-            href={doc.downloadHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[12px] text-violet-600 hover:text-violet-700 inline-flex items-center gap-1"
-          >
-            <Download className="w-3 h-3" /> Voir
-          </a>
-        )}
-        {doc.reviewStatus === 'verified' ? (
-          <>
-            <span className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
-              <Check className="w-3.5 h-3.5" /> Validé
-            </span>
-            <button
-              type="button"
-              onClick={doUnreview}
-              disabled={busy}
-              title="Annuler la validation"
-              className="text-[12px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 inline-flex items-center gap-1 disabled:opacity-40"
+
+        {/* Actions */}
+        <div className="mt-2.5 flex items-center gap-3 flex-wrap">
+          {doc.downloadHref && (
+            <a
+              href={doc.downloadHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[12px] font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"
             >
-              {unreview.isExecuting ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />} Dévalider
-            </button>
-          </>
-        ) : (
-          doc.uploaded &&
-          !rejecting && (
+              <Download className="w-3.5 h-3.5" /> Voir la pièce
+            </a>
+          )}
+          {doc.uploaded && doc.reviewStatus !== 'verified' && !rejecting && (
             <>
               <button
                 type="button"
                 onClick={doVerify}
                 disabled={busy}
-                className="text-[12px] text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1 disabled:opacity-40"
+                className="text-[12px] font-medium text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 inline-flex items-center gap-1 disabled:opacity-40"
               >
-                {verify.isExecuting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Vérifier
+                {verify.isExecuting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Valider
               </button>
               <button
                 type="button"
                 onClick={() => setRejecting(true)}
                 disabled={busy}
-                className="text-[12px] text-red-600 hover:text-red-700 inline-flex items-center gap-1 disabled:opacity-40"
+                className="text-[12px] font-medium text-red-600 hover:text-red-700 inline-flex items-center gap-1 disabled:opacity-40"
               >
-                <X className="w-3 h-3" /> Refuser
+                <X className="w-3.5 h-3.5" /> Refuser
               </button>
             </>
-          )
+          )}
+          {doc.reviewStatus === 'verified' && (
+            <button
+              type="button"
+              onClick={doUnreview}
+              disabled={busy}
+              title="Annuler la validation"
+              className="text-[12px] font-medium text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 inline-flex items-center gap-1 disabled:opacity-40"
+            >
+              {unreview.isExecuting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />} Dévalider
+            </button>
+          )}
+          {state === 'missing' && (
+            <span className="text-[12px] text-red-700/80 dark:text-red-300/80">
+              L’apprenant doit encore fournir ce document.
+            </span>
+          )}
+        </div>
+
+        {rejecting && (
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Motif du refus…"
+              className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-[12px] w-64"
+            />
+            <button type="button" onClick={doReject} disabled={busy} className="text-[12px] font-medium text-red-600 hover:text-red-700">
+              Confirmer le refus
+            </button>
+            <button type="button" onClick={() => setRejecting(false)} className="text-[12px] text-zinc-400">
+              Annuler
+            </button>
+          </div>
         )}
       </div>
     </li>
@@ -174,9 +243,50 @@ export function ProspectDetailActions({
     }
   }
 
+  const requiredMissing = docs.filter((d) => d.required && !d.uploaded).length;
+  const rejectedCount = docs.filter((d) => d.reviewStatus === 'rejected').length;
+  const pendingCount = docs.filter(
+    (d) => d.uploaded && d.reviewStatus !== 'verified' && d.reviewStatus !== 'rejected',
+  ).length;
+  const verifiedCount = docs.filter((d) => d.reviewStatus === 'verified').length;
+  const blocking = requiredMissing + rejectedCount;
+
+  const summary =
+    docs.length === 0
+      ? null
+      : blocking > 0
+        ? {
+            cls: 'border-red-300 dark:border-red-800/70 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200',
+            icon: AlertTriangle,
+            text: `${requiredMissing > 0 ? `${requiredMissing} pièce${requiredMissing > 1 ? 's' : ''} manquante${requiredMissing > 1 ? 's' : ''}` : ''}${requiredMissing > 0 && rejectedCount > 0 ? ' · ' : ''}${rejectedCount > 0 ? `${rejectedCount} refusée${rejectedCount > 1 ? 's' : ''}` : ''} — la demande ne peut pas être validée.`,
+          }
+        : pendingCount > 0
+          ? {
+              cls: 'border-amber-300 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/25 text-amber-800 dark:text-amber-200',
+              icon: Clock,
+              text: `${pendingCount} pièce${pendingCount > 1 ? 's' : ''} à vérifier avant de valider la demande.`,
+            }
+          : {
+              cls: 'border-emerald-300 dark:border-emerald-800/70 bg-emerald-50 dark:bg-emerald-950/25 text-emerald-800 dark:text-emerald-200',
+              icon: ShieldCheck,
+              text: 'Toutes les pièces requises sont validées.',
+            };
+
+  const SummaryIcon = summary?.icon;
+
   return (
     <div className="space-y-4">
-      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 border-y border-zinc-200/60 dark:border-zinc-800">
+      {summary && SummaryIcon && (
+        <div className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-[13px] font-medium ${summary.cls}`}>
+          <SummaryIcon className="w-4 h-4 flex-shrink-0" />
+          <span>{summary.text}</span>
+          <span className="ml-auto text-[11px] font-normal opacity-80 tabular-nums">
+            {verifiedCount}/{docs.filter((d) => d.required).length || docs.length} validées
+          </span>
+        </div>
+      )}
+
+      <ul className="space-y-2.5">
         {docs.length === 0 ? (
           <li className="py-3 px-1 text-[13px] text-zinc-500">Aucune pièce requise pour cette demande.</li>
         ) : (
