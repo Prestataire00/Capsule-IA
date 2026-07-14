@@ -7,7 +7,6 @@ import { cn } from '@/shared/lib/cn';
 
 const tabs = [
   { slug: '', label: 'Vue' },
-  { slug: 'modules', label: 'Modules' },
   { slug: 'sessions', label: 'Sessions' },
   { slug: 'emargements', label: 'Émargements' },
   { slug: 'heures', label: 'Heures' },
