@@ -2,6 +2,7 @@ import 'server-only';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 import { legalPromptBlock } from '@/features/documents/legal/requirements';
 import { TEMPLATE_VARIABLES } from '@/features/documents/templates/variables';
+import { renderTemplate } from '@/features/documents/templates/render-template';
 
 export type AiDocResult =
   | { ok: true; html: string; model: string }
@@ -32,6 +33,7 @@ CONTRAINTES DE SORTIE :
 - Français juridique et institutionnel, précis et sobre.
 - Insère UNIQUEMENT les données réelles fournies ci-dessous. N'invente jamais un montant, une date, un SIRET, un numéro ou une raison sociale. Pour toute donnée manquante mais nécessaire, insère un champ explicite « [à compléter] ».
 - Toutes les mentions obligatoires listées ci-dessous DOIVENT figurer dans le document.
+- SIGNATURE & CACHET : dans tout bloc de validation/signature de l'organisme (« Fait à … le … », « Nom et signature du formateur », « Cachet de l'organisme »), insère le token {organisme_signature} pour la signature et {organisme_cachet} pour le cachet. Ils seront automatiquement remplacés par les images enregistrées dans les réglages de l'organisme. Ne laisse JAMAIS une cellule « cachet » ou « signature » vide : mets-y le token correspondant.
 
 ${legalPromptBlock(kind)}
 
@@ -61,7 +63,15 @@ ${instruction || '(aucune — produire le document standard du type indiqué)'}`
     // Nettoyage défensif d'éventuels fences markdown.
     html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
     if (!html) return { ok: false, reason: 'generation_failed' };
-    return { ok: true, html, model: LEGAL_MODEL };
+    // Résout les tokens image émis par l'IA (cachet/signature de l'organisme) en
+    // leurs <img> depuis les réglages. Les clés sont pré-remplies à '' pour qu'un
+    // token reste propre (vide) plutôt que littéral si l'asset est absent.
+    const rendered = renderTemplate(html, {
+      organisme_cachet: '',
+      organisme_signature: '',
+      ...variables,
+    }).html;
+    return { ok: true, html: rendered, model: LEGAL_MODEL };
   } catch (error) {
     return { ok: false, reason: 'generation_failed', error };
   }
@@ -90,6 +100,8 @@ PRINCIPE CLÉ — VARIABLES :
 
 VARIABLES DISPONIBLES (utilise EXACTEMENT ces slugs) :
 ${catalog}
+
+- Pour la signature et le cachet de l'organisme (blocs de validation, « Cachet de l'organisme », « Nom et signature »), utilise les variables image {organisme_signature} et {organisme_cachet} — ne laisse jamais ces cellules vides.
 
 CONTRAINTES DE SORTIE :
 - Réponds UNIQUEMENT avec du HTML (pas de \`\`\`, pas de <html>/<head>/<body>).

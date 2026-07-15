@@ -51,6 +51,8 @@ export const TEMPLATE_VARIABLES: TemplateVariable[] = [
   { slug: 'organisme_email', label: 'Email', group: 'Organisme' },
   { slug: 'organisme_telephone', label: 'Téléphone', group: 'Organisme' },
   { slug: 'organisme_logo', label: 'Logo (image)', group: 'Organisme' },
+  { slug: 'organisme_cachet', label: 'Cachet / tampon (image)', group: 'Organisme' },
+  { slug: 'organisme_signature', label: 'Signature (image)', group: 'Organisme' },
   // Conditions (drapeaux pour les blocs conditionnels : non vide = vrai)
   { slug: 'est_presentiel', label: 'Si présentiel', group: 'Conditions' },
   { slug: 'est_distanciel', label: 'Si distanciel', group: 'Conditions' },

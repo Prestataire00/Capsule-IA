@@ -1,7 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { escapeHtml } from './render-template';
-import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
+import { loadOrgAssetDataUris } from '@/features/documents/load-org-branding';
 
 type AddressJson = {
   line1?: string;
@@ -29,14 +29,14 @@ export async function resolveOrgVariables(
   sb: SupabaseClient,
   organizationId: string,
 ): Promise<Record<string, string>> {
-  const [{ data: orgData }, logoDataUri] = await Promise.all([
+  const [{ data: orgData }, assets] = await Promise.all([
     sb
       .schema('app')
       .from('organizations')
       .select('name, siret, declaration_activite, address, contact_email, contact_phone, legal_name, representative_name, representative_title')
       .eq('id', organizationId)
       .maybeSingle(),
-    loadOrgLogoDataUri(sb, organizationId),
+    loadOrgAssetDataUris(sb, organizationId),
   ]);
 
   const org = (orgData as {
@@ -52,8 +52,14 @@ export async function resolveOrgVariables(
   } | null) ?? null;
 
   const e = escapeHtml;
-  const logoImg = logoDataUri
-    ? `<img src="${logoDataUri}" alt="Logo" style="max-height:64px;max-width:200px;object-fit:contain;" />`
+  const logoImg = assets.logo
+    ? `<img src="${assets.logo}" alt="Logo" style="max-height:64px;max-width:200px;object-fit:contain;" />`
+    : '';
+  const cachetImg = assets.stamp
+    ? `<img src="${assets.stamp}" alt="Cachet de l'organisme" style="max-height:96px;max-width:200px;object-fit:contain;" />`
+    : '';
+  const signatureImg = assets.signature
+    ? `<img src="${assets.signature}" alt="Signature" style="max-height:72px;max-width:200px;object-fit:contain;" />`
     : '';
 
   return {
@@ -66,6 +72,8 @@ export async function resolveOrgVariables(
     organisme_email: e(org?.contact_email ?? ''),
     organisme_telephone: e(org?.contact_phone ?? ''),
     organisme_logo: logoImg,
+    organisme_cachet: cachetImg,
+    organisme_signature: signatureImg,
     date_du_jour: new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date()),
   };
 }
