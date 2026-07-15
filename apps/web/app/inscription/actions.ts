@@ -100,6 +100,77 @@ function buildProspectRecap(
   return rows;
 }
 
+// Récap pour un salarié inscrit via le parcours entreprise (données personnelles
+// + informations communes de l'inscription groupée).
+function buildEmployeeRecap(
+  emp: {
+    civility?: 'm' | 'mme';
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    birthDate?: string;
+    rqth: boolean;
+    needsAnalysis?: {
+      currentLevel?: number;
+      objectives?: string;
+      expectations?: string;
+      constraints?: string;
+      accommodations?: string;
+      typologyContext?: string;
+    };
+  },
+  shared: {
+    companyName: string;
+    companySiret?: string;
+    companyAddress?: { line1?: string; city?: string; postalCode?: string };
+    referentName?: string;
+    formationTitle: string | null;
+    funderLabel: string;
+    preferredModality?: string;
+    preferredStartDate?: string;
+    message?: string;
+  },
+): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+  const add = (label: string, value: string | null | undefined) => {
+    const v = (value ?? '').toString().trim();
+    if (v) rows.push({ label, value: v });
+  };
+
+  const fullName = [emp.civility ? CIVILITY_LABELS[emp.civility] : '', emp.firstName, emp.lastName]
+    .filter(Boolean)
+    .join(' ');
+  add('Identité', fullName);
+  add('Email', emp.email);
+  add('Téléphone', emp.phone);
+  add('Date de naissance', emp.birthDate ? formatDateFr(emp.birthDate) : '');
+  add('Situation de handicap (RQTH)', emp.rqth ? 'Oui' : 'Non');
+
+  add('Entreprise', shared.companyName);
+  add('SIRET', shared.companySiret);
+  const addr = shared.companyAddress;
+  if (addr) add('Adresse entreprise', [addr.line1, [addr.postalCode, addr.city].filter(Boolean).join(' ')].filter(Boolean).join(', '));
+  add('Référent', shared.referentName);
+  add('Formation', shared.formationTitle);
+  add('Financement', shared.funderLabel);
+  add('Modalité souhaitée', shared.preferredModality ? MODALITY_LABELS[shared.preferredModality] : '');
+  add('Date de début souhaitée', shared.preferredStartDate ? formatDateFr(shared.preferredStartDate) : '');
+  add('Message', shared.message);
+
+  const na = emp.needsAnalysis;
+  if (na) {
+    add('Niveau actuel sur le sujet', na.currentLevel ? `${na.currentLevel}/5` : '');
+    add('Objectifs', na.objectives);
+    add('Attentes particulières', na.expectations);
+    add('Contraintes éventuelles', na.constraints);
+    add("Besoin d'aménagement", na.accommodations);
+    add('Contexte / motivations', na.typologyContext);
+  }
+
+  return rows;
+}
+
 export type SubmitResult =
   | { ok: true; prospectId: string }
   | { ok: false; error: string; details?: unknown };
@@ -461,6 +532,41 @@ export async function submitCompanyEnrollment(formData: FormData): Promise<Compa
   }
 
   const funderLabel = fields.funderKinds.map((k) => FUNDER_LABELS[k]).join(', ');
+
+  // Confirmation à CHAQUE salarié inscrit, avec son récapitulatif personnel
+  // (best-effort, non bloquant).
+  const sharedRecap = {
+    companyName: fields.companyName,
+    companySiret: fields.companySiret || undefined,
+    companyAddress: fields.companyAddress ?? undefined,
+    referentName: fields.referentName || undefined,
+    formationTitle,
+    funderLabel,
+    preferredModality: nullify(fields.preferredModality) ?? undefined,
+    preferredStartDate: nullify(fields.preferredStartDate) ?? undefined,
+    message: nullify(fields.message) ?? undefined,
+  };
+  fields.employees.forEach((emp, i) => {
+    const empConfirmation = prospectConfirmationEmail({
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email,
+      formationTitle,
+      funderLabel,
+      prospectId: insertedRows[i]?.id ?? firstId,
+      recap: buildEmployeeRecap(emp, sharedRecap),
+    });
+    void sendEmail({
+      to: emp.email,
+      subject: empConfirmation.subject,
+      html: empConfirmation.html,
+      replyTo: fields.referentEmail || env.OF_NOTIFICATION_EMAIL,
+    }).then((r) => {
+      if (!r.ok && r.reason !== 'no_api_key') {
+        console.error('[submitCompanyEnrollment] employee confirmation email failed', r);
+      }
+    });
+  });
 
   // Confirmation au référent (s'il a laissé un email).
   if (fields.referentEmail) {
