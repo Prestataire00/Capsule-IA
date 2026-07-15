@@ -23,6 +23,18 @@ const inputCls =
   'mt-1 w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px]';
 const labelCls = 'text-[13px] text-zinc-700 dark:text-zinc-300';
 
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Nom commercial',
+  legalName: 'Raison sociale',
+  siret: 'SIRET',
+  declarationActivite: 'Déclaration d’activité',
+  contactEmail: 'Email de contact',
+  contactPhone: 'Téléphone',
+  address: 'Adresse',
+  representativeName: 'Nom du représentant',
+  representativeTitle: 'Qualité du représentant',
+};
+
 export function IdentitySection(props: { org: IdentityProps }) {
   const [form, setForm] = useState<IdentityProps>(props.org);
   const [pending, start] = useTransition();
@@ -59,7 +71,16 @@ export function IdentitySection(props: { org: IdentityProps }) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } else if (res?.validationErrors) {
-        setError('Champs invalides.');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ve = res.validationErrors as any;
+        const invalid = Object.keys(ve)
+          .filter((k) => k !== '_errors' && ve[k])
+          .map((k) => FIELD_LABELS[k] ?? k);
+        setError(
+          invalid.length
+            ? `À corriger : ${invalid.join(', ')}. (SIRET ≤ 14 caractères sans espaces ; email au bon format ; nom commercial requis.)`
+            : 'Champs invalides.',
+        );
       } else if (out?.error === 'forbidden') {
         setError(
           "Vous devez être administrateur ou propriétaire de l’organisme pour modifier ces informations. Demandez à un administrateur de vous attribuer ce rôle.",
