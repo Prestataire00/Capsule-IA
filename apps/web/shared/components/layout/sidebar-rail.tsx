@@ -69,19 +69,12 @@ const GROUPS: Group[] = [
     countKeys: ['demandesPending'],
   },
   {
-    key: 'catalogue',
-    label: 'Catalogue',
+    key: 'formations',
+    label: 'Formations',
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
       { href: '/catalogue-public', icon: Globe, label: 'Catalogue public' },
-    ],
-  },
-  {
-    key: 'formations',
-    label: 'Formations',
-    icon: FolderOpen,
-    items: [
       { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
       { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
@@ -96,9 +89,11 @@ const GROUPS: Group[] = [
     icon: FileText,
     items: [
       { href: '/documents', icon: FileText, label: 'Documents' },
+      { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
       { href: '/emails', icon: Mail, label: 'Emails' },
       { href: '/tracabilite', icon: Eye, label: 'Traçabilité des documents' },
     ],
+    countKeys: ['questionnairesActive'],
   },
   {
     key: 'gestion',
@@ -107,11 +102,10 @@ const GROUPS: Group[] = [
     icon: Briefcase,
     items: [
       { href: '/factures', icon: Receipt, label: 'Facturation' },
-      { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
       { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/bpf', icon: FileText, label: 'BPF' },
     ],
-    countKeys: ['invoicesUnpaid', 'questionnairesActive', 'reclamationsActive'],
+    countKeys: ['invoicesUnpaid', 'reclamationsActive'],
   },
   {
     key: 'qualite',
