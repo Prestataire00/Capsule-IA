@@ -36,11 +36,7 @@ type SessionRow = {
   status: SessionStatus;
   starts_at: string;
   ends_at: string;
-  dossier: {
-    id: string;
-    learner: { first_name: string | null; last_name: string | null } | null;
-    formation: { title: string | null } | null;
-  } | null;
+  dossier_id: string | null;
 };
 
 function mondayOf(d: Date): Date {
@@ -64,18 +60,17 @@ export default async function PlanningPage({
   weekEnd.setDate(weekStart.getDate() + 7);
 
   const sb = supabaseServer();
-  // Prod-safe : si app.sessions n'est pas migrée → data=null → semaine vide. RLS scope l'org.
-  const { data } = await sb
+  // Requête volontairement SANS embed : un embed PostgREST qui échoue (relation,
+  // cache de schéma) viderait toute la vue en silence. Champs scalaires seulement.
+  const { data, error: sessionErr } = await sb
     .schema('app')
     .from('sessions')
-    .select(
-      'id, title, status, starts_at, ends_at, ' +
-        'dossier:dossiers(id, learner:learners(first_name, last_name), formation:formations(title))',
-    )
+    .select('id, title, status, starts_at, ends_at, dossier_id')
     .gte('starts_at', weekStart.toISOString())
     .lt('starts_at', weekEnd.toISOString())
     .order('starts_at', { ascending: true });
 
+  if (sessionErr) console.error('[planning] échec requête sessions:', sessionErr);
   const sessions = ((data as unknown) as SessionRow[]) ?? [];
 
   const days = DAY_LABELS.map((label, i) => {
@@ -94,18 +89,15 @@ export default async function PlanningPage({
       const dayIdx = (start.getDay() + 6) % 7; // lundi = 0
       const startHour = start.getHours() + start.getMinutes() / 60;
       const durationH = Math.max(0.5, (end.getTime() - start.getTime()) / 3_600_000);
-      const learner = s.dossier?.learner
-        ? [s.dossier.learner.first_name, s.dossier.learner.last_name].filter(Boolean).join(' ')
-        : null;
       return {
         id: s.id,
         dayIdx,
         startHour,
         durationH,
-        title: s.title || s.dossier?.formation?.title || 'Session',
-        learner: learner || '—',
+        title: s.title || 'Session',
+        isGroup: !s.dossier_id,
         status: s.status,
-        dossierId: s.dossier?.id ?? null,
+        dossierId: s.dossier_id,
         timeLabel: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
       };
     })
@@ -122,6 +114,11 @@ export default async function PlanningPage({
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
             {sessions.length} session{sessions.length > 1 ? 's' : ''} cette semaine.
           </p>
+          {sessionErr && (
+            <p className="text-[12px] text-amber-600 dark:text-amber-400 mt-1">
+              Impossible de charger les sessions (erreur base de données) — réessayez dans un instant.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Link
@@ -210,7 +207,7 @@ export default async function PlanningPage({
                     const top = Math.max(0, Math.min(rawTop, gridHeight - 24));
                     const rawHeight = e.durationH * ROW_H - 4;
                     const height = Math.max(24, Math.min(rawHeight, gridHeight - top - 2));
-                    const href = e.dossierId ? `/dossiers/${e.dossierId}` : '/dossiers';
+                    const href = e.dossierId ? `/dossiers/${e.dossierId}` : '/sessions';
                     return (
                       <Link
                         key={e.id}
@@ -220,7 +217,7 @@ export default async function PlanningPage({
                       >
                         <p className="text-[12px] font-medium leading-tight truncate">{e.title}</p>
                         <p className="text-[11px] opacity-75 truncate mt-0.5">
-                          {e.timeLabel} · {e.learner}
+                          {e.timeLabel}{e.isGroup ? ' · groupe' : ''}
                         </p>
                       </Link>
                     );
