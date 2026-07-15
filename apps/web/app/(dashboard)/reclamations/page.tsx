@@ -1,6 +1,7 @@
 // ARCHETYPE: command
 import Link from 'next/link';
-import { Plus, Inbox } from 'lucide-react';
+import { Plus, Inbox, CheckCircle2, Clock, AlertCircle, Archive } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createClient } from '@supabase/supabase-js';
@@ -31,6 +32,41 @@ const admin = () =>
 const sevTone = { low: 'success', medium: 'warning', high: 'danger', critical: 'danger' } as const;
 const sevLabel = { low: 'mineure', medium: 'moyenne', high: 'élevée', critical: 'critique' };
 const stateLabel = { open: 'ouverte', in_progress: 'en cours', resolved: 'résolue', closed: 'clôturée' };
+
+// Visuel par statut : fond de ligne, ton de la pastille, icône — pour repérer
+// d'un coup d'œil (résolue = ligne verte + ✓).
+type StatusVis = {
+  row: string;
+  pill: 'success' | 'warning' | 'danger' | 'neutral';
+  icon: ComponentType<{ className?: string }>;
+  iconCls: string;
+};
+const STATUS_VIS: Record<ComplaintRow['status'], StatusVis> = {
+  open: {
+    row: 'bg-rose-50/50 dark:bg-rose-950/15 hover:bg-rose-50 dark:hover:bg-rose-950/25',
+    pill: 'danger',
+    icon: AlertCircle,
+    iconCls: 'text-rose-500 dark:text-rose-400',
+  },
+  in_progress: {
+    row: 'bg-amber-50/50 dark:bg-amber-950/15 hover:bg-amber-50 dark:hover:bg-amber-950/25',
+    pill: 'warning',
+    icon: Clock,
+    iconCls: 'text-amber-500 dark:text-amber-400',
+  },
+  resolved: {
+    row: 'bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
+    pill: 'success',
+    icon: CheckCircle2,
+    iconCls: 'text-emerald-600 dark:text-emerald-400',
+  },
+  closed: {
+    row: 'bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-900',
+    pill: 'neutral',
+    icon: Archive,
+    iconCls: 'text-zinc-400 dark:text-zinc-500',
+  },
+};
 
 export default async function ReclamationsPage() {
   const sb = admin();
@@ -77,12 +113,21 @@ export default async function ReclamationsPage() {
       ) : (
         <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
           {complaints.map((c) => {
-            const category = (c.metadata?.category_label as string) ?? (c.metadata?.category as string) ?? '—';
+            const vis = STATUS_VIS[c.status];
+            const StatusIcon = vis.icon;
+            const border =
+              c.status === 'resolved'
+                ? 'border-emerald-400 dark:border-emerald-500'
+                : c.status === 'open'
+                  ? 'border-rose-400 dark:border-rose-500'
+                  : c.status === 'in_progress'
+                    ? 'border-amber-400 dark:border-amber-500'
+                    : 'border-zinc-300 dark:border-zinc-700';
             return (
               <li key={c.id}>
                 <Link
                   href={`/reclamations/${c.id}`}
-                  className="grid grid-cols-[130px_1fr_140px_120px_110px_110px] gap-3 py-3 px-1 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
+                  className={`grid grid-cols-[130px_1fr_140px_120px_110px_130px] gap-3 py-3 pl-2 pr-1 items-center text-[13px] border-l-2 transition ${vis.row} ${border}`}
                 >
                   <IdPill>{c.reference}</IdPill>
                   <span className="text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</span>
@@ -93,15 +138,10 @@ export default async function ReclamationsPage() {
                     {format(parseISO(c.created_at), 'dd MMM yyyy', { locale: fr })}
                   </span>
                   <StatusPill tone={sevTone[c.severity]}>{sevLabel[c.severity]}</StatusPill>
-                  <StatusPill
-                    tone={
-                      c.status === 'resolved' || c.status === 'closed' ? 'neutral'
-                      : c.status === 'in_progress' ? 'warning'
-                      : 'danger'
-                    }
-                  >
-                    {stateLabel[c.status]}
-                  </StatusPill>
+                  <span className="inline-flex items-center gap-1.5 min-w-0">
+                    <StatusIcon className={`w-3.5 h-3.5 flex-shrink-0 ${vis.iconCls}`} />
+                    <StatusPill tone={vis.pill}>{stateLabel[c.status]}</StatusPill>
+                  </span>
                 </Link>
               </li>
             );
