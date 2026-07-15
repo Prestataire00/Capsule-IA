@@ -5,7 +5,7 @@
 // anon list_published_formations (aucune fuite inter-OF).
 
 import Link from 'next/link';
-import { Clock, MapPin, Monitor, GraduationCap, ArrowRight } from 'lucide-react';
+import { Clock, MapPin, Monitor, GraduationCap, ArrowRight, FileDown } from 'lucide-react';
 import { getPublicCatalogByOrg, type PublicFormation } from '@/features/catalog/public-catalog';
 
 export const dynamic = 'force-dynamic';
@@ -57,16 +57,27 @@ export default async function CataloguePage({
   return (
     <main className="min-h-screen bg-zinc-50">
       <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-10">
-          <div className="flex items-center gap-2 text-violet-700">
-            <GraduationCap className="h-5 w-5" />
-            <span className="text-[13px] font-semibold uppercase tracking-wide">Catalogue de formations</span>
+        <div className="mx-auto max-w-6xl px-6 py-10 flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2 text-violet-700">
+              <GraduationCap className="h-5 w-5" />
+              <span className="text-[13px] font-semibold uppercase tracking-wide">Catalogue de formations</span>
+            </div>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">Nos formations</h1>
+            <p className="mt-1 text-[15px] text-zinc-500">
+              {all.length} formation{all.length > 1 ? 's' : ''} disponible{all.length > 1 ? 's' : ''} — cliquez pour
+              consulter le programme détaillé.
+            </p>
           </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">Nos formations</h1>
-          <p className="mt-1 text-[15px] text-zinc-500">
-            {all.length} formation{all.length > 1 ? 's' : ''} disponible{all.length > 1 ? 's' : ''} — cliquez pour
-            consulter le programme détaillé.
-          </p>
+          {org && all.length > 0 && (
+            <Link
+              href={`/catalogue/imprimer?org=${encodeURIComponent(org)}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-[13px] font-medium text-white shadow-sm transition hover:bg-zinc-800"
+            >
+              <FileDown className="h-4 w-4" />
+              Catalogue PDF
+            </Link>
+          )}
         </div>
       </header>
 
