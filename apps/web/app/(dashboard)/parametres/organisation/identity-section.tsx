@@ -54,11 +54,22 @@ export function IdentitySection(props: { org: IdentityProps }) {
         representativeName: form.representativeName,
         representativeTitle: form.representativeTitle,
       });
-      if (res?.data?.ok) {
+      const out = res?.data;
+      if (out?.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
+      } else if (res?.validationErrors) {
+        setError('Champs invalides.');
+      } else if (out?.error === 'forbidden') {
+        setError(
+          "Vous devez être administrateur ou propriétaire de l’organisme pour modifier ces informations. Demandez à un administrateur de vous attribuer ce rôle.",
+        );
+      } else if (out?.error === 'organization_not_found') {
+        setError('Organisation introuvable pour votre compte.');
+      } else if (out?.error === 'db_error') {
+        setError(`Erreur d’enregistrement : ${out.details ?? 'erreur base de données'}`);
       } else {
-        setError(res?.validationErrors ? 'Champs invalides.' : 'Échec de l’enregistrement.');
+        setError('Échec de l’enregistrement.');
       }
     });
 

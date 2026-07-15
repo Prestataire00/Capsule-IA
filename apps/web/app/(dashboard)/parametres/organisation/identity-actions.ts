@@ -30,8 +30,14 @@ const orNull = (v: string | undefined): string | null => {
 export const updateOrgIdentityAction = authActionClient
   .schema(OrgIdentitySchema)
   .action(async ({ parsedInput, ctx }) => {
-    const orgId = await resolveOrgId(ctx);
-    const { error } = await ctx.supabase
+    let orgId: string;
+    try {
+      orgId = await resolveOrgId(ctx);
+    } catch {
+      return { ok: false as const, error: 'organization_not_found' as const };
+    }
+
+    const { data, error } = await ctx.supabase
       .schema('app')
       .from('organizations')
       // representative_* absents des types générés (migration en attente de db:types).
@@ -50,8 +56,20 @@ export const updateOrgIdentityAction = authActionClient
         representative_name: orNull(parsedInput.representativeName),
         representative_title: orNull(parsedInput.representativeTitle),
       } as never)
-      .eq('id', orgId);
-    if (error) throw new Error(`update_identity_failed: ${error.message}`);
+      .eq('id', orgId)
+      .select('id');
+
+    // Vraie erreur SQL (contrainte, colonne, trigger…) → remontée telle quelle.
+    if (error) {
+      console.error('[updateOrgIdentity] db error', error);
+      return { ok: false as const, error: 'db_error' as const, details: error.message };
+    }
+    // 0 ligne modifiée = bloqué par la RLS : l'utilisateur n'est pas
+    // administrateur/propriétaire de cet organisme (seuls owner/admin peuvent).
+    if (!data || (data as unknown[]).length === 0) {
+      return { ok: false as const, error: 'forbidden' as const };
+    }
+
     revalidatePath('/parametres/organisation');
-    return { ok: true };
+    return { ok: true as const };
   });
