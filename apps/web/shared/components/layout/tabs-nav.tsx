@@ -25,7 +25,7 @@ export function TabsNav({ baseHref }: { baseHref: string }) {
   return (
     <nav
       role="tablist"
-      className="border-b border-zinc-200/60 dark:border-zinc-800 flex items-center gap-1 -mx-1 overflow-x-auto"
+      className="border-b border-zinc-200/60 dark:border-zinc-800 flex items-center gap-1 -mx-1 overflow-x-auto scrollbar-hide"
     >
       {tabs.map((t) => {
         const href = t.slug ? `${baseHref}/${t.slug}` : baseHref;

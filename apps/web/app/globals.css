@@ -32,6 +32,13 @@
     border-radius: 3px;
   }
 
+  /* Masque totalement la barre de défilement (ex. barre d'onglets scrollable). */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
   /* Animations utilitaires (subset de tailwindcss-animate, sans conflit avec duration-X) */
   .animate-in {
     animation-duration: 220ms;

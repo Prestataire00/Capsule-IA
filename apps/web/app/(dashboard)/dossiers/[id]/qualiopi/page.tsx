@@ -10,6 +10,18 @@ import { InfoCallout } from '@/shared/ui/info-callout';
 import { guidanceFor } from '@/features/dossier/qualiopi-guidance';
 import { startTraining, closeDossier, recomputeNow } from './actions';
 import { AssignTrainer } from './assign-trainer.client';
+import { AssignLearner } from '../questionnaires/assign-learner';
+
+// Indicateur → type de questionnaire à envoyer à l'apprenant (résolution inline).
+const QST_KIND_BY_CODE: Record<string, string> = {
+  I5: 'positionnement',
+  I10: 'positionnement',
+  I15: 'evaluation_acquis',
+  I23: 'evaluation_acquis',
+  I26: 'satisfaction_chaud',
+  I27: 'satisfaction_froid',
+};
+const LEARNER_QST_KINDS = new Set(Object.values(QST_KIND_BY_CODE));
 
 type DetailRow = {
   indicator_id: string;
@@ -84,6 +96,17 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentTrainerId = (((dtRows as any[]) ?? []).sort((x, y) => (y.is_lead ? 1 : 0) - (x.is_lead ? 1 : 0))[0]?.trainer_id ?? null) as string | null;
 
+  // Modèles de questionnaires apprenant, regroupés par type — pour l'envoi inline.
+  const { data: tplRows } = await sb
+    .schema('app').from('questionnaire_templates').select('id, title, kind');
+  const templatesByKind = new Map<string, { id: string; title: string }[]>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const t of ((tplRows as any[]) ?? [])) {
+    if (!LEARNER_QST_KINDS.has(t.kind)) continue;
+    const arr = templatesByKind.get(t.kind) ?? templatesByKind.set(t.kind, []).get(t.kind)!;
+    arr.push({ id: t.id as string, title: t.title as string });
+  }
+
   return (
     <div className="space-y-6">
       <header>
@@ -149,29 +172,34 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
           <ul className="space-y-2">
             {[...entryBlockers, ...closingBlockers].map((b) => {
               const g = guidanceFor(b.code, b.source, { formationId, dossierId: params.id });
+              const qstKind = QST_KIND_BY_CODE[b.code];
+              const qstTemplates = qstKind ? templatesByKind.get(qstKind) : undefined;
+              const inlineQuestionnaire = !!qstTemplates && qstTemplates.length > 0;
               return (
                 <li
                   key={b.code}
                   className="bg-white/70 dark:bg-zinc-950/40 border border-amber-200/60 dark:border-amber-900/40 rounded-lg px-3 py-2.5"
                 >
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
-                        <span className="font-mono text-amber-700 dark:text-amber-300 mr-1.5">{b.code}</span>
-                        {b.title}
-                        <span className="ml-1.5 text-[11px] font-normal text-amber-600/80">
-                          ({b.stage === 'entry' ? "à l'entrée" : 'à la clôture'})
-                        </span>
-                      </p>
-                      <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5">{g.todo}</p>
-                    </div>
-                    <Link
-                      href={g.href ?? `/dossiers/${params.id}/${g.tab}`}
-                      className="flex-shrink-0 inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-md transition"
-                    >
-                      {g.linkLabel}
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                    <span className="font-mono text-amber-700 dark:text-amber-300 mr-1.5">{b.code}</span>
+                    {b.title}
+                    <span className="ml-1.5 text-[11px] font-normal text-amber-600/80">
+                      ({b.stage === 'entry' ? "à l'entrée" : 'à la clôture'})
+                    </span>
+                  </p>
+                  <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5">{g.todo}</p>
+                  <div className="mt-2">
+                    {inlineQuestionnaire ? (
+                      <AssignLearner dossierId={params.id} templates={qstTemplates!} />
+                    ) : (
+                      <Link
+                        href={g.href ?? `/dossiers/${params.id}/${g.tab}`}
+                        className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-md transition"
+                      >
+                        {g.linkLabel}
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
                   </div>
                 </li>
               );
