@@ -787,6 +787,205 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
   return { candidates: byDossier.size, sent, errors };
 }
 
+// ── Programmation personnalisée (app.email_schedules) ───────────────────────
+// Règles paramétrables par l'organisme. Pour chaque règle active, on cherche les
+// dossiers dont l'ancre (1ère session / début / fin) + offset_days == aujourd'hui,
+// et on envoie l'email (variables {prenom} {nom} {formation} {date}).
+// Anti-doublon via email_log kind = 'schedule:<ruleId>' + dossier_id.
+
+type ScheduleRow = {
+  id: string;
+  organization_id: string;
+  name: string;
+  anchor: 'first_session_start' | 'dossier_start' | 'dossier_end';
+  offset_days: number;
+  recipient_kind: 'learner' | 'trainer';
+  subject: string;
+  body: string;
+};
+
+function applyScheduleVars(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{(prenom|nom|formation|date)\}/g, (_m, k: string) => vars[k] ?? '');
+}
+
+function scheduleBodyToHtml(body: string): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map(
+      (p) =>
+        `<p style="color:#3f3f46;font-size:14px;line-height:1.6;margin:0 0 14px;">${esc(p).replace(/\n/g, '<br>')}</p>`,
+    )
+    .join('');
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fafafa;padding:32px;">
+<div style="max-width:560px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px;">
+${paragraphs}
+</div></body></html>`;
+}
+
+async function runCustomSchedules(): Promise<{ candidates: number; sent: number; errors: string[] }> {
+  const sb = admin();
+
+  const { data: rules, error: rErr } = await sb
+    .schema('app')
+    .from('email_schedules')
+    .select('id, organization_id, name, anchor, offset_days, recipient_kind, subject, body')
+    .eq('enabled', true)
+    .is('deleted_at', null);
+
+  if (rErr) {
+    // Table absente (migration non appliquée) ou erreur : on ne bloque pas le cron.
+    console.error('[cron] email_schedules query failed', rErr);
+    return { candidates: 0, sent: 0, errors: [rErr.message] };
+  }
+
+  const ruleRows = (rules ?? []) as unknown as ScheduleRow[];
+  if (ruleRows.length === 0) return { candidates: 0, sent: 0, errors: [] };
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  let candidates = 0;
+  let sent = 0;
+  const errors: string[] = [];
+
+  for (const rule of ruleRows) {
+    // On veut : ancre + offset_days == aujourd'hui  →  ancre == aujourd'hui - offset_days
+    const wanted = new Date(today);
+    wanted.setUTCDate(wanted.getUTCDate() - rule.offset_days);
+    const wantedStart = new Date(wanted);
+    const wantedEnd = new Date(wanted);
+    wantedEnd.setUTCHours(23, 59, 59, 999);
+    const wantedDate = wanted.toISOString().slice(0, 10); // pour colonnes DATE
+    const dateLabel = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(wanted);
+
+    // Résout les dossiers dont l'ancre tombe le jour voulu.
+    let dossierIds: string[] = [];
+    try {
+      if (rule.anchor === 'first_session_start') {
+        const { data: sess } = await sb
+          .schema('app')
+          .from('sessions')
+          .select('dossier_id, starts_at')
+          .gte('starts_at', wantedStart.toISOString())
+          .lte('starts_at', wantedEnd.toISOString())
+          .neq('status', 'cancelled');
+        for (const s of (sess ?? []) as { dossier_id: string; starts_at: string }[]) {
+          // Vérifie que c'est bien la PREMIÈRE session (non annulée) du dossier.
+          const { data: earliest } = await sb
+            .schema('app')
+            .from('sessions')
+            .select('starts_at')
+            .eq('dossier_id', s.dossier_id)
+            .neq('status', 'cancelled')
+            .order('starts_at', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if ((earliest as { starts_at: string } | null)?.starts_at === s.starts_at) {
+            dossierIds.push(s.dossier_id);
+          }
+        }
+      } else {
+        const col = rule.anchor === 'dossier_start' ? 'start_date' : 'end_date';
+        const { data: dos } = await sb
+          .schema('app')
+          .from('dossiers')
+          .select('id')
+          .eq('organization_id', rule.organization_id)
+          .eq(col, wantedDate);
+        dossierIds = ((dos ?? []) as { id: string }[]).map((d) => d.id);
+      }
+    } catch (e) {
+      errors.push(`schedule ${rule.id}: resolve ${(e as Error).message}`);
+      continue;
+    }
+
+    dossierIds = [...new Set(dossierIds)];
+    candidates += dossierIds.length;
+    const kind = `schedule:${rule.id}`;
+
+    for (const dossierId of dossierIds) {
+      const { data: dRow } = await sb
+        .schema('app')
+        .from('dossiers')
+        .select('id, organization_id, formation_id, learner_id')
+        .eq('id', dossierId)
+        .maybeSingle();
+      const d = dRow as { organization_id: string; formation_id: string; learner_id: string } | null;
+      if (!d || d.organization_id !== rule.organization_id) continue;
+
+      // Anti-doublon : déjà envoyé pour ce dossier + cette règle ?
+      const { data: already } = await sb
+        .schema('app')
+        .from('email_log')
+        .select('id')
+        .eq('dossier_id', dossierId)
+        .eq('kind', kind)
+        .limit(1)
+        .maybeSingle();
+      if (already) continue;
+
+      const { data: fRow } = await sb
+        .schema('app')
+        .from('formations')
+        .select('title')
+        .eq('id', d.formation_id)
+        .maybeSingle();
+      const formationTitle = (fRow as { title: string } | null)?.title ?? 'votre formation';
+
+      // Destinataires
+      const recipients: { email: string; firstName: string; lastName: string }[] = [];
+      if (rule.recipient_kind === 'learner') {
+        const { data: lRow } = await sb
+          .schema('app')
+          .from('learners')
+          .select('first_name, last_name, email')
+          .eq('id', d.learner_id)
+          .maybeSingle();
+        const l = lRow as { first_name: string; last_name: string; email: string } | null;
+        if (l?.email) recipients.push({ email: l.email, firstName: l.first_name, lastName: l.last_name });
+      } else {
+        const { data: dtRows } = await sb
+          .schema('app')
+          .from('dossier_trainers')
+          .select('trainer:trainers(first_name, last_name, email)')
+          .eq('dossier_id', dossierId);
+        for (const row of (dtRows ?? []) as {
+          trainer:
+            | { first_name: string; last_name: string; email: string }
+            | { first_name: string; last_name: string; email: string }[]
+            | null;
+        }[]) {
+          const t = Array.isArray(row.trainer) ? row.trainer[0] : row.trainer;
+          if (t?.email) recipients.push({ email: t.email, firstName: t.first_name, lastName: t.last_name });
+        }
+      }
+
+      for (const rcp of recipients) {
+        try {
+          const vars = { prenom: rcp.firstName, nom: rcp.lastName, formation: formationTitle, date: dateLabel };
+          const subject = applyScheduleVars(rule.subject, vars).trim() || rule.name;
+          const html = scheduleBodyToHtml(applyScheduleVars(rule.body, vars));
+          const r = await sendEmail({
+            to: rcp.email,
+            subject,
+            html,
+            organizationId: rule.organization_id,
+            dossierId,
+            kind,
+          });
+          if (r.ok) sent++;
+          else if (r.reason !== 'no_api_key') errors.push(`schedule ${rule.id} / ${rcp.email}: send_failed`);
+        } catch (e) {
+          errors.push(`schedule ${rule.id} / ${rcp.email}: ${(e as Error).message}`);
+        }
+      }
+    }
+  }
+
+  return { candidates, sent, errors };
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -801,6 +1000,7 @@ export async function POST(req: Request) {
     needsAnalysis,
     needsAnalysisLearners,
     startAttestation,
+    customSchedules,
   ] = await Promise.all([
     runConvocationsJ7(),
     runDossierEnd(),
@@ -809,6 +1009,7 @@ export async function POST(req: Request) {
     runNeedsAnalysisOnEnrollment(),
     runNeedsAnalysisForNewLearners(),
     runStartAttestation(),
+    runCustomSchedules(),
   ]);
   const durationMs = Date.now() - startedAt;
 
@@ -822,6 +1023,7 @@ export async function POST(req: Request) {
     needsAnalysis,
     needsAnalysisLearners,
     startAttestation,
+    customSchedules,
   });
 }
 

@@ -92,6 +92,7 @@ const GROUPS: Group[] = [
       { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
       { href: '/emails/nouveau', icon: PenLine, label: 'Rédiger un email' },
       { href: '/emails', icon: Mail, label: 'Emails' },
+      { href: '/programmation', icon: CalendarClock, label: 'Programmation' },
       { href: '/tracabilite', icon: Eye, label: 'Traçabilité des documents' },
     ],
     countKeys: ['questionnairesActive'],
