@@ -6,9 +6,11 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { ContractUpload } from './contract-upload';
+import { ContractGenerate } from './contract-generate';
 
 type Trainer = {
   id: string;
+  organization_id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -26,7 +28,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
   const { data } = await sb
     .schema('app')
     .from('trainers')
-    .select('id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path')
+    .select('id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -39,6 +41,20 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
     const { data: signed } = await sb.storage.from('trainer-contracts').createSignedUrl(t.contract_path, 60);
     signedUrl = signed?.signedUrl ?? null;
   }
+
+  // Contrat de sous-traitance déjà généré (document standalone) pour ce formateur.
+  const { data: contractDoc } = await sb
+    .schema('app')
+    .from('documents')
+    .select('id')
+    .eq('organization_id', t.organization_id)
+    .eq('kind', 'trainer_contract')
+    .eq('metadata->>trainer_id', t.id)
+    .is('deleted_at', null)
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const contractDocId = (contractDoc as { id: string } | null)?.id ?? null;
 
   const initials = `${t.first_name[0] ?? ''}${t.last_name[0] ?? ''}`.toUpperCase();
 
@@ -103,6 +119,11 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
         </Card>
 
         <Card title="Contrat de sous-traitance" icon={FileSignature}>
+          <ContractGenerate trainerId={t.id} existingDocumentId={contractDocId} />
+          <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
+          <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">
+            Ou déposer un PDF signé
+          </p>
           <ContractUpload trainerId={t.id} hasContract={!!t.contract_path} signedUrl={signedUrl} />
         </Card>
       </div>
