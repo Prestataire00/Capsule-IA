@@ -1,6 +1,6 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import { drawSignatureBlock } from './apply-org-signature';
+import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
 import { drawOrgLogo } from './pdf-logo';
 
 export type InvoiceLine = {
@@ -295,6 +295,7 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
   await drawSignatureBlock(doc, c.page, { font, fontBold }, sigAnchor, {
     signaturePng: input.signaturePng,
     stampPng: input.stampPng,
+    stampText: input.stampPng ? null : orgCachetLines(input.organization),
     representativeName: input.representativeName,
     representativeTitle: input.representativeTitle,
     place: input.place,

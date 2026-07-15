@@ -92,3 +92,13 @@ export const NSF_CODES = [
   { value: '415', label: '415 — Développement des capacités individuelles d’organisation' },
   { value: 'professionnel', label: 'Saisie libre…' },
 ] as const satisfies readonly Option[];
+
+
+/** Catégories de stagiaires (BPF Cerfa 10443*17, cadre pédagogique). */
+export const TRAINEE_CATEGORIES = [
+  { value: 'salarie', label: 'Salariés (financement employeur / OPCO)' },
+  { value: 'demandeur_emploi', label: "Personnes en recherche d'emploi" },
+  { value: 'particulier', label: 'Particuliers à leurs propres frais' },
+  { value: 'apprenti', label: 'Apprentis' },
+  { value: 'autre', label: 'Autres stagiaires' },
+] as const satisfies readonly Option[];

@@ -5,7 +5,8 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { BPF_LINES, buildBpfFinancial, type BpfInvoiceInput } from '@/features/bpf/bpf';
+import { BPF_LINES } from '@/features/bpf/bpf';
+import { loadBpfAggregates } from '@/features/bpf/load-bpf';
 import { PrintButton } from './print-button';
 
 export const dynamic = 'force-dynamic';
@@ -14,83 +15,11 @@ function eur(cents: number): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 }
 
-async function loadBpf(year: number) {
-  const sb = supabaseServer();
-  const start = `${year}-01-01`;
-  const end = `${year}-12-31`;
-
-  // Cadre B — produits : factures émises dans l'année (HT), par origine.
-  const { data: invRows } = await sb
-    .schema('app')
-    .from('invoices')
-    .select('subtotal_cents, status, company_id, funder:funders(kind)')
-    .gte('issued_at', start)
-    .lte('issued_at', end)
-    .is('deleted_at', null);
-  const invoices: BpfInvoiceInput[] = (
-    (invRows ?? []) as unknown as Array<{
-      subtotal_cents: number;
-      status: string;
-      company_id: string | null;
-      funder: { kind: string } | null;
-    }>
-  ).map((i) => ({
-    subtotalHtCents: i.subtotal_cents,
-    status: i.status,
-    funderKind: i.funder?.kind ?? null,
-    hasCompany: i.company_id != null,
-  }));
-  const financial = buildBpfFinancial(invoices);
-
-  // Cadre C — pédagogique : dossiers dont la période chevauche l'année.
-  const { data: dossierRows } = await sb
-    .schema('app')
-    .from('dossiers')
-    .select('id, learner_id, total_hours, formation_id, status, start_date, end_date')
-    .lte('start_date', end)
-    .gte('end_date', start)
-    .in('status', ['scheduled', 'active', 'completed', 'closed']);
-  const dossiers = (dossierRows ?? []) as unknown as Array<{
-    id: string;
-    learner_id: string | null;
-    total_hours: number | null;
-    formation_id: string | null;
-  }>;
-  const stagiaires = new Set(dossiers.map((d) => d.learner_id).filter(Boolean)).size;
-  const heures = dossiers.reduce((s, d) => s + (d.total_hours ?? 0), 0);
-  const actions = new Set(dossiers.map((d) => d.formation_id).filter(Boolean)).size;
-  const dossierIds = dossiers.map((d) => d.id);
-
-  // Cadre D — formateurs intervenus (internes / externes).
-  let internes = 0;
-  let externes = 0;
-  if (dossierIds.length > 0) {
-    const { data: dtRows } = await sb
-      .schema('app')
-      .from('dossier_trainers')
-      .select('trainer_id, dossier_id, trainer:trainers(is_internal)')
-      .in('dossier_id', dossierIds);
-    const seen = new Map<string, boolean>();
-    for (const r of (dtRows ?? []) as unknown as Array<{
-      trainer_id: string | null;
-      trainer: { is_internal: boolean } | null;
-    }>) {
-      if (r.trainer_id && !seen.has(r.trainer_id)) seen.set(r.trainer_id, r.trainer?.is_internal ?? true);
-    }
-    for (const isInternal of seen.values()) isInternal ? internes++ : externes++;
-  }
-
-  return {
-    financial,
-    pedago: { stagiaires, heures, actions, dossiers: dossiers.length },
-    formateurs: { internes, externes, total: internes + externes },
-  };
-}
-
 export default async function BpfPage({ searchParams }: { searchParams: { year?: string } }) {
   const currentYear = new Date().getFullYear();
   const year = searchParams.year && /^\d{4}$/.test(searchParams.year) ? Number(searchParams.year) : currentYear;
-  const { financial, pedago, formateurs } = await loadBpf(year);
+  const sb = supabaseServer();
+  const { financial, pedago, formateurs } = await loadBpfAggregates(sb as never, year);
   const years = [currentYear, currentYear - 1, currentYear - 2];
 
   return (
@@ -122,7 +51,7 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
               </Link>
             ))}
           </div>
-          <PrintButton />
+          <PrintButton year={year} />
         </div>
       </header>
 

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2, Globe,
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
-  Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase,
+  Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, PenLine,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -90,6 +90,7 @@ const GROUPS: Group[] = [
     items: [
       { href: '/documents', icon: FileText, label: 'Documents' },
       { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
+      { href: '/emails/nouveau', icon: PenLine, label: 'Rédiger un email' },
       { href: '/emails', icon: Mail, label: 'Emails' },
       { href: '/tracabilite', icon: Eye, label: 'Traçabilité des documents' },
     ],

@@ -3,12 +3,14 @@
 
 import Link from 'next/link';
 import { Calendar, FileText, Users as UsersIcon } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { TagsEditor } from './tags-editor';
+import { BpfFieldsEditor } from './bpf-fields-editor';
 
 export default async function DossierOverviewPage({ params }: { params: { id: string } }) {
-  const sb = supabaseServer();
+  const sb = supabaseServer() as unknown as SupabaseClient;
   const id = params.id;
   const count = async (table: string, col = 'dossier_id') => {
     const { count } = await sb.schema('app').from(table).select('*', { count: 'exact', head: true }).eq(col, id);
@@ -18,9 +20,11 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
     count('session_dossiers'),
     count('documents'),
     count('dossier_funders'),
-    sb.schema('app').from('dossiers').select('tags').eq('id', id).maybeSingle(),
+    sb.schema('app').from('dossiers').select('tags, action_type, trainee_category').eq('id', id).maybeSingle(),
   ]);
   const tags = ((dossier.data?.tags as string[] | null) ?? []);
+  const actionType = (dossier.data?.action_type as string | null) ?? null;
+  const traineeCategory = (dossier.data?.trainee_category as string | null) ?? null;
 
   const cards = [
     { icon: Calendar, label: 'Sessions', value: sessions, href: 'sessions' },
@@ -46,6 +50,7 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
           </Link>
         ))}
       </div>
+      <BpfFieldsEditor dossierId={id} initialActionType={actionType} initialTraineeCategory={traineeCategory} />
       <TagsEditor dossierId={id} initialTags={tags} />
 
       <p className="text-[12px] text-zinc-500">

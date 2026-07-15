@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0110 — Photo de profil du formateur (affichée au catalogue)
+-- 0115 — Photo de profil du formateur (affichée au catalogue)
 -- ============================================================================
 -- La description existe déjà (app.trainers.bio). On ajoute une photo, stockée
 -- dans un bucket PUBLIC (les photos de formateurs apparaissent au catalogue).

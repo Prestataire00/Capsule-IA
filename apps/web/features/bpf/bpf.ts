@@ -80,3 +80,75 @@ export function buildBpfFinancial(invoices: BpfInvoiceInput[]): BpfFinancial {
   }
   return { lines, totalCents: total };
 }
+
+// ---------------------------------------------------------------------------
+// Ventilations fines (cadre C détaillé) et charges (Cerfa 10443*17 complet).
+// ---------------------------------------------------------------------------
+
+export const TRAINEE_CATEGORY_LABEL: Record<string, string> = {
+  salarie: 'Salariés (financement employeur / OPCO)',
+  demandeur_emploi: "Personnes en recherche d'emploi",
+  particulier: 'Particuliers à leurs propres frais',
+  apprenti: 'Apprentis',
+  autre: 'Autres stagiaires',
+};
+
+export const ACTION_TYPE_LABEL: Record<string, string> = {
+  action_formation: 'Actions de formation',
+  bilan_competences: 'Bilans de compétences',
+  vae: 'Actions de VAE',
+  apprentissage: 'Actions par apprentissage',
+  formation_continue: 'Formation continue',
+  formation_initiale: 'Formation initiale',
+};
+
+// Ordre d'affichage stable dans le PDF.
+export const TRAINEE_CATEGORY_ORDER = ['salarie', 'demandeur_emploi', 'particulier', 'apprenti', 'autre'] as const;
+export const ACTION_TYPE_ORDER = [
+  'action_formation', 'bilan_competences', 'vae', 'apprentissage', 'formation_continue', 'formation_initiale',
+] as const;
+
+export type BpfBreakdownRow = { key: string; label: string; stagiaires: number; heures: number };
+export type BpfNsfRow = { code: string; label: string; heures: number };
+
+export type BpfCharges = {
+  totalCents: number;
+  salairesFormateursCents: number;
+  achatsFormationCents: number;
+  sousTraitanceConfieeCents: number;
+  sousTraitanceConfieeHeures: number;
+  autresCents: number;
+};
+
+/** Ventile dépenses (dossier_expenses) d'une année vers les postes de charges BPF. */
+export function buildBpfCharges(
+  expenses: Array<{ kind: string; amountCents: number; hours: number | null }>,
+): BpfCharges {
+  const c: BpfCharges = {
+    totalCents: 0,
+    salairesFormateursCents: 0,
+    achatsFormationCents: 0,
+    sousTraitanceConfieeCents: 0,
+    sousTraitanceConfieeHeures: 0,
+    autresCents: 0,
+  };
+  for (const e of expenses) {
+    const amount = Math.max(0, Math.round(e.amountCents));
+    c.totalCents += amount;
+    switch (e.kind) {
+      case 'salaire_formateur':
+        c.salairesFormateursCents += amount;
+        break;
+      case 'achat_formation':
+        c.achatsFormationCents += amount;
+        break;
+      case 'sous_traitance_confiee':
+        c.sousTraitanceConfieeCents += amount;
+        c.sousTraitanceConfieeHeures += Math.max(0, e.hours ?? 0);
+        break;
+      default:
+        c.autresCents += amount;
+    }
+  }
+  return c;
+}

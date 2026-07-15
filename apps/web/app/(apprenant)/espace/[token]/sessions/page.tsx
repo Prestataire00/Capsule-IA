@@ -1,9 +1,10 @@
 // ARCHETYPE: command
 import { notFound } from 'next/navigation';
-import { Video, Play, CheckCircle2, CircleDashed, KeyRound } from 'lucide-react';
+import { Video, Play, CheckCircle2, CircleDashed, KeyRound, QrCode } from 'lucide-react';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { resolveApprenantContext, formatSessionDate, formatSessionTime } from '../_lib';
+import { loadSessionSignatureQRs, HALF_DAY_LABEL } from './attendance-qr';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,9 +66,10 @@ async function resolvePublishedReplays(token: string): Promise<Map<string, Repla
 }
 
 export default async function EspaceSessionsPage({ params }: { params: { token: string } }) {
-  const [ctx, replays] = await Promise.all([
+  const [ctx, replays, sigQrs] = await Promise.all([
     resolveApprenantContext(params.token),
     resolvePublishedReplays(params.token),
+    loadSessionSignatureQRs(params.token),
   ]);
   if (!ctx) return notFound();
 
@@ -98,9 +100,11 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
               const replay = replays.get(s.id);
               const replayUrl = `/api/espace/${params.token}/replay/${s.id}`;
               const canJoin = !isDone && !!s.remoteUrl;
+              const qrs = sigQrs.get(s.id) ?? [];
 
               return (
-                <li key={s.id} className="py-3 flex items-center justify-between gap-3">
+                <li key={s.id} className="py-3">
+                  <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span
                       className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -166,6 +170,41 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
                       ) : (
                         <span className="text-[11px] text-zinc-400">à venir</span>
                       )}
+                    </div>
+                  )}
+                  </div>
+                  {qrs.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {qrs.map((q) => (
+                        <a
+                          key={q.sheetId}
+                          href={q.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex flex-col items-center gap-1 rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 hover:border-violet-300 dark:hover:border-violet-700 transition"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={q.qrDataUrl}
+                            alt={`QR émargement ${HALF_DAY_LABEL[q.halfDay] ?? ''}`}
+                            width={104}
+                            height={104}
+                            className="rounded"
+                          />
+                          <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">
+                            {HALF_DAY_LABEL[q.halfDay] ?? 'Émargement'}
+                          </span>
+                          {q.alreadySigned ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 className="w-3 h-3" /> Signé
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-violet-600 dark:text-violet-400">
+                              <QrCode className="w-3 h-3" /> Scanner pour signer
+                            </span>
+                          )}
+                        </a>
+                      ))}
                     </div>
                   )}
                 </li>

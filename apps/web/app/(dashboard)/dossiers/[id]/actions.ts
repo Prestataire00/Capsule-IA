@@ -35,3 +35,23 @@ export async function setDossierTags(dossierId: string, tags: string[]): Promise
   revalidatePath(`/dossiers/${dossierId}`);
   return { ok: true, tags: clean };
 }
+
+export type SetBpfFieldsResult = { ok: true } | { ok: false; error: string };
+
+/** Met à jour le type d'action et la catégorie de stagiaire (données BPF). */
+export async function setDossierBpfFields(
+  dossierId: string,
+  actionType: string | null,
+  traineeCategory: string | null,
+): Promise<SetBpfFieldsResult> {
+  if (!dossierId) return { ok: false, error: 'missing_dossier' };
+  const sb = supabaseServer();
+  const { error } = await sb
+    .schema('app')
+    .from('dossiers')
+    .update({ action_type: actionType, trainee_category: traineeCategory } as never)
+    .eq('id', dossierId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/dossiers/${dossierId}`);
+  return { ok: true };
+}
