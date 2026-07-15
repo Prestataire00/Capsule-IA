@@ -16,7 +16,8 @@ import {
   type InvoiceInput,
   type PayerLine,
 } from '@/features/billing/domain/billing-plan';
-import { setDossierTotalAmount } from './actions';
+import { setDossierTotalAmount, addDossierFunder, removeDossierFunder } from './actions';
+import { Trash2, Plus } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,13 +65,21 @@ async function loadData(dossierId: string) {
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const [{ data: dossierRow }, { data: funderRows }, { data: invoicesRows }] = await Promise.all([
-    sb
-      .schema('app')
-      .from('dossiers')
-      .select('id, status, total_amount_cents, currency')
-      .eq('id', dossierId)
-      .maybeSingle(),
+  const { data: dossierRow } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('id, status, total_amount_cents, currency, organization_id')
+    .eq('id', dossierId)
+    .maybeSingle();
+  const dossierTyped = dossierRow as unknown as {
+    id: string;
+    status: string;
+    total_amount_cents: number | null;
+    currency: string;
+    organization_id: string;
+  } | null;
+
+  const [{ data: funderRows }, { data: invoicesRows }, { data: catalogRows }] = await Promise.all([
     sb
       .schema('app')
       .from('dossier_funders')
@@ -83,15 +92,20 @@ async function loadData(dossierId: string) {
       .eq('dossier_id', dossierId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),
+    dossierTyped
+      ? sb
+          .schema('app')
+          .from('funders')
+          .select('id, name, kind')
+          .eq('organization_id', dossierTyped.organization_id)
+          .is('deleted_at', null)
+          .order('name', { ascending: true })
+      : Promise.resolve({ data: [] }),
   ]);
 
   return {
-    dossier: dossierRow as unknown as {
-      id: string;
-      status: string;
-      total_amount_cents: number | null;
-      currency: string;
-    } | null,
+    dossier: dossierTyped,
+    funderCatalog: (catalogRows ?? []) as unknown as Array<{ id: string; name: string; kind: string }>,
     funders: (funderRows ?? []) as unknown as Array<{
       funder_id: string;
       amount_cents: number;
@@ -119,9 +133,9 @@ export default async function FacturationPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { amountSaved?: string; amountError?: string };
+  searchParams?: { amountSaved?: string; amountError?: string; funderSaved?: string; funderError?: string };
 }) {
-  const { dossier, funders, invoices } = await loadData(params.id);
+  const { dossier, funders, invoices, funderCatalog } = await loadData(params.id);
   if (!dossier) notFound();
 
   const currency = dossier.currency || 'EUR';
@@ -167,6 +181,9 @@ export default async function FacturationPage({
       )}
       {searchParams?.amountSaved && !amountMissing && (
         <InfoCallout tone="success">Montant total du dossier enregistré.</InfoCallout>
+      )}
+      {searchParams?.funderSaved && (
+        <InfoCallout tone="success">Plan de financement mis à jour.</InfoCallout>
       )}
 
       {editable &&
@@ -239,6 +256,141 @@ export default async function FacturationPage({
           La somme des financements dépasse le montant total HT du dossier. Ajustez les montants pris en
           charge.
         </InfoCallout>
+      )}
+
+      {/* Plan de financement : saisie des lignes (CPF, autofinancement, OPCO…) */}
+      {editable && (
+        <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-2.5 bg-zinc-50/60 dark:bg-zinc-900/40 flex items-center justify-between">
+            <span className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">
+              Plan de financement
+            </span>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+              Chaque ligne = 1 convention + 1 facture · le reste devient « reste à charge »
+            </span>
+          </div>
+
+          {searchParams?.funderError && (
+            <div className="px-4 pt-3">
+              <InfoCallout tone="danger">
+                Ligne de financement invalide. Vérifiez le financeur et le montant.
+              </InfoCallout>
+            </div>
+          )}
+
+          <ul className="divide-y divide-zinc-200/60 dark:divide-zinc-800">
+            {funders.length === 0 ? (
+              <li className="px-4 py-3 text-[12px] text-zinc-500 dark:text-zinc-400">
+                Aucune ligne de financement. Ajoutez-en une ci-dessous (ex. CPF), le reliquat sera
+                imputé au reste à charge (autofinancement).
+              </li>
+            ) : (
+              funders.map((f) => (
+                <li
+                  key={f.funder_id}
+                  className="px-4 py-2.5 grid grid-cols-[1fr_120px_40px] gap-3 items-center text-[13px]"
+                >
+                  <span className="min-w-0 truncate">
+                    <span className="text-zinc-900 dark:text-zinc-100">{f.funder?.name ?? 'Financeur'}</span>
+                    {f.funder?.kind && (
+                      <span className="text-zinc-400 dark:text-zinc-500">
+                        {' '}· {FUNDER_KIND_LABELS[f.funder.kind] ?? f.funder.kind}
+                      </span>
+                    )}
+                    {f.external_file_number && (
+                      <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block">
+                        Dossier n° {f.external_file_number}
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-mono text-right text-zinc-700 dark:text-zinc-300">
+                    {formatEuros(f.amount_cents, currency)}
+                  </span>
+                  <form action={removeDossierFunder} className="text-right">
+                    <input type="hidden" name="dossierId" value={dossier.id} />
+                    <input type="hidden" name="funderId" value={f.funder_id} />
+                    <button
+                      type="submit"
+                      className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition p-1"
+                      title="Retirer cette ligne"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </form>
+                </li>
+              ))
+            )}
+          </ul>
+
+          {funderCatalog.length === 0 ? (
+            <div className="px-4 py-3 border-t border-zinc-200/60 dark:border-zinc-800">
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                Aucun financeur enregistré.{' '}
+                <Link href="/financeurs" className="text-violet-600 hover:text-violet-700 dark:text-violet-400">
+                  Créez d&apos;abord vos financeurs
+                </Link>{' '}
+                (CPF, OPCO, autofinancement…) pour les rattacher ici.
+              </p>
+            </div>
+          ) : (
+            <form
+              action={addDossierFunder}
+              className="px-4 py-3 border-t border-zinc-200/60 dark:border-zinc-800 flex flex-wrap items-end gap-2"
+            >
+              <input type="hidden" name="dossierId" value={dossier.id} />
+              <div className="min-w-[180px] flex-1">
+                <label className="block text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                  Financeur
+                </label>
+                <select
+                  name="funderId"
+                  required
+                  defaultValue=""
+                  className="w-full rounded-lg border border-zinc-200/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                >
+                  <option value="" disabled>— Choisir —</option>
+                  {funderCatalog.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} · {FUNDER_KIND_LABELS[c.kind] ?? c.kind}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                  Montant HT
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    name="amount"
+                    inputMode="decimal"
+                    placeholder="2000,00"
+                    required
+                    className="w-28 rounded-lg border border-zinc-200/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                  />
+                  <span className="text-[13px] text-zinc-500 dark:text-zinc-400">€</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                  N° dossier (opt.)
+                </label>
+                <input
+                  name="externalFileNumber"
+                  placeholder="ex. CPF-…"
+                  className="w-32 rounded-lg border border-zinc-200/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                />
+              </div>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-3.5 py-2 shadow-sm transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Ajouter
+              </button>
+            </form>
+          )}
+        </div>
       )}
 
       {/* Répartition par payeur : 1 facture par financeur + reste à charge */}
