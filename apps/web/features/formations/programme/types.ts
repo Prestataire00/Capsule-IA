@@ -71,6 +71,8 @@ export type ProgrammeHeader = {
   subtitle: string;
   /** Badges (durée, format, effectif…). */
   metaItems: ProgrammeMetaItem[];
+  /** Image de couverture (data-URI ou URL) affichée en bandeau ; optionnel. */
+  coverUrl?: string;
 };
 
 export type KeyValueRow = { label: string; value: string };

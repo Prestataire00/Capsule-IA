@@ -38,8 +38,19 @@ type CatalogMeta = {
   accessDelay?: string;
   referentContact?: string;
   deroulement?: string;
+  coverPath?: string;
   programme?: Programme;
 };
+
+// Télécharge un asset privé (org_assets) et le renvoie en data-URI (pour le
+// rendu public : couverture de formation, etc.). Null si absent.
+async function orgAssetDataUri(path: string | null | undefined): Promise<string | null> {
+  if (!path) return null;
+  const { data } = await supabaseAdmin().storage.from('org_assets').download(path);
+  if (!data) return null;
+  const buf = Buffer.from(await data.arrayBuffer());
+  return `data:image/png;base64,${buf.toString('base64')}`;
+}
 
 type FullRow = {
   id: string;
@@ -131,6 +142,12 @@ export async function getPublicProgramme(formationId: string): Promise<PublicPro
   if (!programme.header.logoUrl && row.organization?.logo_path) {
     const dataUri = await loadOrgLogoDataUri(supabaseAdmin(), row.organization_id);
     if (dataUri) programme.header = { ...programme.header, logoUrl: dataUri };
+  }
+
+  // Image de couverture de la formation (org_assets → data-URI) pour le catalogue.
+  if (!programme.header.coverUrl && catalog.coverPath) {
+    const coverUri = await orgAssetDataUri(catalog.coverPath);
+    if (coverUri) programme.header = { ...programme.header, coverUrl: coverUri };
   }
 
   return {

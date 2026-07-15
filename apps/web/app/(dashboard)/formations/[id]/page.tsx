@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
+import { FormationCover } from './cover-upload.client';
 
 const modalityStyles = {
   presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
@@ -50,7 +51,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     .select(
       'id, code, title, summary, description, objectives, prerequisites, target_audience, ' +
         'evaluation_method, pedagogical_method, default_modality, default_duration_hours, ' +
-        'default_price_cents, is_published, rncp_code, rs_code, certificateur',
+        'default_price_cents, is_published, rncp_code, rs_code, certificateur, metadata',
     )
     .eq('id', id)
     .is('deleted_at', null)
@@ -58,6 +59,13 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const f = data as any;
   if (!f) return notFound();
+
+  const coverPath: string | null = f.metadata?.catalog?.coverPath ?? null;
+  let coverUrl: string | null = null;
+  if (coverPath) {
+    const { data: signed } = await sb.storage.from('org_assets').createSignedUrl(coverPath, 300);
+    coverUrl = signed?.signedUrl ?? null;
+  }
 
   const { data: dossierData } = await sb
     .schema('app')
@@ -234,6 +242,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
 
         {/* Colonne actions — inscription, dossiers, sessions */}
         <div className="space-y-4">
+          <Card title="Image de couverture (catalogue)">
+            <FormationCover formationId={f.id} coverUrl={coverUrl} />
+          </Card>
+
           <Card title="Lien d'inscription">
             <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 mb-2">
               <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400 truncate flex-1">/inscription?formation={f.id}</span>

@@ -189,6 +189,13 @@ export function ProgrammeDocument({ programme }: { programme: Programme }) {
     <div className="pf-doc" style={themeVars(theme)}>
       <style dangerouslySetInnerHTML={{ __html: PROGRAMME_CSS }} />
 
+      {header.coverUrl && (
+        <div className="pf-cover">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={header.coverUrl} alt="" />
+        </div>
+      )}
+
       <header className="pf-header">
         {header.logoUrl && (
           <div className="pf-logo">
@@ -253,6 +260,10 @@ const PROGRAMME_CSS = `
   box-sizing: border-box;
 }
 .pf-doc * { box-sizing: border-box; }
+
+/* Bandeau de couverture (image de la formation) */
+.pf-cover { width: 100%; aspect-ratio: 16 / 5; overflow: hidden; border-radius: var(--pf-radius); margin-bottom: 18px; }
+.pf-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* En-tête */
 .pf-header {
