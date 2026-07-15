@@ -12,9 +12,13 @@ import { updateDocumentHtml } from '../actions';
 export function EditableDocument({
   documentId,
   initialHtml,
+  logoSrc,
+  orgName,
 }: {
   documentId: string;
   initialHtml: string;
+  logoSrc?: string;
+  orgName?: string;
 }) {
   const router = useRouter();
   const { executeAsync } = useAction(updateDocumentHtml);
@@ -82,8 +86,19 @@ export function EditableDocument({
         </button>
       </div>
       <article className="doc-sheet bg-white text-zinc-900 max-w-[760px] mx-auto rounded-sm shadow-lg px-12 py-12">
+        {logoSrc && (
+          <div className="doc-brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoSrc} alt={orgName || 'Logo'} />
+            {orgName && <span className="doc-org-name">{orgName}</span>}
+          </div>
+        )}
         {/* eslint-disable-next-line react/no-danger */}
         <div dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="doc-brand-footer">
+          <span>{orgName}</span>
+          <span>Généré avec Capsule IA</span>
+        </div>
       </article>
     </>
   );
