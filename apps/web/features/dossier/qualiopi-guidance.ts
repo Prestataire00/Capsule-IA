@@ -70,13 +70,19 @@ const TAB_BY_CODE: Partial<Record<string, { tab: DossierTab; linkLabel: string }
 
 const PROGRAMME_CODES = new Set(['I4', 'I6', 'I7', 'I8']);
 
-export function guidanceFor(code: string, source: string, formationId?: string): Guidance {
+export type GuidanceCtx = { formationId?: string; dossierId?: string };
+
+export function guidanceFor(code: string, source: string, ctx: GuidanceCtx = {}): Guidance {
   const base = BY_SOURCE[source] ?? PROOF_GUIDANCE;
   const todo = TODO_BY_CODE[code] ?? base.todo;
   const linkOverride = TAB_BY_CODE[code];
-  // Indicateurs "contenu de formation" : lien direct vers l'éditeur de programme.
-  if (formationId && PROGRAMME_CODES.has(code)) {
-    return { todo, tab: 'documents', linkLabel: 'Compléter le programme', href: `/formations/${formationId}/programme` };
+  // I4/I6/I7/I8 : lien direct vers l'éditeur de programme de la formation.
+  if (ctx.formationId && PROGRAMME_CODES.has(code)) {
+    return { todo, tab: 'documents', linkLabel: 'Compléter le programme', href: `/formations/${ctx.formationId}/programme` };
+  }
+  // I21 : lien vers le contrôle d'affectation de formateur (page Qualiopi du dossier).
+  if (ctx.dossierId && code === 'I21') {
+    return { todo, tab: 'documents', linkLabel: 'Affecter un formateur', href: `/dossiers/${ctx.dossierId}/qualiopi#affecter-formateur` };
   }
   return {
     todo,

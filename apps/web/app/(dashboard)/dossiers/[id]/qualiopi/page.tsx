@@ -9,6 +9,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { InfoCallout } from '@/shared/ui/info-callout';
 import { guidanceFor } from '@/features/dossier/qualiopi-guidance';
 import { startTraining, closeDossier, recomputeNow } from './actions';
+import { AssignTrainer } from './assign-trainer.client';
 
 type DetailRow = {
   indicator_id: string;
@@ -73,6 +74,15 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
   const satisfied = c.satisfied_indicators ?? enriched.filter((e) => e.satisfied).length;
   const totalCount = c.total_indicators ?? enriched.length;
   const ready = entryBlockingMissing === 0 && closingBlockingMissing === 0;
+  const i21Missing = enriched.some((e) => e.number === 21 && !e.satisfied);
+  const { data: trainerRows } = await sb
+    .schema('app').from('trainers').select('id, first_name, last_name').order('last_name');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const trainers = ((trainerRows as any[]) ?? []).map((t) => ({ id: t.id as string, name: `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() }));
+  const { data: dtRows } = await sb
+    .schema('app').from('dossier_trainers').select('trainer_id, is_lead').eq('dossier_id', params.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentTrainerId = (((dtRows as any[]) ?? []).sort((x, y) => (y.is_lead ? 1 : 0) - (x.is_lead ? 1 : 0))[0]?.trainer_id ?? null) as string | null;
 
   return (
     <div className="space-y-6">
@@ -131,9 +141,14 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
           <p className="text-[12px] mt-0.5 mb-3 opacity-80">
             Pour chaque point ci-dessous : voici quoi faire et le lien direct pour le corriger.
           </p>
+          {i21Missing && (
+            <div className="mb-3">
+              <AssignTrainer dossierId={params.id} trainers={trainers} currentTrainerId={currentTrainerId} />
+            </div>
+          )}
           <ul className="space-y-2">
             {[...entryBlockers, ...closingBlockers].map((b) => {
-              const g = guidanceFor(b.code, b.source, formationId);
+              const g = guidanceFor(b.code, b.source, { formationId, dossierId: params.id });
               return (
                 <li
                   key={b.code}
@@ -193,8 +208,8 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                     </span>
                   ) : (
                     <Link
-                      href={guidanceFor(ind.code, ind.source, formationId).href ?? `/dossiers/${params.id}/${guidanceFor(ind.code, ind.source, formationId).tab}`}
-                      title={guidanceFor(ind.code, ind.source, formationId).todo}
+                      href={guidanceFor(ind.code, ind.source, { formationId, dossierId: params.id }).href ?? `/dossiers/${params.id}/${guidanceFor(ind.code, ind.source, { formationId, dossierId: params.id }).tab}`}
+                      title={guidanceFor(ind.code, ind.source, { formationId, dossierId: params.id }).todo}
                       className="justify-self-end inline-flex items-center gap-1 text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
                     >
                       {ind.blocking && <span className="text-amber-600 dark:text-amber-400 mr-1">bloquant ·</span>}
