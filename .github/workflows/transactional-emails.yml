@@ -1,0 +1,34 @@
+name: Emails transactionnels (quotidien)
+
+# Déclenche chaque jour le tick d'emails transactionnels + la programmation
+# (app/api/cron/transactional-emails) : convocations J-7, satisfaction, fin de
+# formation, rappels programmés (app.email_schedules), etc.
+# Nécessite le secret de dépôt CRON_SECRET (même valeur que la variable
+# d'environnement CRON_SECRET côté Railway).
+on:
+  schedule:
+    - cron: '0 7 * * *' # tous les jours à 07:00 UTC (~09:00 Paris en été)
+  workflow_dispatch: {} # permet un déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: transactional-emails
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    env:
+      CRON_URL: https://capsule-ia.up.railway.app/api/cron/transactional-emails
+    steps:
+      - name: Déclenche le cron
+        run: |
+          echo "POST $CRON_URL"
+          http=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 300 \
+            "$CRON_URL")
+          echo "HTTP $http"
+          echo "Réponse :"
+          cat /tmp/resp.json || true
+          echo
+          test "$http" = "200"
