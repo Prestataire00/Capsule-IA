@@ -3,7 +3,7 @@
 
 export type DossierTab = 'documents' | 'questionnaires' | 'emargements' | 'vue' | 'financeurs';
 
-export type Guidance = { todo: string; tab: DossierTab; linkLabel: string };
+export type Guidance = { todo: string; tab: DossierTab; linkLabel: string; href?: string };
 
 const PROOF_GUIDANCE: Guidance = {
   todo: 'Joignez la pièce justificative (preuve) correspondant à cet indicateur.',
@@ -68,10 +68,16 @@ const TAB_BY_CODE: Partial<Record<string, { tab: DossierTab; linkLabel: string }
   I27: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
 };
 
-export function guidanceFor(code: string, source: string): Guidance {
+const PROGRAMME_CODES = new Set(['I4', 'I6', 'I7', 'I8']);
+
+export function guidanceFor(code: string, source: string, formationId?: string): Guidance {
   const base = BY_SOURCE[source] ?? PROOF_GUIDANCE;
   const todo = TODO_BY_CODE[code] ?? base.todo;
   const linkOverride = TAB_BY_CODE[code];
+  // Indicateurs "contenu de formation" : lien direct vers l'éditeur de programme.
+  if (formationId && PROGRAMME_CODES.has(code)) {
+    return { todo, tab: 'documents', linkLabel: 'Compléter le programme', href: `/formations/${formationId}/programme` };
+  }
   return {
     todo,
     tab: linkOverride?.tab ?? base.tab,

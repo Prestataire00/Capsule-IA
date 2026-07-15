@@ -24,9 +24,10 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
 
   const { data: dossier } = await sb
     .schema('app').from('dossiers')
-    .select('id, status').eq('id', params.id).maybeSingle();
+    .select('id, status, formation_id').eq('id', params.id).maybeSingle();
   if (!dossier) notFound();
   const status = (dossier as { status: string }).status;
+  const formationId = (dossier as { formation_id?: string | null }).formation_id ?? undefined;
 
   // Prod-safe : si les colonnes/tables ne sont pas encore migrées, data=null → section vide.
   const { data: checklist } = await sb
@@ -132,7 +133,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
           </p>
           <ul className="space-y-2">
             {[...entryBlockers, ...closingBlockers].map((b) => {
-              const g = guidanceFor(b.code, b.source);
+              const g = guidanceFor(b.code, b.source, formationId);
               return (
                 <li
                   key={b.code}
@@ -150,7 +151,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                       <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5">{g.todo}</p>
                     </div>
                     <Link
-                      href={`/dossiers/${params.id}/${g.tab}`}
+                      href={g.href ?? `/dossiers/${params.id}/${g.tab}`}
                       className="flex-shrink-0 inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-md transition"
                     >
                       {g.linkLabel}
@@ -192,8 +193,8 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                     </span>
                   ) : (
                     <Link
-                      href={`/dossiers/${params.id}/${guidanceFor(ind.code, ind.source).tab}`}
-                      title={guidanceFor(ind.code, ind.source).todo}
+                      href={guidanceFor(ind.code, ind.source, formationId).href ?? `/dossiers/${params.id}/${guidanceFor(ind.code, ind.source, formationId).tab}`}
+                      title={guidanceFor(ind.code, ind.source, formationId).todo}
                       className="justify-self-end inline-flex items-center gap-1 text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
                     >
                       {ind.blocking && <span className="text-amber-600 dark:text-amber-400 mr-1">bloquant ·</span>}
