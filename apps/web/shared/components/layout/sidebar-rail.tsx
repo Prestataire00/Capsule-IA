@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2, Globe,
-  Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
+  FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase,
 } from 'lucide-react';
@@ -34,6 +34,7 @@ export type SidebarCounts = {
 type Group = {
   key: string;
   label: string;
+  short?: string;
   icon: React.ComponentType<{ className?: string }>;
   href?: string;
   items?: Item[];
@@ -45,6 +46,7 @@ const GROUPS: Group[] = [
   {
     key: 'tableau-de-bord',
     label: 'Tableau de bord',
+    short: 'Tableau',
     icon: LayoutDashboard,
     items: [
       { href: '/', icon: LayoutDashboard, label: 'Accueil' },
@@ -83,7 +85,6 @@ const GROUPS: Group[] = [
       { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
       { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
-      { href: '/planning', icon: Calendar, label: 'Planning' },
       { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
     ],
     countKeys: ['emargementsPending'],
@@ -91,6 +92,7 @@ const GROUPS: Group[] = [
   {
     key: 'docs-comm',
     label: 'Documents & Communication',
+    short: 'Docs & Com',
     icon: FileText,
     items: [
       { href: '/documents', icon: FileText, label: 'Documents' },
@@ -101,6 +103,7 @@ const GROUPS: Group[] = [
   {
     key: 'gestion',
     label: 'Gestion administrative',
+    short: 'Gestion',
     icon: Briefcase,
     items: [
       { href: '/factures', icon: Receipt, label: 'Facturation' },
@@ -113,6 +116,7 @@ const GROUPS: Group[] = [
   {
     key: 'qualite',
     label: 'Qualité & Conformité',
+    short: 'Qualité',
     icon: ShieldCheck,
     items: [
       { href: '/qualiopi', icon: ShieldCheck, label: 'Qualiopi' },
@@ -206,7 +210,7 @@ export function SidebarRail({
   return (
     <>
       {/* Spacer — réserve la largeur de l'icon-bar dans le flow flex du layout */}
-      <div className="w-16 shrink-0" />
+      <div className="w-20 shrink-0" />
 
       {/* Container fixe — icon-bar + flyout */}
       <div
@@ -215,7 +219,7 @@ export function SidebarRail({
       >
         {/* Icon-bar */}
         <nav
-          className="w-16 flex flex-col items-center border-r border-orange-200/60 dark:border-zinc-800"
+          className="w-20 flex flex-col items-center border-r border-orange-200/60 dark:border-zinc-800"
           style={{
             background:
               'linear-gradient(180deg, hsl(24 100% 97%) 0%, hsl(24 95% 92%) 50%, hsl(24 90% 88%) 100%)',
@@ -264,7 +268,7 @@ export function SidebarRail({
                   onMouseEnter={() => setHovered(g.key)}
                 >
                   <Icon className={cn('w-5 h-5 transition-transform duration-150', !active && 'group-hover:scale-110')} />
-                  <span className="text-[10px] font-medium leading-tight">{g.label}</span>
+                  <span className="text-[10px] font-medium leading-tight text-center break-words">{g.short ?? g.label}</span>
                   {total > 0 && (
                     <span
                       className={cn(
