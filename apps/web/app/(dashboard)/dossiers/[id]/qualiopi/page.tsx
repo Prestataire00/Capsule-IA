@@ -1,12 +1,13 @@
 // ARCHETYPE: command
 // Justification: conformité Qualiopi réelle par indicateur + actions de transition gardées.
 
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Check, X, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Check, X, ShieldCheck, ShieldAlert, ArrowRight } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { StatusPill } from '@/shared/ui/status-pill';
 import { InfoCallout } from '@/shared/ui/info-callout';
+import { guidanceFor } from '@/features/dossier/qualiopi-guidance';
 import { startTraining, closeDossier, recomputeNow } from './actions';
 
 type DetailRow = {
@@ -57,6 +58,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
       satisfied: d.satisfied,
       blocking: d.is_blocking,
       stage: d.stage,
+      source: d.source,
     };
   });
 
@@ -125,14 +127,39 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
       {(entryBlockers.length > 0 || closingBlockers.length > 0) && (
         <InfoCallout tone="warning">
           <p className="font-medium">Indicateurs bloquants à résoudre</p>
-          <ul className="text-[11px] mt-2 space-y-1">
-            {[...entryBlockers, ...closingBlockers].map((b) => (
-              <li key={b.code} className="flex items-center gap-2">
-                <span className="font-mono text-amber-700 dark:text-amber-300">{b.code}</span>
-                <span>{b.title}</span>
-                <span className="text-amber-600/70">({b.stage === 'entry' ? 'entrée' : 'clôture'})</span>
-              </li>
-            ))}
+          <p className="text-[12px] mt-0.5 mb-3 opacity-80">
+            Pour chaque point ci-dessous : voici quoi faire et le lien direct pour le corriger.
+          </p>
+          <ul className="space-y-2">
+            {[...entryBlockers, ...closingBlockers].map((b) => {
+              const g = guidanceFor(b.code, b.source);
+              return (
+                <li
+                  key={b.code}
+                  className="bg-white/70 dark:bg-zinc-950/40 border border-amber-200/60 dark:border-amber-900/40 rounded-lg px-3 py-2.5"
+                >
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                        <span className="font-mono text-amber-700 dark:text-amber-300 mr-1.5">{b.code}</span>
+                        {b.title}
+                        <span className="ml-1.5 text-[11px] font-normal text-amber-600/80">
+                          ({b.stage === 'entry' ? "à l'entrée" : 'à la clôture'})
+                        </span>
+                      </p>
+                      <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5">{g.todo}</p>
+                    </div>
+                    <Link
+                      href={`/dossiers/${params.id}/${g.tab}`}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-md transition"
+                    >
+                      {g.linkLabel}
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </InfoCallout>
       )}
@@ -159,12 +186,20 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                   )}
                   <span className="font-mono text-[11px] text-zinc-500">{ind.code}</span>
                   <span className="text-zinc-900 dark:text-zinc-100">{ind.title}</span>
-                  {ind.blocking && !ind.satisfied ? (
-                    <StatusPill tone="warning">bloquant</StatusPill>
-                  ) : (
+                  {ind.satisfied ? (
                     <span className="text-[11px] text-zinc-400 inline-flex items-center gap-1 justify-self-end">
                       {ind.stage !== 'none' ? (ind.stage === 'entry' ? 'entrée' : 'clôture') : ''}
                     </span>
+                  ) : (
+                    <Link
+                      href={`/dossiers/${params.id}/${guidanceFor(ind.code, ind.source).tab}`}
+                      title={guidanceFor(ind.code, ind.source).todo}
+                      className="justify-self-end inline-flex items-center gap-1 text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
+                    >
+                      {ind.blocking && <span className="text-amber-600 dark:text-amber-400 mr-1">bloquant ·</span>}
+                      Corriger
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
                   )}
                 </li>
               ))}

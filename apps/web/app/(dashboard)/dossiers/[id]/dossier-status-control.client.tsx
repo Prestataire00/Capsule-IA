@@ -42,6 +42,9 @@ export function DossierStatusControl({
       router.refresh();
       return;
     }
+    // Blocage partiel : le statut a avancé jusqu'à une étape valide → on
+    // rafraîchit pour le refléter, tout en affichant ce qui reste à débloquer.
+    if (out && 'advanced' in out && out.advanced) router.refresh();
     if (out?.error === 'blocked') setError({ msg: out.message ?? 'Transition bloquée.', qualiopi: true });
     else if (out?.error === 'forbidden')
       setError({ msg: 'Action non autorisée (dossier verrouillé ou droits insuffisants).', qualiopi: false });
