@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0114 — Fix garde-fou transitions dossier : RLS historique + alignement modèle
+-- 0115 — Fix garde-fou transitions dossier : RLS historique + alignement modèle
 -- ============================================================================
 -- 1) SECURITY DEFINER : le trigger insère dans app.dossier_status_history, table
 --    dont la RLS n'expose qu'une policy SELECT (écriture réservée au trigger).
