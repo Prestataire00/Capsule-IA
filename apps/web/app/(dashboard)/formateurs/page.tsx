@@ -35,7 +35,7 @@ const palette = [
 
 export default async function FormateursPage() {
   const sb = supabaseServer();
-  const { data } = await sb
+  const { data, error } = await sb
     .schema('app')
     .from('trainers')
     .select('id, first_name, last_name, email, is_internal, specialties, contract_path, photo_path')
@@ -43,6 +43,7 @@ export default async function FormateursPage() {
     .order('last_name', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trainers = ((data as any[]) ?? []) as TrainerRow[];
+  if (error) console.error('[formateurs] échec chargement:', error.message, error.code);
 
   const internal = trainers.filter((t) => t.is_internal).length;
   const external = trainers.length - internal;
@@ -67,6 +68,13 @@ export default async function FormateursPage() {
         </Link>
         </ManageOnly>
       </header>
+
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+          Impossible de charger les formateurs : {error.message}
+          {error.code ? " (code " + error.code + ")" : ""}. Vos données ne sont pas perdues — réessayez dans un instant.
+        </div>
+      )}
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="Total formateurs" value={trainers.length} icon={UserCog} accent="violet" />
