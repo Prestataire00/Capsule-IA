@@ -21,11 +21,11 @@ function decodeClaims(token: string | undefined): { role?: string; aal?: string 
 // Redirection d'enrôlement (flux MFA existant) + préfixes exemptés du gate :
 // la page d'enrôlement elle-même (anti-lock-out), l'auth, et les pages publiques.
 const MFA_ENROLL_PATH = '/parametres/securite';
-const MFA_EXEMPT = ['/parametres/securite', '/login', '/auth', '/signer', '/questionnaire', '/inscription', '/espace'];
+const MFA_EXEMPT = ['/parametres/securite', '/login', '/auth', '/signer', '/questionnaire', '/inscription', '/espace', '/catalogue'];
 
 // Routes accessibles SANS session (le reste exige une connexion). Volontairement
 // SANS '/parametres/securite' : cette page est protégée (≠ exemption MFA).
-const PUBLIC_PREFIXES = ['/login', '/auth', '/signer', '/questionnaire', '/inscription', '/espace'];
+const PUBLIC_PREFIXES = ['/login', '/auth', '/signer', '/questionnaire', '/inscription', '/espace', '/catalogue'];
 
 export const updateSession = async (req: NextRequest) => {
   const res = NextResponse.next({ request: { headers: req.headers } });

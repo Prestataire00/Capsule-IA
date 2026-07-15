@@ -166,6 +166,12 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           <div className="flex flex-col items-end gap-2.5">
             <div className="flex items-center gap-2">
               <Link
+                href={`/formations/${f.id}/programme`}
+                className="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition inline-flex items-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" /> Programme
+              </Link>
+              <Link
                 href={`/formations/${f.id}/edit`}
                 className="text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
               >

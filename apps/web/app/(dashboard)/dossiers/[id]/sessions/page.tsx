@@ -45,12 +45,22 @@ export default async function SessionsPage({ params }: { params: { id: string } 
       <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
         {rows.map((s) => {
           const isRemote = s.modality === 'distanciel' || s.modality === 'hybride';
+          const _start = new Date(s.starts_at);
+          const _end = s.ends_at
+            ? new Date(s.ends_at)
+            : new Date(_start.getTime() + Number(s.duration_hours ?? 0) * 3600000);
+          const _d = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const _t = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          const _sameDay = _start.toDateString() === _end.toDateString();
+          const sessionWhen = _sameDay
+            ? `${_d.format(_start)} · ${_t.format(_start)} \u2192 ${_t.format(_end)}`
+            : `${_d.format(_start)} ${_t.format(_start)} \u2192 ${_d.format(_end)} ${_t.format(_end)}`;
           return (
             <li key={s.id} className="py-3 px-1 text-[13px] flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <div className="font-medium">{s.title ?? s.modality}</div>
                 <div className="text-[11px] text-zinc-500">
-                  {new Date(s.starts_at).toLocaleString('fr-FR')} · {Number(s.duration_hours)} h
+                  {sessionWhen} · {Number(s.duration_hours)} h
                   {s.dossier_id !== params.id ? ' · partagée' : ''}
                 </div>
                 {s.remote_url && (

@@ -1,7 +1,14 @@
 import 'server-only';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 
-export type PublicFormation = { id: string; code: string; title: string; category: string | null };
+export type PublicFormation = {
+  id: string;
+  code: string;
+  title: string;
+  category: string | null;
+  modality: string | null;
+  durationHours: number | null;
+};
 
 type RpcRow = {
   id: string;
@@ -9,7 +16,18 @@ type RpcRow = {
   code: string;
   title: string;
   category: string | null;
+  default_modality: string | null;
+  default_duration_hours: number | null;
 };
+
+const mapRow = (r: RpcRow): PublicFormation => ({
+  id: r.id,
+  code: r.code,
+  title: r.title,
+  category: r.category,
+  modality: r.default_modality,
+  durationHours: r.default_duration_hours,
+});
 
 // Catalogue public ORG-SCOPÉ : on résout l'OF depuis la formation du lien
 // d'inscription (?formation=<id>), puis on liste SON catalogue publié.
@@ -32,10 +50,10 @@ export async function getPublicCatalog(formationId?: string): Promise<PublicForm
   } as never);
   const rows = (list as unknown as RpcRow[] | null) ?? [];
 
-  const mapped = rows.map((r) => ({ id: r.id, code: r.code, title: r.title, category: r.category }));
+  const mapped = rows.map(mapRow);
   // Garantit la présence de la formation présélectionnée même si absente de la liste.
   if (!mapped.some((f) => f.id === row.id)) {
-    mapped.unshift({ id: row.id, code: row.code, title: row.title, category: row.category });
+    mapped.unshift(mapRow(row));
   }
   return mapped;
 }
@@ -48,5 +66,5 @@ export async function getPublicCatalogByOrg(orgId?: string): Promise<PublicForma
   const sb = supabaseServer();
   const { data: list } = await sb.rpc('list_published_formations' as never, { p_org: id } as never);
   const rows = (list as unknown as RpcRow[] | null) ?? [];
-  return rows.map((r) => ({ id: r.id, code: r.code, title: r.title, category: r.category }));
+  return rows.map(mapRow);
 }

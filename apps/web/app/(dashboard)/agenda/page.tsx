@@ -10,6 +10,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
 import { listAgenda, type CalEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { AgendaTabs } from './agenda-tabs.client';
+import { AgendaNowLine } from './agenda-now-line.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -369,6 +370,7 @@ export default async function AgendaPage({
 
         {/* Grille horaire */}
         <div className="relative">
+          <AgendaNowLine startHour={START_HOUR} endHour={END_HOUR} rowH={ROW_H} show={weekKeys.has(todayKey)} />
           <div className="grid grid-cols-[52px_repeat(7,1fr)]">
             {HOURS.map((h) => (
               <div key={h} className="contents">

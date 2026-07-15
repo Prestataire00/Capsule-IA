@@ -1,6 +1,7 @@
 // ARCHETYPE: command
 // Justification: planning calendaire des sessions réelles — vue semaine dense, events colorés par statut.
 
+import { AgendaNowLine } from '../agenda/agenda-now-line.client';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
@@ -179,6 +180,7 @@ export default async function PlanningPage({
         </div>
 
         <div className="relative">
+          <AgendaNowLine startHour={firstHour} endHour={firstHour + HOURS.length} rowH={ROW_H} gutter={60} show={weekOffset === 0} />
           <div className="grid grid-cols-[60px_repeat(7,1fr)]">
             {HOURS.map((h) => (
               <div key={h} className="contents">

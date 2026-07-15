@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
+  LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2, Globe,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock,
@@ -61,6 +61,7 @@ const GROUPS: Group[] = [
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
+      { href: '/catalogue-public', icon: Globe, label: 'Catalogue public' },
     ],
   },
   {
