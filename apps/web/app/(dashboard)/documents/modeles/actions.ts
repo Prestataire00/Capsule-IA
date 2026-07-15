@@ -7,12 +7,49 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { DEFAULT_TEMPLATES } from '@/features/documents/templates/default-templates';
 import { resolveDossierVariables } from '@/features/documents/templates/resolve-dossier-variables';
 import { renderTemplate } from '@/features/documents/templates/render-template';
+import { generateTemplateHtml } from '@/features/documents/templates/generate-with-ai';
 import {
   SaveTemplateSchema,
   DeleteTemplateSchema,
   CreateCategorySchema,
   DeleteCategorySchema,
+  TEMPLATE_KINDS,
+  TEMPLATE_KIND_LABELS,
 } from './schema';
+
+// Génère un MODÈLE via l'IA (avec variables), l'enregistre en brouillon et renvoie
+// son id — l'éditeur s'ouvre ensuite dessus pour édition/ajout de variables.
+export const generateTemplateWithAI = authActionClient
+  .schema(z.object({ kind: z.enum(TEMPLATE_KINDS), instruction: z.string().max(2000).optional().default('') }))
+  .action(async ({ parsedInput, ctx }) => {
+    const orgId = await resolveAdminOrgId(ctx.userId as unknown as string);
+    if (!orgId) return { ok: false as const, error: 'forbidden_not_admin' };
+
+    const gen = await generateTemplateHtml(parsedInput.kind, parsedInput.instruction);
+    if (!gen.ok) {
+      return { ok: false as const, error: gen.reason === 'no_api_key' ? 'ai_unavailable' : 'generation_failed' };
+    }
+
+    const title = `${TEMPLATE_KIND_LABELS[parsedInput.kind]} (brouillon IA)`;
+    const code = `${slugify(title)}-${Math.abs(hashStr(title + Date.now())) % 100000}`;
+    const { data: inserted, error } = await ctx.supabase
+      .schema('app')
+      .from('document_templates')
+      .insert({
+        organization_id: orgId,
+        kind: parsedInput.kind,
+        code,
+        title,
+        content_html: gen.html,
+        is_active: true,
+      } as never)
+      .select('id')
+      .single();
+    if (error || !inserted) return { ok: false as const, error: 'save_failed', details: error?.message };
+
+    revalidatePath('/documents/modeles');
+    return { ok: true as const, templateId: (inserted as { id: string }).id };
+  });
 
 // Rendu d'un modèle avec les VRAIES valeurs d'un dossier — aperçu "valeurs réelles".
 export const previewTemplateWithDossier = authActionClient

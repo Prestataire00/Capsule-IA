@@ -1,6 +1,7 @@
 import 'server-only';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 import { legalPromptBlock } from '@/features/documents/legal/requirements';
+import { TEMPLATE_VARIABLES } from '@/features/documents/templates/variables';
 
 export type AiDocResult =
   | { ok: true; html: string; model: string }
@@ -58,6 +59,65 @@ ${instruction || '(aucune — produire le document standard du type indiqué)'}`
       .join('\n')
       .trim();
     // Nettoyage défensif d'éventuels fences markdown.
+    html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+    if (!html) return { ok: false, reason: 'generation_failed' };
+    return { ok: true, html, model: LEGAL_MODEL };
+  } catch (error) {
+    return { ok: false, reason: 'generation_failed', error };
+  }
+}
+
+// Génère un MODÈLE réutilisable (et non un document figé) pour un type donné :
+// le HTML contient des VARIABLES {slug} (pas de valeurs réelles), que l'utilisateur
+// verra en pastilles dans l'éditeur et pourra compléter. Adaptable à chaque cible.
+export async function generateTemplateHtml(kind: string, instruction: string): Promise<AiDocResult> {
+  const client = anthropic();
+  if (!client) return { ok: false, reason: 'no_api_key' };
+
+  const catalog = TEMPLATE_VARIABLES.filter((v) => v.group !== 'Conditions')
+    .map((v) => `{${v.slug}} = ${v.label} (${v.group})`)
+    .join('\n');
+
+  const prompt = `Tu es le juriste-rédacteur d'un organisme de formation français (conforme Qualiopi).
+Génère un MODÈLE de document RÉUTILISABLE (pas un exemplaire rempli) pour le type indiqué.
+
+PRINCIPE CLÉ — VARIABLES :
+- Partout où l'information dépend du dossier, de l'apprenant, de l'entreprise, de la formation
+  ou de l'organisme, insère la VARIABLE correspondante entre accolades, ex. {apprenant_nom_complet},
+  {formation_titre}, {dossier_date_debut}, {organisme_nom}.
+- N'INVENTE JAMAIS de valeurs réelles (pas de faux nom, montant, date, SIRET) : utilise les variables.
+- Si une donnée nécessaire n'a pas de variable dans la liste, laisse un champ « [à compléter] ».
+
+VARIABLES DISPONIBLES (utilise EXACTEMENT ces slugs) :
+${catalog}
+
+CONTRAINTES DE SORTIE :
+- Réponds UNIQUEMENT avec du HTML (pas de \`\`\`, pas de <html>/<head>/<body>).
+- Balises autorisées : <h1>, <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>, <table>, <thead>, <tbody>, <tr>, <th>, <td>.
+- Français juridique et institutionnel. Toutes les mentions obligatoires ci-dessous doivent figurer.
+
+${legalPromptBlock(kind)}
+
+DEMANDE COMPLÉMENTAIRE DE L'UTILISATEUR :
+${instruction || '(aucune — produire le modèle standard du type indiqué)'}`;
+
+  try {
+    const stream = client.messages.stream({
+      model: LEGAL_MODEL,
+      max_tokens: 8000,
+      thinking: { type: 'adaptive' },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      output_config: { effort: 'high' } as any,
+      messages: [{ role: 'user', content: prompt }],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    const msg = await stream.finalMessage();
+    let html = msg.content
+      .filter((b) => b.type === 'text')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((b) => (b as any).text as string)
+      .join('\n')
+      .trim();
     html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
     if (!html) return { ok: false, reason: 'generation_failed' };
     return { ok: true, html, model: LEGAL_MODEL };

@@ -4,42 +4,38 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
 import { Loader2, Sparkles, X } from 'lucide-react';
-import { generateStandaloneWithAI } from './standalone-actions';
+import { generateTemplateWithAI } from './modeles/actions';
 import { TEMPLATE_KINDS } from './modeles/schema';
 import { getLegalRequirement } from '@/features/documents/legal/requirements';
 
 const KIND_OPTIONS = TEMPLATE_KINDS.map((k) => ({ value: k, label: getLegalRequirement(k).label }));
 
-// Génération d'un document autonome (sans dossier) par IA depuis la bibliothèque.
+// Génère un MODÈLE (avec variables) via l'IA depuis la bibliothèque, puis ouvre
+// l'éditeur pour le voir, le modifier et ajouter des variables.
 export function StandaloneGenerateButton() {
   const router = useRouter();
-  const { executeAsync } = useAction(generateStandaloneWithAI);
+  const { executeAsync } = useAction(generateTemplateWithAI);
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<(typeof TEMPLATE_KINDS)[number]>('attestation_fin');
-  const [title, setTitle] = useState('');
   const [instruction, setInstruction] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleGenerate() {
     setError(null);
-    if (instruction.trim().length < 5) {
-      setError('Décrivez en quelques mots le document à générer.');
-      return;
-    }
     setLoading(true);
-    const res = await executeAsync({ kind, title: title.trim(), instruction: instruction.trim() });
+    const res = await executeAsync({ kind, instruction: instruction.trim() });
     setLoading(false);
     const out = res?.data;
     if (out?.ok) {
-      router.push(`/documents/${out.documentId}/apercu`);
+      router.push(`/documents/modeles/${out.templateId}`);
       return;
     }
     setError(
       out?.error === 'ai_unavailable'
         ? "L'IA n'est pas configurée (ANTHROPIC_API_KEY manquante)."
-        : out?.error === 'organization_not_found'
-          ? 'Organisation introuvable.'
+        : out?.error === 'forbidden_not_admin'
+          ? 'Réservé aux administrateurs.'
           : 'La génération a échoué.',
     );
   }
@@ -62,13 +58,14 @@ export function StandaloneGenerateButton() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Générer un document avec l&apos;IA</h2>
+              <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Générer un modèle avec l&apos;IA</h2>
               <button type="button" onClick={() => !loading && setOpen(false)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Document autonome (sans dossier), rédigé selon les mentions légales du type choisi. Rattachable à un dossier ensuite.
+              L&apos;IA rédige un <strong>modèle avec des variables</strong> pour le type choisi. Il s&apos;ouvre ensuite dans
+              l&apos;éditeur où vous pouvez le modifier et ajouter des variables pour l&apos;adapter à chaque dossier.
             </p>
 
             <div className="flex items-center gap-2">
@@ -86,17 +83,11 @@ export function StandaloneGenerateButton() {
               </select>
             </div>
 
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Titre (optionnel — sinon le type sera utilisé)"
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
-            />
             <textarea
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
-              rows={4}
-              placeholder="Décrivez ce que le document doit contenir (contexte, destinataire, points à couvrir)."
+              rows={3}
+              placeholder="Consignes optionnelles (ex : ton, clauses particulières, sections à ajouter)."
               className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
             />
 
@@ -113,7 +104,7 @@ export function StandaloneGenerateButton() {
                 className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-2 rounded-md inline-flex items-center gap-2 shadow-sm"
               >
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                {loading ? 'Génération…' : 'Générer'}
+                {loading ? 'Génération…' : 'Générer le modèle'}
               </button>
             </div>
           </div>

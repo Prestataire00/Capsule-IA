@@ -200,7 +200,16 @@ export default async function EmailsPage({
                         </span>
                       )}
                       {!r.delivered_at && !r.opened_at && !r.clicked_at && (
-                        <span className="text-zinc-300 dark:text-zinc-600 text-[11px]">—</span>
+                        r.provider_id && r.provider_id.includes('@') ? (
+                          <span
+                            title="Envoyé via SMTP (votre boîte mail) : le suivi ouvertures/clics n'est pas disponible sur ce canal."
+                            className="text-zinc-400 dark:text-zinc-500 text-[10px] italic"
+                          >
+                            SMTP — suivi indisponible
+                          </span>
+                        ) : (
+                          <span className="text-zinc-300 dark:text-zinc-600 text-[11px]">—</span>
+                        )
                       )}
                     </>
                   )}
