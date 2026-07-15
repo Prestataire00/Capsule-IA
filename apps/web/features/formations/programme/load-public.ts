@@ -137,17 +137,14 @@ export async function getPublicProgramme(formationId: string): Promise<PublicPro
   const programme =
     stored && stored.schemaVersion === 1 ? stored : deriveProgramme(mapFormation(row, catalog), mapOrg(row.organization));
 
-  // Injecte le logo de l'OF si le programme n'en embarque pas (URL/data-URI saisis
-  // dans l'éditeur prioritaires). Lecture storage via admin, bornée aux publiées.
-  if (!programme.header.logoUrl && row.organization?.logo_path) {
+  // Image de la formation : elle remplace le logo de l'OF dans l'en-tête (pas de
+  // bannière). Uniquement sur la page programme dédiée (ce loader). Sinon, logo OF.
+  if (catalog.coverPath) {
+    const coverUri = await orgAssetDataUri(catalog.coverPath);
+    if (coverUri) programme.header = { ...programme.header, logoUrl: coverUri, coverUrl: '' };
+  } else if (!programme.header.logoUrl && row.organization?.logo_path) {
     const dataUri = await loadOrgLogoDataUri(supabaseAdmin(), row.organization_id);
     if (dataUri) programme.header = { ...programme.header, logoUrl: dataUri };
-  }
-
-  // Image de couverture de la formation (org_assets → data-URI) pour le catalogue.
-  if (!programme.header.coverUrl && catalog.coverPath) {
-    const coverUri = await orgAssetDataUri(catalog.coverPath);
-    if (coverUri) programme.header = { ...programme.header, coverUrl: coverUri };
   }
 
   return {
