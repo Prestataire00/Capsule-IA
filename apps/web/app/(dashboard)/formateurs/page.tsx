@@ -2,7 +2,8 @@
 // Justification: carnet formateurs en données réelles — KPIs + grille de cards, lien vers la fiche.
 
 import Link from 'next/link';
-import { Plus, Search, UserCog, Building, Briefcase, Mail, ArrowUpRight, ShieldCheck, FileSignature } from 'lucide-react';
+import { Plus, UserCog, Building, Briefcase, Mail, ArrowUpRight, ShieldCheck, FileSignature } from 'lucide-react';
+import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatCard } from '@/shared/ui/stat-card';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -16,7 +17,13 @@ type TrainerRow = {
   is_internal: boolean;
   specialties: string[] | null;
   contract_path: string | null;
+  photo_path: string | null;
 };
+
+function trainerPhotoUrl(path: string | null): string | null {
+  if (!path) return null;
+  return `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/trainer-photos/${path}`;
+}
 
 const palette = [
   'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
@@ -31,7 +38,7 @@ export default async function FormateursPage() {
   const { data } = await sb
     .schema('app')
     .from('trainers')
-    .select('id, first_name, last_name, email, is_internal, specialties, contract_path')
+    .select('id, first_name, last_name, email, is_internal, specialties, contract_path, photo_path')
     .is('deleted_at', null)
     .order('last_name', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,6 +97,7 @@ export default async function FormateursPage() {
             const initials = `${t.first_name[0] ?? ''}${t.last_name[0] ?? ''}`.toUpperCase();
             const idx = ((t.first_name.charCodeAt(0) || 0) + (t.last_name.charCodeAt(0) || 0)) % palette.length;
             const specialties = t.specialties ?? [];
+            const photoUrl = trainerPhotoUrl(t.photo_path);
             return (
               <li key={t.id}>
                 <Link
@@ -98,9 +106,14 @@ export default async function FormateursPage() {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className={`w-12 h-12 rounded-full flex items-center justify-center text-[14px] font-medium flex-shrink-0 shadow-sm ${palette[idx]}`}>
-                        {initials}
-                      </span>
+                      {photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photoUrl} alt="" className="w-12 h-12 rounded-full object-cover flex-shrink-0 shadow-sm" />
+                      ) : (
+                        <span className={`w-12 h-12 rounded-full flex items-center justify-center text-[14px] font-medium flex-shrink-0 shadow-sm ${palette[idx]}`}>
+                          {initials}
+                        </span>
+                      )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">

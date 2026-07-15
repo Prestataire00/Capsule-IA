@@ -3,10 +3,12 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase, UserRound } from 'lucide-react';
+import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { ContractUpload } from './contract-upload';
 import { ContractGenerate } from './contract-generate';
+import { TrainerProfileEdit } from './profile-edit';
 
 type Trainer = {
   id: string;
@@ -21,14 +23,21 @@ type Trainer = {
   zoom_url: string | null;
   specialties: string[] | null;
   contract_path: string | null;
+  photo_path: string | null;
+  bio: string | null;
 };
+
+function trainerPhotoUrl(path: string | null): string | null {
+  if (!path) return null;
+  return `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/trainer-photos/${path}`;
+}
 
 export default async function FormateurDetailPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
   const { data } = await sb
     .schema('app')
     .from('trainers')
-    .select('id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path')
+    .select('id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path, photo_path, bio')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -57,6 +66,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
   const contractDocId = (contractDoc as { id: string } | null)?.id ?? null;
 
   const initials = `${t.first_name[0] ?? ''}${t.last_name[0] ?? ''}`.toUpperCase();
+  const photoUrl = trainerPhotoUrl(t.photo_path);
 
   return (
     <div className="max-w-3xl w-full mx-auto px-8 py-8">
@@ -70,9 +80,14 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
 
       <header className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm p-6 mb-6">
         <div className="flex items-start gap-4">
-          <span className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center justify-center text-[16px] font-medium shadow-sm flex-shrink-0">
-            {initials}
-          </span>
+          {photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoUrl} alt="" className="w-14 h-14 rounded-full object-cover shadow-sm flex-shrink-0" />
+          ) : (
+            <span className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center justify-center text-[16px] font-medium shadow-sm flex-shrink-0">
+              {initials}
+            </span>
+          )}
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
               {t.first_name} {t.last_name}
@@ -100,7 +115,18 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
             )}
           </div>
         </div>
+        {t.bio && (
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 whitespace-pre-line">
+            {t.bio}
+          </p>
+        )}
       </header>
+
+      <div className="mb-6">
+        <Card title="Profil public" icon={UserRound}>
+          <TrainerProfileEdit trainerId={t.id} photoUrl={photoUrl} initials={initials} bio={t.bio ?? ''} />
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card title="Infos contractuelles" icon={ShieldCheck}>
