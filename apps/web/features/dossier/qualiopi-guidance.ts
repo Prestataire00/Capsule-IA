@@ -38,11 +38,11 @@ const BY_SOURCE: Record<string, Guidance> = {
 
 // Consigne PRÉCISE par code d'indicateur (prioritaire sur la source).
 const TODO_BY_CODE: Record<string, string> = {
-  I4: "Formalisez et joignez les objectifs pédagogiques de la formation (preuve écrite).",
+  I4: "Renseignez les objectifs pédagogiques dans la fiche formation (onglet Programme) — cela valide l'indicateur. Joindre une preuve reste possible.",
   I5: "Justifiez l'adaptation du parcours au besoin de l'apprenant (issu du positionnement).",
-  I6: 'Documentez les méthodes et modalités pédagogiques employées.',
-  I7: 'Joignez le programme détaillé de la formation (déroulé, contenus).',
-  I8: "Documentez les modalités d'évaluation prévues.",
+  I6: "Renseignez les modalités pédagogiques dans la fiche formation — cela valide l'indicateur (preuve facultative).",
+  I7: "Complétez le programme détaillé dans la fiche formation (onglet Programme) — cela valide l'indicateur (preuve facultative).",
+  I8: "Renseignez les modalités d'évaluation dans la fiche formation — cela valide l'indicateur (preuve facultative).",
   I9: "Joignez une preuve d'adaptation pédagogique en cours de formation.",
   I10: "Envoyez le questionnaire de positionnement à l'apprenant, et attendez sa réponse.",
   I11: "Joignez une preuve d'accueil/d'adaptation pour les publics spécifiques (accessibilité, handicap).",
