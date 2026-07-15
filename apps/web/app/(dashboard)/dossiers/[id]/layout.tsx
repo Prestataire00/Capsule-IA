@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Calendar, Clock, Users as UsersIcon, Banknote } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
+import { DossierStatusControl } from './dossier-status-control.client';
+import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
 const fmtDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '—');
 const fmtEuros = (cents: number | null) =>
@@ -51,7 +52,7 @@ export default async function DossierLayout({
           <div className="min-w-0">
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-medium font-mono text-zinc-900 dark:text-zinc-100">{d.reference}</h1>
-              <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
+              <DossierStatusControl dossierId={params.id} status={d.status as DossierStatus} />
             </div>
             <p className="text-[15px] text-zinc-700 dark:text-zinc-300">
               {learner}

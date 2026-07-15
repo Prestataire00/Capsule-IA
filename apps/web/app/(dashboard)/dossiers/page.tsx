@@ -6,11 +6,13 @@ import { Plus, Search, FolderOpen, List, LayoutGrid, Columns3 } from 'lucide-rea
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
+import { dossierStatusLabel } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { StatusFilter } from './status-filter.client';
+import { DossierStatusControl } from './[id]/dossier-status-control.client';
+import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
 const STATUSES = ['draft', 'pending_validation', 'scheduled', 'active', 'completed', 'closed', 'archived', 'cancelled'] as const;
 
@@ -59,7 +61,7 @@ function DossierCard({ d }: { d: Row }) {
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <IdPill>{d.reference}</IdPill>
-        <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
+        <DossierStatusControl dossierId={d.id} status={d.status as DossierStatus} compact />
       </div>
       <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{learnerName(d)}</p>
       <p className="text-[12px] text-zinc-600 dark:text-zinc-400 truncate">{d.formation?.title ?? '—'}</p>
@@ -269,7 +271,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   <div className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums">
                     {fmtEuros(d.total_amount_cents)}
                   </div>
-                  <div><StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill></div>
+                  <div><DossierStatusControl dossierId={d.id} status={d.status as DossierStatus} compact /></div>
                 </Link>
               </li>
             ))}
