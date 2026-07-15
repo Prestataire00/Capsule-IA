@@ -39,7 +39,7 @@ const BY_SOURCE: Record<string, Guidance> = {
 // Consigne PRÉCISE par code d'indicateur (prioritaire sur la source).
 const TODO_BY_CODE: Record<string, string> = {
   I4: "Renseignez les objectifs pédagogiques dans la fiche formation (onglet Programme) — cela valide l'indicateur. Joindre une preuve reste possible.",
-  I5: "Justifiez l'adaptation du parcours au besoin de l'apprenant (issu du positionnement).",
+  I5: "Le questionnaire de positionnement, une fois complété par l'apprenant, valide l'adaptation du parcours (preuve facultative).",
   I6: "Renseignez les modalités pédagogiques dans la fiche formation — cela valide l'indicateur (preuve facultative).",
   I7: "Complétez le programme détaillé dans la fiche formation (onglet Programme) — cela valide l'indicateur (preuve facultative).",
   I8: "Renseignez les modalités d'évaluation dans la fiche formation — cela valide l'indicateur (preuve facultative).",
@@ -61,6 +61,7 @@ const TODO_BY_CODE: Record<string, string> = {
 
 // Lien surchargé par code quand il diffère du défaut de la source.
 const TAB_BY_CODE: Partial<Record<string, { tab: DossierTab; linkLabel: string }>> = {
+  I5: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
   I15: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
   I21: { tab: 'documents', linkLabel: 'Ajouter la preuve (formateur)' },
   I26: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
