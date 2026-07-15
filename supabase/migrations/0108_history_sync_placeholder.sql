@@ -1,0 +1,14 @@
+-- ============================================================================
+-- 0108 — Placeholder de synchronisation d'historique (NO-OP)
+-- ============================================================================
+-- La base de PROD a la version 0108 dans son historique de migrations
+-- (supabase_migrations.schema_migrations), issue d'une migration appliquée puis
+-- renommée/renumérotée lors du travail en parallèle des deux instances.
+-- Sans fichier local correspondant, `supabase db push` refuse d'appliquer TOUTE
+-- migration (« Remote migration versions not found in local migrations directory »),
+-- ce qui casse le workflow CI « DB migrations (prod) ».
+--
+-- Ce fichier vide (aucune instruction SQL) fait correspondre le repo à
+-- l'historique distant. La version 0108 étant DÉJÀ appliquée en prod, ce contenu
+-- n'est jamais ré-exécuté : c'est un simple marqueur pour débloquer db push.
+-- NE RIEN AJOUTER ICI.
