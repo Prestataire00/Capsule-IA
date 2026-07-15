@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2, Globe,
   Calendar, FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
-  Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail,
+  Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -42,83 +42,75 @@ type Group = {
 };
 
 const GROUPS: Group[] = [
-  { key: 'accueil', label: 'Accueil', icon: LayoutDashboard, href: '/' },
+  {
+    key: 'tableau-de-bord',
+    label: 'Tableau de bord',
+    icon: LayoutDashboard,
+    items: [
+      { href: '/', icon: LayoutDashboard, label: 'Accueil' },
+      { href: '/reporting', icon: BarChart3, label: 'Reporting' },
+      { href: '/notifications', icon: Bell, label: 'Notifications' },
+    ],
+  },
   { key: 'agenda', label: 'Agenda', icon: CalendarDays, href: '/agenda' },
   {
-    key: 'commercial',
-    label: 'Commercial',
-    icon: Inbox,
+    key: 'relations',
+    label: 'Relations',
+    icon: Users,
     items: [
       { href: '/prospects', icon: Inbox, label: 'Demandes' },
       { href: '/entreprises', icon: Building2, label: 'Entreprises' },
       { href: '/financeurs', icon: Wallet, label: 'Financeurs' },
+      { href: '/apprenants', icon: Users, label: 'Apprenants' },
+      { href: '/formateurs', icon: UserCog, label: 'Formateurs' },
     ],
     countKeys: ['demandesPending'],
   },
   {
-    key: 'catalogue',
-    label: 'Catalogue',
+    key: 'formations',
+    label: 'Formations',
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
       { href: '/catalogue-public', icon: Globe, label: 'Catalogue public' },
-    ],
-  },
-  {
-    key: 'formation',
-    label: 'Formation',
-    icon: FolderOpen,
-    items: [
       { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
+      { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
       { href: '/planning', icon: Calendar, label: 'Planning' },
-      { href: '/apprenants', icon: Users, label: 'Apprenants' },
-      { href: '/formateurs', icon: UserCog, label: 'Formateurs' },
       { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
     ],
     countKeys: ['emargementsPending'],
   },
   {
-    key: 'documents',
-    label: 'Documents',
+    key: 'docs-comm',
+    label: 'Documents & Communication',
     icon: FileText,
     items: [
       { href: '/documents', icon: FileText, label: 'Documents' },
-      { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
-      { href: '/tracabilite', icon: Eye, label: 'Traçabilité docs' },
-    ],
-    countKeys: ['questionnairesActive'],
-  },
-  { key: 'facturation', label: 'Facturation', icon: Receipt, href: '/factures', countKeys: ['invoicesUnpaid'] },
-  {
-    key: 'communication',
-    label: 'Communication',
-    icon: Mail,
-    items: [
       { href: '/emails', icon: Mail, label: 'Emails' },
-      { href: '/notifications', icon: Bell, label: 'Notifications' },
+      { href: '/tracabilite', icon: Eye, label: 'Traçabilité des documents' },
     ],
+  },
+  {
+    key: 'gestion',
+    label: 'Gestion administrative',
+    icon: Briefcase,
+    items: [
+      { href: '/factures', icon: Receipt, label: 'Facturation' },
+      { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
+      { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
+      { href: '/bpf', icon: FileText, label: 'BPF' },
+    ],
+    countKeys: ['invoicesUnpaid', 'questionnairesActive', 'reclamationsActive'],
   },
   {
     key: 'qualite',
-    label: 'Qualité',
+    label: 'Qualité & Conformité',
     icon: ShieldCheck,
     items: [
       { href: '/qualiopi', icon: ShieldCheck, label: 'Qualiopi' },
-      { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
-      { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
-      { href: '/amelioration-continue', icon: Telescope, label: 'Veille & amélioration' },
-    ],
-    countKeys: ['reclamationsActive'],
-  },
-  {
-    key: 'pilotage',
-    label: 'Pilotage',
-    icon: BarChart3,
-    items: [
-      { href: '/reporting', icon: BarChart3, label: 'Reporting' },
-      { href: '/bpf', icon: FileText, label: 'BPF' },
       { href: '/audit', icon: Activity, label: 'Audit' },
+      { href: '/amelioration-continue', icon: Telescope, label: 'Veille & amélioration' },
     ],
   },
 ];
@@ -163,7 +155,7 @@ export function SidebarRail({
       : g,
   ).filter((g) => g.items === undefined || g.items.length > 0);
   const [hovered, setHovered] = useState<string | null>(null);
-  const lastFlyoutKey = useRef<string>('formation');
+  const lastFlyoutKey = useRef<string>('formations');
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
