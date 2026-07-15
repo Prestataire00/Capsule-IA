@@ -1,7 +1,7 @@
 import 'server-only';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 
-export type RecipientType = 'apprenant' | 'formateur' | 'entreprise';
+export type RecipientType = 'apprenant' | 'formateur' | 'entreprise' | 'libre';
 
 export type GenerateEmailInput = {
   recipientType: RecipientType;
@@ -27,6 +27,8 @@ const ROLE_GUIDANCE: Record<RecipientType, string> = {
     "un formateur intervenant pour l'organisme. Ton professionnel entre partenaires, en le vouvoyant.",
   entreprise:
     "le contact d'une entreprise cliente. Ton professionnel et commercial courtois, en le vouvoyant.",
+  libre:
+    "un contact externe (adresse email saisie librement, hors CRM). Ton professionnel et courtois, en le vouvoyant.",
 };
 
 /**

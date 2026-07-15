@@ -5,7 +5,7 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { generateEmailDraft, type RecipientType } from '@/features/emails/generate-email';
 
-const RECIPIENT_TYPES = ['apprenant', 'formateur', 'entreprise'] as const;
+const RECIPIENT_TYPES = ['apprenant', 'formateur', 'entreprise', 'libre'] as const;
 
 type ResolvedRecipient = {
   email: string;
@@ -14,13 +14,20 @@ type ResolvedRecipient = {
   detail: string | null;
 };
 
-// Résout une fiche à partir de son type + id via le client RLS (l'utilisateur ne
-// peut adresser que les fiches de son organisation). Jamais l'email fourni par le
-// client : on relit toujours l'adresse en base.
+type ComposeInput = {
+  recipientType: RecipientType;
+  recipientId?: string;
+  freeEmail?: string;
+  freeName?: string;
+};
+
+// Résout une fiche CRM à partir de son type + id via le client RLS (l'utilisateur
+// ne peut adresser que les fiches de son organisation). Jamais l'email fourni par
+// le client : on relit toujours l'adresse en base.
 async function resolveRecipient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sb: any,
-  type: RecipientType,
+  type: 'apprenant' | 'formateur' | 'entreprise',
   id: string,
 ): Promise<ResolvedRecipient | null> {
   if (type === 'apprenant') {
@@ -76,6 +83,21 @@ async function resolveRecipient(
   };
 }
 
+// Résout le destinataire quel que soit le mode : adresse libre (hors CRM) ou fiche.
+async function resolveInputRecipient(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  input: ComposeInput,
+): Promise<ResolvedRecipient | null> {
+  if (input.recipientType === 'libre') {
+    const email = input.freeEmail?.trim();
+    if (!email) return null;
+    return { email, name: input.freeName?.trim() || email, companyName: null, detail: null };
+  }
+  if (!input.recipientId) return null;
+  return resolveRecipient(sb, input.recipientType, input.recipientId);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveOrg(sb: any): Promise<{ id: string; name: string } | null> {
   const { data } = await sb.schema('app').from('organizations').select('id, name').limit(1).maybeSingle();
@@ -104,18 +126,34 @@ ${paragraphs}
 </div></body></html>`;
 };
 
-// ── Action 1 : génère une proposition d'email à partir de la fiche + objet ──
+// Champs de destinataire communs aux deux actions : fiche CRM (recipientId) OU
+// adresse libre (freeEmail). Le refine garantit qu'au moins l'un est fourni.
+const recipientFields = {
+  recipientType: z.enum(RECIPIENT_TYPES),
+  recipientId: z.string().uuid().optional(),
+  freeEmail: z.string().trim().email('Adresse email invalide.').optional(),
+  freeName: z.string().trim().max(120).optional(),
+};
+const requireRecipient = (v: { recipientType: string; recipientId?: string; freeEmail?: string }) =>
+  v.recipientType === 'libre' ? !!v.freeEmail : !!v.recipientId;
+const recipientRefine: { message: string; path: (string | number)[] } = {
+  message: 'Sélectionnez un destinataire ou saisissez une adresse email.',
+  path: ['recipientId'],
+};
+
+// ── Action 1 : génère une proposition d'email à partir de la fiche/adresse + objet ──
 export const generateEmailDraftAction = authActionClient
   .schema(
-    z.object({
-      recipientType: z.enum(RECIPIENT_TYPES),
-      recipientId: z.string().uuid(),
-      subject: z.string().trim().min(1, 'Précisez un objet.'),
-      instructions: z.string().trim().max(500).optional(),
-    }),
+    z
+      .object({
+        ...recipientFields,
+        subject: z.string().trim().min(1, 'Précisez un objet.'),
+        instructions: z.string().trim().max(500).optional(),
+      })
+      .refine(requireRecipient, recipientRefine),
   )
   .action(async ({ parsedInput, ctx }) => {
-    const recipient = await resolveRecipient(ctx.supabase, parsedInput.recipientType, parsedInput.recipientId);
+    const recipient = await resolveInputRecipient(ctx.supabase, parsedInput);
     if (!recipient) return { ok: false as const, error: 'recipient_not_found' };
     const org = await resolveOrg(ctx.supabase);
     if (!org) return { ok: false as const, error: 'no_org' };
@@ -138,15 +176,16 @@ export const generateEmailDraftAction = authActionClient
 // ── Action 2 : envoie l'email via la boîte connectée (SMTP/Resend) + journal ──
 export const sendComposedEmailAction = authActionClient
   .schema(
-    z.object({
-      recipientType: z.enum(RECIPIENT_TYPES),
-      recipientId: z.string().uuid(),
-      subject: z.string().trim().min(1),
-      body: z.string().trim().min(1),
-    }),
+    z
+      .object({
+        ...recipientFields,
+        subject: z.string().trim().min(1),
+        body: z.string().trim().min(1),
+      })
+      .refine(requireRecipient, recipientRefine),
   )
   .action(async ({ parsedInput, ctx }) => {
-    const recipient = await resolveRecipient(ctx.supabase, parsedInput.recipientType, parsedInput.recipientId);
+    const recipient = await resolveInputRecipient(ctx.supabase, parsedInput);
     if (!recipient) return { ok: false as const, error: 'recipient_not_found' };
     const org = await resolveOrg(ctx.supabase);
 

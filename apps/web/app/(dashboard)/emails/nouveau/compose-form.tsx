@@ -2,18 +2,20 @@
 
 import { useMemo, useState } from 'react';
 import { useAction } from 'next-safe-action/hooks';
-import { Loader2, Sparkles, Send, User, UserCog, Building2, Mail, CheckCircle2 } from 'lucide-react';
+import { Loader2, Sparkles, Send, User, UserCog, Building2, AtSign, Mail, CheckCircle2 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { Button } from '@/shared/ui/button';
 import { generateEmailDraftAction, sendComposedEmailAction } from './actions';
 
 export type RecipientOption = { id: string; name: string; email: string; sub: string | null };
-type RecipientType = 'apprenant' | 'formateur' | 'entreprise';
+type RecipientType = 'apprenant' | 'formateur' | 'entreprise' | 'libre';
+type CrmType = Exclude<RecipientType, 'libre'>;
 
 const TYPES: { key: RecipientType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'apprenant', label: 'Apprenant', icon: User },
   { key: 'formateur', label: 'Formateur', icon: UserCog },
   { key: 'entreprise', label: 'Entreprise', icon: Building2 },
+  { key: 'libre', label: 'Adresse libre', icon: AtSign },
 ];
 
 // Objets fréquents proposés par type — l'utilisateur sélectionne ou saisit le sien.
@@ -37,6 +39,12 @@ const SUBJECT_SUGGESTIONS: Record<RecipientType, string[]> = {
     'Suivi de vos salariés en formation',
     'Bilan de formation',
   ],
+  libre: [
+    'Prise de contact',
+    'Demande d\'information',
+    'Proposition de formation',
+    'Envoi de documents',
+  ],
 };
 
 const ERROR_LABELS: Record<string, string> = {
@@ -47,6 +55,8 @@ const ERROR_LABELS: Record<string, string> = {
   no_mailbox: 'Aucune boîte mail connectée (SMTP/Resend non configuré dans les paramètres).',
   send_failed: "L'envoi a échoué. Vérifiez la configuration de votre boîte mail.",
 };
+
+const isEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
 export function ComposeForm({
   apprenants,
@@ -59,6 +69,8 @@ export function ComposeForm({
 }) {
   const [type, setType] = useState<RecipientType>('apprenant');
   const [recipientId, setRecipientId] = useState('');
+  const [freeEmail, setFreeEmail] = useState('');
+  const [freeName, setFreeName] = useState('');
   const [subject, setSubject] = useState('');
   const [instructions, setInstructions] = useState('');
   const [body, setBody] = useState('');
@@ -67,11 +79,12 @@ export function ComposeForm({
   const generate = useAction(generateEmailDraftAction);
   const send = useAction(sendComposedEmailAction);
 
-  const options = useMemo<Record<RecipientType, RecipientOption[]>>(
+  const options = useMemo<Record<CrmType, RecipientOption[]>>(
     () => ({ apprenant: apprenants, formateur: formateurs, entreprise: entreprises }),
     [apprenants, formateurs, entreprises],
   );
-  const list = options[type];
+  const isFree = type === 'libre';
+  const list = isFree ? [] : options[type];
   const selected = list.find((o) => o.id === recipientId) ?? null;
 
   const pickType = (t: RecipientType) => {
@@ -80,9 +93,21 @@ export function ComposeForm({
     setSent(null);
   };
 
+  // Charge utile commune : fiche CRM (recipientId) OU adresse libre (freeEmail/freeName).
+  const recipientPayload = () => ({
+    recipientType: type,
+    recipientId: recipientId || undefined,
+    freeEmail: freeEmail.trim() || undefined,
+    freeName: freeName.trim() || undefined,
+  });
+
   const handleGenerate = async () => {
     setSent(null);
-    const res = await generate.executeAsync({ recipientType: type, recipientId, subject, instructions: instructions || undefined });
+    const res = await generate.executeAsync({
+      ...recipientPayload(),
+      subject,
+      instructions: instructions || undefined,
+    });
     const d = res?.data;
     if (d?.ok) {
       setSubject(d.subject);
@@ -92,12 +117,14 @@ export function ComposeForm({
 
   const handleSend = async () => {
     setSent(null);
-    const res = await send.executeAsync({ recipientType: type, recipientId, subject, body });
+    const res = await send.executeAsync({ ...recipientPayload(), subject, body });
     if (res?.data?.ok) {
       setSent(res.data.to);
       setBody('');
       setSubject('');
       setRecipientId('');
+      setFreeEmail('');
+      setFreeName('');
     }
   };
 
@@ -114,14 +141,15 @@ export function ComposeForm({
         ? "Erreur serveur pendant l'envoi."
         : null;
 
-  const canGenerate = !!recipientId && subject.trim().length > 0 && !generate.isExecuting;
-  const canSend = !!recipientId && subject.trim().length > 0 && body.trim().length > 0 && !send.isExecuting;
+  const hasRecipient = isFree ? isEmail(freeEmail) : !!recipientId;
+  const canGenerate = hasRecipient && subject.trim().length > 0 && !generate.isExecuting;
+  const canSend = hasRecipient && subject.trim().length > 0 && body.trim().length > 0 && !send.isExecuting;
 
   return (
     <div className="space-y-6">
       {/* 1. Type de destinataire */}
       <FormField label="Type de destinataire">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => {
             const Icon = t.icon;
             const active = type === t.key;
@@ -144,26 +172,57 @@ export function ComposeForm({
         </div>
       </FormField>
 
-      {/* 2. Destinataire (fiche enregistrée) */}
-      <FormField label="Destinataire" hint={list.length === 0 ? 'Aucune fiche avec adresse email pour ce type.' : undefined}>
-        <select className={inputClass} value={recipientId} onChange={(e) => setRecipientId(e.target.value)}>
-          <option value="">— Sélectionner —</option>
-          {list.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-              {o.sub ? ` · ${o.sub}` : ''} ({o.email})
-            </option>
-          ))}
-        </select>
-      </FormField>
+      {/* 2a. Destinataire — fiche CRM enregistrée */}
+      {!isFree && (
+        <FormField
+          label="Destinataire"
+          hint={list.length === 0 ? 'Aucune fiche avec adresse email pour ce type.' : undefined}
+        >
+          <select className={inputClass} value={recipientId} onChange={(e) => setRecipientId(e.target.value)}>
+            <option value="">— Sélectionner —</option>
+            {list.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+                {o.sub ? ` · ${o.sub}` : ''} ({o.email})
+              </option>
+            ))}
+          </select>
+        </FormField>
+      )}
 
-      {/* Auto-remplissage depuis la fiche */}
-      {selected && (
+      {/* 2b. Destinataire — adresse libre (hors CRM) */}
+      {isFree && (
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="Adresse email" hint="Destinataire hors CRM.">
+            <input
+              className={inputClass}
+              type="email"
+              value={freeEmail}
+              onChange={(e) => setFreeEmail(e.target.value)}
+              placeholder="contact@exemple.fr"
+            />
+          </FormField>
+          <FormField label="Nom (facultatif)">
+            <input
+              className={inputClass}
+              value={freeName}
+              onChange={(e) => setFreeName(e.target.value)}
+              placeholder="Ex. Marie Durand"
+            />
+          </FormField>
+        </div>
+      )}
+
+      {/* Récapitulatif du destinataire */}
+      {(selected || (isFree && isEmail(freeEmail))) && (
         <div className="flex items-center gap-2 -mt-3 text-[12px] text-zinc-500 dark:text-zinc-400">
           <Mail className="w-3.5 h-3.5" />
           <span>
-            L'email partira à <span className="text-zinc-700 dark:text-zinc-200 font-medium">{selected.name}</span> —{' '}
-            {selected.email}
+            L'email partira à{' '}
+            <span className="text-zinc-700 dark:text-zinc-200 font-medium">
+              {isFree ? freeName.trim() || freeEmail.trim() : selected?.name}
+            </span>{' '}
+            — {isFree ? freeEmail.trim() : selected?.email}
           </span>
         </div>
       )}
