@@ -80,6 +80,8 @@ export type ProspectEmailData = {
   formationTitle: string | null;
   funderLabel: string;
   prospectId: string;
+  /** Récapitulatif complet des informations saisies (affiché dans l'email). */
+  recap?: Array<{ label: string; value: string }>;
 };
 
 export function prospectConfirmationEmail(data: ProspectEmailData): { subject: string; html: string } {
@@ -101,6 +103,26 @@ export function prospectConfirmationEmail(data: ProspectEmailData): { subject: s
         ${dataRow('Référence', `<span style="font-family:ui-monospace,monospace; font-size:11px;">${data.prospectId.slice(0, 8)}</span>`)}
       </table>
     `)}
+
+    ${
+      data.recap && data.recap.length
+        ? `<div style="margin-top:16px;">${card(`
+      <h2 style="font-size:15px; font-weight:600; margin:0 0 4px; color:#18181b;">Récapitulatif de votre inscription</h2>
+      <p style="font-size:12px; color:#71717a; margin:0 0 14px;">Voici les informations que vous nous avez transmises. En cas d'erreur, répondez à cet email.</p>
+      <table style="width:100%; border-collapse:collapse;">
+        ${data.recap
+          .map(
+            (r) => `
+        <tr><td style="padding:9px 0; border-top:1px solid #f4f4f5; vertical-align:top;">
+          <div style="font-size:11px; color:#a1a1aa; text-transform:uppercase; letter-spacing:0.03em;">${escapeHtml(r.label)}</div>
+          <div style="font-size:13px; color:#18181b; margin-top:2px; white-space:pre-line;">${escapeHtml(r.value)}</div>
+        </td></tr>`,
+          )
+          .join('')}
+      </table>
+    `)}</div>`
+        : ''
+    }
 
     <p style="font-size:13px; color:#71717a; margin:24px 0 8px;">
       Une question ? Répondez simplement à cet email, nous vous lirons.

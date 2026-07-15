@@ -31,6 +31,75 @@ const SITUATION_LABELS: Record<ProspectFields['situation'], string> = {
   particulier: 'Particulier',
 };
 
+const MODALITY_LABELS: Record<string, string> = {
+  presentiel: 'Présentiel',
+  distanciel: 'Distanciel',
+  hybride: 'Hybride',
+};
+
+const CIVILITY_LABELS: Record<string, string> = { m: 'M.', mme: 'Mme' };
+
+const formatDateFr = (iso: string): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+};
+
+// Construit le récapitulatif complet (libellé → valeur) des données saisies,
+// affiché dans l'email de confirmation envoyé à l'apprenant.
+function buildProspectRecap(
+  fields: ProspectFields,
+  ctx: { formationTitle: string | null; funderLabel: string; documents: { label: string }[] },
+): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+  const add = (label: string, value: string | null | undefined) => {
+    const v = (value ?? '').toString().trim();
+    if (v) rows.push({ label, value: v });
+  };
+  const isIndiv = fields.situation === 'independant' || fields.situation === 'particulier';
+
+  const fullName = [fields.civility ? CIVILITY_LABELS[fields.civility] : '', fields.firstName, fields.lastName]
+    .filter(Boolean)
+    .join(' ');
+  add('Identité', fullName);
+  add('Email', fields.email);
+  add('Téléphone', fields.phone);
+  add('Date de naissance', fields.birthDate ? formatDateFr(fields.birthDate) : '');
+  add('Situation', SITUATION_LABELS[fields.situation]);
+  add('Situation de handicap (RQTH)', fields.rqth ? 'Oui' : 'Non');
+
+  if (!isIndiv) {
+    add('Entreprise', fields.companyName);
+    add('SIRET', fields.companySiret);
+    const addr = fields.companyAddress;
+    if (addr) add('Adresse entreprise', [addr.line1, [addr.postalCode, addr.city].filter(Boolean).join(' ')].filter(Boolean).join(', '));
+    add('Référent', fields.referentName);
+    add('Email référent', fields.referentEmail);
+    add('Téléphone référent', fields.referentPhone);
+  }
+
+  add('Formation', ctx.formationTitle);
+  add('Financement', ctx.funderLabel);
+  add('Modalité souhaitée', fields.preferredModality ? MODALITY_LABELS[fields.preferredModality] : '');
+  add('Date de début souhaitée', fields.preferredStartDate ? formatDateFr(fields.preferredStartDate) : '');
+  add('Message', fields.message);
+
+  const na = fields.needsAnalysis;
+  if (na) {
+    add('Niveau actuel sur le sujet', na.currentLevel ? `${na.currentLevel}/5` : '');
+    add('Objectifs', na.objectives);
+    add('Attentes particulières', na.expectations);
+    add('Contraintes éventuelles', na.constraints);
+    add("Besoin d'aménagement", na.accommodations);
+    add('Contexte / motivations', na.typologyContext);
+  }
+
+  if (ctx.documents.length) {
+    add('Documents transmis', ctx.documents.map((d) => d.label).join('\n'));
+  }
+
+  return rows;
+}
+
 export type SubmitResult =
   | { ok: true; prospectId: string }
   | { ok: false; error: string; details?: unknown };
@@ -212,6 +281,11 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     formationTitle,
     funderLabel,
     prospectId,
+    recap: buildProspectRecap(fields, {
+      formationTitle,
+      funderLabel,
+      documents: uploaded.map((d) => ({ label: d.label })),
+    }),
   };
 
   const confirmation = prospectConfirmationEmail(baseEmailData);
