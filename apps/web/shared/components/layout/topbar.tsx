@@ -20,6 +20,7 @@ export async function Topbar() {
       .from('notifications')
       .select('id, template_code, subject, payload, created_at, related_aggregate_type, related_aggregate_id, read_at')
       .eq('channel', 'in_app')
+      .is('read_at', null)
       .order('created_at', { ascending: false })
       .limit(8),
     sb

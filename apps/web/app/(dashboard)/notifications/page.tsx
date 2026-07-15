@@ -8,6 +8,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { NOTIF_META, NOTIF_FALLBACK, notifHref, type Notif } from './notif-meta';
+import { NotifItem } from './notif-item.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,50 +32,70 @@ function NotifRow({ n }: { n: Notif }) {
   const meta = NOTIF_META[n.template_code] ?? NOTIF_FALLBACK;
   const Icon = meta.icon;
   const href = notifHref(n);
-  const row = (
-    <div className="flex items-start gap-3 px-4 py-3">
-      <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.tone}`}>
-        <Icon className="w-4 h-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${meta.tone}`}>{meta.label}</span>
-        </div>
-        <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 mt-1">{n.subject ?? meta.label}</p>
-        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">
-          {format(parseISO(n.created_at), 'dd/MM/yyyy HH:mm')}
-        </p>
-      </div>
-    </div>
-  );
   return (
-    <li>
-      {href ? (
-        <Link href={href} className="block hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
-          {row}
-        </Link>
-      ) : (
-        row
-      )}
-    </li>
+    <NotifItem id={n.id} href={href}>
+      <div className="flex items-start gap-3 px-4 py-3">
+        <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.tone}`}>
+          <Icon className="w-4 h-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${meta.tone}`}>{meta.label}</span>
+          </div>
+          <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 mt-1">{n.subject ?? meta.label}</p>
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">
+            {format(parseISO(n.created_at), 'dd/MM/yyyy HH:mm')}
+          </p>
+        </div>
+      </div>
+    </NotifItem>
   );
 }
 
-export default async function NotificationsPage() {
+function FilterChip({ href, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
+  return (
+    <Link
+      href={href}
+      className={`text-[12px] px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1.5 ${
+        active
+          ? 'bg-violet-600 border-violet-600 text-white'
+          : 'bg-white dark:bg-zinc-900 border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700'
+      }`}
+    >
+      {label}
+      <span className={`tabular-nums ${active ? 'text-white/80' : 'text-zinc-400 dark:text-zinc-500'}`}>{count}</span>
+    </Link>
+  );
+}
+
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams?: { type?: string };
+}) {
   const sb = supabaseServer();
   const { data } = await sb
     .schema('app')
     .from('notifications')
     .select('id, channel, template_code, subject, payload, status, created_at, related_aggregate_type, related_aggregate_id')
     .eq('channel', 'in_app')
+    .is('read_at', null)
     .order('created_at', { ascending: false })
     .limit(100);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const notifs = ((data as any[]) ?? []) as Notif[];
 
-  // Classement par période (les notifs sont déjà triées du plus récent au plus ancien).
+  // Catégories présentes (template_code) + compteurs, pour le filtre.
+  const counts = new Map<string, number>();
+  for (const n of notifs) counts.set(n.template_code, (counts.get(n.template_code) ?? 0) + 1);
+  const categories = [...counts.keys()].sort((a, b) => counts.get(b)! - counts.get(a)!);
+
+  const selectedType = searchParams?.type && counts.has(searchParams.type) ? searchParams.type : null;
+  const filtered = selectedType ? notifs.filter((n) => n.template_code === selectedType) : notifs;
+
+  // Classement par période (déjà triées du plus récent au plus ancien).
   const byGroup = new Map<GroupKey, Notif[]>();
-  for (const n of notifs) {
+  for (const n of filtered) {
     const g = groupOf(n.created_at);
     (byGroup.get(g) ?? byGroup.set(g, []).get(g)!).push(n);
   }
@@ -85,15 +106,34 @@ export default async function NotificationsPage() {
         <SectionLabel className="mb-2">Suivi</SectionLabel>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Notifications</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
-          {notifs.length} notification{notifs.length > 1 ? 's' : ''} — alertes émargement, heures à risque, documents…
+          {notifs.length} notification{notifs.length > 1 ? 's' : ''} non lue{notifs.length > 1 ? 's' : ''} — cliquez pour ouvrir et retirer de la liste.
         </p>
       </header>
 
       {notifs.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
-          <EmptyState icon={Bell} title="Aucune notification" description="Les alertes (émargement manquant, dossiers à risque…) apparaîtront ici." />
+          <EmptyState icon={Bell} title="Vous êtes à jour" description="Aucune notification non lue. Les nouvelles alertes (émargement manquant, dossiers à risque, documents…) apparaîtront ici." />
         </div>
       ) : (
+        <>
+          {/* Filtre par catégorie */}
+          {categories.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              <FilterChip href="/notifications" active={!selectedType} label="Toutes" count={notifs.length} />
+              {categories.map((code) => {
+                const meta = NOTIF_META[code] ?? NOTIF_FALLBACK;
+                return (
+                  <FilterChip
+                    key={code}
+                    href={`/notifications?type=${encodeURIComponent(code)}`}
+                    active={selectedType === code}
+                    label={meta.label}
+                    count={counts.get(code)!}
+                  />
+                );
+              })}
+            </div>
+          )}
         <div className="space-y-6">
           {GROUPS.map(({ key, label }) => {
             const items = byGroup.get(key);
@@ -114,7 +154,8 @@ export default async function NotificationsPage() {
               </section>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
