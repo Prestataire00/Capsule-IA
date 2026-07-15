@@ -8,7 +8,7 @@ import { env } from '@/env.mjs';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatCard } from '@/shared/ui/stat-card';
 import { IdPill } from '@/shared/ui/id-pill';
-import { StatusPill } from '@/shared/ui/status-pill';
+import { InvoiceStatusControl } from './invoice-status-control.client';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { Receipt } from 'lucide-react';
 import { InvoiceActions } from './invoice-actions';
@@ -28,14 +28,22 @@ const statusLabel: Record<InvoiceStatus, string> = {
   cancelled: 'annulée',
   partially_paid: 'partielle',
 };
-const statusTone: Record<InvoiceStatus, 'neutral' | 'warning' | 'success' | 'danger'> = {
-  draft: 'neutral',
-  issued: 'warning',
-  paid: 'success',
-  overdue: 'danger',
-  cancelled: 'neutral',
-  partially_paid: 'warning',
-};
+// Teinte de fond + filet gauche de la ligne selon le statut de la facture.
+function rowTint(status: InvoiceStatus): string {
+  switch (status) {
+    case 'paid':
+      return 'border-l-2 border-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/10';
+    case 'overdue':
+      return 'border-l-2 border-red-400 bg-red-50/40 dark:bg-red-950/15';
+    case 'issued':
+    case 'partially_paid':
+      return 'border-l-2 border-amber-300 bg-amber-50/25 dark:bg-amber-950/10';
+    case 'cancelled':
+      return 'border-l-2 border-zinc-200 dark:border-zinc-700 opacity-60';
+    default:
+      return 'border-l-2 border-transparent';
+  }
+}
 
 function formatEuros(cents: number, currency = 'EUR'): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
@@ -188,7 +196,7 @@ export default async function FacturesPage({
           {invoices.map((inv) => (
             <li
               key={inv.id}
-              className="grid grid-cols-[140px_140px_150px_1fr_120px_120px_100px] gap-3 py-3 px-1 items-center text-[13px]"
+              className={`grid grid-cols-[140px_140px_150px_1fr_120px_120px_100px] gap-3 py-3 px-2 items-center text-[13px] ${rowTint(inv.status)}`}
             >
               <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">{inv.reference}</span>
               {inv.dossier ? (
@@ -211,9 +219,10 @@ export default async function FacturesPage({
               <span className="font-mono text-[13px] font-medium text-zinc-900 dark:text-zinc-100 text-right">
                 {formatEuros(inv.total_cents, inv.currency)}
               </span>
-              <StatusPill tone={statusTone[inv.status]}>{statusLabel[inv.status]}</StatusPill>
+              <InvoiceStatusControl invoiceId={inv.id} status={inv.status} />
               <InvoiceActions
                 invoiceId={inv.id}
+                status={inv.status}
                 pdfUrl={`/api/invoices/${inv.id}/facture.pdf`}
               />
             </li>

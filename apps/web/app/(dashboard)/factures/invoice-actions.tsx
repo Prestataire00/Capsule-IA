@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Mail, Check, Loader2, AlertCircle, FileText } from 'lucide-react';
-import { sendInvoiceByEmail } from './actions';
+import { Mail, Check, Loader2, AlertCircle, FileText, BellRing } from 'lucide-react';
+import { sendInvoiceByEmail, sendPaymentReminder } from './actions';
 
 type SendState =
   | { status: 'idle' }
@@ -11,17 +11,34 @@ type SendState =
   | { status: 'sent' }
   | { status: 'error'; message: string };
 
+// Statuts « impayés » où une relance a du sens.
+const REMINDABLE = new Set(['issued', 'overdue', 'partially_paid']);
+
 export function InvoiceActions({
   invoiceId,
   pdfUrl,
   showPdfLink = true,
+  status,
 }: {
   invoiceId: string;
   pdfUrl?: string;
   showPdfLink?: boolean;
+  status?: string;
 }) {
   const [send, setSend] = useState<SendState>({ status: 'idle' });
+  const [remind, setRemind] = useState<SendState>({ status: 'idle' });
   const [pending, startTransition] = useTransition();
+
+  const errLabel = (error: string) =>
+    error === 'no_recipient_email'
+      ? 'Aucun email destinataire (entreprise ni apprenant).'
+      : error === 'invoice_not_found'
+      ? 'Facture introuvable en base.'
+      : error === 'no_api_key'
+      ? 'RESEND_API_KEY non configurée.'
+      : error === 'forbidden'
+      ? 'Droits insuffisants.'
+      : `Envoi échoué (${error}).`;
 
   const handleSend = () => {
     setSend({ status: 'sending' });
@@ -29,18 +46,22 @@ export function InvoiceActions({
       const result = await sendInvoiceByEmail(invoiceId);
       if (result.ok) {
         setSend({ status: 'sent' });
-        // Reset au bout de 4s pour permettre un renvoi si besoin
         setTimeout(() => setSend({ status: 'idle' }), 4000);
       } else {
-        const msg =
-          result.error === 'no_recipient_email'
-            ? 'Aucun email destinataire (entreprise ni apprenant).'
-            : result.error === 'invoice_not_found'
-            ? 'Facture introuvable en base.'
-            : result.error === 'no_api_key'
-            ? 'RESEND_API_KEY non configurée.'
-            : `Envoi échoué (${result.error}).`;
-        setSend({ status: 'error', message: msg });
+        setSend({ status: 'error', message: errLabel(result.error) });
+      }
+    });
+  };
+
+  const handleRemind = () => {
+    setRemind({ status: 'sending' });
+    startTransition(async () => {
+      const result = await sendPaymentReminder(invoiceId);
+      if (result.ok) {
+        setRemind({ status: 'sent' });
+        setTimeout(() => setRemind({ status: 'idle' }), 4000);
+      } else {
+        setRemind({ status: 'error', message: errLabel(result.error) });
       }
     });
   };
@@ -57,6 +78,29 @@ export function InvoiceActions({
         >
           <FileText className="w-3 h-3" />
         </Link>
+      )}
+
+      {/* Relance de paiement — visible uniquement pour les factures impayées émises. */}
+      {status && REMINDABLE.has(status) && (
+        remind.status === 'sent' ? (
+          <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 px-1.5 py-1" title="Relance envoyée">
+            <Check className="w-3 h-3" />
+          </span>
+        ) : remind.status === 'error' ? (
+          <span className="inline-flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 px-1.5 py-1" title={remind.message}>
+            <AlertCircle className="w-3 h-3" />
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleRemind}
+            disabled={pending}
+            className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 transition px-1.5 py-1 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-40"
+            title="Envoyer une relance de paiement"
+          >
+            {remind.status === 'sending' ? <Loader2 className="w-3 h-3 animate-spin" /> : <BellRing className="w-3 h-3" />}
+          </button>
+        )
       )}
 
       {send.status === 'sent' ? (

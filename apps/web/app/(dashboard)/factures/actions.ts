@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import {
   buildBillingPlan,
   canBill,
@@ -24,7 +25,7 @@ const createInvoiceSchema = z.object({
   // Payeur : un financeur (uuid) du dossier, ou '' = reste à charge (entreprise/apprenant).
   funderId: z.string().uuid().optional().or(z.literal('')),
   description: z.string().trim().min(3, 'Description trop courte').max(200),
-  unitAmountCents: z.coerce.number().int().min(0),
+  unitAmountEuros: z.coerce.number().min(0),
   quantity: z.coerce.number().min(0.01).default(1),
   vatRate: z.coerce.number().min(0).max(100).default(20),
   dueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Échéance invalide').optional().or(z.literal('')),
@@ -42,7 +43,7 @@ export async function createInvoice(formData: FormData): Promise<void> {
     dossierId: formData.get('dossierId'),
     funderId: formData.get('funderId') ?? '',
     description: formData.get('description'),
-    unitAmountCents: formData.get('unitAmountCents'),
+    unitAmountEuros: formData.get('unitAmountEuros'),
     quantity: formData.get('quantity') || '1',
     vatRate: formData.get('vatRate') || '20',
     dueAt: formData.get('dueAt'),
@@ -87,7 +88,8 @@ export async function createInvoice(formData: FormData): Promise<void> {
     total_amount_cents: number | null;
   };
 
-  const subtotalCents = Math.round(data.unitAmountCents * data.quantity);
+  const unitAmountCents = Math.round(data.unitAmountEuros * 100);
+  const subtotalCents = Math.round(unitAmountCents * data.quantity);
   const vatCents = Math.round(subtotalCents * (data.vatRate / 100));
   const totalCents = subtotalCents + vatCents;
 
@@ -154,7 +156,7 @@ export async function createInvoice(formData: FormData): Promise<void> {
     position: 0,
     description: data.description,
     quantity: data.quantity,
-    unit_amount_cents: data.unitAmountCents,
+    unit_amount_cents: unitAmountCents,
     vat_rate: data.vatRate,
   });
 
@@ -240,4 +242,147 @@ export async function sendInvoiceByEmail(invoiceId: string): Promise<SendInvoice
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Statut & relance ────────────────────────────────────────────────────────
+// Rôles autorisés à gérer la facturation (aligné sur la RLS invoices).
+const BILLING_ROLES = ['owner', 'admin', 'comptable'];
+
+export type InvoiceStatusValue =
+  | 'draft'
+  | 'issued'
+  | 'paid'
+  | 'partially_paid'
+  | 'overdue'
+  | 'cancelled';
+
+export type InvoiceMutationResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Change le statut d'une facture (payée / non payée / en retard / annulée…).
+ * Service_role => on scope explicitement à l'org du membre connecté et on
+ * contrôle le rôle (owner/admin/comptable). Synchronise `paid_at` avec le statut.
+ */
+export async function setInvoiceStatus(
+  invoiceId: string,
+  status: InvoiceStatusValue,
+): Promise<InvoiceMutationResult> {
+  const me = await getCurrentMember();
+  if (!me || !BILLING_ROLES.includes(me.role)) return { ok: false, error: 'forbidden' };
+
+  const sb = admin();
+  const { data: row } = await sb
+    .schema('app')
+    .from('invoices')
+    .select('id, organization_id, paid_at')
+    .eq('id', invoiceId)
+    .eq('organization_id', me.organizationId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'not_found' };
+
+  const nowIso = new Date().toISOString();
+  const patch: Record<string, unknown> = { status, updated_at: nowIso };
+  // paid_at cohérent : renseigné si payée, effacé sinon.
+  patch.paid_at =
+    status === 'paid' ? (row as { paid_at: string | null }).paid_at ?? nowIso : null;
+
+  const { error } = await sb
+    .schema('app')
+    .from('invoices')
+    .update(patch as never)
+    .eq('id', invoiceId)
+    .eq('organization_id', me.organizationId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/factures');
+  return { ok: true };
+}
+
+/**
+ * Émet une relance de paiement par email (ton « relance ») et trace la relance
+ * dans metadata (last_reminder_at + reminder_count).
+ */
+export async function sendPaymentReminder(invoiceId: string): Promise<SendInvoiceResult> {
+  const me = await getCurrentMember();
+  if (!me || !BILLING_ROLES.includes(me.role)) return { ok: false, error: 'forbidden' };
+
+  const sb = admin();
+  const { data: invRow } = await sb
+    .schema('app')
+    .from('invoices')
+    .select(`
+      id, reference, status, total_cents, currency, issued_at, due_at, metadata,
+      dossier:dossiers(reference, learner:learners(first_name, last_name, email)),
+      company:companies(name, contact_email)
+    `)
+    .eq('id', invoiceId)
+    .eq('organization_id', me.organizationId)
+    .maybeSingle();
+  if (!invRow) return { ok: false, error: 'invoice_not_found' };
+
+  const inv = invRow as unknown as {
+    id: string;
+    reference: string;
+    status: string;
+    total_cents: number;
+    currency: string;
+    issued_at: string | null;
+    due_at: string | null;
+    metadata: Record<string, unknown> | null;
+    dossier: { reference: string; learner: { first_name: string; last_name: string; email: string } | null } | null;
+    company: { name: string; contact_email: string | null } | null;
+  };
+
+  const recipientEmail = inv.company?.contact_email ?? inv.dossier?.learner?.email;
+  if (!recipientEmail) return { ok: false, error: 'no_recipient_email' };
+
+  const recipientName =
+    inv.company?.name ??
+    (inv.dossier?.learner ? `${inv.dossier.learner.first_name} ${inv.dossier.learner.last_name}` : 'Destinataire');
+
+  const fmt = (cents: number) =>
+    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: inv.currency }).format(cents / 100);
+  const dueLabel = inv.due_at ? new Date(inv.due_at).toLocaleDateString('fr-FR') : null;
+  const overdue = inv.due_at ? new Date(inv.due_at) < new Date() : false;
+
+  const subject = `Relance — facture ${inv.reference} (${fmt(inv.total_cents)})`;
+  const pdfUrl = env.PUBLIC_APP_URL
+    ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/invoices/${inv.id}/facture.pdf`
+    : null;
+
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;color:#18181b;line-height:1.55;background:#fafafa;margin:0;padding:24px;">
+  <div style="max-width:580px;margin:0 auto;">
+    <div style="background:white;border:1px solid #e4e4e7;border-radius:12px;padding:32px;">
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#d97706;font-weight:600;margin:0 0 8px;">Relance de paiement</p>
+      <h1 style="font-size:20px;font-weight:600;margin:0 0 16px;">Facture ${escapeHtml(inv.reference)}</h1>
+      <p style="font-size:13px;color:#52525b;margin:0 0 20px;">
+        Bonjour ${escapeHtml(recipientName)},<br>
+        Sauf erreur de notre part, la facture <strong>${escapeHtml(inv.reference)}</strong> d'un montant de
+        <strong>${fmt(inv.total_cents)}</strong> demeure impayée à ce jour.
+        ${dueLabel ? `Son échéance ${overdue ? 'était fixée' : 'est fixée'} au <strong>${dueLabel}</strong>.` : ''}
+        Nous vous remercions de bien vouloir procéder à son règlement dans les meilleurs délais.
+      </p>
+      ${pdfUrl ? `<div style="margin-top:8px;text-align:center;"><a href="${pdfUrl}" style="display:inline-block;padding:12px 24px;background:#d97706;color:white;text-decoration:none;border-radius:8px;font-size:13px;font-weight:500;">📎 Revoir la facture</a></div>` : ''}
+      <p style="font-size:12px;color:#a1a1aa;margin:24px 0 0;">Si le règlement a déjà été effectué, merci de ne pas tenir compte de ce message.</p>
+    </div>
+  </div>
+</body></html>`;
+
+  const result = await sendEmail({ to: recipientEmail, subject, html });
+  if (!result.ok) return { ok: false, error: result.reason };
+
+  // Trace la relance (date + compteur) dans metadata.
+  const meta = (inv.metadata ?? {}) as Record<string, unknown>;
+  const count = typeof meta.reminder_count === 'number' ? meta.reminder_count : 0;
+  const nowIso = new Date().toISOString();
+  await sb
+    .schema('app')
+    .from('invoices')
+    .update({ metadata: { ...meta, last_reminder_at: nowIso, reminder_count: count + 1 }, updated_at: nowIso } as never)
+    .eq('id', inv.id)
+    .eq('organization_id', me.organizationId);
+
+  revalidatePath('/factures');
+  return { ok: true };
 }

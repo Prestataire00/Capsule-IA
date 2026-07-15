@@ -242,17 +242,17 @@ export default async function NouvelleFacturePage({
             </FormField>
 
             <div className="grid grid-cols-3 gap-3">
-              <FormField label="Prix unitaire HT (centimes)" required>
+              <FormField label="Prix unitaire HT (€)" required>
                 <div className="relative">
                   <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
                   <input
                     type="number"
-                    name="unitAmountCents"
+                    name="unitAmountEuros"
                     required
                     min={0}
-                    step={1}
-                    defaultValue={prefillAmountCents != null ? String(prefillAmountCents) : ''}
-                    placeholder="350000"
+                    step={0.01}
+                    defaultValue={prefillAmountCents != null ? String(prefillAmountCents / 100) : ''}
+                    placeholder="3500"
                     className={`${inputClass} pl-9`}
                   />
                 </div>
@@ -280,7 +280,7 @@ export default async function NouvelleFacturePage({
               </FormField>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 -mt-1">
-              💡 Prix HT en <strong>centimes</strong> (ex : 350000 = 3 500,00 €). Les formations
+              💡 Prix HT en <strong>euros</strong> (ex : 3500 = 3 500,00 €). Les formations
               professionnelles sont souvent exonérées de TVA (mettre 0).
               {prefillAmountCents != null && (
                 <>
