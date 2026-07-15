@@ -242,14 +242,14 @@ export function ProgrammeDocument({ programme }: { programme: Programme }) {
 // des variables CSS injectées par themeVars() → 100 % pilotable par le thème.
 const PROGRAMME_CSS = `
 .pf-doc {
-  --pf-gap: 22px;
+  --pf-gap: 30px;
   color: var(--pf-text);
   background: #fff;
   max-width: 820px;
   margin: 0 auto;
-  padding: 40px 44px 56px;
+  padding: 48px 52px 60px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.62;
   box-sizing: border-box;
 }
 .pf-doc * { box-sizing: border-box; }
@@ -261,7 +261,7 @@ const PROGRAMME_CSS = `
   align-items: center;
   background: var(--pf-primary);
   color: var(--pf-on-primary);
-  padding: 22px 26px;
+  padding: 30px 34px;
   border-radius: var(--pf-radius);
 }
 .pf-logo {
@@ -287,13 +287,14 @@ const PROGRAMME_CSS = `
 .pf-section { margin-top: var(--pf-gap); }
 .pf-section:first-child { margin-top: 0; }
 .pf-bar {
-  background: var(--pf-primary);
-  color: var(--pf-on-primary);
+  background: var(--pf-surface-alt);
+  color: var(--pf-text);
   font-weight: 700;
-  font-size: 14px;
-  letter-spacing: .3px;
-  padding: 9px 16px;
-  border-radius: var(--pf-radius);
+  font-size: 12.5px;
+  letter-spacing: .8px;
+  padding: 11px 16px;
+  border-left: 3px solid var(--pf-primary);
+  border-radius: 0 var(--pf-radius) var(--pf-radius) 0;
 }
 .pf-bar.pf-upper { text-transform: uppercase; }
 
@@ -301,8 +302,8 @@ const PROGRAMME_CSS = `
   background: var(--pf-surface);
   border: 1px solid var(--pf-border);
   border-radius: var(--pf-radius);
-  padding: 14px 18px;
-  margin-top: 10px;
+  padding: 18px 22px;
+  margin-top: 12px;
 }
 .pf-prose :is(p, ul, ol) { margin: 0 0 8px; }
 .pf-prose :is(p, ul, ol):last-child { margin-bottom: 0; }

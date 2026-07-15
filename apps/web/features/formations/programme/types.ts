@@ -37,18 +37,19 @@ export type ProgrammeTheme = {
 };
 
 export const DEFAULT_THEME: ProgrammeTheme = {
-  primaryColor: '#3d2170',
-  secondaryColor: '#5b2d8f',
+  // Palette professionnelle et sobre (ardoise + blanc), un accent discret.
+  primaryColor: '#1e293b', // slate-800 — en-tête + filets d'accent
+  secondaryColor: '#334155', // slate-700
   onPrimaryColor: '#ffffff',
-  accentColor: '#6d3fa0',
-  surfaceColor: '#efeaf7',
-  surfaceAltColor: '#e6def3',
-  textColor: '#22262f',
-  mutedColor: '#5b6470',
-  borderColor: '#d9cff0',
+  accentColor: '#4f46e5', // accent discret (libellés, filets) — usage minimal
+  surfaceColor: '#ffffff', // panneaux blancs (aéré)
+  surfaceAltColor: '#f1f5f9', // gris très clair (bandes de section)
+  textColor: '#0f172a',
+  mutedColor: '#64748b',
+  borderColor: '#e2e8f0',
   fontFamily: 'var(--font-sans), Inter, system-ui, sans-serif',
   uppercaseHeadings: true,
-  cornerRadius: 3,
+  cornerRadius: 8,
 };
 
 /** Icône d'un badge d'en-tête (résolue vers lucide-react côté rendu). */
