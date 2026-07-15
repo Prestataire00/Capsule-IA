@@ -37,13 +37,14 @@ export type ProgrammeTheme = {
 };
 
 export const DEFAULT_THEME: ProgrammeTheme = {
-  // Palette professionnelle et sobre (ardoise + blanc), un accent discret.
-  primaryColor: '#1e293b', // slate-800 — en-tête + filets d'accent
-  secondaryColor: '#334155', // slate-700
+  // En-tête coloré (violet de marque) + corps AÉRÉ : bandes claires à filet
+  // violet, panneaux blancs. Ni « tout violet », ni « tout noir ».
+  primaryColor: '#4c1d95', // violet profond — en-tête (hero)
+  secondaryColor: '#6d28d9', // violet-700
   onPrimaryColor: '#ffffff',
-  accentColor: '#4f46e5', // accent discret (libellés, filets) — usage minimal
+  accentColor: '#7c3aed', // accent violet (filets de section, libellés)
   surfaceColor: '#ffffff', // panneaux blancs (aéré)
-  surfaceAltColor: '#f1f5f9', // gris très clair (bandes de section)
+  surfaceAltColor: '#f8fafc', // gris très clair (bandes de section, neutre)
   textColor: '#0f172a',
   mutedColor: '#64748b',
   borderColor: '#e2e8f0',
