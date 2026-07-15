@@ -18,8 +18,19 @@ export type ScheduleRow = {
   recipient_kind: RecipientKind;
   subject: string;
   body: string;
+  attachment_kind: string | null;
   enabled: boolean;
 };
+
+// Documents pouvant être joints (documents.kind persistés). '' = aucune pièce jointe.
+const ATTACHMENT_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Aucune pièce jointe' },
+  { value: 'convention', label: 'Convention de formation' },
+  { value: 'attestation', label: 'Attestation de fin de formation' },
+  { value: 'certificat', label: 'Certificat de réalisation' },
+];
+const attachmentLabel = (kind: string | null): string | null =>
+  kind ? ATTACHMENT_OPTIONS.find((o) => o.value === kind)?.label ?? kind : null;
 
 const ANCHOR_LABELS: Record<Anchor, string> = {
   first_session_start: 'le début de la 1ʳᵉ session',
@@ -61,6 +72,7 @@ type FormState = {
   recipientKind: RecipientKind;
   subject: string;
   body: string;
+  attachmentKind: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -72,6 +84,7 @@ const EMPTY_FORM: FormState = {
   recipientKind: 'learner',
   subject: 'Rappel : {formation}',
   body: 'Bonjour {prenom},\n\nNous vous rappelons que votre formation « {formation} » approche : elle débute le {date}.\n\nÀ très bientôt.',
+  attachmentKind: '',
 };
 
 export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
@@ -94,6 +107,7 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
       recipientKind: r.recipient_kind,
       subject: r.subject,
       body: r.body,
+      attachmentKind: r.attachment_kind ?? '',
     });
   };
   const closeForm = () => setForm(null);
@@ -107,6 +121,7 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
       recipientKind: form.recipientKind,
       subject: form.subject,
       body: form.body,
+      attachmentKind: form.attachmentKind || undefined,
     };
     const res = form.id
       ? await update.executeAsync({ id: form.id, ...payload })
@@ -196,6 +211,23 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
             </select>
           </FormField>
 
+          <FormField
+            label="Pièce jointe"
+            hint="Joint le dernier document de ce type généré pour le dossier (l'email part même si le document n'existe pas encore)."
+          >
+            <select
+              className={inputClass}
+              value={form.attachmentKind}
+              onChange={(e) => setForm({ ...form, attachmentKind: e.target.value })}
+            >
+              {ATTACHMENT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
           <FormField label="Objet" hint="Variables : {prenom} {nom} {formation} {date}">
             <input
               className={inputClass}
@@ -253,7 +285,8 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
                   </span>
                 </div>
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                  {timingLabel(r.offset_days, r.anchor)} · {RECIPIENT_LABELS[r.recipient_kind]} ·{' '}
+                  {timingLabel(r.offset_days, r.anchor)} · {RECIPIENT_LABELS[r.recipient_kind]}
+                  {attachmentLabel(r.attachment_kind) ? ` · 📎 ${attachmentLabel(r.attachment_kind)}` : ''} ·{' '}
                   <span className="italic">{r.subject}</span>
                 </p>
               </div>

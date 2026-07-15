@@ -802,6 +802,7 @@ type ScheduleRow = {
   recipient_kind: 'learner' | 'trainer';
   subject: string;
   body: string;
+  attachment_kind: string | null;
 };
 
 function applyScheduleVars(text: string, vars: Record<string, string>): string {
@@ -829,7 +830,7 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
   const { data: rules, error: rErr } = await sb
     .schema('app')
     .from('email_schedules')
-    .select('id, organization_id, name, anchor, offset_days, recipient_kind, subject, body')
+    .select('id, organization_id, name, anchor, offset_days, recipient_kind, subject, body, attachment_kind')
     .eq('enabled', true)
     .is('deleted_at', null);
 
@@ -933,6 +934,38 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
         .maybeSingle();
       const formationTitle = (fRow as { title: string } | null)?.title ?? 'votre formation';
 
+      // Pièce jointe optionnelle : dernier document du type demandé pour ce dossier.
+      // Calculée une fois par dossier (réutilisée pour tous les destinataires).
+      let attachments: { filename: string; content: string }[] | undefined;
+      if (rule.attachment_kind) {
+        try {
+          const { data: docRow } = await sb
+            .schema('app')
+            .from('documents')
+            .select('title, storage_path')
+            .eq('dossier_id', dossierId)
+            .eq('kind', rule.attachment_kind)
+            .not('storage_path', 'is', null)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const doc = docRow as { title: string | null; storage_path: string } | null;
+          if (doc?.storage_path) {
+            const { data: file } = await sb.storage.from('documents').download(doc.storage_path);
+            if (file) {
+              const base64 = Buffer.from(await file.arrayBuffer()).toString('base64');
+              const safe = `${(doc.title || rule.attachment_kind).replace(/[^a-zA-Z0-9-_ ]/g, '').trim() || 'document'}.pdf`;
+              attachments = [{ filename: safe, content: base64 }];
+            }
+          }
+          // Document absent : on envoie quand même l'email (le corps se suffit).
+          if (!attachments) errors.push(`schedule ${rule.id} / dossier ${dossierId}: pièce jointe '${rule.attachment_kind}' introuvable`);
+        } catch (e) {
+          errors.push(`schedule ${rule.id} / dossier ${dossierId}: attachment ${(e as Error).message}`);
+        }
+      }
+
       // Destinataires
       const recipients: { email: string; firstName: string; lastName: string }[] = [];
       if (rule.recipient_kind === 'learner') {
@@ -970,6 +1003,7 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
             to: rcp.email,
             subject,
             html,
+            attachments,
             organizationId: rule.organization_id,
             dossierId,
             kind,

@@ -14,6 +14,8 @@ const ruleFields = {
   recipientKind: z.enum(RECIPIENT_KINDS),
   subject: z.string().trim().min(1, 'Objet requis.').max(300),
   body: z.string().trim().min(1, 'Corps requis.').max(5000),
+  // Type de document à joindre (documents.kind) ; vide/absent = aucune pièce jointe.
+  attachmentKind: z.string().trim().max(60).optional(),
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,6 +41,7 @@ export const createSchedule = authActionClient
         recipient_kind: parsedInput.recipientKind,
         subject: parsedInput.subject,
         body: parsedInput.body,
+        attachment_kind: parsedInput.attachmentKind || null,
         enabled: true,
       } as never);
     if (error) return { ok: false as const, error: error.message };
@@ -59,6 +62,7 @@ export const updateSchedule = authActionClient
         recipient_kind: parsedInput.recipientKind,
         subject: parsedInput.subject,
         body: parsedInput.body,
+        attachment_kind: parsedInput.attachmentKind || null,
         updated_at: new Date().toISOString(),
       } as never)
       .eq('id', parsedInput.id);

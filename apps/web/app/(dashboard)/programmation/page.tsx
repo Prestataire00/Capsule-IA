@@ -14,7 +14,7 @@ export default async function ProgrammationPage() {
   const { data } = await sb
     .schema('app')
     .from('email_schedules' as never)
-    .select('id, name, anchor, offset_days, recipient_kind, subject, body, enabled')
+    .select('id, name, anchor, offset_days, recipient_kind, subject, body, attachment_kind, enabled')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
