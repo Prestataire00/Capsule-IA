@@ -7,6 +7,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { ArrowLeft, Save, Trash2, Loader2, AlertCircle, Eye, Sparkles } from 'lucide-react';
 import { RichTextEditor } from '@/features/documents/editor/rich-text-editor';
 import { pillsToTokens } from '@/features/documents/editor/template-variable-node';
+import { DOCUMENT_CSS } from '@/features/documents/document-styles';
 import { saveTemplate, deleteTemplate, previewTemplateWithDossier } from '../actions';
 import {
   TEMPLATE_KINDS,
@@ -271,11 +272,14 @@ export function TemplateEditor({
             )}
 
             {previewHtml !== null && (
-              <article
-                className="doc-sheet bg-white text-zinc-900 rounded-md border border-zinc-200 shadow-sm px-8 py-8 max-w-[760px] mx-auto"
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
+              <>
+                <style>{DOCUMENT_CSS}</style>
+                <article
+                  className="doc-sheet bg-white text-zinc-900 rounded-md border border-zinc-200 shadow-sm px-8 py-8 max-w-[760px] mx-auto"
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </>
             )}
           </div>
       </div>

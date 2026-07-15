@@ -8,6 +8,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { PrintButton } from './_components/print-button';
 import { EditableDocument } from './_components/editable-document';
+import { DOCUMENT_CSS } from '@/features/documents/document-styles';
 import {
   SignaturePanel,
   type ExistingSignature,
@@ -114,23 +115,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
           .doc-sheet { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
           .doc-sheet, .doc-brand, .doc-brand-footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
-        .doc-sheet h1 { font-size: 22px; font-weight: 600; margin: 0 0 12px; }
-        .doc-sheet h2 { font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
-        .doc-sheet h3 { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
-        .doc-sheet p { margin: 8px 0; line-height: 1.55; }
-        .doc-sheet ul { margin: 6px 0 6px 18px; list-style: disc; }
-        .doc-sheet li { margin: 2px 0; }
-        .doc-sheet table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
-        .doc-sheet th, .doc-sheet td { border: 1px solid #e4e4e7; padding: 6px 9px; text-align: left; vertical-align: top; }
-        .doc-sheet th { background: #f4f4f5; font-weight: 600; }
-        .doc-sheet .doc-header { font-size: 12px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 18px; }
-        .doc-sheet .doc-brand-header img { max-height: 64px; max-width: 200px; object-fit: contain; }
-        .doc-sheet { border-top: 5px solid #f97316; border-left: 4px solid #f97316; }
-        .doc-brand { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #f97316; padding-bottom: 12px; margin-bottom: 22px; }
-        .doc-brand img { max-height: 52px; max-width: 190px; object-fit: contain; }
-        .doc-brand .doc-org-name { font-size: 13px; font-weight: 600; color: #3f3f46; text-align: right; line-height: 1.3; }
-        .doc-brand-footer { margin-top: 34px; padding-top: 10px; border-top: 1px solid #f4f4f5; font-size: 10px; color: #a1a1aa; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .doc-sheet .signatures { margin-top: 36px; }
+        ${DOCUMENT_CSS}
       `}</style>
 
       <div className={`no-print mx-auto mb-4 flex items-center justify-between ${isPdf ? 'max-w-[900px]' : 'max-w-[760px]'}`}>
