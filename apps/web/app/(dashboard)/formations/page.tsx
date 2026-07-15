@@ -26,7 +26,6 @@ type FormationRow = {
   default_modality: string;
   default_duration_hours: number;
   is_published: boolean;
-  metadata: { catalog?: { imageUrl?: string } } | null;
 };
 
 type SearchParams = { q?: string; modality?: string };
@@ -39,7 +38,7 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
   const { data } = await sb
     .schema('app')
     .from('formations')
-    .select('id, code, title, default_modality, default_duration_hours, is_published, metadata')
+    .select('id, code, title, default_modality, default_duration_hours, is_published')
     .is('deleted_at', null)
     .order('code', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -160,21 +159,13 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
           {filtered.map((f) => {
             const m = modalityStyles[f.default_modality as ModalityKey] ?? modalityStyles.presentiel;
             const Icon = m.icon;
-            const imageUrl = (f.metadata?.catalog?.imageUrl ?? '').trim();
             const enrolled = activeByFormation.get(f.id) ?? 0;
             return (
               <li key={f.id} className="relative">
                 <Link
                   href={`/formations/${f.id}`}
-                  className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
+                  className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
                 >
-                  {imageUrl ? (
-                    <div className="h-28 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={imageUrl} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-                    </div>
-                  ) : null}
-                  <div className="p-5">
                   <div className="flex items-start justify-between mb-4">
                     <span className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${m.bg}`}>
                       <Icon className={`w-5 h-5 ${m.text}`} />
@@ -210,7 +201,6 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                         {enrolled} apprenant{enrolled > 1 ? 's' : ''}
                       </span>
                     )}
-                  </div>
                   </div>
                 </Link>
                 <CopyInscriptionLink formationId={f.id} className="absolute top-3 right-12 z-10" />
