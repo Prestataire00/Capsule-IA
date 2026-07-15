@@ -78,55 +78,76 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
 
   const sb = supabaseServer();
 
-  // Colonnes de base, sans `formation_id` (colonne ajoutée par la migration 0106).
-  const SESSION_BASE =
-    'id, title, status, starts_at, ends_at, modality, remote_url, ' +
-    'dossier:dossiers(id, reference, learner:learners(first_name, last_name), formation:formations(id, title))';
+  // IMPORTANT : aucune jointure PostgREST (embed) sur `sessions`.
+  // Après la migration 0106 (colonne + FK `sessions.formation_id`), un cache de
+  // schéma PostgREST périmé peut casser la résolution des relations de `sessions`
+  // et faire échouer TOUTE requête avec embed (`dossier:dossiers(...)`) → la page
+  // tombait en « erreur base de données ». On lit donc les sessions À PLAT, puis
+  // on rattache dossiers / apprenants / formations par des requêtes séparées
+  // (ces tables n'ont pas changé → insensibles au cache).
+  const FLAT = 'id, title, status, starts_at, ends_at, modality, remote_url, dossier_id';
 
-  const [sessionRes, { data: formationData }] = await Promise.all([
-    sb
-      .schema('app')
-      .from('sessions')
-      // `formation_id` en scalaire (résolu ci-dessous via la liste des formations)
-      // plutôt qu'en embed PostgREST : évite qu'une erreur de relation ne vide la liste.
-      .select(`formation_id, ${SESSION_BASE}`)
-      .order('starts_at', { ascending: false })
-      .limit(500),
+  const [flatRes, { data: formationData }] = await Promise.all([
+    sb.schema('app').from('sessions').select(`${FLAT}, formation_id`).order('starts_at', { ascending: false }).limit(500),
     sb.schema('app').from('formations').select('id, title').is('deleted_at', null).order('title', { ascending: true }),
   ]);
 
-  let sessionData: SessionRow[] | null = sessionRes.data as SessionRow[] | null;
-  let sessionErr: { message?: string } | null = sessionRes.error;
-
-  // Repli : juste après la migration 0106, le cache de schéma PostgREST peut ne
-  // pas encore connaître `formation_id` (NOTIFY reload éphémère parfois manqué si
-  // le projet sort de pause) → la requête échoue. Plutôt que d'afficher « erreur
-  // base de données » sur toute la page, on recharge SANS `formation_id`. Les
-  // sessions de groupe s'affichent (leur formation sera résolue via `dossier`
-  // quand disponible), et la liste reste utilisable jusqu'au rechargement du cache.
+  // Repli si `formation_id` n'est pas encore dans le cache de schéma → sans.
+  let rows = flatRes.data as SessionRow[] | null;
+  let sessionErr: { message?: string } | null = flatRes.error;
   if (sessionErr) {
     console.error('[sessions] échec avec formation_id, repli sans:', sessionErr);
-    const fb = await sb
-      .schema('app')
-      .from('sessions')
-      .select(SESSION_BASE)
-      .order('starts_at', { ascending: false })
-      .limit(500);
-    sessionData = fb.data as SessionRow[] | null;
+    const fb = await sb.schema('app').from('sessions').select(FLAT).order('starts_at', { ascending: false }).limit(500);
+    rows = fb.data as SessionRow[] | null;
     sessionErr = fb.error;
     if (sessionErr) console.error('[sessions] échec du repli sessions:', sessionErr);
   }
+  const sessionRows = rows ?? [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formations = ((formationData as any[]) ?? []) as { id: string; title: string }[];
   const formationsById = new Map(formations.map((f) => [f.id, f]));
 
-  // Rattache la formation d'une session de groupe (formation_id) depuis la liste
-  // déjà chargée — sans dépendre d'un embed.
-  const all = ((sessionData as SessionRow[] | null) ?? []).map((s) => ({
-    ...s,
-    formation: s.formation_id ? formationsById.get(s.formation_id) ?? null : (s.formation ?? null),
-  }));
+  // Rattachements par requêtes séparées (sans embed).
+  const dossierIds = [...new Set(sessionRows.map((s) => s.dossier_id).filter(Boolean))] as string[];
+  const { data: dossierData } = dossierIds.length
+    ? await sb.schema('app').from('dossiers').select('id, reference, learner_id, formation_id').in('id', dossierIds)
+    : { data: [] as unknown[] };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dossierRows = ((dossierData as any[]) ?? []) as {
+    id: string;
+    reference: string;
+    learner_id: string | null;
+    formation_id: string | null;
+  }[];
+  const dossiersById = new Map(dossierRows.map((d) => [d.id, d]));
+
+  const learnerIds = [...new Set(dossierRows.map((d) => d.learner_id).filter(Boolean))] as string[];
+  const { data: learnerData } = learnerIds.length
+    ? await sb.schema('app').from('learners').select('id, first_name, last_name').in('id', learnerIds)
+    : { data: [] as unknown[] };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const learnersById = new Map(((learnerData as any[]) ?? []).map((l) => [l.id, l]));
+
+  // Reconstruit les formes attendues par SessionItem / le filtre.
+  const all = sessionRows.map((s) => {
+    const d = s.dossier_id ? dossiersById.get(s.dossier_id) : null;
+    const learner = d?.learner_id ? learnersById.get(d.learner_id) : null;
+    const dossierFormation = d?.formation_id ? formationsById.get(d.formation_id) ?? null : null;
+    const groupFormation = s.formation_id ? formationsById.get(s.formation_id) ?? null : null;
+    return {
+      ...s,
+      formation: groupFormation ?? dossierFormation,
+      dossier: d
+        ? {
+            id: d.id,
+            reference: d.reference,
+            learner: learner ? { first_name: learner.first_name, last_name: learner.last_name } : null,
+            formation: dossierFormation,
+          }
+        : null,
+    };
+  });
 
   const filtered = all.filter((s) => {
     const fid = s.formation?.id ?? s.dossier?.formation?.id;
