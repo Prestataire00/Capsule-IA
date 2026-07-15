@@ -9,6 +9,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
 import { listAgenda, type CalEvent } from '@/shared/lib/integrations/google-calendar-client';
+import { AgendaTabs } from './agenda-tabs.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,6 +143,7 @@ export default async function AgendaPage({
   if (!creds) {
     return (
       <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
+        <AgendaTabs />
         {header}
         <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-2xl px-6 py-10 text-center bg-zinc-50/40 dark:bg-zinc-950/40">
           <CalendarDays className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
@@ -207,6 +209,7 @@ export default async function AgendaPage({
   if (!result.ok) {
     return (
       <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
+        <AgendaTabs />
         {header}
         <div className="border border-amber-200/70 dark:border-amber-900/50 rounded-2xl px-6 py-8 text-center bg-amber-50/60 dark:bg-amber-950/30">
           <p className="text-[14px] font-medium text-amber-800 dark:text-amber-200">Agenda momentanément indisponible</p>
@@ -251,6 +254,7 @@ export default async function AgendaPage({
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
+        <AgendaTabs />
       <div className="flex items-end justify-between gap-4 flex-wrap">
         {header}
         <div className="flex items-center gap-3">

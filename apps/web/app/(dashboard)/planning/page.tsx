@@ -4,10 +4,11 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { AgendaTabs } from '../agenda/agenda-tabs.client';
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 const ROW_H = 64; // px par heure (h-16)
-const DAY_LABELS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+const DAY_LABELS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
@@ -108,31 +109,30 @@ export default async function PlanningPage({
         timeLabel: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
       };
     })
-    .filter((e) => e.dayIdx >= 0 && e.dayIdx <= 5);
+    .filter((e) => e.dayIdx >= 0 && e.dayIdx <= 6);
 
-  const hiddenWeekend = sessions.length - events.length;
   const monthLabel = `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
+      <AgendaTabs />
       <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Planning</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Planning des sessions</h1>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-            {sessions.length} session{sessions.length > 1 ? 's' : ''} cette semaine
-            {hiddenWeekend > 0 && ` · ${hiddenWeekend} le dimanche (non affichée)`}.
+            {sessions.length} session{sessions.length > 1 ? 's' : ''} cette semaine.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href="/formateurs"
+            href="/sessions"
             className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
           >
             <Filter className="w-3.5 h-3.5" />
-            Formateurs
+            Toutes les sessions
           </Link>
           <Link
-            href="/dossiers"
+            href="/sessions/nouvelle"
             className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -171,7 +171,7 @@ export default async function PlanningPage({
         </div>
 
         {/* En-tête des jours */}
-        <div className="grid grid-cols-[60px_repeat(6,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
+        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
           <div className="border-r border-zinc-200/60 dark:border-zinc-800" />
           {days.map((d) => (
             <div key={d.label} className="px-3 py-3 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800">
@@ -182,7 +182,7 @@ export default async function PlanningPage({
         </div>
 
         <div className="relative">
-          <div className="grid grid-cols-[60px_repeat(6,1fr)]">
+          <div className="grid grid-cols-[60px_repeat(7,1fr)]">
             {HOURS.map((h) => (
               <div key={h} className="contents">
                 <div className="h-16 border-b border-r border-zinc-100 dark:border-zinc-800/60 px-2 py-1">
@@ -199,7 +199,7 @@ export default async function PlanningPage({
           </div>
 
           {/* Events overlay */}
-          <div className="absolute inset-0 grid grid-cols-[60px_repeat(6,1fr)] pointer-events-none">
+          <div className="absolute inset-0 grid grid-cols-[60px_repeat(7,1fr)] pointer-events-none">
             <div />
             {days.map((_, dayIdx) => (
               <div key={dayIdx} className="relative border-r last:border-r-0 border-transparent">
