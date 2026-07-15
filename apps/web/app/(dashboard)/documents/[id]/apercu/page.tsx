@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { PrintButton } from './_components/print-button';
 import { EditableDocument } from './_components/editable-document';
 import {
@@ -20,7 +21,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
   const { data } = await sb
     .schema('app')
     .from('documents')
-    .select('id, title, content_html, dossier_id, storage_path, mime_type')
+    .select('id, title, content_html, dossier_id, storage_path, mime_type, organization_id')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -32,11 +33,25 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     dossier_id: string | null;
     storage_path: string | null;
     mime_type: string | null;
+    organization_id: string | null;
   } | null;
   if (!doc) notFound();
 
   // Fichier PDF (pas de HTML inline) → aperçu embarqué dans le navigateur.
   const isPdf = !doc.content_html && !!doc.storage_path;
+
+  // Branding : logo de l'organisme (à défaut, logo Capsule IA) + nom, injectés
+  // en tête du document, avec un filet orange (couleur de marque) sur les marges.
+  let logoSrc = '/logo-capsule-full.png';
+  let orgName = '';
+  if (doc.organization_id) {
+    const [{ data: orgRow }, orgLogo] = await Promise.all([
+      sb.schema('app').from('organizations').select('name').eq('id', doc.organization_id).maybeSingle(),
+      loadOrgLogoDataUri(sb as never, doc.organization_id),
+    ]);
+    orgName = (orgRow as { name?: string } | null)?.name ?? '';
+    if (orgLogo) logoSrc = orgLogo;
+  }
 
   const { data: sigData } = await sb
     .schema('app')
@@ -97,6 +112,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
           body { background: #fff !important; }
           .no-print { display: none !important; }
           .doc-sheet { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
+          .doc-sheet, .doc-brand, .doc-brand-footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         .doc-sheet h1 { font-size: 22px; font-weight: 600; margin: 0 0 12px; }
         .doc-sheet h2 { font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
@@ -109,6 +125,11 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
         .doc-sheet th { background: #f4f4f5; font-weight: 600; }
         .doc-sheet .doc-header { font-size: 12px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 18px; }
         .doc-sheet .doc-brand-header img { max-height: 64px; max-width: 200px; object-fit: contain; }
+        .doc-sheet { border-top: 5px solid #f97316; border-left: 4px solid #f97316; }
+        .doc-brand { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #f97316; padding-bottom: 12px; margin-bottom: 22px; }
+        .doc-brand img { max-height: 52px; max-width: 190px; object-fit: contain; }
+        .doc-brand .doc-org-name { font-size: 13px; font-weight: 600; color: #3f3f46; text-align: right; line-height: 1.3; }
+        .doc-brand-footer { margin-top: 34px; padding-top: 10px; border-top: 1px solid #f4f4f5; font-size: 10px; color: #a1a1aa; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .doc-sheet .signatures { margin-top: 36px; }
       `}</style>
 
@@ -147,9 +168,19 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
       ) : (
         <>
           {doc.content_html ? (
-            <EditableDocument documentId={doc.id} initialHtml={doc.content_html} />
+            <EditableDocument
+              documentId={doc.id}
+              initialHtml={doc.content_html}
+              logoSrc={logoSrc}
+              orgName={orgName}
+            />
           ) : (
             <article className="doc-sheet bg-white text-zinc-900 max-w-[760px] mx-auto rounded-sm shadow-lg px-12 py-12">
+              <div className="doc-brand">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoSrc} alt={orgName || 'Logo'} />
+                {orgName && <span className="doc-org-name">{orgName}</span>}
+              </div>
               <p className="text-[13px] text-zinc-500">
                 Ce document n&apos;a pas encore de contenu consultable.
               </p>
