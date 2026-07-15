@@ -29,6 +29,6 @@ jobs:
       - name: Link prod
         run: supabase link --project-ref "$PROJECT_REF"
       - name: Dry-run (liste le pending)
-        run: supabase db push --dry-run
+        run: supabase db push --dry-run --include-all
       - name: Apply migrations
-        run: supabase db push
+        run: supabase db push --include-all
