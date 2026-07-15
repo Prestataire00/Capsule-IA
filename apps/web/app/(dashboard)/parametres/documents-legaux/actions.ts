@@ -6,6 +6,7 @@ import { env } from '@/env.mjs';
 import { articlesFor, type LegalKind } from '@/shared/lib/legifrance/mapping';
 import { fetchArticle } from '@/shared/lib/legifrance/client';
 import { generateLegalDoc } from '@/shared/lib/ai/generate-legal-doc';
+import type { OrgInfo } from '@/shared/lib/ai/build-legal-prompt';
 import { generateLegalDocPDF } from '@/features/documents/generate-legal-doc-pdf';
 import { loadOrgBranding } from '@/features/documents/load-org-branding';
 
@@ -22,15 +23,61 @@ const KIND_TITLE: Record<LegalKind, string> = {
   livret_accueil: "Livret d'accueil",
 };
 
-async function orgInfo(sb: ReturnType<typeof admin>, orgId: string) {
+type AddressJson = {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+};
+
+function composeAddress(addr: AddressJson | null | undefined): string | null {
+  if (!addr || typeof addr !== 'object') return null;
+  const s = [
+    [addr.line1, addr.line2].filter(Boolean).join(' '),
+    [addr.postal_code, addr.city].filter(Boolean).join(' '),
+    addr.country,
+  ]
+    .filter((p) => p && p.trim().length > 0)
+    .join(', ');
+  return s || null;
+}
+
+// Toute l'identité légale de l'organisme, injectée dans le prompt IA (et le PDF).
+async function orgInfo(
+  sb: ReturnType<typeof admin>,
+  orgId: string,
+): Promise<OrgInfo & { address: string | null }> {
   const { data } = await sb
     .schema('app')
     .from('organizations')
-    .select('name, declaration_activite')
+    .select(
+      'name, legal_name, siret, declaration_activite, address, representative_name, representative_title, contact_email, contact_phone',
+    )
     .eq('id', orgId)
     .maybeSingle();
-  const o = (data ?? {}) as { name?: string; declaration_activite?: string };
-  return { name: o.name ?? '', nda: o.declaration_activite ?? null };
+  const o = (data ?? {}) as {
+    name?: string;
+    legal_name?: string | null;
+    siret?: string | null;
+    declaration_activite?: string | null;
+    address?: AddressJson | null;
+    representative_name?: string | null;
+    representative_title?: string | null;
+    contact_email?: string | null;
+    contact_phone?: string | null;
+  };
+  return {
+    name: o.name ?? '',
+    legalName: o.legal_name ?? null,
+    siret: o.siret ?? null,
+    nda: o.declaration_activite ?? null,
+    address: composeAddress(o.address),
+    representative: o.representative_name ?? null,
+    representativeTitle: o.representative_title ?? null,
+    email: o.contact_email ?? null,
+    phone: o.contact_phone ?? null,
+  };
 }
 
 export async function generateLegalDocDraft(orgId: string, kind: LegalKind): Promise<ActionResult> {
@@ -93,7 +140,7 @@ export async function validateLegalDoc(orgId: string, kind: LegalKind): Promise<
   const branding = await loadOrgBranding(sb as never, orgId);
   const pdf = await generateLegalDocPDF({
     title: KIND_TITLE[kind],
-    organization: { name: org.name, nda: org.nda, address: null },
+    organization: { name: org.legalName || org.name, nda: org.nda ?? null, address: org.address ?? null },
     logoPng: branding.logoPng,
     contentMd: d.content_md,
   });
