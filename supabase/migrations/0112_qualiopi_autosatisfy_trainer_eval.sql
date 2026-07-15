@@ -1,0 +1,188 @@
+-- ============================================================================
+-- 0112 — Qualiopi : auto-satisfaction I15 (atteinte objectifs) & I21 (formateur)
+-- ============================================================================
+-- Prolonge 0111 :
+--   • I15 (évaluation de l'atteinte des objectifs, clôture) : satisfait quand le
+--     questionnaire d'évaluation des acquis est complété — OU preuve attachée.
+--   • I21 (compétences des formateurs, entrée) : satisfait quand au moins un
+--     formateur est affecté au dossier — OU preuve attachée.
+-- + Trigger sur app.dossier_trainers : recalcul de la checklist à l'affectation
+--   / retrait d'un formateur → I21 passe au vert automatiquement.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION app.eval_qualiopi_counts(
+  p_dossier_id UUID,
+  OUT total INT,
+  OUT satisfied INT,
+  OUT entry_blocking_missing INT,
+  OUT closing_blocking_missing INT,
+  OUT blocking_missing INT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = app, public
+AS $$
+DECLARE
+  v_org UUID;
+  v_formation UUID;
+  v_has_objectives BOOLEAN := false;
+  v_has_pedagogy   BOOLEAN := false;
+  v_has_programme  BOOLEAN := false;
+  v_has_evaluation BOOLEAN := false;
+  v_details JSONB;
+BEGIN
+  SELECT organization_id, formation_id INTO v_org, v_formation
+  FROM app.dossiers WHERE id = p_dossier_id;
+
+  SELECT
+    COALESCE(cardinality(array_remove(f.objectives, '')) > 0, false),
+    COALESCE(btrim(f.pedagogical_method) <> '', false),
+    COALESCE(
+      (f.metadata -> 'catalog' -> 'programme') IS NOT NULL
+      OR btrim(COALESCE(f.metadata -> 'catalog' ->> 'programContent', '')) <> ''
+      OR btrim(COALESCE(f.description, '')) <> '',
+      false),
+    COALESCE(btrim(f.evaluation_method) <> '', false)
+  INTO v_has_objectives, v_has_pedagogy, v_has_programme, v_has_evaluation
+  FROM app.formations f
+  WHERE f.id = v_formation;
+
+  WITH resolved AS (
+    SELECT
+      i.id AS indicator_id,
+      i.number,
+      COALESCE(orul.stage, srul.stage, 'none')                      AS stage,
+      COALESCE(orul.is_blocking, srul.is_blocking, false)           AS is_blocking,
+      COALESCE(orul.satisfaction_source, srul.satisfaction_source, 'proof') AS source
+    FROM app.qualiopi_indicators i
+    LEFT JOIN app.qualiopi_indicator_rules srul
+      ON srul.indicator_id = i.id AND srul.organization_id IS NULL
+     AND srul.is_active AND srul.deleted_at IS NULL
+    LEFT JOIN app.qualiopi_indicator_rules orul
+      ON orul.indicator_id = i.id AND orul.organization_id = v_org
+     AND orul.is_active AND orul.deleted_at IS NULL
+    WHERE i.scope = 'dossier' AND i.is_active
+  ),
+  evaluated AS (
+    SELECT r.*,
+      CASE
+        WHEN r.number = 4 THEN v_has_objectives OR EXISTS (
+          SELECT 1 FROM app.qualiopi_proofs p
+          WHERE p.dossier_id = p_dossier_id AND p.indicator_id = r.indicator_id
+            AND p.deleted_at IS NULL
+            AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE))
+        WHEN r.number = 6 THEN v_has_pedagogy OR EXISTS (
+          SELECT 1 FROM app.qualiopi_proofs p
+          WHERE p.dossier_id = p_dossier_id AND p.indicator_id = r.indicator_id
+            AND p.deleted_at IS NULL
+            AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE))
+        WHEN r.number = 7 THEN v_has_programme OR EXISTS (
+          SELECT 1 FROM app.qualiopi_proofs p
+          WHERE p.dossier_id = p_dossier_id AND p.indicator_id = r.indicator_id
+            AND p.deleted_at IS NULL
+            AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE))
+        WHEN r.number = 8 THEN v_has_evaluation OR EXISTS (
+          SELECT 1 FROM app.qualiopi_proofs p
+          WHERE p.dossier_id = p_dossier_id AND p.indicator_id = r.indicator_id
+            AND p.deleted_at IS NULL
+            AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE))
+        WHEN r.number = 15 THEN EXISTS (
+          SELECT 1 FROM app.questionnaire_assignments qa
+          JOIN app.questionnaire_templates qt ON qt.id = qa.template_id
+          WHERE qa.dossier_id = p_dossier_id AND qt.kind = 'evaluation_acquis'
+            AND qa.status = 'completed'
+        ) OR EXISTS (
+          SELECT 1 FROM app.qualiopi_proofs p
+          WHERE p.dossier_id = p_dossier_id AND p.indicator_id = r.indicator_id
+            AND p.deleted_at IS NULL
+            AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE))
+        WHEN r.number = 21 THEN EXISTS (
+          SELECT 1 FROM app.dossier_trainers dt WHERE dt.dossier_id = p_dossier_id
+        ) OR EXISTS (
+          SELECT 1 FROM app.qualiopi_proofs p
+          WHERE p.dossier_id = p_dossier_id AND p.indicator_id = r.indicator_id
+            AND p.deleted_at IS NULL
+            AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE))
+        WHEN r.source = 'proof' THEN EXISTS (
+          SELECT 1 FROM app.qualiopi_proofs p
+          WHERE p.dossier_id = p_dossier_id AND p.indicator_id = r.indicator_id
+            AND p.deleted_at IS NULL
+            AND (p.valid_from  IS NULL OR p.valid_from  <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE))
+        WHEN r.source = 'questionnaire_positionnement' THEN EXISTS (
+          SELECT 1 FROM app.questionnaire_assignments qa
+          JOIN app.questionnaire_templates qt ON qt.id = qa.template_id
+          WHERE qa.dossier_id = p_dossier_id AND qt.kind = 'positionnement'
+            AND qa.status = 'completed')
+        WHEN r.source = 'questionnaire_evaluation' THEN EXISTS (
+          SELECT 1 FROM app.questionnaire_assignments qa
+          JOIN app.questionnaire_templates qt ON qt.id = qa.template_id
+          WHERE qa.dossier_id = p_dossier_id AND qt.kind = 'evaluation_acquis'
+            AND qa.status = 'completed')
+        WHEN r.source = 'attendance_signed' THEN (
+          EXISTS (SELECT 1 FROM app.attendance_sheets s WHERE s.dossier_id = p_dossier_id)
+          AND NOT EXISTS (SELECT 1 FROM app.attendance_sheets s
+                          WHERE s.dossier_id = p_dossier_id AND s.status <> 'finalized'))
+        WHEN r.source = 'document_signed' THEN EXISTS (
+          SELECT 1 FROM app.documents d
+          JOIN app.document_signatures ds ON ds.document_id = d.id
+          WHERE d.dossier_id = p_dossier_id AND ds.status = 'signed')
+      END AS is_satisfied
+    FROM resolved r
+  )
+  SELECT
+    count(*)::int,
+    count(*) FILTER (WHERE is_satisfied)::int,
+    count(*) FILTER (WHERE stage = 'entry'   AND is_blocking AND NOT is_satisfied)::int,
+    count(*) FILTER (WHERE stage = 'closing' AND is_blocking AND NOT is_satisfied)::int,
+    count(*) FILTER (WHERE is_blocking AND NOT is_satisfied)::int,
+    COALESCE(jsonb_agg(jsonb_build_object(
+      'indicator_id', indicator_id, 'number', number, 'stage', stage,
+      'is_blocking', is_blocking, 'satisfied', is_satisfied, 'source', source
+    ) ORDER BY number), '[]'::jsonb)
+  INTO total, satisfied, entry_blocking_missing, closing_blocking_missing,
+       blocking_missing, v_details
+  FROM evaluated;
+
+  INSERT INTO app.qualiopi_dossier_checklists AS c (
+    dossier_id, organization_id, computed_at, total_indicators,
+    satisfied_indicators, blocking_missing, entry_blocking_missing,
+    closing_blocking_missing, details
+  )
+  VALUES (
+    p_dossier_id, v_org, now(), total, satisfied, blocking_missing,
+    entry_blocking_missing, closing_blocking_missing, v_details
+  )
+  ON CONFLICT (dossier_id) DO UPDATE SET
+    computed_at = now(),
+    total_indicators = EXCLUDED.total_indicators,
+    satisfied_indicators = EXCLUDED.satisfied_indicators,
+    blocking_missing = EXCLUDED.blocking_missing,
+    entry_blocking_missing = EXCLUDED.entry_blocking_missing,
+    closing_blocking_missing = EXCLUDED.closing_blocking_missing,
+    details = EXCLUDED.details;
+END $$;
+
+-- ── Trigger : recalcul auto à l'affectation / retrait d'un formateur ────────
+CREATE OR REPLACE FUNCTION app.tg_dossier_trainers_recompute_qualiopi()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = app, public
+AS $$
+BEGIN
+  PERFORM app.recompute_qualiopi_checklist(COALESCE(NEW.dossier_id, OLD.dossier_id));
+  RETURN COALESCE(NEW, OLD);
+END $$;
+
+DROP TRIGGER IF EXISTS tg_dossier_trainers_recompute_qualiopi ON app.dossier_trainers;
+CREATE TRIGGER tg_dossier_trainers_recompute_qualiopi
+  AFTER INSERT OR DELETE ON app.dossier_trainers
+  FOR EACH ROW
+  EXECUTE FUNCTION app.tg_dossier_trainers_recompute_qualiopi();

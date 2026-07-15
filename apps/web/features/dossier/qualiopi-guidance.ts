@@ -49,9 +49,9 @@ const TODO_BY_CODE: Record<string, string> = {
   I12: "Joignez une preuve de l'accompagnement de l'apprenant (suivi, contacts).",
   I13: 'Joignez une preuve des conditions de déroulement (convocation, infos pratiques, lieu).',
   I14: 'Joignez une preuve de coordination des différents acteurs de la formation.',
-  I15: "Évaluez l'atteinte des objectifs (questionnaire ou grille d'évaluation).",
+  I15: "Envoyez le questionnaire d'évaluation des acquis — sa complétion valide l'indicateur (preuve facultative).",
   I20: 'Joignez une preuve des locaux et moyens matériels mis à disposition.',
-  I21: 'Affectez un formateur et joignez ses qualifications / CV / preuves de compétence.',
+  I21: "Affectez un formateur au dossier — cela valide l'indicateur (CV / qualifications en preuve facultative).",
   I22: "Créez les feuilles d'émargement et faites-les signer.",
   I23: "Envoyez le questionnaire d'évaluation des acquis à l'apprenant.",
   I26: 'Envoyez le questionnaire de satisfaction à chaud en fin de formation.',
@@ -61,6 +61,7 @@ const TODO_BY_CODE: Record<string, string> = {
 
 // Lien surchargé par code quand il diffère du défaut de la source.
 const TAB_BY_CODE: Partial<Record<string, { tab: DossierTab; linkLabel: string }>> = {
+  I15: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
   I21: { tab: 'documents', linkLabel: 'Ajouter la preuve (formateur)' },
   I26: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
   I27: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
