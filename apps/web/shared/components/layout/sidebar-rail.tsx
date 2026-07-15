@@ -67,12 +67,19 @@ const GROUPS: Group[] = [
     countKeys: ['demandesPending'],
   },
   {
-    key: 'formations',
-    label: 'Formations',
+    key: 'catalogue',
+    label: 'Catalogue',
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
       { href: '/catalogue-public', icon: Globe, label: 'Catalogue public' },
+    ],
+  },
+  {
+    key: 'formations',
+    label: 'Formations',
+    icon: FolderOpen,
+    items: [
       { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
       { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
