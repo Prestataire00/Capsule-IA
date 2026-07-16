@@ -15,7 +15,8 @@ const PROOF_GUIDANCE: Guidance = {
 const BY_SOURCE: Record<string, Guidance> = {
   proof: PROOF_GUIDANCE,
   questionnaire_positionnement: {
-    todo: "Envoyez le questionnaire de positionnement à l'apprenant, et attendez sa réponse.",
+    todo:
+      "Le positionnement est normalement recueilli à l'inscription (étape « Fiche besoin ») et validé automatiquement. Si l'apprenant a été ajouté sans passer par le formulaire d'inscription, envoyez-lui le questionnaire de positionnement.",
     tab: 'questionnaires',
     linkLabel: 'Envoyer le questionnaire',
   },
@@ -44,7 +45,7 @@ const TODO_BY_CODE: Record<string, string> = {
   I7: "Complétez le programme détaillé dans la fiche formation (onglet Programme) — cela valide l'indicateur (preuve facultative).",
   I8: "Renseignez les modalités d'évaluation dans la fiche formation — cela valide l'indicateur (preuve facultative).",
   I9: "Joignez une preuve d'adaptation pédagogique en cours de formation.",
-  I10: "Envoyez le questionnaire de positionnement à l'apprenant, et attendez sa réponse.",
+  I10: "Le positionnement est recueilli automatiquement à l'inscription (étape « Fiche besoin ») et valide l'indicateur. Si l'apprenant a été ajouté sans passer par l'inscription, envoyez-lui le questionnaire de positionnement.",
   I11: "Joignez une preuve d'accueil/d'adaptation pour les publics spécifiques (accessibilité, handicap).",
   I12: "Joignez une preuve de l'accompagnement de l'apprenant (suivi, contacts).",
   I13: 'Joignez une preuve des conditions de déroulement (convocation, infos pratiques, lieu).',

@@ -58,8 +58,53 @@ export async function ensureNeedsAnalysisTemplate(sb: Sb): Promise<string> {
 }
 
 export type NeedsAnalysisSendResult =
-  | { ok: true; status: 'sent' | 'skipped_existing' | 'no_email' | 'no_base_url' | 'not_found' }
+  | {
+      ok: true;
+      status: 'sent' | 'skipped_existing' | 'no_email' | 'no_base_url' | 'not_found' | 'reused_inscription';
+    }
   | { ok: false; error: string };
+
+/** Réponses « Fiche besoin » saisies à l'inscription (étape 3), stockées sur le prospect. */
+type InscriptionNeedsAnalysis = {
+  currentLevel?: number | null;
+  objectives?: string | null;
+  expectations?: string | null;
+  constraints?: string | null;
+  accommodations?: string | null;
+};
+
+/**
+ * Récupère l'analyse des besoins déjà remplie à l'inscription pour l'apprenant
+ * d'un dossier : on privilégie le prospect converti sur ce dossier, sinon le
+ * dernier prospect de même email dans l'organisation. Renvoie null si aucune
+ * réponse exploitable (objectifs manquants).
+ */
+async function loadInscriptionNeedsAnalysis(
+  sb: Sb,
+  opts: { organizationId: string; dossierId: string; email: string },
+): Promise<InscriptionNeedsAnalysis | null> {
+  const { data } = await sb
+    .schema('app')
+    .from('prospects')
+    .select('needs_analysis, converted_dossier_id, created_at')
+    .eq('organization_id', opts.organizationId)
+    .eq('email', opts.email)
+    .not('needs_analysis', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const rows = (data ?? []) as Array<{
+    needs_analysis: InscriptionNeedsAnalysis | null;
+    converted_dossier_id: string | null;
+  }>;
+  if (rows.length === 0) return null;
+
+  const preferred = rows.find((r) => r.converted_dossier_id === opts.dossierId) ?? rows[0];
+  const na = preferred?.needs_analysis ?? null;
+  // Objectifs = champ requis de l'étape 3 ; sans lui, on ne considère pas la fiche remplie.
+  if (!na || !na.objectives || !na.objectives.trim()) return null;
+  return na;
+}
 
 /**
  * Envoie (idempotent) la fiche besoin à l'apprenant d'un dossier : assure le
@@ -95,16 +140,109 @@ export async function sendNeedsAnalysisForDossier(opts: {
 
   const templateId = await ensureNeedsAnalysisTemplate(sb);
 
+  // Réponses d'inscription (étape 3 « Fiche besoin ») déjà saisies pour cet apprenant.
+  const inscriptionNa = await loadInscriptionNeedsAnalysis(sb, {
+    organizationId: dossier.organization_id,
+    dossierId: dossier.id,
+    email: dossier.learner.email,
+  });
+  const answersFromInscription = (na: InscriptionNeedsAnalysis) => ({
+    currentLevel: na.currentLevel ?? null,
+    objectives: na.objectives ?? null,
+    expectations: na.expectations ?? null,
+    constraints: na.constraints ?? null,
+    accommodations: na.accommodations ?? null,
+  });
+
   // Anti-doublon : une seule fiche besoin par (template, dossier, apprenant).
   const { data: existing } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .select('id')
+    .select('id, status')
     .eq('template_id', templateId)
     .eq('dossier_id', dossier.id)
     .eq('recipient_kind', 'learner')
     .maybeSingle();
-  if (existing) return { ok: true, status: 'skipped_existing' };
+
+  if (existing) {
+    const ex = existing as { id: string; status: string };
+    if (ex.status === 'completed') return { ok: true, status: 'skipped_existing' };
+    // Fiche en attente : si l'inscription contient déjà les réponses, on la
+    // complète automatiquement (backfill) plutôt que d'attendre l'apprenant —
+    // couvre les dossiers créés avant cette logique.
+    if (!inscriptionNa) return { ok: true, status: 'skipped_existing' };
+    const { data: hasResp } = await sb
+      .schema('app')
+      .from('questionnaire_responses')
+      .select('id')
+      .eq('assignment_id', ex.id)
+      .maybeSingle();
+    if (!hasResp) {
+      const { error: respErr } = await sb
+        .schema('app')
+        .from('questionnaire_responses')
+        .insert({
+          organization_id: dossier.organization_id,
+          assignment_id: ex.id,
+          template_id: templateId,
+          dossier_id: dossier.id,
+          answers: answersFromInscription(inscriptionNa),
+        });
+      if (respErr) return { ok: false, error: respErr.message };
+    }
+    await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .update({ status: 'completed' })
+      .eq('id', ex.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (sb as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossier.id });
+    return { ok: true, status: 'reused_inscription' };
+  }
+
+  // Pas d'assignation : si l'inscription contient les réponses, on crée le
+  // questionnaire de positionnement DÉJÀ complété à partir de ces réponses —
+  // aucun renvoi à l'apprenant, et l'indicateur Qualiopi d'entrée (positionnement,
+  // I5/I10) est satisfait immédiatement.
+  if (inscriptionNa) {
+    const reusedTokenHash = createHash('sha256').update(randomBytes(24)).digest('hex');
+    const { data: reusedAssign, error: reusedErr } = await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .insert({
+        organization_id: dossier.organization_id,
+        template_id: templateId,
+        dossier_id: dossier.id,
+        recipient_kind: 'learner',
+        recipient_learner_id: dossier.learner_id,
+        recipient_email: dossier.learner.email,
+        recipient_name: `${dossier.learner.first_name} ${dossier.learner.last_name}`.trim(),
+        token_hash: reusedTokenHash,
+        status: 'completed',
+      })
+      .select('id')
+      .single();
+    if (reusedErr || !reusedAssign) return { ok: false, error: reusedErr?.message ?? 'assignment_failed' };
+
+    const { error: respErr } = await sb
+      .schema('app')
+      .from('questionnaire_responses')
+      .insert({
+        organization_id: dossier.organization_id,
+        assignment_id: (reusedAssign as { id: string }).id,
+        template_id: templateId,
+        dossier_id: dossier.id,
+        answers: answersFromInscription(inscriptionNa),
+      });
+    if (respErr) return { ok: false, error: respErr.message };
+
+    // Rafraîchit la checklist Qualiopi pour refléter immédiatement le
+    // positionnement satisfait (la page lit la checklist stockée). Best-effort.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (sb as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossier.id });
+
+    return { ok: true, status: 'reused_inscription' };
+  }
 
   if (!baseUrl) return { ok: true, status: 'no_base_url' };
 
