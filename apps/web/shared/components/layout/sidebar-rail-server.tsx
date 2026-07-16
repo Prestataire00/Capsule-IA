@@ -29,8 +29,11 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
       sb
         .schema('app')
         .from('invoices')
+        // Badge « à traiter » : uniquement les factures EN RETARD. Une facture
+        // simplement émise (en attente de paiement normal) ne fait pas clignoter
+        // le badge en permanence.
         .select('id', { count: 'exact', head: true })
-        .in('status', ['issued', 'partially_paid', 'overdue']),
+        .eq('status', 'overdue'),
       sb
         .schema('app')
         .from('prospects')
@@ -44,7 +47,7 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
       reclamationsActive: complaints.count ?? 0,
       emargementsPending: signatures.count ?? 0,
       questionnairesActive: responses.count ?? 0,
-      invoicesUnpaid: invoices.count ?? 0,
+      invoicesOverdue: invoices.count ?? 0,
       demandesPending: demandes.count ?? 0,
     };
   } catch (err) {
