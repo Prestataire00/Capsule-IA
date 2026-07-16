@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0120 — Charges au niveau SESSION / FORMATION : session_trainers + formation_expenses
+-- 0121 — Charges au niveau SESSION / FORMATION : session_trainers + formation_expenses
 -- ============================================================================
 -- Phase 2 de la refonte Formation → Session. Les CHARGES opérationnelles (dépenses
 -- du jour, rémunération formateur, sous-traitance) remontent au niveau
