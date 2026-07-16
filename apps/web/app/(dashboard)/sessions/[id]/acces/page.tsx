@@ -4,6 +4,7 @@ import { KeyRound, ArrowUpRight } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession } from '@/features/sessions/load-session';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { AccessSend } from './access-send.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +25,10 @@ export default async function SessionAccessTab({ params }: { params: { id: strin
   return (
     <div className="space-y-3">
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-        Accès des apprenants à leur espace de formation. La génération/révocation d'un accès se fait depuis le dossier de l'apprenant.
+        Accès des apprenants à leur espace de formation. Générez et envoyez les liens à toute la session en une fois,
+        ou gérez/révoquez un accès depuis le dossier de l'apprenant.
       </p>
+      <AccessSend sessionId={params.id} learnerCount={learners.length} />
       <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800">
         {learners.map((l) => (
           <li key={l.id} className="flex items-center justify-between px-4 py-3 text-[13px]">

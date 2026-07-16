@@ -148,6 +148,29 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     0,
   );
 
+  // Taux de présence : signatures apprenants « signées » / total, sur les émargements des sessions.
+  let presenceRate: number | null = null;
+  const sessionIds = sessions.map((s) => s.id);
+  if (sessionIds.length) {
+    const { data: sheetRows } = await sb
+      .schema('app')
+      .from('attendance_sheets')
+      .select('id')
+      .in('session_id', sessionIds);
+    const sheetIds = ((sheetRows as { id: string }[] | null) ?? []).map((r) => r.id);
+    if (sheetIds.length) {
+      const { data: sigRows } = await sb
+        .schema('app')
+        .from('attendance_signatures')
+        .select('status')
+        .eq('participant_kind', 'learner')
+        .in('attendance_sheet_id', sheetIds);
+      const sigs = ((sigRows as { status: string }[] | null) ?? []);
+      const signed = sigs.filter((s) => s.status === 'signed').length;
+      presenceRate = sigs.length ? Math.round((signed / sigs.length) * 100) : null;
+    }
+  }
+
   const activeCount = relatedDossiers.filter((d) => ACTIVE.includes(d.status)).length;
   const totalRevenue = relatedDossiers
     .filter((d) => REVENUE.includes(d.status))
@@ -352,6 +375,8 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               <MiniKpi label="Apprenants" value={relatedDossiers.length} />
               <MiniKpi label="Heures dispensées" value={`${Math.round(heuresDispensees)} h`} />
               <MiniKpi label="CA généré" value={formatEuros(totalRevenue)} />
+              <MiniKpi label="Taux de présence" value={presenceRate == null ? '—' : `${presenceRate} %`} />
+              <MiniKpi label="Budget charges" value={formatEuros(totalExpenses)} />
             </div>
           </Card>
 
