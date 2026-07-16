@@ -41,6 +41,13 @@ const formatEuros = (cents: number | null) =>
 const ACTIVE = ['active', 'scheduled'];
 const REVENUE = ['active', 'completed', 'closed'];
 
+const EXPENSE_KIND_LABEL: Record<string, string> = {
+  salaire_formateur: 'Rémunération formateur',
+  sous_traitance_confiee: 'Sous-traitance',
+  achat_formation: 'Achat de formation',
+  autre: 'Autre',
+};
+
 export default async function FormationDetailPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
   const id = params.id;
@@ -109,6 +116,20 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     }
   }
   const sessions = sessionData ?? [];
+
+  // Budget consolidé : charges (formation_expenses) alimentées par les sessions.
+  const { data: expenseData } = await sb
+    .schema('app')
+    .from('formation_expenses' as never)
+    .select('kind, amount_cents')
+    .eq('formation_id', id)
+    .is('deleted_at', null);
+  const expenses = ((expenseData as { kind: string; amount_cents: number }[] | null) ?? []);
+  const totalExpenses = expenses.reduce((a, e) => a + (e.amount_cents ?? 0), 0);
+  const expenseByKind = expenses.reduce<Record<string, number>>((acc, e) => {
+    acc[e.kind] = (acc[e.kind] ?? 0) + (e.amount_cents ?? 0);
+    return acc;
+  }, {});
 
   const activeCount = relatedDossiers.filter((d) => ACTIVE.includes(d.status)).length;
   const totalRevenue = relatedDossiers
@@ -281,6 +302,33 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             )}
           </Card>
 
+          <Card title="Budget & charges">
+            <div className="flex items-baseline justify-between mb-3">
+              <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Total des charges</span>
+              <span className="text-[16px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{formatEuros(totalExpenses)}</span>
+            </div>
+            {Object.keys(expenseByKind).length > 0 ? (
+              <ul className="space-y-1 mb-3">
+                {Object.entries(expenseByKind).map(([k, v]) => (
+                  <li key={k} className="flex items-center justify-between text-[12px]">
+                    <span className="text-zinc-600 dark:text-zinc-400">{EXPENSE_KIND_LABEL[k] ?? k}</span>
+                    <span className="text-zinc-800 dark:text-zinc-200 tabular-nums">{formatEuros(v)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                Aucune charge saisie. Les dépenses se saisissent dans chaque session (onglet Dépenses).
+              </p>
+            )}
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/60 text-[12px]">
+              <span className="text-zinc-500 dark:text-zinc-400">Marge estimée (CA − charges)</span>
+              <span className={`font-medium tabular-nums ${totalRevenue - totalExpenses >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {formatEuros(totalRevenue - totalExpenses)}
+              </span>
+            </div>
+          </Card>
+
           <Card title={`Sessions (${sessions.length})`}>
             <div className="mb-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
               <GroupSessionForm formationId={id} />
@@ -304,11 +352,12 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                   );
                   return (
                     <li key={s.id}>
-                      {isGroup ? (
-                        <div className="px-2.5 py-1.5 -mx-2.5">{row}</div>
-                      ) : (
-                        <Link href={`/dossiers/${s.dossier_id}/sessions`} className="block px-2.5 py-1.5 -mx-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">{row}</Link>
-                      )}
+                      <Link
+                        href={`/sessions/${s.id}`}
+                        className="block px-2.5 py-1.5 -mx-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                      >
+                        {row}
+                      </Link>
                     </li>
                   );
                 })}
