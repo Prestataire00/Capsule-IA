@@ -11,6 +11,7 @@ import {
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { FormationCover } from './cover-upload.client';
+import { FormationTabs } from './formation-tabs.client';
 
 const modalityStyles = {
   presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
@@ -257,8 +258,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        {/* Colonne pédagogie — une seule carte, sections compactes */}
+      <FormationTabs
+        counts={{ sessions: sessions.length, dossiers: relatedDossiers.length }}
+        overview={
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <Card title="Programme pédagogique" className="lg:col-span-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             {description && (
@@ -316,7 +319,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             </div>
             <CopyInscriptionLink formationId={f.id} variant="full" />
           </Card>
-
+            </div>
+          </div>
+        }
+        dossiers={
           <Card title={`Dossiers (${relatedDossiers.length})`}>
             {relatedDossiers.length === 0 ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun dossier rattaché.</p>
@@ -341,7 +347,8 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               </ul>
             )}
           </Card>
-
+        }
+        budget={
           <Card title="Budget & charges">
             <div className="flex items-baseline justify-between mb-3">
               <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Total des charges</span>
@@ -368,7 +375,8 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               </span>
             </div>
           </Card>
-
+        }
+        stats={
           <Card title="Statistiques">
             <div className="grid grid-cols-2 gap-3">
               <MiniKpi label="Sessions" value={sessions.length} />
@@ -379,7 +387,8 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               <MiniKpi label="Budget charges" value={formatEuros(totalExpenses)} />
             </div>
           </Card>
-
+        }
+        qualiopi={
           <Card title="Qualiopi">
             {checklists.length === 0 ? (
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
@@ -398,7 +407,8 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               </div>
             )}
           </Card>
-
+        }
+        sessions={
           <Card title={`Sessions (${sessions.length})`}>
             <div className="mb-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
               <GroupSessionForm formationId={id} />
@@ -439,8 +449,8 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               </ul>
             )}
           </Card>
-        </div>
-      </div>
+        }
+      />
     </div>
   );
 }
