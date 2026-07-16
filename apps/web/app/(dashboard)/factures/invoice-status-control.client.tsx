@@ -6,7 +6,7 @@ import { ChevronDown, Check, Loader2 } from 'lucide-react';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { setInvoiceStatus, type InvoiceStatusValue } from './actions';
 
-type Tone = 'neutral' | 'warning' | 'success' | 'danger';
+type Tone = 'neutral' | 'warning' | 'success' | 'danger' | 'info';
 
 const LABEL: Record<InvoiceStatusValue, string> = {
   draft: 'brouillon',
@@ -18,7 +18,7 @@ const LABEL: Record<InvoiceStatusValue, string> = {
 };
 const TONE: Record<InvoiceStatusValue, Tone> = {
   draft: 'neutral',
-  issued: 'warning',
+  issued: 'info',
   paid: 'success',
   partially_paid: 'warning',
   overdue: 'danger',

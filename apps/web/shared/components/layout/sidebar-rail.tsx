@@ -27,7 +27,7 @@ export type SidebarCounts = {
   reclamationsActive?: number;
   emargementsPending?: number;
   questionnairesActive?: number;
-  invoicesUnpaid?: number;
+  invoicesOverdue?: number;
   demandesPending?: number;
 };
 
@@ -107,7 +107,7 @@ const GROUPS: Group[] = [
       { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/bpf', icon: FileText, label: 'BPF' },
     ],
-    countKeys: ['invoicesUnpaid', 'reclamationsActive'],
+    countKeys: ['invoicesOverdue', 'reclamationsActive'],
   },
   {
     key: 'qualite',
@@ -126,7 +126,7 @@ const COUNT_BY_HREF: Record<string, { key: keyof SidebarCounts; tone: Tone }> = 
   '/reclamations': { key: 'reclamationsActive', tone: 'rose' },
   '/emargements': { key: 'emargementsPending', tone: 'amber' },
   '/questionnaires': { key: 'questionnairesActive', tone: 'violet' },
-  '/factures': { key: 'invoicesUnpaid', tone: 'amber' },
+  '/factures': { key: 'invoicesOverdue', tone: 'rose' },
   '/prospects': { key: 'demandesPending', tone: 'rose' },
 };
 

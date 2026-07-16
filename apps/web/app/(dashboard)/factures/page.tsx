@@ -36,6 +36,7 @@ function rowTint(status: InvoiceStatus): string {
     case 'overdue':
       return 'border-l-2 border-red-400 bg-red-50/40 dark:bg-red-950/15';
     case 'issued':
+      return 'border-l-2 border-blue-400 bg-blue-50/30 dark:bg-blue-950/15';
     case 'partially_paid':
       return 'border-l-2 border-amber-300 bg-amber-50/25 dark:bg-amber-950/10';
     case 'cancelled':
