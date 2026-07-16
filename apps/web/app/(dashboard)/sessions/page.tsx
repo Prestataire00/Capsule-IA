@@ -2,7 +2,7 @@
 // Justification: vue transversale de toutes les sessions de l'organisme — retrouver/filtrer par formation, RLS-scopé.
 
 import Link from 'next/link';
-import { Search, Video, CalendarClock, Plus } from 'lucide-react';
+import { Search, Video, CalendarClock, Plus, GraduationCap } from 'lucide-react';
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -36,7 +36,8 @@ function SessionItem({ s }: { s: SessionRow }) {
   const isGroup = !s.dossier?.id;
   const learner = s.dossier?.learner ? [s.dossier.learner.first_name, s.dossier.learner.last_name].filter(Boolean).join(' ') : null;
   const formation = s.formation ?? s.dossier?.formation;
-  const titleHref = s.dossier?.id ? `/dossiers/${s.dossier.id}/sessions` : formation ? `/formations/${formation.id}` : '/sessions';
+  // Toutes les lignes pointent vers le hub session (page à onglets).
+  const titleHref = `/sessions/${s.id}`;
   return (
     <li className="grid grid-cols-[150px_1fr_1fr_130px_100px] gap-3 py-3 px-4 text-[13px] items-center hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
       <div className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -161,9 +162,22 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
     return true;
   });
 
-  const now = Date.now();
-  const upcoming = filtered.filter((s) => new Date(s.starts_at).getTime() >= now).reverse();
-  const past = filtered.filter((s) => new Date(s.starts_at).getTime() < now);
+  // Regroupement par formation (« dossiers formation ») pour ne pas éparpiller les sessions.
+  const groups = new Map<string, { formation: { id: string; title: string } | null; sessions: typeof filtered }>();
+  for (const s of filtered) {
+    const f = (s.formation ?? null) as { id: string; title: string } | null;
+    const key = f?.id ?? 'none';
+    if (!groups.has(key)) groups.set(key, { formation: f, sessions: [] });
+    groups.get(key)!.sessions.push(s);
+  }
+  const groupList = [...groups.values()].sort((a, b) => {
+    if (!a.formation) return 1;
+    if (!b.formation) return -1;
+    return a.formation.title.localeCompare(b.formation.title);
+  });
+  for (const g of groupList) {
+    g.sessions.sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+  }
 
   const listHeader = (
     <li className="grid grid-cols-[150px_1fr_1fr_130px_100px] gap-3 py-2.5 px-4 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
@@ -255,29 +269,32 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
           />
         </div>
       ) : (
-        <div className="space-y-6">
-          {upcoming.length > 0 && (
-            <section>
-              <h2 className="text-[12px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium mb-2">À venir ({upcoming.length})</h2>
+        <div className="space-y-8">
+          {groupList.map((g) => (
+            <section key={g.formation?.id ?? 'none'}>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-violet-500" />
+                  {g.formation ? (
+                    <Link href={`/formations/${g.formation.id}`} className="hover:text-violet-600">
+                      {g.formation.title}
+                    </Link>
+                  ) : (
+                    'Sessions hors formation'
+                  )}
+                </h2>
+                <span className="text-[11px] text-zinc-400">
+                  {g.sessions.length} session{g.sessions.length > 1 ? 's' : ''}
+                </span>
+              </div>
               <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
                 {listHeader}
-                {upcoming.map((s) => (
+                {g.sessions.map((s) => (
                   <SessionItem key={s.id} s={s} />
                 ))}
               </ul>
             </section>
-          )}
-          {past.length > 0 && (
-            <section>
-              <h2 className="text-[12px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium mb-2">Passées ({past.length})</h2>
-              <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
-                {listHeader}
-                {past.map((s) => (
-                  <SessionItem key={s.id} s={s} />
-                ))}
-              </ul>
-            </section>
-          )}
+          ))}
         </div>
       )}
     </div>
