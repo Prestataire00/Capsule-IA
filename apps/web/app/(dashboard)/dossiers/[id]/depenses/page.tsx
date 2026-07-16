@@ -30,6 +30,11 @@ export default async function DepensesPage({ params }: { params: { id: string } 
         sous-traitance confiée à d&apos;autres organismes). Elles alimentent automatiquement le cadre
         « Charges » et la sous-traitance du Bilan Pédagogique et Financier.
       </p>
+      <p className="text-[12px] text-zinc-500 dark:text-zinc-400 max-w-2xl rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 px-3 py-2">
+        💡 Les charges opérationnelles (rémunération formateur, sous-traitance, achats du jour) se pilotent
+        désormais au niveau de la <strong>session</strong> (onglet Dépenses de chaque session) et se
+        consolident dans le budget de la formation. Cet onglet reste dédié aux charges nominatives du BPF.
+      </p>
       <ExpensesManager dossierId={params.id} initial={expenses} />
     </div>
   );

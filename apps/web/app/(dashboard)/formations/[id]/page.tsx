@@ -131,6 +131,23 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     return acc;
   }, {});
 
+  // Qualiopi agrégé : conformité des dossiers de la formation (alimentée par sessions/émargements).
+  const { data: qcData } = dossierIds.length
+    ? await sb
+        .schema('app')
+        .from('qualiopi_dossier_checklists' as never)
+        .select('satisfied_indicators, total_indicators, is_ready')
+        .in('dossier_id', dossierIds)
+    : { data: [] as unknown[] };
+  const checklists = ((qcData as { satisfied_indicators: number; total_indicators: number; is_ready: boolean }[] | null) ?? []);
+  const conformes = checklists.filter((c) => c.is_ready).length;
+
+  // Statistiques : heures dispensées (somme des durées de session).
+  const heuresDispensees = sessions.reduce(
+    (a, s) => a + Math.max(0, (new Date(s.ends_at).getTime() - new Date(s.starts_at).getTime()) / 3_600_000),
+    0,
+  );
+
   const activeCount = relatedDossiers.filter((d) => ACTIVE.includes(d.status)).length;
   const totalRevenue = relatedDossiers
     .filter((d) => REVENUE.includes(d.status))
@@ -329,6 +346,34 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             </div>
           </Card>
 
+          <Card title="Statistiques">
+            <div className="grid grid-cols-2 gap-3">
+              <MiniKpi label="Sessions" value={sessions.length} />
+              <MiniKpi label="Apprenants" value={relatedDossiers.length} />
+              <MiniKpi label="Heures dispensées" value={`${Math.round(heuresDispensees)} h`} />
+              <MiniKpi label="CA généré" value={formatEuros(totalRevenue)} />
+            </div>
+          </Card>
+
+          <Card title="Qualiopi">
+            {checklists.length === 0 ? (
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                Conformité non encore calculée. Elle s'alimente depuis les émargements et questionnaires des dossiers.
+              </p>
+            ) : (
+              <div className="flex items-baseline justify-between">
+                <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Dossiers conformes</span>
+                <span
+                  className={`text-[16px] font-semibold tabular-nums ${
+                    conformes === checklists.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {conformes}/{checklists.length}
+                </span>
+              </div>
+            )}
+          </Card>
+
           <Card title={`Sessions (${sessions.length})`}>
             <div className="mb-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
               <GroupSessionForm formationId={id} />
@@ -388,6 +433,16 @@ function Stat({
       <p className="text-[18px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none inline-flex items-center gap-1.5">
         <Icon className="w-3.5 h-3.5 text-zinc-400" /> {value}
       </p>
+      <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mt-1">{label}</p>
+    </div>
+  );
+}
+
+// Petit KPI dans une carte (statistiques formation).
+function MiniKpi({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-zinc-50 dark:bg-zinc-950/50 rounded-lg px-3 py-2">
+      <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none">{value}</p>
       <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mt-1">{label}</p>
     </div>
   );
