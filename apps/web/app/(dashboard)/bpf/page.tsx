@@ -3,8 +3,10 @@
 // des cadres B (produits ventilés), C (pédagogique), D (formateurs) pour une année,
 // en vue de la télédéclaration. Lecture seule + impression.
 import Link from 'next/link';
+import { TrendingUp, Users, Clock, UserCog } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { StatCard } from '@/shared/ui/stat-card';
 import { BPF_LINES } from '@/features/bpf/bpf';
 import { loadBpfAggregates } from '@/features/bpf/load-bpf';
 import { PrintButton } from './print-button';
@@ -54,6 +56,42 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
           <PrintButton year={year} />
         </div>
       </header>
+
+      {/* KPI de synthèse de l'année */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          label="Produits HT"
+          value={eur(financial.totalCents)}
+          icon={TrendingUp}
+          accent="emerald"
+          hint={`${pedago.dossiers} dossier${pedago.dossiers > 1 ? 's' : ''} · ${pedago.actions} action${pedago.actions > 1 ? 's' : ''}`}
+          hintTone="neutral"
+        />
+        <StatCard
+          label="Stagiaires"
+          value={pedago.stagiaires}
+          icon={Users}
+          accent="blue"
+          hint="distincts sur l'année"
+          hintTone="neutral"
+        />
+        <StatCard
+          label="Heures dispensées"
+          value={`${pedago.heures} h`}
+          icon={Clock}
+          accent="violet"
+          hint="total heures des dossiers"
+          hintTone="neutral"
+        />
+        <StatCard
+          label="Formateurs intervenus"
+          value={formateurs.total}
+          icon={UserCog}
+          accent="amber"
+          hint={`${formateurs.internes} interne${formateurs.internes > 1 ? 's' : ''} · ${formateurs.externes} externe${formateurs.externes > 1 ? 's' : ''}`}
+          hintTone="neutral"
+        />
+      </section>
 
       {/* Cadre B — Bilan financier (produits) */}
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
