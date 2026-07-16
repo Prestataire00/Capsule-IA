@@ -147,7 +147,8 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                     <span className="text-[11px] text-zinc-400">{d.kind}</span>
                     <StatusPill tone={d.status === 'ready' ? 'success' : 'neutral'}>{d.status}</StatusPill>
                     {d.storage_path && <EmailDocButton documentId={d.id} defaultEmail={learnerEmail} />}
-                    {d.content_html ? (
+                    {d.content_html || d.storage_path ? (
+                      // HTML éditable OU PDF stocké → visualiseur universel (aperçu).
                       <Link
                         href={`/documents/${d.id}/apercu`}
                         className="text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"
@@ -157,6 +158,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                       </Link>
                     ) : (
                       downloadHref && (
+                        // Pas encore de fichier stocké → génération PDF standard à la volée.
                         <a
                           href={downloadHref}
                           target="_blank"
