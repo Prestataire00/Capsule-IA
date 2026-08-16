@@ -102,6 +102,33 @@ export default function NouveauFormateurPage() {
             />
           </FormField>
 
+          {/* Profil public — repris tel quel dans l'équipe pédagogique des formations */}
+          <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 space-y-4">
+            <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Profil</p>
+
+            <FormField
+              label="Description"
+              hint="Parcours, spécialités, expérience — reprise dans l'équipe pédagogique des formations et visible au catalogue"
+            >
+              <textarea
+                name="bio"
+                rows={4}
+                maxLength={5000}
+                className={inputClass}
+                placeholder="15 ans d'expérience en comptabilité, formateur certifié…"
+              />
+            </FormField>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Photo" hint="PNG/JPG/WebP, max 2 Mo — visible au catalogue">
+                <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" className={inputClass} />
+              </FormField>
+              <FormField label="CV" hint="PDF/PNG/JPG, max 10 Mo — preuve Qualiopi, non publié">
+                <input type="file" name="cv" accept="application/pdf,image/png,image/jpeg" className={inputClass} />
+              </FormField>
+            </div>
+          </div>
+
           <div className="flex items-center gap-3 pt-2">
             <button
               type="submit"

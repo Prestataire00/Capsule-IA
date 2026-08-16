@@ -15,7 +15,43 @@ const Schema = z.object({
   specialties: z.array(z.string()).max(12).optional(),
   nda: z.string().trim().max(50).optional().or(z.literal('')),
   zoomUrl: z.string().trim().max(500).optional().or(z.literal('')),
+  bio: z.string().trim().max(5000).optional().or(z.literal('')),
 });
+
+// Photo et CV sont déposés dès la création : le formateur est utilisable
+// immédiatement dans une formation (équipe pédagogique) sans repasser par sa fiche.
+const PHOTO_TYPES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+const CV_TYPES: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+};
+
+/** Dépose un fichier optionnel et renvoie son chemin. Un échec n'annule pas la création. */
+async function uploadOptional(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  file: FormDataEntryValue | null,
+  opts: { bucket: string; path: (ext: string) => string; types: Record<string, string>; maxBytes: number },
+): Promise<string | null> {
+  if (!(file instanceof File) || file.size === 0) return null;
+  const ext = opts.types[file.type];
+  if (!ext || file.size > opts.maxBytes) return null;
+
+  const path = opts.path(ext);
+  const { error } = await admin.storage
+    .from(opts.bucket)
+    .upload(path, await file.arrayBuffer(), { contentType: file.type, upsert: true });
+  if (error) {
+    console.error(`[createTrainer] upload ${opts.bucket}`, error);
+    return null;
+  }
+  return path;
+}
 
 export type CreateTrainerResult =
   | { ok: true; trainerId: string; invited: boolean }
@@ -58,6 +94,7 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
     specialties: payload.specialties ? JSON.parse(payload.specialties) : undefined,
     nda: payload.nda || undefined,
     zoomUrl: payload.zoomUrl || undefined,
+    bio: payload.bio || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'invalid_input', details: parsed.error.flatten() };
 
@@ -75,8 +112,35 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
       specialties: parsed.data.specialties ?? [],
       nda: parsed.data.nda || null,
       zoom_url: parsed.data.zoomUrl || null,
+      bio: parsed.data.bio || null,
     }).select('id, user_id').single();
   if (insertErr || !trainer) return { ok: false, error: 'db_insert_failed', details: insertErr?.message };
+
+  const trainerId = trainer.id as string;
+  const [photoPath, cvPath] = await Promise.all([
+    uploadOptional(admin, formData.get('photo'), {
+      bucket: 'trainer-photos',
+      path: (ext) => `${orgId}/${trainerId}.${ext}`,
+      types: PHOTO_TYPES,
+      maxBytes: 2 * 1024 * 1024,
+    }),
+    uploadOptional(admin, formData.get('cv'), {
+      bucket: 'trainer-cvs',
+      path: (ext) => `${orgId}/${trainerId}/cv.${ext}`,
+      types: CV_TYPES,
+      maxBytes: 10 * 1024 * 1024,
+    }),
+  ]);
+  if (photoPath || cvPath) {
+    await (admin as any)
+      .schema('app')
+      .from('trainers')
+      .update({
+        ...(photoPath ? { photo_path: photoPath } : {}),
+        ...(cvPath ? { cv_path: cvPath } : {}),
+      })
+      .eq('id', trainerId);
+  }
 
   let invited = false;
   if (!trainer.user_id) {
@@ -93,5 +157,5 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
   }
 
   revalidatePath('/formateurs');
-  return { ok: true, trainerId: trainer.id as string, invited };
+  return { ok: true, trainerId, invited };
 }

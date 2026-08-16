@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, Loader2, Save } from 'lucide-react';
+import { Camera, Loader2, Save, FileText, Download } from 'lucide-react';
 import { updateTrainerBio } from './profile-actions';
 
 export function TrainerProfileEdit({
@@ -10,16 +10,23 @@ export function TrainerProfileEdit({
   photoUrl,
   initials,
   bio,
+  cvUrl,
 }: {
   trainerId: string;
   photoUrl: string | null;
   initials: string;
   bio: string;
+  /** URL signée du CV (bucket privé), null si aucun CV déposé. */
+  cvUrl: string | null;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [photoErr, setPhotoErr] = useState<string | null>(null);
+
+  const cvInputRef = useRef<HTMLInputElement>(null);
+  const [cvUploading, setCvUploading] = useState(false);
+  const [cvErr, setCvErr] = useState<string | null>(null);
 
   const [bioValue, setBioValue] = useState(bio);
   const [savingBio, startSaveBio] = useTransition();
@@ -51,6 +58,34 @@ export function TrainerProfileEdit({
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  async function onPickCv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCvErr(null);
+    if (!['application/pdf', 'image/png', 'image/jpeg'].includes(file.type)) {
+      setCvErr('PDF, PNG ou JPG uniquement.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setCvErr('Fichier trop lourd (max 10 Mo).');
+      return;
+    }
+    setCvUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set('file', file);
+      const res = await fetch(`/formateurs/${trainerId}/cv/upload`, { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!json.ok) setCvErr(json.error === 'forbidden' ? 'Réservé aux administrateurs.' : "Échec de l'envoi.");
+      else router.refresh();
+    } catch {
+      setCvErr("Échec de l'envoi.");
+    } finally {
+      setCvUploading(false);
+      if (cvInputRef.current) cvInputRef.current.value = '';
     }
   }
 
@@ -96,6 +131,40 @@ export function TrainerProfileEdit({
           <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">Affichée dans la liste des formateurs. PNG/JPG/WebP, max 2 Mo.</p>
           {photoErr && <p className="text-[12px] text-red-600 mt-1">{photoErr}</p>}
         </div>
+      </div>
+
+      {/* CV */}
+      <div>
+        <label className="block text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium mb-1.5">
+          CV
+        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <input ref={cvInputRef} type="file" accept="application/pdf,image/png,image/jpeg" onChange={onPickCv} className="hidden" />
+          <button
+            type="button"
+            onClick={() => cvInputRef.current?.click()}
+            disabled={cvUploading}
+            className="inline-flex items-center gap-2 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-950 disabled:opacity-50 transition"
+          >
+            {cvUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+            {cvUrl ? 'Remplacer le CV' : 'Déposer le CV'}
+          </button>
+          {cvUrl && (
+            <a
+              href={cvUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[13px] text-violet-600 dark:text-violet-400 hover:underline"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Voir le CV
+            </a>
+          )}
+        </div>
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+          Preuve de compétence Qualiopi (indicateur 21). Non publié au catalogue. PDF/PNG/JPG, max 10 Mo.
+        </p>
+        {cvErr && <p className="text-[12px] text-red-600 mt-1">{cvErr}</p>}
       </div>
 
       {/* Description */}

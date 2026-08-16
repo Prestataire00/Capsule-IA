@@ -8,6 +8,7 @@ import { ArrowLeft, BookOpen } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { FormationForm } from '@/features/formations/ui/formation-form';
 import { loadOrgVat } from '@/features/formations/load-org-vat';
+import { env } from '@/env.mjs';
 import { fromRow, type FormationRowLike } from '@/features/formations/mapping';
 
 const FORMATION_COLUMNS =
@@ -26,7 +27,7 @@ export default async function EditFormationPage({ params }: { params: { id: stri
       .eq('id', params.id)
       .is('deleted_at', null)
       .maybeSingle(),
-    sb.schema('app').from('trainers').select('id, first_name, last_name').is('deleted_at', null).order('last_name', { ascending: true }),
+    sb.schema('app').from('trainers').select('id, first_name, last_name, photo_path, bio').is('deleted_at', null).order('last_name', { ascending: true }),
   ]);
 
   if (!row) return notFound();
@@ -39,6 +40,10 @@ export default async function EditFormationPage({ params }: { params: { id: stri
   const trainers = ((trainerRows as any[]) ?? []).map((t) => ({
     id: t.id as string,
     name: `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || 'Formateur',
+    photoUrl: t.photo_path
+      ? `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/trainer-photos/${t.photo_path}`
+      : null,
+    bio: (t.bio as string | null) ?? '',
   }));
 
   return (

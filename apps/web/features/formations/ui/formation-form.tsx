@@ -41,7 +41,13 @@ import { createFormation, updateFormation } from '../actions';
 import { ImportProgrammeButton } from './import-programme.client';
 import type { ExtractedProgramme } from '../programme/extract-from-pdf';
 
-type Trainer = { id: string; name: string };
+type Trainer = {
+  id: string;
+  name: string;
+  /** Profil public repris dans l'équipe pédagogique et au catalogue. */
+  photoUrl: string | null;
+  bio: string;
+};
 
 const ERROR_LABELS: Record<string, string> = {
   code_already_exists: 'Ce code interne est déjà utilisé par une autre formation de votre organisme.',
@@ -102,6 +108,9 @@ const FIELD_LABELS: Record<string, string> = {
   accessibilityInfo: 'Accessibilité handicap', accessDelay: "Délai d'accès",
   referentContact: 'Référent pédagogique', referentHandicap: 'Référent handicap',
 };
+
+const escapeHtml = (s: string): string =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // ── Wrappers présentationnels (module scope → pas de remount au render) ─────────
 function Err({ msg }: { msg?: string }) {
@@ -302,6 +311,9 @@ export function FormationForm({
     const other = priceMode === 'ttc' ? amount / (1 + vatRate / 100) : amount * (1 + vatRate / 100);
     return `${other.toFixed(2).replace('.', ',')} € ${priceMode === 'ttc' ? 'HT' : 'TTC'}`;
   })();
+
+  const defaultTrainerId = watch('defaultTrainerId');
+  const selectedTrainer = trainers.find((t) => t.id === defaultTrainerId) ?? null;
 
   const recyclingEnabled = watch('recyclingEnabled');
   const certifying = watch('certifying');
@@ -736,10 +748,24 @@ export function FormationForm({
           <textarea rows={3} {...register('targetAudience')} className={inputClass} placeholder="Comptables débutants…" />
         </FormField>
         <RichField name="pedagogicalMethod" label="Méthodes pédagogiques" control={control} minHeight={90} />
-        <RichField name="teachingTeam" label="Équipe pédagogique" control={control} minHeight={90} />
         <Row cols={2}>
-          <FormField label="Formateur par défaut">
-            <select {...register('defaultTrainerId')} className={inputClass}>
+          <FormField
+            label="Formateur par défaut"
+            hint="Sa photo et sa description sont reprises automatiquement au catalogue"
+          >
+            <select
+              {...register('defaultTrainerId')}
+              className={inputClass}
+              onChange={(e) => {
+                register('defaultTrainerId').onChange(e);
+                const picked = trainers.find((t) => t.id === e.target.value);
+                // La fiche formateur reste la source : on ne recopie sa description
+                // ici que si l'équipe pédagogique est encore vide.
+                if (picked?.bio && !getValues('teachingTeam').trim()) {
+                  setValue('teachingTeam', `<p>${escapeHtml(picked.bio)}</p>`, { shouldDirty: true });
+                }
+              }}
+            >
               <option value="">— Aucun —</option>
               {trainers.map((t) => (
                 <option key={t.id} value={t.id}>

@@ -12,7 +12,8 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { deriveProgramme, type OrgAddress, type ProgrammeFormation, type ProgrammeOrg } from './from-formation';
-import type { Programme } from './types';
+import type { Programme, ProgrammeSection } from './types';
+import { env } from '@/env.mjs';
 
 type Modality = ProgrammeFormation['modality'];
 
@@ -68,6 +69,13 @@ type FullRow = {
   default_duration_hours: number | null;
   metadata: { catalog?: CatalogMeta } | null;
   organization: OrgJson | null;
+  /** Formateur par défaut de la formation (RPC 0126) — profil public seulement. */
+  default_trainer: {
+    first_name: string | null;
+    last_name: string | null;
+    bio: string | null;
+    photo_path: string | null;
+  } | null;
 };
 
 export type PublicProgrammeResult = {
@@ -121,6 +129,33 @@ function mapOrg(o: OrgJson | null): ProgrammeOrg {
   };
 }
 
+const escapeHtml = (v: string): string =>
+  v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function buildTrainerSection(trainer: FullRow['default_trainer']): ProgrammeSection | null {
+  if (!trainer) return null;
+  const name = `${trainer.first_name ?? ''} ${trainer.last_name ?? ''}`.trim();
+  const bio = (trainer.bio ?? '').trim();
+  if (!name && !bio) return null;
+
+  const photoUrl = trainer.photo_path
+    ? `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/trainer-photos/${trainer.photo_path}`
+    : null;
+
+  const photo = photoUrl
+    ? `<img src="${escapeHtml(photoUrl)}" alt="" width="96" height="96" style="border-radius:9999px;object-fit:cover;float:left;margin:0 16px 8px 0" />`
+    : '';
+  const heading = name ? `<p><strong>${escapeHtml(name)}</strong></p>` : '';
+  const body = bio ? `<p>${escapeHtml(bio)}</p>` : '';
+
+  return {
+    id: 'equipe-pedagogique',
+    type: 'richtext',
+    title: 'Équipe pédagogique',
+    html: `${photo}${heading}${body}<div style="clear:both"></div>`,
+  };
+}
+
 export async function getPublicProgramme(formationId: string): Promise<PublicProgrammeResult | null> {
   const id = (formationId ?? '').trim();
   if (!id) return null;
@@ -145,6 +180,16 @@ export async function getPublicProgramme(formationId: string): Promise<PublicPro
   } else if (!programme.header.logoUrl && row.organization?.logo_path) {
     const dataUri = await loadOrgLogoDataUri(supabaseAdmin(), row.organization_id);
     if (dataUri) programme.header = { ...programme.header, logoUrl: dataUri };
+  }
+
+  // Équipe pédagogique : rendue depuis la fiche du formateur par défaut, pas
+  // recopiée dans la formation — modifier sa photo ou sa description sur sa fiche
+  // met le catalogue à jour sans retoucher la formation.
+  const trainerSection = buildTrainerSection(row.default_trainer);
+  if (trainerSection) {
+    const at = programme.sections.findIndex((s) => s.id === trainerSection.id);
+    if (at >= 0) programme.sections[at] = trainerSection;
+    else programme.sections.push(trainerSection);
   }
 
   return {

@@ -24,6 +24,7 @@ type Trainer = {
   specialties: string[] | null;
   contract_path: string | null;
   photo_path: string | null;
+  cv_path: string | null;
   bio: string | null;
 };
 
@@ -37,7 +38,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
   const { data } = await sb
     .schema('app')
     .from('trainers')
-    .select('id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path, photo_path, bio')
+    .select('id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path, photo_path, cv_path, bio')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -67,6 +68,10 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
 
   const initials = `${t.first_name[0] ?? ''}${t.last_name[0] ?? ''}`.toUpperCase();
   const photoUrl = trainerPhotoUrl(t.photo_path);
+  // Bucket privé : URL signée courte, régénérée à chaque affichage de la fiche.
+  const cvUrl = t.cv_path
+    ? (await sb.storage.from('trainer-cvs').createSignedUrl(t.cv_path, 60 * 10)).data?.signedUrl ?? null
+    : null;
 
   return (
     <div className="max-w-3xl w-full mx-auto px-8 py-8">
@@ -124,7 +129,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
 
       <div className="mb-6">
         <Card title="Profil public" icon={UserRound}>
-          <TrainerProfileEdit trainerId={t.id} photoUrl={photoUrl} initials={initials} bio={t.bio ?? ''} />
+          <TrainerProfileEdit trainerId={t.id} photoUrl={photoUrl} initials={initials} bio={t.bio ?? ''} cvUrl={cvUrl} />
         </Card>
       </div>
 
