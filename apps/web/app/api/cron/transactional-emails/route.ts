@@ -17,6 +17,7 @@ import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
 import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
+import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
 import {
   sendNeedsAnalysisForDossier,
   sendNeedsAnalysisForLearner,
@@ -362,7 +363,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
         formationTitle,
         endDate: d.end_date,
         totalHours: d.total_hours,
-        attendanceRate: 95, // TODO: calculer depuis attendance_signatures
+        attendanceRate: await computeDossierAttendanceRate(sb, d.id),
         attestationUrl,
         certificateUrl,
         espaceUrl: espaceUrlFor(d.learner_id),

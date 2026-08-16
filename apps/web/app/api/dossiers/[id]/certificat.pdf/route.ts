@@ -6,6 +6,7 @@ import { loadOrgBranding } from '@/features/documents/load-org-branding';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
 import { canAccessDossier } from '@/features/documents/guard-dossier-access';
+import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,24 +25,6 @@ function composeAddress(addr: AddressJson | null | undefined): string | null {
     addr.country,
   ].filter((p) => p && p.trim().length > 0);
   return parts.length ? parts.join(', ') : null;
-}
-
-async function computeAttendanceRate(sb: ReturnType<typeof admin>, dossierId: string): Promise<number> {
-  const { data: sheets } = await sb
-    .schema('app')
-    .from('attendance_sheets')
-    .select('id')
-    .eq('dossier_id', dossierId);
-  const sheetIds = (sheets ?? []).map((s: { id: string }) => s.id);
-  if (sheetIds.length === 0) return 100;
-
-  const [{ count: totalCount }, { count: signedCount }] = await Promise.all([
-    sb.schema('app').from('attendance_signatures').select('id', { count: 'exact', head: true }).in('attendance_sheet_id', sheetIds),
-    sb.schema('app').from('attendance_signatures').select('id', { count: 'exact', head: true }).in('attendance_sheet_id', sheetIds).not('signed_at', 'is', null),
-  ]);
-  const total = totalCount ?? 0;
-  const signed = signedCount ?? 0;
-  return total > 0 ? (signed / total) * 100 : 100;
 }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -103,7 +86,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const plannedHours = hours?.hours_planned ?? d.total_hours;
   const deliveredHours = hours?.hours_delivered ?? d.total_hours;
-  const attendanceRate = hours?.attendance_rate ?? (await computeAttendanceRate(sb, params.id));
+  const attendanceRate = hours?.attendance_rate ?? (await computeDossierAttendanceRate(sb, params.id));
 
   const branding = await loadOrgBranding(sb as never, d.organization_id);
 
