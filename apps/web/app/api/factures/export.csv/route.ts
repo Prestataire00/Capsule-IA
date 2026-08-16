@@ -2,6 +2,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { can } from '@/shared/lib/auth/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +66,16 @@ function resolvePayer(row: ExportRow): string {
 }
 
 export async function GET(req: NextRequest) {
+  // Le middleware laisse passer /api sans session : la garde est ici. Le filtre
+  // d'organisation est explicite car la RLS `invoices_select` est plus étroite
+  // que la matrice de rôles (elle exclut gestionnaire/référent, qui voient
+  // pourtant la page /factures) — on s'aligne sur la page, pas sur la RLS.
+  const me = await getCurrentMember();
+  if (!me) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+  if (can(me.role, 'billing') === 'none') {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -79,6 +91,7 @@ export async function GET(req: NextRequest) {
     .select(
       'reference, status, issued_at, due_at, paid_at, subtotal_cents, vat_cents, total_cents, currency, dossier:dossiers(reference), funder:funders(name), company:companies(name)',
     )
+    .eq('organization_id', me.organizationId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 

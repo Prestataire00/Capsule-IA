@@ -4,6 +4,8 @@ import { env } from '@/env.mjs';
 import { generateInvoicePDF, type InvoiceInput } from '@/features/documents/generate-invoice-pdf';
 import { loadOrgBranding } from '@/features/documents/load-org-branding';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { can } from '@/shared/lib/auth/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +27,14 @@ function composeAddress(addr: AddressJson | null | undefined): string | null {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  // Le middleware laisse passer /api sans session : sans cette garde, l'UUID de
+  // facture suffisait à télécharger le PDF (identité de l'apprenant, SIRET, montants).
+  const me = await getCurrentMember();
+  if (!me) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+  if (can(me.role, 'billing') === 'none') {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
   const sb = admin();
 
   const { data: invRow, error: invErr } = await sb
@@ -38,6 +48,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       company:companies(name, siret, address)
     `)
     .eq('id', params.id)
+    .eq('organization_id', me.organizationId)
     .maybeSingle();
 
   if (invErr || !invRow) {
