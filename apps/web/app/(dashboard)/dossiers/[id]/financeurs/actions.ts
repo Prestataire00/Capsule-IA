@@ -6,6 +6,7 @@ import { env } from '@/env.mjs';
 import { sendEmail, type EmailAttachment } from '@/shared/lib/email/resend';
 import { funderEmail } from '@/shared/lib/email/templates';
 import { decideTransport } from '@/shared/lib/funders/attachments';
+import { guardRowAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -63,6 +64,8 @@ async function resolveAttachments(
 }
 
 export async function prepareFunderTaskDraft(taskId: string, dossierId: string): Promise<ActionResult> {
+  const guard = await guardRowAction('dossier_funder_tasks', taskId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
 
   const { data: task } = await sb
@@ -115,6 +118,8 @@ export async function prepareFunderTaskDraft(taskId: string, dossierId: string):
 }
 
 export async function sendFunderTask(taskId: string, dossierId: string): Promise<ActionResult> {
+  const guard = await guardRowAction('dossier_funder_tasks', taskId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
 
   const { data: task } = await sb

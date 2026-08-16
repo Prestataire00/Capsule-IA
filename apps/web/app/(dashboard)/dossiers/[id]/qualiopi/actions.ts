@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { guardRowAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -26,6 +27,8 @@ function explainGateError(message: string | undefined): string {
 }
 
 async function transition(dossierId: string, to: 'active' | 'closed'): Promise<ActionResult> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
   const { error } = await sb
     .schema('app')
@@ -47,6 +50,8 @@ export async function closeDossier(dossierId: string): Promise<ActionResult> {
 
 // Recalcul manuel de la checklist (bouton « Recalculer »).
 export async function recomputeNow(dossierId: string): Promise<ActionResult> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (sb as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossierId });

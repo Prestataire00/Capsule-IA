@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { guardRowAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -19,6 +20,8 @@ async function recompute(sb: ReturnType<typeof admin>, sessionId: string): Promi
 export async function linkDossierToSession(
   sessionId: string, dossierId: string, primaryDossierId: string,
 ): Promise<ActionResult> {
+  const guard = await guardRowAction('sessions', sessionId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
   const { data: session } = await sb.schema('app').from('sessions')
     .select('organization_id').eq('id', sessionId).maybeSingle();
@@ -38,6 +41,8 @@ export async function linkDossierToSession(
 export async function unlinkDossierFromSession(
   sessionId: string, dossierId: string, primaryDossierId: string,
 ): Promise<ActionResult> {
+  const guard = await guardRowAction('sessions', sessionId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
   const { error } = await sb.schema('app').from('session_dossiers')
     .delete().eq('session_id', sessionId).eq('dossier_id', dossierId);
@@ -51,6 +56,8 @@ export async function unlinkDossierFromSession(
 export async function overrideParticipant(
   sessionId: string, learnerId: string, action: 'add' | 'remove', primaryDossierId: string,
 ): Promise<ActionResult> {
+  const guard = await guardRowAction('sessions', sessionId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
   const { data: session } = await sb.schema('app').from('sessions')
     .select('organization_id').eq('id', sessionId).maybeSingle();

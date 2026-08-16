@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { env } from '@/env.mjs';
+import { guardRowAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -39,6 +40,9 @@ async function getOrgId(complaintId: string): Promise<string | null> {
 export async function replyToComplaint(input: z.infer<typeof replySchema>): Promise<ActionResult> {
   const parsed = replySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'invalid_input' };
+
+  const guard = await guardRowAction('complaints', parsed.data.complaintId, 'qualiopi');
+  if (!guard.ok) return { ok: false, error: guard.error };
 
   const orgId = await getOrgId(parsed.data.complaintId);
   if (!orgId) return { ok: false, error: 'complaint_not_found' };
@@ -80,6 +84,9 @@ export async function replyToComplaint(input: z.infer<typeof replySchema>): Prom
 export async function changeComplaintStatus(input: z.infer<typeof statusSchema>): Promise<ActionResult> {
   const parsed = statusSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'invalid_input' };
+
+  const guard = await guardRowAction('complaints', parsed.data.complaintId, 'qualiopi');
+  if (!guard.ok) return { ok: false, error: guard.error };
 
   const orgId = await getOrgId(parsed.data.complaintId);
   if (!orgId) return { ok: false, error: 'complaint_not_found' };

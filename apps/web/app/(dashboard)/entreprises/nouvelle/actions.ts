@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { guardAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -15,10 +16,13 @@ const str = (fd: FormData, k: string) => {
 };
 
 export async function createCompany(fd: FormData): Promise<void> {
+  // `service_role` : ni la session ni l'organisation ne sont vérifiées par la RLS.
+  // L'organisation vient du membre connecté, et non du premier organisme en base.
+  const guard = await guardAction('crm');
+  if (!guard.ok) redirect(`/entreprises?error=${guard.error}`);
+  const orgId = guard.member.organizationId;
+
   const sb = admin();
-  const { data: org } = await sb.schema('app').from('organizations').select('id').limit(1).maybeSingle();
-  const orgId = (org as { id?: string } | null)?.id;
-  if (!orgId) redirect('/entreprises?error=no_org');
 
   const name = str(fd, 'name');
   if (!name) redirect('/entreprises/nouvelle?error=name');

@@ -9,6 +9,7 @@ import { generateLegalDoc } from '@/shared/lib/ai/generate-legal-doc';
 import type { OrgInfo } from '@/shared/lib/ai/build-legal-prompt';
 import { generateLegalDocPDF } from '@/features/documents/generate-legal-doc-pdf';
 import { loadOrgBranding } from '@/features/documents/load-org-branding';
+import { guardAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -16,6 +17,18 @@ const admin = () =>
   });
 
 type ActionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * `orgId` arrive du composant client : sans cette garde, il suffisait de le
+ * remplacer pour générer ou écraser les documents légaux d'un autre organisme.
+ * Renvoie l'erreur à propager, ou `null` si l'appel est légitime.
+ */
+async function guardOrg(orgId: string): Promise<{ ok: false; error: string } | null> {
+  const guard = await guardAction('settings');
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (guard.member.organizationId !== orgId) return { ok: false, error: 'forbidden' };
+  return null;
+}
 
 const KIND_TITLE: Record<LegalKind, string> = {
   reglement_interieur: 'Règlement intérieur',
@@ -81,6 +94,8 @@ async function orgInfo(
 }
 
 export async function generateLegalDocDraft(orgId: string, kind: LegalKind): Promise<ActionResult> {
+  const guard = await guardOrg(orgId);
+  if (guard) return guard;
   const sb = admin();
   const refs = articlesFor(kind);
   const fetched = await Promise.all(refs.map((r) => fetchArticle(r)));
@@ -112,6 +127,8 @@ export async function generateLegalDocDraft(orgId: string, kind: LegalKind): Pro
 }
 
 export async function saveLegalDocEdit(orgId: string, kind: LegalKind, contentMd: string): Promise<ActionResult> {
+  const guard = await guardOrg(orgId);
+  if (guard) return guard;
   const sb = admin();
   const { error } = await sb
     .schema('app')
@@ -125,6 +142,8 @@ export async function saveLegalDocEdit(orgId: string, kind: LegalKind, contentMd
 }
 
 export async function validateLegalDoc(orgId: string, kind: LegalKind): Promise<ActionResult> {
+  const guard = await guardOrg(orgId);
+  if (guard) return guard;
   const sb = admin();
   const { data: doc } = await sb
     .schema('app')

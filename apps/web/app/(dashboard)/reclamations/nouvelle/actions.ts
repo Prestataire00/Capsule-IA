@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { guardAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -18,10 +19,13 @@ const SOURCES = ['email', 'phone', 'questionnaire', 'in_person', 'other'] as con
 const SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
 
 export async function createComplaint(fd: FormData): Promise<void> {
+  // `service_role` : ni la session ni l'organisation ne sont vérifiées par la RLS.
+  // L'organisation vient du membre connecté, et non du premier organisme en base.
+  const guard = await guardAction('qualiopi');
+  if (!guard.ok) redirect(`/reclamations?error=${guard.error}`);
+  const orgId = guard.member.organizationId;
+
   const sb = admin();
-  const { data: org } = await sb.schema('app').from('organizations').select('id').limit(1).maybeSingle();
-  const orgId = (org as { id?: string } | null)?.id;
-  if (!orgId) redirect('/reclamations?error=no_org');
 
   const subject = str(fd, 'subject');
   const description = str(fd, 'description');

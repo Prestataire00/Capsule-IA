@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { guardRowAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -19,6 +20,8 @@ async function recompute(sb: ReturnType<typeof admin>, dossierId: string): Promi
 export async function markDossierAbandoned(
   dossierId: string, date: string, reason: string,
 ): Promise<ActionResult> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: 'Date invalide' };
   const sb = admin();
   const { error } = await sb.schema('app').from('dossiers')
@@ -31,6 +34,8 @@ export async function markDossierAbandoned(
 }
 
 export async function recomputeHoursNow(dossierId: string): Promise<ActionResult> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
   await recompute(sb, dossierId);
   revalidatePath(`/dossiers/${dossierId}/heures`);

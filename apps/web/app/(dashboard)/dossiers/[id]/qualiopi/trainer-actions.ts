@@ -7,6 +7,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { guardRowAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -16,6 +17,8 @@ const admin = () =>
 type Result = { ok: true } | { ok: false; error: string };
 
 export async function assignDossierTrainer(dossierId: string, trainerId: string): Promise<Result> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   if (!trainerId) return { ok: false, error: 'no_trainer' };
   const sb = admin();
 

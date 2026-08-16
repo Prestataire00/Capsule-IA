@@ -66,4 +66,44 @@ describe('routes API et service_role', () => {
 
     expect(offenders, `routes service_role sans garde :\n${offenders.join('\n')}`).toEqual([]);
   });
+
+  it('aucune Server Action du dashboard en service_role sans garde', () => {
+    // Une Server Action est un endpoint POST appelable par quiconque connaît son
+    // identifiant : masquer le bouton ne protège rien, et `service_role` contourne
+    // la RLS. Bugs réels corrigés le 2026-08-16 (startTraining/closeDossier sur
+    // n'importe quel dossier, création d'entreprise sur le mauvais organisme…).
+    const DASHBOARD = path.resolve(__dirname, '../app/(dashboard)');
+    const ACTION_GUARDS = [
+      'guardAction',
+      'guardRowAction',
+      'authActionClient',
+      'getCurrentMember',
+      'requireAccess',
+      'canManageSection',
+      'assertSessionAccess',
+      'canAccessDossier',
+      'auth.getUser',
+    ];
+
+    const walk = (dir: string, out: string[] = []): string[] => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(p, out);
+        else if (entry.name.endsWith('.ts')) out.push(p);
+      }
+      return out;
+    };
+
+    const offenders = walk(DASHBOARD).filter((file) => {
+      const source = fs.readFileSync(file, 'utf-8');
+      if (!/^'use server'/m.test(source)) return false;
+      if (!source.includes('SUPABASE_SERVICE_ROLE_KEY') && !source.includes('supabaseAdmin')) return false;
+      return !ACTION_GUARDS.some((g) => source.includes(g));
+    });
+
+    expect(
+      offenders.map((f) => path.relative(DASHBOARD, f)),
+      'Server Actions service_role sans garde de session',
+    ).toEqual([]);
+  });
 });

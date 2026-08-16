@@ -6,6 +6,7 @@ import { env } from '@/env.mjs';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { welcomePacketEmail } from '@/shared/lib/email/templates';
+import { guardAction, guardRowAction } from '@/shared/lib/auth/guard-action';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -20,6 +21,8 @@ export type GenerateLinkResult =
   | { ok: false; error: string };
 
 export async function generateApprenantLink(dossierId: string): Promise<GenerateLinkResult> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
   const { data, error } = await sb
     .schema('app')
@@ -73,6 +76,9 @@ export async function sendApprenantLinkEmail(input: {
   learnerEmail: string;
   learnerName: string;
 }): Promise<SendLinkResult> {
+  // Envoi d'un e-mail vers une adresse arbitraire : garde de session, sans cible en base à vérifier.
+  const guard = await guardAction('dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const expiresInDays = 90;
 
   const result = await sendEmail({
@@ -120,6 +126,8 @@ export type SendWelcomePacketResult =
   | { ok: false; error: string };
 
 export async function sendWelcomePacketEmail(dossierId: string): Promise<SendWelcomePacketResult> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
   const sb = admin();
 
   const { data: dossierRow, error: dossierErr } = await sb
