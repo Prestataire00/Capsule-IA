@@ -452,7 +452,11 @@ export function FormationForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onValid, onInvalid)} className="space-y-4">
+    // `noValidate` : la validation du navigateur (type="email", type="number",
+    // type="date") ne sait pas ouvrir une section d'accordéon fermée. Un champ
+    // invalide qui s'y trouve bloque l'envoi SANS message — « rien ne se passe ».
+    // Zod est donc seul juge : il rouvre la section et nomme le champ fautif.
+    <form noValidate onSubmit={handleSubmit(onValid, onInvalid)} className="space-y-4">
       {/* ── Section 1 : Infos générales ─────────────────────────────────── */}
       <AccordionSection
         title="Informations générales"
