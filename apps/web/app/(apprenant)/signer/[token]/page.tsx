@@ -96,6 +96,7 @@ export default async function SignerPage({
 
   const supabase = supabaseServer();
   const { data, error } = await supabase
+    .schema('app')
     .rpc('get_signature_context' as never, {
       p_attendance_sheet_id: attendanceSheetId,
       p_signer_id: signerId,

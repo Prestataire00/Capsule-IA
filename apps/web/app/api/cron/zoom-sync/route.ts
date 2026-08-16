@@ -242,7 +242,7 @@ const syncSession = async (
       } else {
         statusComputed = row.durationMinutes >= ATTENDANCE_THRESHOLD * sessionMinutes ? 'present' : 'late';
       }
-      const { error } = await sb.rpc('record_zoom_attendance' as never, {
+      const { error } = await sb.schema('app').rpc('record_zoom_attendance' as never, {
         p_attendance_sheet_id: sw.id,
         p_learner_id: learnerId,
         p_status: statusComputed,

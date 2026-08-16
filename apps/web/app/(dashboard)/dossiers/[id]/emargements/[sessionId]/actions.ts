@@ -322,7 +322,7 @@ export async function importZoomCsv(input: {
       row.durationMinutes >= ATTENDANCE_THRESHOLD * sessionMinutes ? 'present' : 'late';
     const hash = createHash('sha256').update(row.rawLine).digest('hex');
 
-    const { error } = await sb.rpc('record_attendance_signature' as never, {
+    const { error } = await sb.schema('app').rpc('record_attendance_signature' as never, {
       p_attendance_sheet_id: input.sheetId,
       p_signer_id: learnerId,
       p_signer_kind: 'learner',
@@ -341,7 +341,12 @@ export async function importZoomCsv(input: {
         rawLine: row.rawLine,
       },
     } as never);
-    if (!error) matched++;
+    if (error) {
+      // Sans trace, un échec RPC se traduisait par « 0 ligne rapprochée » sans cause.
+      console.error('[zoom-csv] record_attendance_signature a échoué', error);
+      continue;
+    }
+    matched++;
   }
 
   // 6. INSERT unmatched rows

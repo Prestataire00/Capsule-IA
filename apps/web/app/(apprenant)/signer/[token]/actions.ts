@@ -74,7 +74,7 @@ export const recordSignature = async (
     return { ok: false, error: `storage_upload_failed: ${upload.error.message}` };
   }
 
-  const { data, error } = await sb.rpc('record_attendance_signature' as never, {
+  const { data, error } = await sb.schema('app').rpc('record_attendance_signature' as never, {
     p_attendance_sheet_id: attendanceSheetId,
     p_signer_id: signerId,
     p_signer_kind: signerKind,
