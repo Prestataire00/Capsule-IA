@@ -9,6 +9,7 @@ import {
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, PenLine,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -116,6 +117,7 @@ const GROUPS: Group[] = [
     icon: ShieldCheck,
     items: [
       { href: '/qualiopi', icon: ShieldCheck, label: 'Qualiopi' },
+      { href: '/indicateurs', icon: TrendingUp, label: 'Indicateurs de résultats' },
       { href: '/audit', icon: Activity, label: 'Audit' },
       { href: '/amelioration-continue', icon: Telescope, label: 'Veille & amélioration' },
     ],

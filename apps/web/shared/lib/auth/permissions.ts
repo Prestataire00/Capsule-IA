@@ -71,6 +71,7 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   ['/questionnaires', 'qualiopi'],
   ['/reclamations', 'qualiopi'],
   ['/qualiopi', 'qualiopi'],
+  ['/indicateurs', 'qualiopi'],
   ['/reporting', 'qualiopi'],
   ['/notifications', 'qualiopi'],
   ['/dossiers', 'dossiers'],

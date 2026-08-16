@@ -156,6 +156,41 @@ function buildTrainerSection(trainer: FullRow['default_trainer']): ProgrammeSect
   };
 }
 
+type PublicIndicators = {
+  learners: number;
+  satisfaction_rate: number | null;
+  satisfaction_responses: number;
+  last_session_end: string | null;
+};
+
+/**
+ * Indicateurs de résultats publiés (Qualiopi 2), calculés en base (RPC 0127) :
+ * apprenants formés et satisfaction réelle, jamais une saisie manuelle.
+ */
+function buildIndicatorsSection(ind: PublicIndicators | null): ProgrammeSection | null {
+  if (!ind) return null;
+  const rows: Array<{ label: string; value: string }> = [];
+
+  if (ind.learners > 0) rows.push({ label: 'Apprenants formés', value: String(ind.learners) });
+  if (typeof ind.satisfaction_rate === 'number') {
+    rows.push({
+      label: 'Taux de satisfaction',
+      value: `${ind.satisfaction_rate} % (${ind.satisfaction_responses} réponse${ind.satisfaction_responses > 1 ? 's' : ''})`,
+    });
+  }
+  if (rows.length === 0) return null;
+
+  if (ind.last_session_end) {
+    const d = new Date(ind.last_session_end);
+    if (!Number.isNaN(d.getTime())) {
+      rows.push({ label: 'Dernière session', value: d.toLocaleDateString('fr-FR') });
+    }
+  }
+  rows.push({ label: 'Mise à jour', value: new Date().toLocaleDateString('fr-FR') });
+
+  return { id: 'indicateurs-resultats', type: 'keyvalue', title: 'Indicateurs de résultats', rows };
+}
+
 export async function getPublicProgramme(formationId: string): Promise<PublicProgrammeResult | null> {
   const id = (formationId ?? '').trim();
   if (!id) return null;
@@ -185,6 +220,19 @@ export async function getPublicProgramme(formationId: string): Promise<PublicPro
   // Équipe pédagogique : rendue depuis la fiche du formateur par défaut, pas
   // recopiée dans la formation — modifier sa photo ou sa description sur sa fiche
   // met le catalogue à jour sans retoucher la formation.
+  const { data: indicatorsRow } = await sb.rpc(
+    'get_published_formation_indicators' as never,
+    { p_id: id } as never,
+  );
+  const indicatorsSection = buildIndicatorsSection(
+    (indicatorsRow as unknown as PublicIndicators | null) ?? null,
+  );
+  if (indicatorsSection) {
+    const at = programme.sections.findIndex((s) => s.id === indicatorsSection.id);
+    if (at >= 0) programme.sections[at] = indicatorsSection;
+    else programme.sections.push(indicatorsSection);
+  }
+
   const trainerSection = buildTrainerSection(row.default_trainer);
   if (trainerSection) {
     const at = programme.sections.findIndex((s) => s.id === trainerSection.id);
