@@ -29,6 +29,8 @@ export const PROGRAM_CATEGORIES = [
   'Management',
   'Langues',
   'Informatique / Numérique',
+  'Intelligence artificielle',
+  'Automatisation / No-code',
   'RH / Paie',
   'Sécurité / Prévention',
   'Santé / Social',
@@ -72,14 +74,31 @@ export const VALIDITY_UNITS = [
   { value: 'mois', label: 'mois' },
 ] as const satisfies readonly Option[];
 
-/** Sous-ensemble de codes NSF courants (saisie libre possible dans le formulaire). */
+/**
+ * Valeur sentinelle du sélecteur NSF : bascule le formulaire en saisie libre.
+ * N'est jamais enregistrée — le champ `codeNsf` reçoit alors le texte saisi.
+ */
+export const NSF_FREE_ENTRY = '__saisie_libre__';
+
+/**
+ * Sous-ensemble de codes NSF courants (nomenclature de 1994, arrêté du 09/02/1994).
+ * Elle ne comporte aucune spécialité « intelligence artificielle » ni
+ * « automatisation » : l'usage les rattache à 326 (informatique) ou 201
+ * (technologies de commande / automatismes). D'où le 999 hors nomenclature et
+ * la saisie libre, pour les formations que rien ne décrit correctement.
+ */
 export const NSF_CODES = [
   { value: '', label: '— Non renseigné —' },
+  { value: '100', label: '100 — Formations générales' },
   { value: '110', label: '110 — Spécialités pluriscientifiques' },
   { value: '114', label: '114 — Mathématiques' },
   { value: '120', label: '120 — Spécialités pluridisciplinaires sciences humaines' },
   { value: '136', label: '136 — Langues vivantes, civilisations' },
   { value: '200', label: '200 — Technologies industrielles fondamentales' },
+  { value: '201', label: '201 — Technologies de commande (automatismes, robotique)' },
+  { value: '250', label: '250 — Spécialités pluritechnologiques mécanique-électricité' },
+  { value: '255', label: '255 — Électricité, électronique' },
+  { value: '300', label: '300 — Spécialités plurivalentes des services' },
   { value: '310', label: '310 — Spécialités plurivalentes des échanges et gestion' },
   { value: '311', label: '311 — Transport, manutention, magasinage' },
   { value: '312', label: '312 — Commerce, vente' },
@@ -87,10 +106,14 @@ export const NSF_CODES = [
   { value: '314', label: '314 — Comptabilité, gestion' },
   { value: '315', label: '315 — Ressources humaines, gestion du personnel' },
   { value: '320', label: '320 — Spécialités plurivalentes communication / information' },
-  { value: '326', label: '326 — Informatique, traitement de l’information' },
+  { value: '321', label: '321 — Journalisme, communication' },
+  { value: '324', label: '324 — Secrétariat, bureautique' },
+  { value: '326', label: '326 — Informatique, traitement de l’information (IA, data)' },
   { value: '330', label: '330 — Spécialités plurivalentes sanitaires et sociales' },
+  { value: '413', label: '413 — Développement des capacités comportementales' },
   { value: '415', label: '415 — Développement des capacités individuelles d’organisation' },
-  { value: 'professionnel', label: 'Saisie libre…' },
+  { value: '999', label: '999 — Autres spécialités (hors nomenclature)' },
+  { value: NSF_FREE_ENTRY, label: 'Saisie libre…' },
 ] as const satisfies readonly Option[];
 
 

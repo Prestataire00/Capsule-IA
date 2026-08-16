@@ -27,6 +27,7 @@ import {
   FUNDING_TYPES,
   MODALITIES,
   NSF_CODES,
+  NSF_FREE_ENTRY,
   PROGRAM_CATEGORIES,
   STATUSES,
   VALIDITY_UNITS,
@@ -259,10 +260,20 @@ export function FormationForm({
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<FormationFormValues>({
     resolver: zodResolver(formationFormSchema),
     defaultValues: initial ?? emptyFormationValues,
+  });
+
+  // Le sélecteur NSF bascule en saisie libre quand la nomenclature ne couvre pas
+  // la spécialité (IA, automatisation…). Une valeur enregistrée hors liste — y
+  // compris l'ancienne sentinelle `professionnel` — rouvre la saisie libre.
+  const codeNsf = watch('codeNsf');
+  const [nsfFree, setNsfFree] = useState(() => {
+    const initialCode = initial?.codeNsf ?? '';
+    return initialCode !== '' && !NSF_CODES.some((n) => n.value === initialCode);
   });
 
   const recyclingEnabled = watch('recyclingEnabled');
@@ -452,13 +463,32 @@ export function FormationForm({
         </Row>
         <Row cols={3}>
           <FormField label="Code NSF">
-            <select {...register('codeNsf')} className={inputClass}>
-              {NSF_CODES.map((n) => (
-                <option key={n.value} value={n.value}>
-                  {n.label}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-2">
+              <select
+                value={nsfFree ? NSF_FREE_ENTRY : codeNsf}
+                onChange={(e) => {
+                  const picked = e.target.value;
+                  setNsfFree(picked === NSF_FREE_ENTRY);
+                  setValue('codeNsf', picked === NSF_FREE_ENTRY ? '' : picked, { shouldDirty: true });
+                }}
+                className={inputClass}
+              >
+                {NSF_CODES.map((n) => (
+                  <option key={n.value} value={n.value}>
+                    {n.label}
+                  </option>
+                ))}
+              </select>
+              {nsfFree && (
+                <input
+                  {...register('codeNsf')}
+                  placeholder="Ex. : Intelligence artificielle générative"
+                  className={inputClass}
+                  aria-label="Spécialité NSF en saisie libre"
+                />
+              )}
+            </div>
+            <Err msg={errors.codeNsf?.message} />
           </FormField>
           <FormField label="Type de certification">
             <select {...register('certifType')} className={inputClass}>
