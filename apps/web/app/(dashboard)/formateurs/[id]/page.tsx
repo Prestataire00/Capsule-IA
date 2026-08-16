@@ -3,12 +3,13 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase, UserRound } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase, UserRound, UserCog } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { ContractUpload } from './contract-upload';
 import { ContractGenerate } from './contract-generate';
 import { TrainerProfileEdit } from './profile-edit';
+import { TrainerIdentityEdit } from './identity-edit';
 
 type Trainer = {
   id: string;
@@ -126,6 +127,25 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
           </p>
         )}
       </header>
+
+      <div className="mb-6">
+        <Card title="Fiche formateur" icon={UserCog}>
+          <TrainerIdentityEdit
+            trainerId={t.id}
+            initial={{
+              firstName: t.first_name ?? '',
+              lastName: t.last_name ?? '',
+              email: t.email ?? '',
+              phone: t.phone ?? '',
+              isInternal: Boolean(t.is_internal),
+              siret: t.siret ?? '',
+              nda: t.nda ?? '',
+              zoomUrl: t.zoom_url ?? '',
+              specialties: t.specialties ?? [],
+            }}
+          />
+        </Card>
+      </div>
 
       <div className="mb-6">
         <Card title="Profil public" icon={UserRound}>

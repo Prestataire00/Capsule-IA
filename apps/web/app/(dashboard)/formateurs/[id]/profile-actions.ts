@@ -1,10 +1,122 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { sendTrainerInvite } from '@/features/trainers/send-trainer-invite';
 
 type Result = { ok: true } | { ok: false; error: string };
+
+const optional = (max: number) => z.string().trim().max(max).optional().or(z.literal(''));
+
+export const TrainerIdentitySchema = z.object({
+  firstName: z.string().trim().min(1, 'Le prénom est requis').max(100),
+  lastName: z.string().trim().min(1, 'Le nom est requis').max(100),
+  email: z.string().trim().email('E-mail invalide').max(255),
+  phone: optional(30),
+  isInternal: z.boolean(),
+  siret: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s+/g, ''))
+    .refine((v) => v === '' || /^\d{14}$/.test(v), 'SIRET : 14 chiffres')
+    .optional()
+    .or(z.literal('')),
+  nda: optional(50),
+  zoomUrl: optional(500),
+  specialties: z.array(z.string().trim().max(60)).max(12),
+});
+
+export type TrainerIdentityInput = z.infer<typeof TrainerIdentitySchema>;
+
+/**
+ * Édition complète de la fiche formateur. L'e-mail sert de clé de rattachement
+ * au compte : le modifier ne renomme pas le compte Supabase existant — il faut
+ * renvoyer une invitation à la nouvelle adresse (bouton dédié).
+ */
+export async function updateTrainerIdentity(
+  trainerId: string,
+  input: TrainerIdentityInput,
+): Promise<Result> {
+  await requireAccess('dossiers', 'manage');
+
+  const parsed = TrainerIdentitySchema.safeParse(input);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first?.message ?? 'Champs invalides.' };
+  }
+
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .schema('app')
+    .from('trainers')
+    .update({
+      first_name: parsed.data.firstName,
+      last_name: parsed.data.lastName,
+      email: parsed.data.email.toLowerCase(),
+      phone: parsed.data.phone || null,
+      is_internal: parsed.data.isInternal,
+      siret: parsed.data.siret || null,
+      nda: parsed.data.nda || null,
+      zoom_url: parsed.data.zoomUrl || null,
+      specialties: parsed.data.specialties,
+    } as never)
+    .eq('id', trainerId)
+    .is('deleted_at', null)
+    .select('id');
+
+  if (error) return { ok: false, error: error.message };
+  // 0 ligne = bloqué par la RLS (pas administrateur de cet organisme).
+  if (!data || (data as unknown[]).length === 0) {
+    return { ok: false, error: "Vous n'avez pas les droits pour modifier ce formateur." };
+  }
+
+  revalidatePath(`/formateurs/${trainerId}`);
+  revalidatePath('/formateurs');
+  return { ok: true };
+}
+
+/** Renvoie l'invitation « finalisez votre espace » au formateur. */
+export async function resendTrainerInvite(trainerId: string): Promise<Result> {
+  await requireAccess('dossiers', 'manage');
+
+  const sb = supabaseServer();
+  const { data } = await sb
+    .schema('app')
+    .from('trainers')
+    .select('email, first_name, organization_id')
+    .eq('id', trainerId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  const trainer = data as { email: string | null; first_name: string | null; organization_id: string } | null;
+  if (!trainer?.email) return { ok: false, error: 'Ce formateur n’a pas d’adresse e-mail.' };
+
+  const { data: org } = await supabaseAdmin()
+    .schema('app')
+    .from('organizations')
+    .select('name')
+    .eq('id', trainer.organization_id)
+    .maybeSingle();
+
+  const res = await sendTrainerInvite({
+    email: trainer.email,
+    firstName: trainer.first_name ?? '',
+    orgName: ((org as { name?: string } | null)?.name) ?? 'votre organisme de formation',
+  });
+  if (!res.ok) {
+    return {
+      ok: false,
+      error:
+        res.reason === 'send_failed'
+          ? "L'e-mail n'a pas pu être envoyé (service e-mail non configuré ?)."
+          : "Le lien d'invitation n'a pas pu être généré.",
+    };
+  }
+  return { ok: true };
+}
 
 /** Met à jour la description (bio) d'un formateur. Staff de l'org (RLS). */
 export async function updateTrainerBio(trainerId: string, bio: string): Promise<Result> {

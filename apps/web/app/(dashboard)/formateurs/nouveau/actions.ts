@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { sendTrainerInvite } from '@/features/trainers/send-trainer-invite';
 
 const Schema = z.object({
   firstName: z.string().trim().min(1).max(100),
@@ -142,19 +143,23 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
       .eq('id', trainerId);
   }
 
-  let invited = false;
-  if (!trainer.user_id) {
-    // user_id NULL après autolink → user n'existe pas → invite magic link
-    const appUrl = process.env.PUBLIC_APP_URL?.replace(/\/$/, '') ?? '';
-    const redirectTo = `${appUrl}/formateur`;
-    const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, { redirectTo });
-    if (inviteErr) {
-      console.error('[createTrainer] invite failed', inviteErr);
-      // Garde la fiche, l'admin pourra renvoyer l'invite plus tard
-    } else {
-      invited = true;
-    }
-  }
+  // Invitation systématique — y compris quand le compte existe déjà (le formateur
+  // reçoit alors un lien de connexion) : il doit savoir qu'un espace l'attend.
+  const { data: org } = await (admin as any)
+    .schema('app')
+    .from('organizations')
+    .select('name')
+    .eq('id', orgId)
+    .maybeSingle();
+
+  const invite = await sendTrainerInvite({
+    email: parsed.data.email,
+    firstName: parsed.data.firstName,
+    orgName: (org?.name as string | null) ?? 'votre organisme de formation',
+  });
+  // Un échec d'envoi ne perd pas la fiche : elle est créée, l'invitation est
+  // renvoyable depuis la fiche formateur.
+  const invited = invite.ok;
 
   revalidatePath('/formateurs');
   return { ok: true, trainerId, invited };

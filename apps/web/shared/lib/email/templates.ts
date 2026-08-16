@@ -73,6 +73,41 @@ export function passwordResetEmail(data: { resetUrl: string }): { subject: strin
   return { subject, html };
 }
 
+export type TrainerWelcomeData = {
+  firstName: string;
+  orgName: string;
+  actionUrl: string;
+  /** true = le compte existe déjà, le lien est une simple connexion. */
+  existingAccount: boolean;
+};
+
+/** Invitation d'un formateur à finaliser son espace (création de fiche formateur). */
+export function trainerWelcomeEmail(data: TrainerWelcomeData): { subject: string; html: string } {
+  const subject = data.existingAccount
+    ? `Votre espace formateur chez ${data.orgName}`
+    : `Finalisez votre espace formateur — ${data.orgName}`;
+
+  const intro = data.existingAccount
+    ? `<strong>${escapeHtml(data.orgName)}</strong> vous a ajouté comme formateur. Votre compte existe déjà : connectez-vous pour retrouver vos sessions.`
+    : `<strong>${escapeHtml(data.orgName)}</strong> vous a ajouté comme formateur et vous invite à finaliser votre espace. Le lien ci-dessous crée votre accès et vous laisse choisir votre mot de passe.`;
+
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Espace formateur</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bonjour ${escapeHtml(data.firstName)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">${intro}</p>
+      <div>${button(data.actionUrl, data.existingAccount ? 'Accéder à mon espace' : 'Finaliser mon espace')}</div>
+      <p style="font-size:13px; color:#52525b; margin:20px 0 0;">
+        Vous y retrouverez vos sessions à venir, vos émargements à signer, vos documents et vos justificatifs de compétence.
+      </p>
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">
+        Ce lien est personnel et à usage unique. S'il a expiré, demandez à ${escapeHtml(data.orgName)} de vous le renvoyer.
+      </p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;
