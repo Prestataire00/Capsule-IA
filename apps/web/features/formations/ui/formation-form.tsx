@@ -46,7 +46,7 @@ import {
 } from '../formation.schema';
 import { createFormation, updateFormation } from '../actions';
 import { ImportProgrammeButton } from './import-programme.client';
-import { contactLabel, contactLine, type OrgContact } from '../org-contact';
+import { contactLabel, type OrgContact } from '../org-contact';
 import type { ExtractedProgramme } from '../programme/extract-from-pdf';
 
 type Trainer = {
@@ -82,7 +82,9 @@ const SECTION3_FIELDS = [
 ] as const;
 const SECTION4_FIELDS = ['evaluationMethod', 'resultIndicators'] as const;
 const SECTION5_FIELDS = [
-  'prerequisites', 'accessibilityInfo', 'accessDelay', 'referentContact', 'referentHandicap',
+  'prerequisites', 'accessibilityInfo', 'accessDelay',
+  'referentContact', 'referentContactEmail', 'referentContactPhone',
+  'referentHandicap', 'referentHandicapEmail', 'referentHandicapPhone',
 ] as const;
 
 // Seuls les champs de la section 1 affichent leur erreur en ligne ; ailleurs on
@@ -114,7 +116,9 @@ const FIELD_LABELS: Record<string, string> = {
   deroulement: 'Déroulement', evaluationMethod: "Modalités d'évaluation",
   resultIndicators: 'Indicateurs de résultats', prerequisites: 'Prérequis',
   accessibilityInfo: 'Accessibilité handicap', accessDelay: "Délai d'accès",
-  referentContact: 'Référent pédagogique', referentHandicap: 'Référent handicap',
+  referentContact: 'Référent pédagogique', referentContactEmail: 'E-mail du référent',
+  referentContactPhone: 'Téléphone du référent', referentHandicap: 'Référent handicap',
+  referentHandicapEmail: 'E-mail du référent handicap', referentHandicapPhone: 'Téléphone du référent handicap',
 };
 
 const escapeHtml = (s: string): string =>
@@ -136,6 +140,9 @@ function ContactField({
   register: UseFormRegister<FormationFormValues>;
   setValue: UseFormSetValue<FormationFormValues>;
 }) {
+  const emailField = `${name}Email` as 'referentContactEmail' | 'referentHandicapEmail';
+  const phoneField = `${name}Phone` as 'referentContactPhone' | 'referentHandicapPhone';
+
   return (
     <div className="space-y-2">
       {contacts.length > 0 && (
@@ -143,7 +150,13 @@ function ContactField({
           defaultValue=""
           onChange={(e) => {
             const picked = contacts.find((c) => c.userId === e.target.value);
-            if (picked) setValue(name, contactLine(picked), { shouldDirty: true });
+            if (picked) {
+              // Les trois champs sont remplis d'un coup : l'apprenant doit pouvoir
+              // écrire ou téléphoner au référent sans chercher ses coordonnées.
+              setValue(name, picked.name, { shouldDirty: true });
+              setValue(emailField, picked.email, { shouldDirty: true });
+              setValue(phoneField, picked.phone, { shouldDirty: true });
+            }
             e.target.value = '';
           }}
           className={inputClass}
@@ -156,7 +169,16 @@ function ContactField({
           ))}
         </select>
       )}
-      <input {...register(name)} placeholder="Nom · e-mail · téléphone" className={inputClass} />
+      <input {...register(name)} placeholder="Nom et prénom" className={inputClass} />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input
+          type="email"
+          {...register(emailField)}
+          placeholder="E-mail de contact"
+          className={inputClass}
+        />
+        <input type="tel" {...register(phoneField)} placeholder="Téléphone" className={inputClass} />
+      </div>
     </div>
   );
 }

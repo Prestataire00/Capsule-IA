@@ -51,6 +51,11 @@ export type ProgrammeFormation = {
   accessibilityInfo: string; // HTML
   accessDelay: string;
   referentContact: string;
+  referentContactEmail: string;
+  referentContactPhone: string;
+  referentHandicap: string;
+  referentHandicapEmail: string;
+  referentHandicapPhone: string;
   deroulement: string;
   modality: 'presentiel' | 'distanciel' | 'hybride';
   durationHours: number | null;
@@ -153,6 +158,11 @@ function buildFooterLines(org: ProgrammeOrg): { legalLine: string; lines: string
   return { legalLine, lines };
 }
 
+/** « Nom — e-mail — tél », en sautant ce qui n'est pas renseigné. */
+function contactValue(name: string, email: string, phone: string): string {
+  return [name, email, phone].map((v) => (v ?? '').trim()).filter(Boolean).join(' — ');
+}
+
 function nonEmptyRows(rows: Array<{ label: string; value: string }>) {
   return rows.filter((r) => r.value.trim() !== '');
 }
@@ -245,7 +255,8 @@ export function deriveProgramme(f: ProgrammeFormation, org: ProgrammeOrg): Progr
     rows: nonEmptyRows([
       { label: 'Accessibilité', value: htmlToPlain(f.accessibilityInfo) },
       { label: 'Délai d’accès', value: f.accessDelay },
-      { label: 'Référent', value: f.referentContact },
+      { label: 'Référent pédagogique', value: contactValue(f.referentContact, f.referentContactEmail, f.referentContactPhone) },
+      { label: 'Référent handicap', value: contactValue(f.referentHandicap, f.referentHandicapEmail, f.referentHandicapPhone) },
     ]),
   });
 

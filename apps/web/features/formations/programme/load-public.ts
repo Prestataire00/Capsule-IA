@@ -38,6 +38,11 @@ type CatalogMeta = {
   accessibilityInfo?: string;
   accessDelay?: string;
   referentContact?: string;
+  referentContactEmail?: string;
+  referentContactPhone?: string;
+  referentHandicap?: string;
+  referentHandicapEmail?: string;
+  referentHandicapPhone?: string;
   deroulement?: string;
   coverPath?: string;
   programme?: Programme;
@@ -105,6 +110,11 @@ function mapFormation(row: FullRow, c: CatalogMeta): ProgrammeFormation {
     accessibilityInfo: c.accessibilityInfo ?? '',
     accessDelay: c.accessDelay ?? '',
     referentContact: c.referentContact ?? '',
+    referentContactEmail: c.referentContactEmail ?? '',
+    referentContactPhone: c.referentContactPhone ?? '',
+    referentHandicap: c.referentHandicap ?? '',
+    referentHandicapEmail: c.referentHandicapEmail ?? '',
+    referentHandicapPhone: c.referentHandicapPhone ?? '',
     deroulement: c.deroulement ?? '',
     modality: toModality(row.default_modality),
     durationHours: row.default_duration_hours,

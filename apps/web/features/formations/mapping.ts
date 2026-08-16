@@ -113,7 +113,11 @@ export type CatalogMeta = {
   accessibilityInfo: string;
   accessDelay: string;
   referentContact: string;
+  referentContactEmail: string;
+  referentContactPhone: string;
   referentHandicap: string;
+  referentHandicapEmail: string;
+  referentHandicapPhone: string;
 };
 
 function toCatalogMeta(v: FormationFormValues): CatalogMeta {
@@ -169,7 +173,11 @@ function toCatalogMeta(v: FormationFormValues): CatalogMeta {
     accessibilityInfo: v.accessibilityInfo,
     accessDelay: v.accessDelay,
     referentContact: v.referentContact,
+    referentContactEmail: v.referentContactEmail,
+    referentContactPhone: v.referentContactPhone,
     referentHandicap: v.referentHandicap,
+    referentHandicapEmail: v.referentHandicapEmail,
+    referentHandicapPhone: v.referentHandicapPhone,
   };
 }
 
@@ -317,6 +325,10 @@ export function fromRow(row: FormationRowLike): FormationFormValues {
     accessibilityInfo: c.accessibilityInfo ?? '',
     accessDelay: c.accessDelay ?? '',
     referentContact: c.referentContact ?? '',
+    referentContactEmail: c.referentContactEmail ?? '',
+    referentContactPhone: c.referentContactPhone ?? '',
     referentHandicap: c.referentHandicap ?? '',
+    referentHandicapEmail: c.referentHandicapEmail ?? '',
+    referentHandicapPhone: c.referentHandicapPhone ?? '',
   };
 }

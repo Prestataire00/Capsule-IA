@@ -103,7 +103,11 @@ export const formationFormSchema = z.object({
   accessibilityInfo: z.string().max(10000), // HTML riche
   accessDelay: z.string().max(5000),
   referentContact: z.string().trim().max(300),
+  referentContactEmail: z.string().trim().max(200),
+  referentContactPhone: z.string().trim().max(40),
   referentHandicap: z.string().trim().max(300),
+  referentHandicapEmail: z.string().trim().max(200),
+  referentHandicapPhone: z.string().trim().max(40),
 });
 
 export type FormationFormValues = z.infer<typeof formationFormSchema>;
@@ -178,5 +182,9 @@ export const emptyFormationValues: FormationFormValues = {
   accessibilityInfo: '',
   accessDelay: '',
   referentContact: '',
+  referentContactEmail: '',
+  referentContactPhone: '',
   referentHandicap: '',
+  referentHandicapEmail: '',
+  referentHandicapPhone: '',
 };
