@@ -6,7 +6,14 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useForm, Controller, type Control, type FieldErrors } from 'react-hook-form';
+import {
+  useForm,
+  Controller,
+  type Control,
+  type FieldErrors,
+  type UseFormRegister,
+  type UseFormSetValue,
+} from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Info,
@@ -39,6 +46,7 @@ import {
 } from '../formation.schema';
 import { createFormation, updateFormation } from '../actions';
 import { ImportProgrammeButton } from './import-programme.client';
+import { contactLabel, contactLine, type OrgContact } from '../org-contact';
 import type { ExtractedProgramme } from '../programme/extract-from-pdf';
 
 type Trainer = {
@@ -111,6 +119,47 @@ const FIELD_LABELS: Record<string, string> = {
 
 const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * Référent : liste déroulante des membres de l'organisme, qui recopie ses
+ * coordonnées dans le champ. La saisie libre reste possible — un référent peut
+ * être une personne hors équipe (prestataire handicap, par exemple).
+ */
+function ContactField({
+  name,
+  contacts,
+  register,
+  setValue,
+}: {
+  name: 'referentContact' | 'referentHandicap';
+  contacts: OrgContact[];
+  register: UseFormRegister<FormationFormValues>;
+  setValue: UseFormSetValue<FormationFormValues>;
+}) {
+  return (
+    <div className="space-y-2">
+      {contacts.length > 0 && (
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            const picked = contacts.find((c) => c.userId === e.target.value);
+            if (picked) setValue(name, contactLine(picked), { shouldDirty: true });
+            e.target.value = '';
+          }}
+          className={inputClass}
+        >
+          <option value="">— Reprendre un membre de l’équipe —</option>
+          {contacts.map((c) => (
+            <option key={c.userId} value={c.userId}>
+              {contactLabel(c)}
+            </option>
+          ))}
+        </select>
+      )}
+      <input {...register(name)} placeholder="Nom · e-mail · téléphone" className={inputClass} />
+    </div>
+  );
+}
 
 // ── Wrappers présentationnels (module scope → pas de remount au render) ─────────
 function Err({ msg }: { msg?: string }) {
@@ -260,6 +309,7 @@ export function FormationForm({
   initial,
   trainers = [],
   orgVat = { regime: 'exempt', rate: 0 },
+  contacts = [],
 }: {
   mode: 'create' | 'edit';
   formationId?: string;
@@ -267,6 +317,8 @@ export function FormationForm({
   trainers?: Trainer[];
   /** Régime de TVA de l'organisme (Paramètres → Organisation) : sert de taux par défaut. */
   orgVat?: OrgVat;
+  /** Membres de l'organisme, proposés comme référents (Paramètres → Membres). */
+  contacts?: OrgContact[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -804,11 +856,11 @@ export function FormationForm({
           <textarea rows={3} {...register('accessDelay')} className={inputClass} />
         </FormField>
         <Row cols={2}>
-          <FormField label="Contact référent">
-            <input {...register('referentContact')} placeholder="Nom et coordonnées" className={inputClass} />
+          <FormField label="Contact référent" hint={contacts.length ? 'Choisissez un membre ou saisissez librement' : undefined}>
+            <ContactField name="referentContact" contacts={contacts} register={register} setValue={setValue} />
           </FormField>
-          <FormField label="Référent handicap">
-            <input {...register('referentHandicap')} placeholder="Nom et coordonnées" className={inputClass} />
+          <FormField label="Référent handicap" hint={contacts.length ? 'Choisissez un membre ou saisissez librement' : undefined}>
+            <ContactField name="referentHandicap" contacts={contacts} register={register} setValue={setValue} />
           </FormField>
         </Row>
       </AccordionSection>
