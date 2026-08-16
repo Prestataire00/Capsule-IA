@@ -76,7 +76,8 @@ const FIELD_LABELS: Record<string, string> = {
   title: 'Titre', subtitle: 'Sous-titre', code: 'Code interne', version: 'Version',
   description: 'Description', modality: 'Modalité', durationHours: 'Durée (heures)',
   durationDays: 'Durée (jours)', effectifMin: 'Effectif minimum', effectifMax: 'Effectif maximum',
-  status: 'Statut', priceBase: 'Tarif de base', priceEntreprise: 'Tarif entreprise',
+  status: 'Statut', priceMode: 'Unité des tarifs', priceVatRate: 'Taux de TVA',
+  priceBase: 'Tarif de base', priceEntreprise: 'Tarif entreprise',
   priceParticulier: 'Tarif particulier', priceIndependant: 'Tarif indépendant',
   categories: 'Catégories', imageUrl: 'Image', videoUrl: 'Vidéo',
   defaultLocation: 'Lieu par défaut', defaultCity: 'Ville par défaut',
@@ -240,16 +241,21 @@ function ListField({
   );
 }
 
+export type OrgVat = { regime: 'exempt' | 'subject'; rate: number };
+
 export function FormationForm({
   mode,
   formationId,
   initial,
   trainers = [],
+  orgVat = { regime: 'exempt', rate: 0 },
 }: {
   mode: 'create' | 'edit';
   formationId?: string;
   initial?: FormationFormValues;
   trainers?: Trainer[];
+  /** Régime de TVA de l'organisme (Paramètres → Organisation) : sert de taux par défaut. */
+  orgVat?: OrgVat;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -264,7 +270,12 @@ export function FormationForm({
     formState: { errors },
   } = useForm<FormationFormValues>({
     resolver: zodResolver(formationFormSchema),
-    defaultValues: initial ?? emptyFormationValues,
+    defaultValues:
+      initial ??
+      ({
+        ...emptyFormationValues,
+        priceVatRate: orgVat.regime === 'subject' ? String(orgVat.rate) : '',
+      } as FormationFormValues),
   });
 
   // Le sélecteur NSF bascule en saisie libre quand la nomenclature ne couvre pas
@@ -275,6 +286,19 @@ export function FormationForm({
     const initialCode = initial?.codeNsf ?? '';
     return initialCode !== '' && !NSF_CODES.some((n) => n.value === initialCode);
   });
+
+  const priceMode = watch('priceMode');
+  const priceVatRate = watch('priceVatRate');
+  const priceBase = watch('priceBase');
+  const vatRate = Number(priceVatRate) > 0 ? Number(priceVatRate) : 0;
+  const priceUnit = priceMode === 'ttc' ? 'TTC' : 'HT';
+  // Contrepartie du tarif de base dans l'autre unité, pour lever le doute à la saisie.
+  const priceCounterpart = (() => {
+    const amount = Number(priceBase);
+    if (!Number.isFinite(amount) || amount <= 0 || vatRate === 0) return null;
+    const other = priceMode === 'ttc' ? amount / (1 + vatRate / 100) : amount * (1 + vatRate / 100);
+    return `${other.toFixed(2).replace('.', ',')} € ${priceMode === 'ttc' ? 'HT' : 'TTC'}`;
+  })();
 
   const recyclingEnabled = watch('recyclingEnabled');
   const certifying = watch('certifying');
@@ -378,18 +402,59 @@ export function FormationForm({
             <input type="number" min={0} {...register('effectifMax')} placeholder="12" className={inputClass} />
           </FormField>
         </Row>
+        <Row cols={2}>
+          <FormField label="Tarifs saisis en">
+            <select {...register('priceMode')} className={inputClass}>
+              <option value="ht">Hors taxes (HT)</option>
+              <option value="ttc">Toutes taxes comprises (TTC)</option>
+            </select>
+          </FormField>
+          <FormField label="Taux de TVA (%)">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
+              {...register('priceVatRate')}
+              placeholder={orgVat.regime === 'subject' ? String(orgVat.rate) : '0 — organisme exonéré'}
+              className={inputClass}
+            />
+            <Err msg={errors.priceVatRate?.message} />
+          </FormField>
+        </Row>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 -mt-1">
+          {orgVat.regime === 'exempt' ? (
+            <>
+              Votre organisme est déclaré <strong>exonéré de TVA</strong> (art. 261-4-4°a CGI) :
+              laissez le taux à 0, HT et TTC sont alors identiques. Le régime se change dans
+              Paramètres → Organisation.
+            </>
+          ) : (
+            <>
+              Taux par défaut de votre organisme : <strong>{orgVat.rate} %</strong>. Vous pouvez le
+              remplacer ici pour cette formation.
+            </>
+          )}{' '}
+          Les montants sont <strong>enregistrés en HT</strong> — c'est ce que reprennent le devis,
+          la facturation et le BPF.
+        </p>
         <Row cols={4}>
-          <FormField label="Prix de base (€)" required>
+          <FormField label={`Prix de base (€ ${priceUnit})`} required>
             <input type="number" min={0} {...register('priceBase')} placeholder="1200" className={inputClass} />
             <Err msg={errors.priceBase?.message} />
+            {priceCounterpart && (
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block mt-1">
+                soit {priceCounterpart}
+              </span>
+            )}
           </FormField>
-          <FormField label="Prix entreprise (€)">
+          <FormField label={`Prix entreprise (€ ${priceUnit})`}>
             <input type="number" min={0} {...register('priceEntreprise')} className={inputClass} />
           </FormField>
-          <FormField label="Prix particulier (€)">
+          <FormField label={`Prix particulier (€ ${priceUnit})`}>
             <input type="number" min={0} {...register('priceParticulier')} className={inputClass} />
           </FormField>
-          <FormField label="Prix indépendant (€)">
+          <FormField label={`Prix indépendant (€ ${priceUnit})`}>
             <input type="number" min={0} {...register('priceIndependant')} className={inputClass} />
           </FormField>
         </Row>

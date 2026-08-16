@@ -55,6 +55,9 @@ export const updateOrgIdentityAction = authActionClient
         },
         representative_name: orNull(parsedInput.representativeName),
         representative_title: orNull(parsedInput.representativeTitle),
+        vat_regime: parsedInput.vatRegime,
+        // Un organisme exonéré ne conserve pas de taux résiduel.
+        default_vat_rate: parsedInput.vatRegime === 'subject' ? parsedInput.defaultVatRate : 0,
       } as never)
       .eq('id', orgId)
       .select('id');

@@ -32,6 +32,10 @@ export const formationFormSchema = z.object({
   effectifMin: optionalNonNegativeNumberString,
   effectifMax: optionalNonNegativeNumberString,
   status: z.enum(['draft', 'published', 'archived']),
+  // Mode de saisie des tarifs : les montants stockés restent HT (source de vérité
+  // pour la facturation) ; en mode 'ttc' la conversion est faite au mapping.
+  priceMode: z.enum(['ht', 'ttc']),
+  priceVatRate: optionalNonNegativeNumberString,
   priceBase: optionalNonNegativeNumberString,
   priceEntreprise: optionalNonNegativeNumberString,
   priceParticulier: optionalNonNegativeNumberString,
@@ -116,6 +120,8 @@ export const emptyFormationValues: FormationFormValues = {
   effectifMin: '',
   effectifMax: '',
   status: 'draft',
+  priceMode: 'ht',
+  priceVatRate: '',
   priceBase: '',
   priceEntreprise: '',
   priceParticulier: '',

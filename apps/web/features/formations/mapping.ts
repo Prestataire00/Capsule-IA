@@ -27,8 +27,38 @@ const centsOrNull = (s: string): number | null => {
 };
 
 const strFrom = (n: number | null | undefined): string => (n === null || n === undefined ? '' : String(n));
+
+/**
+ * Les tarifs sont stockés HT — c'est ce que consomment le devis, le plan de
+ * facturation et le BPF. Une saisie en TTC est donc ramenée au HT avec le taux
+ * retenu sur la formation ; l'unité choisie est mémorisée pour ré-afficher le
+ * formulaire dans la même unité.
+ */
+const vatRateOf = (v: FormationFormValues): number => {
+  const rate = Number(v.priceVatRate);
+  return Number.isFinite(rate) && rate > 0 ? rate : 0;
+};
+
+const htCentsOrNull = (v: FormationFormValues, price: string): number | null => {
+  const cents = centsOrNull(price);
+  if (cents === null) return null;
+  const rate = vatRateOf(v);
+  if (v.priceMode !== 'ttc' || rate === 0) return cents;
+  return Math.round(cents / (1 + rate / 100));
+};
 const eurosFrom = (cents: number | null | undefined): string =>
   cents === null || cents === undefined ? '' : String(cents / 100);
+
+/** Ré-affiche un montant stocké HT dans l'unité de saisie de la formation. */
+const eurosInMode = (
+  c: Partial<CatalogMeta>,
+  htCents: number | null | undefined,
+): string => {
+  if (htCents === null || htCents === undefined) return '';
+  const rate = c.priceMode === 'ttc' ? Number(c.priceVatRate ?? 0) : 0;
+  if (rate <= 0) return eurosFrom(htCents);
+  return eurosFrom(Math.round(htCents * (1 + rate / 100)));
+};
 
 /** Sous-objet metadata.catalog : tous les champs SoSafe sans colonne dédiée. */
 export type CatalogMeta = {
@@ -38,6 +68,8 @@ export type CatalogMeta = {
   durationDays: number | null;
   effectifMin: number | null;
   effectifMax: number | null;
+  priceMode: FormationFormValues['priceMode'];
+  priceVatRate: number | null;
   priceEntrepriseCents: number | null;
   priceParticulierCents: number | null;
   priceIndependantCents: number | null;
@@ -92,9 +124,11 @@ function toCatalogMeta(v: FormationFormValues): CatalogMeta {
     durationDays: numOrNull(v.durationDays),
     effectifMin: numOrNull(v.effectifMin),
     effectifMax: numOrNull(v.effectifMax),
-    priceEntrepriseCents: centsOrNull(v.priceEntreprise),
-    priceParticulierCents: centsOrNull(v.priceParticulier),
-    priceIndependantCents: centsOrNull(v.priceIndependant),
+    priceMode: v.priceMode,
+    priceVatRate: numOrNull(v.priceVatRate),
+    priceEntrepriseCents: htCentsOrNull(v, v.priceEntreprise),
+    priceParticulierCents: htCentsOrNull(v, v.priceParticulier),
+    priceIndependantCents: htCentsOrNull(v, v.priceIndependant),
     categories: v.categories,
     imageUrl: v.imageUrl,
     videoUrl: v.videoUrl,
@@ -156,7 +190,7 @@ function toColumns(v: FormationFormValues) {
     pedagogical_method: v.pedagogicalMethod.trim() || null,
     default_modality: v.modality,
     default_duration_hours: Number(v.durationHours),
-    default_price_cents: centsOrNull(v.priceBase) ?? 0,
+    default_price_cents: htCentsOrNull(v, v.priceBase) ?? 0,
     rncp_code: v.rncpCode.trim() || null,
     rs_code: v.rsCode.trim() || null,
     certificateur: v.certificateur.trim() || null,
@@ -225,10 +259,12 @@ export function fromRow(row: FormationRowLike): FormationFormValues {
     effectifMin: strFrom(c.effectifMin ?? null),
     effectifMax: strFrom(c.effectifMax ?? null),
     status: c.status ?? (row.is_published ? 'published' : 'draft'),
-    priceBase: eurosFrom(row.default_price_cents),
-    priceEntreprise: eurosFrom(c.priceEntrepriseCents ?? null),
-    priceParticulier: eurosFrom(c.priceParticulierCents ?? null),
-    priceIndependant: eurosFrom(c.priceIndependantCents ?? null),
+    priceMode: c.priceMode === 'ttc' ? 'ttc' : 'ht',
+    priceVatRate: strFrom(c.priceVatRate ?? null),
+    priceBase: eurosInMode(c, row.default_price_cents),
+    priceEntreprise: eurosInMode(c, c.priceEntrepriseCents ?? null),
+    priceParticulier: eurosInMode(c, c.priceParticulierCents ?? null),
+    priceIndependant: eurosInMode(c, c.priceIndependantCents ?? null),
     categories: c.categories ?? [],
     imageUrl: c.imageUrl ?? '',
     videoUrl: c.videoUrl ?? '',

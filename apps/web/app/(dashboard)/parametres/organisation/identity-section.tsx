@@ -17,6 +17,8 @@ type IdentityProps = {
   addressCity: string;
   representativeName: string;
   representativeTitle: string;
+  vatRegime: 'exempt' | 'subject';
+  defaultVatRate: string;
 };
 
 const inputCls =
@@ -33,6 +35,8 @@ const FIELD_LABELS: Record<string, string> = {
   address: 'Adresse',
   representativeName: 'Nom du représentant',
   representativeTitle: 'Qualité du représentant',
+  vatRegime: 'Régime de TVA',
+  defaultVatRate: 'Taux de TVA',
 };
 
 export function IdentitySection(props: { org: IdentityProps }) {
@@ -65,6 +69,8 @@ export function IdentitySection(props: { org: IdentityProps }) {
         },
         representativeName: form.representativeName,
         representativeTitle: form.representativeTitle,
+        vatRegime: form.vatRegime,
+        defaultVatRate: Number(form.defaultVatRate) || 0,
       });
       const out = res?.data;
       if (out?.ok) {
@@ -159,6 +165,43 @@ export function IdentitySection(props: { org: IdentityProps }) {
           Qualité du représentant
           <input value={form.representativeTitle} onChange={set('representativeTitle')} className={inputCls} />
         </label>
+      </div>
+
+      <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 space-y-3">
+        <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">TVA</p>
+        <div className="grid grid-cols-2 gap-3">
+          <label className={labelCls}>
+            Régime
+            <select
+              value={form.vatRegime}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, vatRegime: e.target.value as IdentityProps['vatRegime'] }))
+              }
+              className={inputCls}
+            >
+              <option value="exempt">Exonéré (art. 261-4-4°a CGI)</option>
+              <option value="subject">Assujetti</option>
+            </select>
+          </label>
+          <label className={labelCls}>
+            Taux par défaut (%)
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
+              value={form.defaultVatRate}
+              onChange={set('defaultVatRate')}
+              disabled={form.vatRegime === 'exempt'}
+              className={`${inputCls} disabled:opacity-50`}
+            />
+          </label>
+        </div>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          Ce réglage pré-remplit le taux des nouvelles factures et sert de référence aux tarifs du
+          catalogue. La formation professionnelle continue est exonérée de TVA sous réserve de
+          l’attestation fiscale — vérifiez votre situation avant de passer en « assujetti ».
+        </p>
       </div>
 
       {error && <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>}

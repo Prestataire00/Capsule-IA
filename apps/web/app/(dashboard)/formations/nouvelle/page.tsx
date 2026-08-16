@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { FormationForm } from '@/features/formations/ui/formation-form';
+import { loadOrgVat } from '@/features/formations/load-org-vat';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export default async function NouvelleFormationPage() {
@@ -19,6 +20,8 @@ export default async function NouvelleFormationPage() {
     .order('last_name', { ascending: true });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const orgVat = await loadOrgVat();
+
   const trainers = ((trainerRows as any[]) ?? []).map((t) => ({
     id: t.id as string,
     name: `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || 'Formateur',
@@ -47,7 +50,7 @@ export default async function NouvelleFormationPage() {
           </div>
         </header>
 
-        <FormationForm mode="create" trainers={trainers} />
+        <FormationForm mode="create" trainers={trainers} orgVat={orgVat} />
       </div>
     </div>
   );

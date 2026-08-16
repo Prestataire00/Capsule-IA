@@ -6,6 +6,7 @@ import { env } from '@/env.mjs';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { createInvoice } from '../actions';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { loadOrgVat } from '@/features/formations/load-org-vat';
 import {
   buildBillingPlan,
   type FunderAllocationInput,
@@ -109,7 +110,7 @@ export default async function NouvelleFacturePage({
   searchParams: { error?: string; dossierId?: string; payer?: string };
 }) {
   await requireAccess('billing', 'manage');
-  const dossiersList = await loadDossiers();
+  const [dossiersList, orgVat] = await Promise.all([loadDossiers(), loadOrgVat()]);
 
   const prefillDossierId = searchParams.dossierId ?? '';
   const plan = prefillDossierId ? await loadDossierBilling(prefillDossierId) : null;
@@ -271,7 +272,7 @@ export default async function NouvelleFacturePage({
                 <input
                   type="number"
                   name="vatRate"
-                  defaultValue="20"
+                  defaultValue={String(orgVat.regime === 'subject' ? orgVat.rate : 0)}
                   min={0}
                   max={100}
                   step={0.1}
@@ -280,8 +281,12 @@ export default async function NouvelleFacturePage({
               </FormField>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 -mt-1">
-              💡 Prix HT en <strong>euros</strong> (ex : 3500 = 3 500,00 €). Les formations
-              professionnelles sont souvent exonérées de TVA (mettre 0).
+              💡 Prix HT en <strong>euros</strong> (ex : 3500 = 3 500,00 €). Taux pré-rempli
+              d'après le régime de votre organisme
+              {orgVat.regime === 'exempt'
+                ? ' (exonéré, art. 261-4-4°a CGI)'
+                : ` (assujetti, ${orgVat.rate} %)`}
+              , modifiable ici.
               {prefillAmountCents != null && (
                 <>
                   {' '}

@@ -18,6 +18,8 @@ type OrgRow = {
   contact_phone: string | null;
   address: Record<string, unknown> | null;
   representative_name: string | null;
+  vat_regime: string | null;
+  default_vat_rate: number | null;
   representative_title: string | null;
   signature_path: string | null;
   stamp_path: string | null;
@@ -37,7 +39,7 @@ export default async function ParametresOrganisationPage() {
     .schema('app')
     .from('organizations')
     .select(
-      'name, legal_name, siret, declaration_activite, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path, logo_path',
+      'name, legal_name, siret, declaration_activite, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path, logo_path, vat_regime, default_vat_rate',
     )
     .is('deleted_at', null)
     .limit(1)
@@ -52,6 +54,8 @@ export default async function ParametresOrganisationPage() {
     contact_phone: null,
     address: null,
     representative_name: null,
+    vat_regime: 'exempt',
+    default_vat_rate: 0,
     representative_title: null,
     signature_path: null,
     stamp_path: null,
@@ -72,6 +76,8 @@ export default async function ParametresOrganisationPage() {
           addressCity: addr(org.address, 'city'),
           representativeName: org.representative_name ?? '',
           representativeTitle: org.representative_title ?? '',
+          vatRegime: org.vat_regime === 'subject' ? 'subject' : 'exempt',
+          defaultVatRate: String(org.default_vat_rate ?? 0),
         }}
       />
 

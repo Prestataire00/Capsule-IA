@@ -97,3 +97,46 @@ describe('round-trip fromRow(toInsert(...))', () => {
     expect(back.priceBase).toBe('0');
   });
 });
+
+describe('tarifs HT / TTC', () => {
+  const ttc = (over: Partial<FormationFormValues> = {}): FormationFormValues => ({
+    ...emptyFormationValues,
+    title: 'Formation IA',
+    durationHours: '7',
+    priceMode: 'ttc',
+    priceVatRate: '20',
+    priceBase: '1200',
+    priceEntreprise: '1440',
+    ...over,
+  });
+
+  it('convertit une saisie TTC en HT avant enregistrement', () => {
+    const row = toInsert(ttc(), ctx);
+    // 1 200 € TTC à 20 % = 1 000 € HT
+    expect(row.default_price_cents).toBe(100000);
+    expect(row.metadata.catalog.priceEntrepriseCents).toBe(120000);
+    expect(row.metadata.catalog.priceMode).toBe('ttc');
+    expect(row.metadata.catalog.priceVatRate).toBe(20);
+  });
+
+  it('laisse une saisie HT intacte, taux ou pas', () => {
+    const row = toInsert(ttc({ priceMode: 'ht' }), ctx);
+    expect(row.default_price_cents).toBe(120000);
+  });
+
+  it('ignore le mode TTC quand le taux est nul (organisme exonéré)', () => {
+    const row = toInsert(ttc({ priceVatRate: '0' }), ctx);
+    expect(row.default_price_cents).toBe(120000);
+  });
+
+  it('ré-affiche le formulaire dans l’unité de saisie', () => {
+    const row = toInsert(ttc(), ctx);
+    const back = fromRow({
+      ...(row as unknown as FormationRowLike),
+      default_price_cents: row.default_price_cents,
+    });
+    expect(back.priceMode).toBe('ttc');
+    expect(back.priceBase).toBe('1200');
+    expect(back.priceEntreprise).toBe('1440');
+  });
+});

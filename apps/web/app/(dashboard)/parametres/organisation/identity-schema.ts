@@ -24,6 +24,10 @@ export const OrgIdentitySchema = z.object({
   }),
   representativeName: optionalText,
   representativeTitle: optionalText,
+  // Régime de TVA : la plupart des organismes de formation sont exonérés
+  // (art. 261-4-4°a CGI). Le taux ne s'applique que si l'organisme est assujetti.
+  vatRegime: z.enum(['exempt', 'subject']),
+  defaultVatRate: z.coerce.number().min(0).max(100),
 });
 
 export type OrgIdentityInput = z.infer<typeof OrgIdentitySchema>;
