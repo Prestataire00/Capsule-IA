@@ -38,6 +38,8 @@ import {
   type FormationFormValues,
 } from '../formation.schema';
 import { createFormation, updateFormation } from '../actions';
+import { ImportProgrammeButton } from './import-programme.client';
+import type { ExtractedProgramme } from '../programme/extract-from-pdf';
 
 type Trainer = { id: string; name: string };
 
@@ -267,6 +269,7 @@ export function FormationForm({
     control,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormationFormValues>({
     resolver: zodResolver(formationFormSchema),
@@ -314,6 +317,31 @@ export function FormationForm({
     setServerError(
       `Impossible d'enregistrer : ${names.length > 1 ? 'champs invalides' : 'champ invalide'} — ${names.join(', ')}. Les sections concernées ont été ouvertes, corrigez puis réessayez.`,
     );
+  };
+
+  // Import PDF : on ne remplit que les champs encore vides, pour qu'un second
+  // import (ou un import sur une fiche en cours) n'efface pas la saisie.
+  const applyImportedProgramme = (data: ExtractedProgramme) => {
+    const fill = (name: keyof FormationFormValues, value: string | string[]) => {
+      if (Array.isArray(value) ? value.length === 0 : value === '') return;
+      const current = getValues(name);
+      const empty = Array.isArray(current) ? current.length === 0 : !String(current ?? '').trim();
+      if (empty) setValue(name, value as never, { shouldDirty: true });
+    };
+
+    fill('title', data.title);
+    fill('subtitle', data.subtitle);
+    fill('durationHours', data.durationHours);
+    fill('programContent', data.programContent);
+    fill('objectives', data.objectives);
+    fill('targetAudience', data.targetAudience);
+    fill('prerequisites', data.prerequisites);
+    fill('pedagogicalMethod', data.pedagogicalMethod);
+    fill('teachingTeam', data.teachingTeam);
+    fill('deroulement', data.deroulement);
+    fill('evaluationMethod', data.evaluationMethod);
+    fill('resultIndicators', data.resultIndicators);
+    fill('accessibilityInfo', data.accessibilityInfo);
   };
 
   const onValid = (values: FormationFormValues) => {
@@ -699,6 +727,9 @@ export function FormationForm({
         icon={<GraduationCap className="w-4 h-4" />}
         forceOpen={hasErrorIn(SECTION3_FIELDS)}
       >
+        <div className="rounded-lg border border-dashed border-zinc-200/80 dark:border-zinc-800 p-3">
+          <ImportProgrammeButton onImported={applyImportedProgramme} />
+        </div>
         <RichField name="programContent" label="Programme détaillé / Syllabus" control={control} minHeight={150} />
         <ListField name="objectives" label="Objectifs pédagogiques" control={control} placeholder={'Comprendre le bilan\nSaisir des écritures'} />
         <FormField label="Public visé">
