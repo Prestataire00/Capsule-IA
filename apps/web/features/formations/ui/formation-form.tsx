@@ -6,7 +6,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useForm, Controller, type Control } from 'react-hook-form';
+import { useForm, Controller, type Control, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Info,
@@ -46,6 +46,57 @@ const ERROR_LABELS: Record<string, string> = {
   unauthenticated: 'Session expirée, reconnectez-vous.',
   invalid_input: 'Certains champs sont invalides, vérifiez le formulaire.',
   not_found: 'Cette formation est introuvable.',
+};
+
+// Champs de chaque section repliable — sert à rouvrir la bonne section quand un
+// champ invalide s'y cache (sinon l'erreur reste dans une section fermée = submit
+// silencieux, l'utilisateur ne voit rien se passer).
+const SECTION2_FIELDS = [
+  'actionType', 'isDpc', 'diplomeVise', 'titreVise', 'codeNsf', 'certifying', 'qualifying',
+  'certificationObtention', 'certificationDetails', 'validityValue', 'validityUnit', 'recyclingEnabled',
+  'recyclingReminderValue', 'recyclingReminderUnit', 'certifType', 'rncpCode', 'rsCode', 'certificateur',
+  'certifEmetteur', 'certifNomCertificateur', 'certifIdentifiantCertificateur', 'certifNumeroContrat',
+  'certifModaliteAcces', 'certifModaliteObtention', 'certifDateEnregistrement', 'certifDonneeCertifiee',
+  'fundingTypes',
+] as const;
+const SECTION3_FIELDS = [
+  'programContent', 'objectives', 'targetAudience', 'pedagogicalMethod', 'teachingTeam',
+  'defaultTrainerId', 'deroulement',
+] as const;
+const SECTION4_FIELDS = ['evaluationMethod', 'resultIndicators'] as const;
+const SECTION5_FIELDS = [
+  'prerequisites', 'accessibilityInfo', 'accessDelay', 'referentContact', 'referentHandicap',
+] as const;
+
+// Seuls les champs de la section 1 affichent leur erreur en ligne ; ailleurs on
+// nomme le champ fautif dans le bandeau, sinon l'utilisateur ouvre une section
+// sans savoir quoi corriger.
+const FIELD_LABELS: Record<string, string> = {
+  title: 'Titre', subtitle: 'Sous-titre', code: 'Code interne', version: 'Version',
+  description: 'Description', modality: 'Modalité', durationHours: 'Durée (heures)',
+  durationDays: 'Durée (jours)', effectifMin: 'Effectif minimum', effectifMax: 'Effectif maximum',
+  status: 'Statut', priceBase: 'Tarif de base', priceEntreprise: 'Tarif entreprise',
+  priceParticulier: 'Tarif particulier', priceIndependant: 'Tarif indépendant',
+  categories: 'Catégories', imageUrl: 'Image', videoUrl: 'Vidéo',
+  defaultLocation: 'Lieu par défaut', defaultCity: 'Ville par défaut',
+  defaultDepartment: 'Département par défaut',
+  actionType: "Type d'action", diplomeVise: 'Diplôme visé', titreVise: 'Titre visé',
+  codeNsf: 'Code NSF', certificationObtention: "Modalités d'obtention",
+  certificationDetails: 'Détails sur la certification', validityValue: 'Durée de validité',
+  recyclingReminderValue: 'Relance à effectuer', certifType: 'Type de certification',
+  rncpCode: 'Code RNCP', rsCode: 'Code RS', certificateur: 'Certificateur',
+  certifEmetteur: 'Identifiant émetteur', certifNomCertificateur: 'Nom du certificateur',
+  certifIdentifiantCertificateur: 'Identifiant certificateur',
+  certifNumeroContrat: 'Numéro de contrat', certifModaliteAcces: "Modalité d'accès",
+  certifModaliteObtention: "Modalité d'obtention",
+  certifDateEnregistrement: "Date d'enregistrement", fundingTypes: 'Financements possibles',
+  programContent: 'Programme détaillé', objectives: 'Objectifs pédagogiques',
+  targetAudience: 'Public visé', pedagogicalMethod: 'Méthodes pédagogiques',
+  teachingTeam: 'Équipe pédagogique', defaultTrainerId: 'Formateur par défaut',
+  deroulement: 'Déroulement', evaluationMethod: "Modalités d'évaluation",
+  resultIndicators: 'Indicateurs de résultats', prerequisites: 'Prérequis',
+  accessibilityInfo: 'Accessibilité handicap', accessDelay: "Délai d'accès",
+  referentContact: 'Référent pédagogique', referentHandicap: 'Référent handicap',
 };
 
 // ── Wrappers présentationnels (module scope → pas de remount au render) ─────────
@@ -219,6 +270,17 @@ export function FormationForm({
   const qualifying = watch('qualifying');
   const showCertifBlock = certifying || qualifying;
 
+  const hasErrorIn = (fields: readonly string[]): boolean => fields.some((f) => f in errors);
+
+  // Submit bloqué par la validation zod : sans ce handler, l'erreur d'un champ dans
+  // une section repliée reste invisible → « rien ne se passe » au clic sur Créer.
+  const onInvalid = (invalid: FieldErrors<FormationFormValues>) => {
+    const names = Object.keys(invalid).map((f) => FIELD_LABELS[f] ?? f);
+    setServerError(
+      `Impossible d'enregistrer : ${names.length > 1 ? 'champs invalides' : 'champ invalide'} — ${names.join(', ')}. Les sections concernées ont été ouvertes, corrigez puis réessayez.`,
+    );
+  };
+
   const onValid = (values: FormationFormValues) => {
     setServerError(null);
     const cleaned: FormationFormValues = {
@@ -241,7 +303,7 @@ export function FormationForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onValid)} className="space-y-4">
+    <form onSubmit={handleSubmit(onValid, onInvalid)} className="space-y-4">
       {/* ── Section 1 : Infos générales ─────────────────────────────────── */}
       <AccordionSection
         title="Informations générales"
@@ -369,6 +431,7 @@ export function FormationForm({
         title="Type d'action & certification"
         description="Nomenclature BPF, code NSF, certification France Compétences."
         icon={<Award className="w-4 h-4" />}
+        forceOpen={hasErrorIn(SECTION2_FIELDS)}
       >
         <Row cols={3}>
           <FormField label="Type d'action">
@@ -539,6 +602,7 @@ export function FormationForm({
         title="Contenu pédagogique"
         description="Programme, objectifs, public, méthodes et équipe."
         icon={<GraduationCap className="w-4 h-4" />}
+        forceOpen={hasErrorIn(SECTION3_FIELDS)}
       >
         <RichField name="programContent" label="Programme détaillé / Syllabus" control={control} minHeight={150} />
         <ListField name="objectives" label="Objectifs pédagogiques" control={control} placeholder={'Comprendre le bilan\nSaisir des écritures'} />
@@ -569,6 +633,7 @@ export function FormationForm({
         title="Évaluation & résultats"
         description="Modalités d'évaluation et indicateurs."
         icon={<ClipboardCheck className="w-4 h-4" />}
+        forceOpen={hasErrorIn(SECTION4_FIELDS)}
       >
         <RichField name="evaluationMethod" label="Modalités d'évaluation" control={control} minHeight={90} />
         <RichField name="resultIndicators" label="Indicateurs de résultats" control={control} minHeight={90} />
@@ -579,6 +644,7 @@ export function FormationForm({
         title="Accessibilité & contact"
         description="Prérequis, handicap, délais et référents."
         icon={<Accessibility className="w-4 h-4" />}
+        forceOpen={hasErrorIn(SECTION5_FIELDS)}
       >
         <ListField name="prerequisites" label="Prérequis" control={control} placeholder={'Aucun prérequis'} />
         <RichField name="accessibilityInfo" label="Accessibilité handicap" control={control} minHeight={90} />

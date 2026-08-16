@@ -57,7 +57,7 @@ export const formationFormSchema = z.object({
   isDpc: z.boolean(),
   diplomeVise: z.string().trim().max(200),
   titreVise: z.string().trim().max(200),
-  codeNsf: z.string().trim().max(10),
+  codeNsf: z.string().trim().max(40),
   certifying: z.boolean(),
   qualifying: z.boolean(),
   certificationObtention: z.string().max(5000),

@@ -1,7 +1,7 @@
 // ARCHETYPE: shared
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 
@@ -10,15 +10,23 @@ export function AccordionSection({
   description,
   icon,
   defaultOpen = false,
+  forceOpen = false,
   children,
 }: {
   title: string;
   description?: string;
   icon?: React.ReactNode;
   defaultOpen?: boolean;
+  /** Passe à true pour rouvrir la section de force (ex. champ invalide dedans). */
+  forceOpen?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  // Rouvre la section quand un parent signale une erreur à l'intérieur.
+  useEffect(() => {
+    if (forceOpen) setOpen(true);
+  }, [forceOpen]);
 
   return (
     <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
