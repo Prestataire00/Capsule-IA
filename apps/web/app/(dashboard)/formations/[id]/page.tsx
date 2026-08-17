@@ -12,6 +12,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { FormationCover } from './cover-upload.client';
 import { FormationTabs } from './formation-tabs.client';
+import { env } from '@/env.mjs';
 
 const modalityStyles = {
   presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
@@ -69,6 +70,47 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   if (!f) return notFound();
 
   const coverPath: string | null = f.metadata?.catalog?.coverPath ?? null;
+
+  // Équipe pédagogique : le formateur par défaut est la source de vérité, sa
+  // fiche fournit photo et description — on ne recopie rien.
+  const catalog = (f.metadata?.catalog ?? {}) as Record<string, string | undefined>;
+  const defaultTrainerId = catalog.defaultTrainerId ?? '';
+  const { data: trainerRow } = defaultTrainerId
+    ? await sb
+        .schema('app')
+        .from('trainers')
+        .select('id, first_name, last_name, email, phone, bio, photo_path')
+        .eq('id', defaultTrainerId)
+        .is('deleted_at', null)
+        .maybeSingle()
+    : { data: null };
+  const trainer = trainerRow as {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    phone: string | null;
+    bio: string | null;
+    photo_path: string | null;
+  } | null;
+  const trainerPhotoUrl = trainer?.photo_path
+    ? `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/trainer-photos/${trainer.photo_path}`
+    : null;
+
+  const referents = [
+    {
+      role: 'Référent pédagogique',
+      name: catalog.referentContact ?? '',
+      email: catalog.referentContactEmail ?? '',
+      phone: catalog.referentContactPhone ?? '',
+    },
+    {
+      role: 'Référent handicap',
+      name: catalog.referentHandicap ?? '',
+      email: catalog.referentHandicapEmail ?? '',
+      phone: catalog.referentHandicapPhone ?? '',
+    },
+  ].filter((r) => r.name || r.email || r.phone);
   let coverUrl: string | null = null;
   if (coverPath) {
     const { data: signed } = await sb.storage.from('org_assets').createSignedUrl(coverPath, 300);
@@ -306,6 +348,52 @@ export default async function FormationDetailPage({ params }: { params: { id: st
 
         {/* Colonne actions — inscription, dossiers, sessions */}
         <div className="space-y-4">
+          {(trainer || referents.length > 0) && (
+            <Card title="Équipe pédagogique & contacts">
+              {trainer && (
+                <div className="flex items-start gap-3 pb-3 mb-3 border-b border-zinc-100 dark:border-zinc-800">
+                  <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-[15px] font-medium text-emerald-700 dark:text-emerald-300">
+                    {trainerPhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={trainerPhotoUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      `${trainer.first_name?.[0] ?? ''}${trainer.last_name?.[0] ?? ''}`.toUpperCase() || '?'
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <Link
+                      href={`/formateurs/${trainer.id}`}
+                      className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 hover:text-violet-600 transition"
+                    >
+                      {`${trainer.first_name ?? ''} ${trainer.last_name ?? ''}`.trim() || 'Formateur'}
+                    </Link>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Formateur par défaut</p>
+                    {trainer.bio ? (
+                      <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-400 whitespace-pre-line">
+                        {trainer.bio}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[12px] text-zinc-400 dark:text-zinc-500">
+                        Aucune description sur sa fiche formateur.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {referents.map((r) => (
+                <div key={r.role} className="text-[12px] py-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    {r.role}
+                  </p>
+                  <p className="text-zinc-800 dark:text-zinc-200">{r.name || '—'}</p>
+                  <p className="text-zinc-500 dark:text-zinc-400">
+                    {[r.email, r.phone].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              ))}
+            </Card>
+          )}
+
           <Card title="Image de couverture (catalogue)">
             <FormationCover formationId={f.id} coverUrl={coverUrl} />
           </Card>
