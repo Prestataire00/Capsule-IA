@@ -4,10 +4,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /**
  * Avancement d'un dossier, de sa création à la facture réglée.
  *
- * Chaque étape est **déduite des données réelles** (sessions, documents,
- * signatures, émargements, factures) : rien à cocher à la main, donc rien qui
- * puisse mentir sur l'état d'un dossier. La date affichée est celle du fait qui
- * a validé l'étape.
+ * Chaque étape est **déduite des données réelles** (questionnaires, sessions,
+ * documents, signatures, émargements, factures) : rien à cocher à la main, donc
+ * rien qui puisse mentir sur l'état d'un dossier. La date affichée est celle du
+ * fait qui a validé l'étape.
  */
 export type ProgressStep = {
   key: string;
@@ -26,7 +26,10 @@ export type DossierProgress = {
   current: ProgressStep | null;
 };
 
-const CONVENTION_KINDS = ['convention', 'devis'];
+const DEVIS_KINDS = ['devis'];
+const CONVENTION_KINDS = ['convention'];
+
+type DocRow = { id: string; kind: string; created_at: string };
 
 export async function loadDossierProgress(
   sb: SupabaseClient,
@@ -41,12 +44,7 @@ export async function loadDossierProgress(
     { data: invoiceRows },
     { data: emailRows },
   ] = await Promise.all([
-    sb
-      .schema('app')
-      .from('dossiers')
-      .select('created_at, status, start_date, end_date')
-      .eq('id', dossierId)
-      .maybeSingle(),
+    sb.schema('app').from('dossiers').select('created_at, status').eq('id', dossierId).maybeSingle(),
     sb.schema('app').from('session_dossiers').select('created_at').eq('dossier_id', dossierId),
     sb
       .schema('app')
@@ -59,11 +57,7 @@ export async function loadDossierProgress(
       .from('questionnaire_assignments')
       .select('status, updated_at, template:questionnaire_templates(kind)')
       .eq('dossier_id', dossierId),
-    sb
-      .schema('app')
-      .from('attendance_sheets')
-      .select('finalized_at')
-      .eq('dossier_id', dossierId),
+    sb.schema('app').from('attendance_sheets').select('finalized_at').eq('dossier_id', dossierId),
     sb
       .schema('app')
       .from('invoices')
@@ -80,7 +74,7 @@ export async function loadDossierProgress(
 
   const dossier = dossierRow as { created_at: string; status: string } | null;
   const sessions = (sessionRows ?? []) as Array<{ created_at: string | null }>;
-  const documents = (documentRows ?? []) as Array<{ id: string; kind: string; created_at: string }>;
+  const documents = (documentRows ?? []) as DocRow[];
   const assignments = (assignmentRows ?? []) as unknown as Array<{
     status: string;
     updated_at: string | null;
@@ -100,23 +94,43 @@ export async function loadDossierProgress(
     (a) => a.template?.kind === 'positionnement' && a.status === 'completed',
   );
 
+  const devis = documents.filter((d) => DEVIS_KINDS.includes(d.kind));
   const conventions = documents.filter((d) => CONVENTION_KINDS.includes(d.kind));
-  const conventionSent = emails.find((e) => (e.kind ?? '').includes('convention') || (e.kind ?? '') === 'dossier_entree');
 
-  // Signature : au moins une convention signée (date = première signature).
-  let signedAt: string | null = null;
-  if (conventions.length > 0) {
-    const { data: signatureRows } = await sb
+  // Envoi et signature se lisent sur les demandes de signature du document
+  // concerné : c'est le seul signal qui dise DE QUEL document il s'agit (le
+  // journal d'e-mails, lui, ne trace qu'un « document_email » anonyme).
+  const signatures = async (docs: DocRow[]) => {
+    if (docs.length === 0) {
+      return { requestedAt: null as string | null, signedAt: null as string | null };
+    }
+    const { data } = await sb
       .schema('app')
       .from('document_signatures')
-      .select('signed_at')
+      .select('created_at, signed_at')
       .in(
         'document_id',
-        conventions.map((d) => d.id),
-      )
-      .not('signed_at', 'is', null);
-    signedAt = earliest(((signatureRows ?? []) as Array<{ signed_at: string | null }>).map((r) => r.signed_at));
-  }
+        docs.map((d) => d.id),
+      );
+    const rows = (data ?? []) as Array<{ created_at: string | null; signed_at: string | null }>;
+    return {
+      requestedAt: earliest(rows.map((r) => r.created_at)),
+      signedAt: earliest(rows.map((r) => r.signed_at)),
+    };
+  };
+
+  const [devisSig, conventionSig] = await Promise.all([signatures(devis), signatures(conventions)]);
+
+  // Un devis peut aussi partir par e-mail sans demande de signature.
+  const documentEmail = emails.find((e) => (e.kind ?? '') === 'document_email');
+  const devisSentAt =
+    devisSig.requestedAt ?? (devis.length > 0 ? (documentEmail?.created_at ?? null) : null);
+
+  // « Gagné » : devis signé, ou dossier engagé (planifié et au-delà) — beaucoup
+  // d'accords se concluent par e-mail, sans signature électronique.
+  const engaged = ['scheduled', 'active', 'completed', 'closed', 'archived'].includes(
+    dossier?.status ?? '',
+  );
 
   const finalizedSheets = sheets.filter((s) => s.finalized_at);
   const trainingDone =
@@ -152,27 +166,43 @@ export async function loadDossierProgress(
       href: `${base}/sessions`,
     },
     {
+      key: 'devis',
+      label: 'Devis préparé',
+      hint: 'Générez le devis depuis l’onglet Documents.',
+      done: devis.length > 0,
+      at: earliest(devis.map((d) => d.created_at)),
+      href: `${base}/documents`,
+    },
+    {
+      key: 'devis_sent',
+      label: 'Devis envoyé',
+      hint: 'Le devis n’a pas encore été adressé au client.',
+      done: Boolean(devisSentAt),
+      at: devisSentAt,
+      href: `${base}/documents`,
+    },
+    {
+      key: 'devis_signed',
+      label: 'Devis signé / Gagné',
+      hint: 'En attente de l’accord du client.',
+      done: Boolean(devisSig.signedAt) || engaged,
+      at: devisSig.signedAt,
+      href: `${base}/documents`,
+    },
+    {
       key: 'convention',
       label: 'Convention préparée',
-      hint: 'Générez la convention (ou le devis) depuis l’onglet Documents.',
+      hint: 'Générez la convention de formation depuis l’onglet Documents.',
       done: conventions.length > 0,
       at: earliest(conventions.map((d) => d.created_at)),
       href: `${base}/documents`,
     },
     {
-      key: 'sent',
-      label: 'Convention envoyée',
-      hint: 'La convention n’a pas encore été adressée au client.',
-      done: Boolean(conventionSent),
-      at: conventionSent?.created_at ?? null,
-      href: `${base}/documents`,
-    },
-    {
-      key: 'signed',
+      key: 'convention_signed',
       label: 'Convention signée',
       hint: 'En attente de la signature du client.',
-      done: Boolean(signedAt),
-      at: signedAt,
+      done: Boolean(conventionSig.signedAt),
+      at: conventionSig.signedAt,
       href: `${base}/documents`,
     },
     {
