@@ -271,15 +271,6 @@ export const rejectProspectDemande = authActionClient
 // l'administratif doit savoir avant de reprendre le dossier. Stockées comme
 // événements `comment` — même timeline que les vérifications de pièces.
 
-/** Canaux proposés : dire *comment* le contact a eu lieu vaut mieux qu'une note nue. */
-export const NOTE_CHANNELS = [
-  { value: 'note', label: 'Note interne' },
-  { value: 'call', label: 'Appel téléphonique' },
-  { value: 'email', label: 'E-mail envoyé' },
-  { value: 'meeting', label: 'Rendez-vous' },
-  { value: 'sms', label: 'SMS / WhatsApp' },
-] as const;
-
 const noteSchema = z.object({
   prospectId: z.string().uuid(),
   text: z.string().trim().min(2, 'Note trop courte').max(4000),

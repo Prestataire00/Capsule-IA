@@ -7,7 +7,7 @@ import { resolveOrgVariables } from '@/features/documents/templates/resolve-org-
 import { generateDocumentHtml } from '@/features/documents/templates/generate-with-ai';
 import { wrapGeneratedHtml } from '@/features/documents/templates/wrap-generated-html';
 import { getLegalRequirement } from '@/features/documents/legal/requirements';
-import { TEMPLATE_KINDS } from './modeles/schema';
+import { GenerateStandaloneAiSchema } from './standalone-schema';
 
 // Résout l'organisation courante depuis la table members (RLS-scopé), org par défaut en tête.
 async function resolveOrgId(ctx: AuthCtx): Promise<string | null> {
@@ -22,12 +22,6 @@ async function resolveOrgId(ctx: AuthCtx): Promise<string | null> {
     .maybeSingle();
   return (member as { organization_id: string } | null)?.organization_id ?? null;
 }
-
-export const GenerateStandaloneAiSchema = z.object({
-  kind: z.enum(TEMPLATE_KINDS).default('autre'),
-  title: z.string().max(160).optional().default(''),
-  instruction: z.string().min(5, 'Décrivez le document').max(2000),
-});
 
 // Génère un document autonome (SANS dossier) par IA, à partir des seules
 // données de l'organisme. Le document est rattachable à un dossier plus tard.
