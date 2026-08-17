@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { ProspectNoteForm } from './note-form.client';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { requiredDocs } from '@/features/prospect/funding';
 import { ProspectDetailActions, type DocChecklistItem } from './prospect-detail-actions';
@@ -117,7 +118,21 @@ function Answer({ label, value }: { label: string; value: string | null | undefi
 }
 
 type Review = { doc_key: string; status: string; rejected_reason: string | null };
-type Event = { id: string; kind: string; payload: Record<string, unknown>; occurred_at: string };
+type Event = {
+  id: string;
+  kind: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+  actor_user_id: string | null;
+};
+
+const CHANNEL_LABELS: Record<string, string> = {
+  note: 'Note interne',
+  call: 'Appel téléphonique',
+  email: 'E-mail envoyé',
+  meeting: 'Rendez-vous',
+  sms: 'SMS / WhatsApp',
+};
 
 const EVENT_LABELS: Record<string, string> = {
   document_verified: 'Pièce vérifiée',
@@ -161,10 +176,22 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
 
   const [{ data: reviewRows }, { data: eventRows }] = await Promise.all([
     sb.schema('app').from('prospect_document_reviews' as never).select('doc_key, status, rejected_reason').eq('prospect_id', params.id),
-    sb.schema('app').from('prospect_events' as never).select('id, kind, payload, occurred_at').eq('prospect_id', params.id).order('occurred_at', { ascending: false }),
+    sb.schema('app').from('prospect_events' as never).select('id, kind, payload, occurred_at, actor_user_id').eq('prospect_id', params.id).order('occurred_at', { ascending: false }),
   ]);
   const reviews = (reviewRows ?? []) as unknown as Review[];
   const events = (eventRows ?? []) as unknown as Event[];
+
+  // Qui a fait quoi : une note de suivi sans auteur ne sert à rien.
+  const actorIds = [...new Set(events.map((e) => e.actor_user_id).filter((v): v is string => Boolean(v)))];
+  const { data: actorRows } = actorIds.length
+    ? await sb.schema('app').from('profiles').select('user_id, full_name').in('user_id', actorIds)
+    : { data: [] };
+  const actorNames = new Map(
+    ((actorRows ?? []) as unknown as Array<{ user_id: string; full_name: string | null }>).map((p) => [
+      p.user_id,
+      p.full_name ?? '',
+    ]),
+  );
 
   const reviewByKey = new Map(reviews.map((r) => [r.doc_key, r]));
   const uploaded = prospect.documents ?? [];
@@ -305,7 +332,8 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
       </section>
 
       <section className="space-y-3">
-        <SectionTitle icon={History}>Historique</SectionTitle>
+        <SectionTitle icon={History}>Suivi & historique</SectionTitle>
+        <ProspectNoteForm prospectId={prospect.id} />
         {events.length === 0 ? (
           <p className="text-[13px] text-zinc-400">Aucune action enregistrée.</p>
         ) : (
@@ -318,8 +346,15 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                 </span>
                 <span className="pb-3">
                   <span className="text-zinc-800 dark:text-zinc-200 font-medium">
-                    {EVENT_LABELS[e.kind] ?? e.kind}
+                    {e.kind === 'comment'
+                      ? (CHANNEL_LABELS[String(e.payload?.channel ?? '')] ?? 'Note interne')
+                      : (EVENT_LABELS[e.kind] ?? e.kind)}
                   </span>
+                  {typeof e.payload?.text === 'string' && (
+                    <span className="block text-zinc-700 dark:text-zinc-300 whitespace-pre-line mt-0.5">
+                      {e.payload.text as string}
+                    </span>
+                  )}
                   {typeof e.payload?.doc_key === 'string' && (
                     <span className="text-zinc-400"> · {e.payload.doc_key as string}</span>
                   )}
@@ -328,6 +363,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                   )}
                   <span className="block text-zinc-400 dark:text-zinc-500">
                     {new Date(e.occurred_at).toLocaleString('fr-FR')}
+                    {e.actor_user_id && actorNames.get(e.actor_user_id) && (
+                      <> · {actorNames.get(e.actor_user_id)}</>
+                    )}
                   </span>
                 </span>
               </li>

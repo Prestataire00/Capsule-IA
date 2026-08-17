@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { requiredDocs } from '@/features/prospect/funding';
 import { convertProspectToDossier } from '@/features/crm/prospect-conversion/convert-core';
+import { can } from '@/shared/lib/auth/permissions';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
 
@@ -261,5 +262,63 @@ export const rejectProspectDemande = authActionClient
     await recordEvent(rowOrg, parsedInput.prospectId, 'demande_rejected', userId, { reason: parsedInput.reason });
     revalidatePath(`/prospects/${parsedInput.prospectId}`);
     revalidatePath('/prospects/nouvelles');
+    return { ok: true as const };
+  });
+
+
+// ── Notes internes ───────────────────────────────────────────────────────────
+// Suivi commercial d'une demande : qui a appelé, ce qui a été dit, ce que
+// l'administratif doit savoir avant de reprendre le dossier. Stockées comme
+// événements `comment` — même timeline que les vérifications de pièces.
+
+/** Canaux proposés : dire *comment* le contact a eu lieu vaut mieux qu'une note nue. */
+export const NOTE_CHANNELS = [
+  { value: 'note', label: 'Note interne' },
+  { value: 'call', label: 'Appel téléphonique' },
+  { value: 'email', label: 'E-mail envoyé' },
+  { value: 'meeting', label: 'Rendez-vous' },
+  { value: 'sms', label: 'SMS / WhatsApp' },
+] as const;
+
+const noteSchema = z.object({
+  prospectId: z.string().uuid(),
+  text: z.string().trim().min(2, 'Note trop courte').max(4000),
+  channel: z.enum(['note', 'call', 'email', 'meeting', 'sms']),
+});
+
+/**
+ * Le commercial doit pouvoir écrire ici : on borne donc sur la section `crm`
+ * (accessible aux commerciaux) plutôt que sur les seuls rôles administratifs.
+ */
+export const addProspectNote = authActionClient
+  .schema(noteSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const admin = (supabaseAdmin() as unknown as SupabaseClient);
+
+    const { data: member } = await admin
+      .schema('app')
+      .from('members')
+      .select('organization_id, role')
+      .eq('user_id', ctx.userId)
+      .is('deleted_at', null)
+      .order('is_default_org', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const m = member as { organization_id: string; role: string } | null;
+    if (!m?.organization_id) return { ok: false as const, error: 'forbidden' as const };
+    if (can(m.role, 'crm') === 'none') return { ok: false as const, error: 'forbidden' as const };
+
+    const prospect = await loadProspect(parsedInput.prospectId);
+    // Une demande d'un autre organisme n'est pas commentable.
+    if (!prospect || prospect.organization_id !== m.organization_id) {
+      return { ok: false as const, error: 'not_found' as const };
+    }
+
+    await recordEvent(m.organization_id, parsedInput.prospectId, 'comment', ctx.userId, {
+      text: parsedInput.text,
+      channel: parsedInput.channel,
+    });
+
+    revalidatePath(`/prospects/${parsedInput.prospectId}`);
     return { ok: true as const };
   });
