@@ -67,7 +67,11 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Version figée : `latest` interroge l'API GitHub à chaque run et se
+          # fait rate-limiter sur les runners partagés (« Failed to resolve
+          # latest Supabase CLI release »), ce qui casse la CI sans rapport
+          # avec le code. À remonter volontairement.
+          version: 2.98.2
 
       - name: Start Supabase (local)
         run: supabase start --workdir supabase
