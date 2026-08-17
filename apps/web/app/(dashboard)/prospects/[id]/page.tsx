@@ -172,6 +172,19 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     ]),
   );
 
+  // Devis établi à la validation : accessible directement depuis la demande.
+  const { data: devisRow } = await sb
+    .schema('app')
+    .from('documents')
+    .select('id, title, created_at')
+    .eq('metadata->>prospect_id', params.id)
+    .eq('kind', 'devis')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const devis = devisRow as { id: string; title: string; created_at: string } | null;
+
   const reviewByKey = new Map(reviews.map((r) => [r.doc_key, r]));
   const uploaded = prospect.documents ?? [];
   const uploadedByKey = new Map(uploaded.map((d) => [d.key, d]));
@@ -474,6 +487,24 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               Relancer par e-mail
             </a>
           </section>
+
+          {devis && (
+            <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                Devis
+              </p>
+              <p className="text-[13px] text-zinc-900 dark:text-zinc-100">{devis.title}</p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                Établi le {new Date(devis.created_at).toLocaleDateString('fr-FR')} — à relire avant envoi.
+              </p>
+              <Link
+                href={`/documents/${devis.id}/apercu`}
+                className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-4 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+              >
+                Prévisualiser et modifier
+              </Link>
+            </section>
+          )}
 
           <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">
