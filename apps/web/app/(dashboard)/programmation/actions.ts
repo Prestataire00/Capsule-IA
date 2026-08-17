@@ -4,7 +4,16 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 
-const ANCHORS = ['first_session_start', 'dossier_start', 'dossier_end'] as const;
+const ANCHORS = [
+  'first_session_start',
+  'dossier_start',
+  'dossier_end',
+  'last_session_end',
+  'dossier_created',
+  'devis_signed',
+  'convention_signed',
+  'invoice_paid',
+] as const;
 const RECIPIENT_KINDS = ['learner', 'trainer'] as const;
 
 const ruleFields = {

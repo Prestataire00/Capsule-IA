@@ -7,7 +7,15 @@ import { FormField, inputClass } from '@/shared/ui/form-field';
 import { Button } from '@/shared/ui/button';
 import { createSchedule, updateSchedule, toggleSchedule, deleteSchedule } from './actions';
 
-type Anchor = 'first_session_start' | 'dossier_start' | 'dossier_end';
+type Anchor =
+  | 'first_session_start'
+  | 'dossier_start'
+  | 'dossier_end'
+  | 'last_session_end'
+  | 'dossier_created'
+  | 'devis_signed'
+  | 'convention_signed'
+  | 'invoice_paid';
 type RecipientKind = 'learner' | 'trainer';
 
 export type ScheduleRow = {
@@ -36,7 +44,27 @@ const ANCHOR_LABELS: Record<Anchor, string> = {
   first_session_start: 'le début de la 1ʳᵉ session',
   dossier_start: 'le début de la formation',
   dossier_end: 'la fin de la formation',
+  last_session_end: 'la fin de la dernière session',
+  dossier_created: 'la création du dossier',
+  devis_signed: 'la signature du devis',
+  convention_signed: 'la signature de la convention',
+  invoice_paid: 'le règlement de la facture',
 };
+
+// Un événement ne se prévoit pas : on ne peut écrire qu'APRÈS coup.
+// Les ancres calendaires, elles, acceptent un décalage négatif (rappel J-7).
+const EVENT_ANCHORS: Anchor[] = ['dossier_created', 'devis_signed', 'convention_signed', 'invoice_paid'];
+
+const ANCHOR_GROUPS: Array<{ label: string; anchors: Anchor[] }> = [
+  {
+    label: 'Dates de formation',
+    anchors: ['first_session_start', 'dossier_start', 'dossier_end', 'last_session_end'],
+  },
+  {
+    label: 'Événements du dossier',
+    anchors: ['dossier_created', 'devis_signed', 'convention_signed', 'invoice_paid'],
+  },
+];
 
 const RECIPIENT_LABELS: Record<RecipientKind, string> = {
   learner: 'Apprenant',
@@ -184,19 +212,42 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
                 value={form.direction}
                 onChange={(e) => setForm({ ...form, direction: e.target.value as Direction })}
               >
-                <option value="before">avant</option>
+                <option value="before" disabled={EVENT_ANCHORS.includes(form.anchor)}>
+                  avant
+                </option>
                 <option value="after">après</option>
                 <option value="same">le jour de</option>
               </select>
               <select
                 className={`${inputClass} w-auto`}
                 value={form.anchor}
-                onChange={(e) => setForm({ ...form, anchor: e.target.value as Anchor })}
+                onChange={(e) => {
+                  const anchor = e.target.value as Anchor;
+                  setForm({
+                    ...form,
+                    anchor,
+                    direction:
+                      EVENT_ANCHORS.includes(anchor) && form.direction === 'before'
+                        ? 'after'
+                        : form.direction,
+                  });
+                }}
               >
-                <option value="first_session_start">le début de la 1ʳᵉ session</option>
-                <option value="dossier_start">le début de la formation</option>
-                <option value="dossier_end">la fin de la formation</option>
+                {ANCHOR_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.anchors.map((a) => (
+                      <option key={a} value={a}>
+                        {ANCHOR_LABELS[a]}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
+              {EVENT_ANCHORS.includes(form.anchor) && (
+                <span className="basis-full text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Un événement ne se prévoit pas à l’avance : l’envoi part le jour même ou après.
+                </span>
+              )}
             </div>
           </FormField>
 

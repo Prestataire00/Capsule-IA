@@ -798,7 +798,15 @@ type ScheduleRow = {
   id: string;
   organization_id: string;
   name: string;
-  anchor: 'first_session_start' | 'dossier_start' | 'dossier_end';
+  anchor:
+    | 'first_session_start'
+    | 'dossier_start'
+    | 'dossier_end'
+    | 'last_session_end'
+    | 'dossier_created'
+    | 'devis_signed'
+    | 'convention_signed'
+    | 'invoice_paid';
   offset_days: number;
   recipient_kind: 'learner' | 'trainer';
   subject: string;
@@ -887,6 +895,75 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
             dossierIds.push(s.dossier_id);
           }
         }
+      } else if (rule.anchor === 'last_session_end') {
+        const { data: sess } = await sb
+          .schema('app')
+          .from('sessions')
+          .select('dossier_id, ends_at')
+          .gte('ends_at', wantedStart.toISOString())
+          .lte('ends_at', wantedEnd.toISOString())
+          .neq('status', 'cancelled');
+        for (const s of (sess ?? []) as { dossier_id: string; ends_at: string }[]) {
+          // Seule la DERNIÈRE session (non annulée) du dossier déclenche.
+          const { data: latest } = await sb
+            .schema('app')
+            .from('sessions')
+            .select('ends_at')
+            .eq('dossier_id', s.dossier_id)
+            .neq('status', 'cancelled')
+            .order('ends_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if ((latest as { ends_at: string } | null)?.ends_at === s.ends_at) {
+            dossierIds.push(s.dossier_id);
+          }
+        }
+      } else if (rule.anchor === 'dossier_created') {
+        const { data: dos } = await sb
+          .schema('app')
+          .from('dossiers')
+          .select('id')
+          .eq('organization_id', rule.organization_id)
+          .gte('created_at', wantedStart.toISOString())
+          .lte('created_at', wantedEnd.toISOString());
+        dossierIds = ((dos ?? []) as { id: string }[]).map((d) => d.id);
+      } else if (rule.anchor === 'devis_signed' || rule.anchor === 'convention_signed') {
+        // Ancre événementielle : la date de signature du document du type visé.
+        const kind = rule.anchor === 'devis_signed' ? 'devis' : 'convention';
+        const { data: docs } = await sb
+          .schema('app')
+          .from('documents')
+          .select('id, dossier_id')
+          .eq('organization_id', rule.organization_id)
+          .eq('kind', kind)
+          .not('dossier_id', 'is', null)
+          .is('deleted_at', null);
+        const docRows = (docs ?? []) as { id: string; dossier_id: string }[];
+        if (docRows.length > 0) {
+          const { data: signs } = await sb
+            .schema('app')
+            .from('document_signatures')
+            .select('document_id, signed_at')
+            .in('document_id', docRows.map((d) => d.id))
+            .gte('signed_at', wantedStart.toISOString())
+            .lte('signed_at', wantedEnd.toISOString());
+          const byDoc = new Map(docRows.map((d) => [d.id, d.dossier_id]));
+          for (const sig of (signs ?? []) as { document_id: string }[]) {
+            const dossierId = byDoc.get(sig.document_id);
+            if (dossierId) dossierIds.push(dossierId);
+          }
+        }
+      } else if (rule.anchor === 'invoice_paid') {
+        const { data: inv } = await sb
+          .schema('app')
+          .from('invoices')
+          .select('dossier_id, paid_at')
+          .eq('organization_id', rule.organization_id)
+          .eq('status', 'paid')
+          .not('dossier_id', 'is', null)
+          .gte('paid_at', wantedStart.toISOString())
+          .lte('paid_at', wantedEnd.toISOString());
+        dossierIds = ((inv ?? []) as { dossier_id: string }[]).map((i) => i.dossier_id);
       } else {
         const col = rule.anchor === 'dossier_start' ? 'start_date' : 'end_date';
         const { data: dos } = await sb
