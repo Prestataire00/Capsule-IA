@@ -6,7 +6,16 @@ import { useAction } from 'next-safe-action/hooks';
 import { ArrowRightCircle, AlertTriangle } from 'lucide-react';
 import { convertProspect } from './actions';
 
-export function ConvertButton({ prospectId }: { prospectId: string }) {
+export function ConvertButton({
+  prospectId,
+  label = 'Convertir en dossier',
+  variant = 'compact',
+}: {
+  prospectId: string;
+  label?: string;
+  /** `primary` : bouton pleine largeur de la colonne d'action. */
+  variant?: 'compact' | 'primary';
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [signals, setSignals] = useState<string[]>([]);
@@ -28,15 +37,19 @@ export function ConvertButton({ prospectId }: { prospectId: string }) {
     });
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={variant === 'primary' ? 'w-full space-y-1' : 'flex flex-col items-end gap-1'}>
       <button
         type="button"
         onClick={run}
         disabled={pending}
-        className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+        className={
+          variant === 'primary'
+            ? 'w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm transition disabled:opacity-50'
+            : 'inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50'
+        }
       >
         <ArrowRightCircle className="w-3.5 h-3.5" />
-        {pending ? 'Conversion…' : 'Convertir en dossier'}
+        {pending ? 'Conversion…' : label}
       </button>
       {error && <span className="text-[11px] text-rose-600">{error}</span>}
       {signals.map((s) => (

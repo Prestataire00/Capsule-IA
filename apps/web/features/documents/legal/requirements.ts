@@ -41,6 +41,18 @@ export const NDA_DISCLAIMER =
 export const ACCESSIBILITY_MENTION =
   "Accessibilité : nos formations sont accessibles aux personnes en situation de handicap. Contactez le référent handicap de l'organisme pour étudier les adaptations possibles.";
 
+// Information des personnes (RGPD art. 13-14) : tout document remis à un
+// apprenant, une entreprise ou un financeur porte des données personnelles.
+// `{contact}` est remplacé par l'e-mail de l'organisme quand il est connu.
+export const RGPD_MENTION_TEMPLATE =
+  "Données personnelles : les informations recueillies sont traitées par l'organisme de formation pour la gestion de votre dossier de formation et de ses obligations légales (base légale : contrat et obligation légale). Elles sont conservées pendant la durée légale de conservation applicable et ne sont transmises qu'aux destinataires habilités (financeurs, autorités de contrôle). Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL — pour l'exercer, écrivez à {contact}.";
+
+/** Mention RGPD prête à imprimer ; `contact` = e-mail de l'organisme (ou libellé de repli). */
+export function rgpdMention(contact?: string | null): string {
+  const c = (contact ?? '').trim();
+  return RGPD_MENTION_TEMPLATE.replace('{contact}', c || "l'organisme de formation");
+}
+
 export const LEGAL_REQUIREMENTS: Record<DocumentKind, LegalRequirement> = {
   convention: {
     label: 'Convention de formation professionnelle',

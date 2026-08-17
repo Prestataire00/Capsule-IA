@@ -4,7 +4,7 @@
 // Garantit que le LOGO et l'identité de l'organisme figurent sur TOUS les documents.
 // Pur : aucun import next/supabase/react.
 
-import { NDA_DISCLAIMER, ACCESSIBILITY_MENTION } from '@/features/documents/legal/requirements';
+import { NDA_DISCLAIMER, ACCESSIBILITY_MENTION, rgpdMention } from '@/features/documents/legal/requirements';
 
 const MARKER = 'data-of-header';
 
@@ -36,9 +36,11 @@ export function wrapGeneratedHtml(bodyHtml: string, variables: Record<string, st
     </div>
   </header>`;
 
+  const contact = variables['organisme_email']?.trim() ?? '';
   const footer = `<footer class="doc-brand-footer" style="margin-top:32px;border-top:1px solid #ececef;padding-top:10px;font-size:10px;color:#a1a1aa;line-height:1.5;">
     ${nda ? `<div>${NDA_DISCLAIMER}</div>` : ''}
     <div>${ACCESSIBILITY_MENTION}</div>
+    <div style="margin-top:4px;">${rgpdMention(contact)}</div>
   </footer>`;
 
   return `${header}\n${bodyHtml}\n${footer}`;

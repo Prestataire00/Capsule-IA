@@ -2,6 +2,7 @@ import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
 import { drawOrgLogo } from './pdf-logo';
+import { drawRgpdMention } from './pdf-rgpd';
 
 export type ConventionInput = {
   organization: {
@@ -303,6 +304,8 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
       x: MARGIN, y: 24, size: 7, font, color: COLOR_MUTED,
     });
   });
+
+  drawRgpdMention(doc, font, null);
 
   return doc.save();
 }

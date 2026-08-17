@@ -1,4 +1,5 @@
 import 'server-only';
+import { drawRgpdMention } from './pdf-rgpd';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { drawOrgLogo } from './pdf-logo';
 
@@ -47,5 +48,7 @@ export async function generateLegalDocPDF(input: LegalPdfInput): Promise<Uint8Ar
     else if (t.trim() === '') y -= 6;
     else for (let i = 0; i < t.length; i += 95) line(t.slice(i, i + 95));
   }
+  drawRgpdMention(pdf, font, null);
+
   return pdf.save();
 }

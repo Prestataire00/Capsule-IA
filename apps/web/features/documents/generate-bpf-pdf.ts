@@ -1,6 +1,7 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawOrgLogo } from './pdf-logo';
+import { drawRgpdMention } from './pdf-rgpd';
 
 export type BpfFinancialLine = { code: string; label: string; cents: number };
 export type BpfBreakdownRow = { key: string; label: string; stagiaires: number; heures: number };
@@ -278,6 +279,8 @@ export async function generateBpfPDF(input: BpfInput): Promise<Uint8Array> {
       x: MARGIN, y: 24, size: 7, font, color: COLOR_MUTED,
     });
   });
+
+  drawRgpdMention(doc, font, input.organization.contactEmail);
 
   return doc.save();
 }

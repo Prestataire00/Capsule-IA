@@ -1,4 +1,5 @@
 import 'server-only';
+import { drawRgpdMention } from './pdf-rgpd';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawOrgLogo } from './pdf-logo';
 
@@ -114,6 +115,8 @@ export async function generateQuestionnairePDF(input: QuestionnairePdfInput): Pr
   page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + COL, y }, thickness: 0.5, color: RULE });
   y -= 14;
   text('Document généré pour preuve Qualiopi — réponses horodatées et archivées.', font, 8, MUTED);
+
+  drawRgpdMention(pdf, font, null);
 
   return pdf.save();
 }
