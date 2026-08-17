@@ -6,6 +6,8 @@ import { Calendar, FileText, Users as UsersIcon } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { loadDossierProgress } from '@/features/dossier/load-progress';
+import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
 import { TagsEditor } from './tags-editor';
 import { BpfFieldsEditor } from './bpf-fields-editor';
 
@@ -16,11 +18,12 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
     const { count } = await sb.schema('app').from(table).select('*', { count: 'exact', head: true }).eq(col, id);
     return count ?? 0;
   };
-  const [sessions, documents, funders, dossier] = await Promise.all([
+  const [sessions, documents, funders, dossier, progress] = await Promise.all([
     count('session_dossiers'),
     count('documents'),
     count('dossier_funders'),
     sb.schema('app').from('dossiers').select('tags, action_type, trainee_category').eq('id', id).maybeSingle(),
+    loadDossierProgress(sb, id),
   ]);
   const tags = ((dossier.data?.tags as string[] | null) ?? []);
   const actionType = (dossier.data?.action_type as string | null) ?? null;
@@ -35,6 +38,7 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
   return (
     <div className="space-y-6">
       <SectionLabel>Vue d'ensemble</SectionLabel>
+      <DossierProgressTracker progress={progress} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {cards.map(({ icon: Icon, label, value, href }) => (
           <Link
