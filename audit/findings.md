@@ -196,16 +196,26 @@ le défaut du système est ouvert, pas fermé.
 
 ---
 
-### CAP-06 — 135 erreurs de typecheck, types de base périmés
+### CAP-06 — Le typecheck était éteint sur 91 fichiers par une déclaration manquante
 
-**[CONSTATÉ]** `pnpm typecheck` → 135 erreurs (2026-08-30). Origine identifiée le 16/08 :
-`shared/types/database.ts` n'a pas été régénéré depuis le 2026-06-26 et ignore 16 tables.
-Le build passe grâce à `ignoreBuildErrors: true`.
+**[CONSTATÉ]** `pnpm typecheck` → 140 erreurs (2026-08-30, après les correctifs du jour).
+**91 d'entre elles — 65 % — venaient d'une seule cause** : `env.mjs` est un module JavaScript sans
+déclaration de types. Sous `noImplicitAny`, TypeScript refuse chaque import, et **tout fichier
+important `env` perdait sa vérification de types**. Ce n'est pas la cause que l'audit du 16/08 avait
+retenue (« types Supabase périmés ») : celle-ci n'explique que le reste.
 
-**Impact métier** : aucun filet de type sur les modules concernés (dépenses, exercices, e-mails
-programmés, intégrations). Une colonne renommée ne casse rien au build et échoue en production.
+Les 49 erreurs restantes relèvent bien de `shared/types/database.ts`, non régénéré depuis le
+2026-06-26 et ignorant 16 tables. Le build passe grâce à `ignoreBuildErrors: true`.
 
-- **Correctif minimal** : régénérer les types depuis une machine liée au projet (`pnpm db:types:linked`). **0,25 j**
+**Impact métier** : une variable d'environnement mal orthographiée ou un usage incorrect passait sans
+alerte dans 91 fichiers — dont l'envoi d'e-mails, les jetons signés et les intégrations.
+
+**Correctif appliqué (2026-08-30)** : `apps/web/env.d.ts` déclare le module au reflet exact du schéma
+zod (requis = `string`, `.optional()` = `string | undefined`). **140 → 43 erreurs.**
+
+- **Reste à faire** : régénérer `database.ts`. Impossible depuis ce poste — ni Docker (pour
+  `--local`), ni projet lié, ni mot de passe de base (pour `--db-url`). À faire depuis une machine
+  liée au projet : `pnpm db:types:linked`. **0,25 j**
 - **Correctif cible** : régénération en intégration continue + retrait de `ignoreBuildErrors`. **2 j**
 - **Priorité** : sous 30 jours.
 

@@ -37,12 +37,18 @@ async function revokedAtFor(dossierId: string): Promise<number | null> {
   // sont eux-mêmes chargés très tôt. On évite de tirer le client Supabase dans
   // des contextes qui n'en ont pas besoin.
   const { supabaseAdmin } = await import('@/shared/lib/supabase/admin');
+  // `link_revocations` (migration 0131) est absente de `shared/types/database.ts`,
+  // qui n'a pas été régénéré depuis le 2026-06-26 (audit CAP-06). Les casts
+  // disparaissent à la régénération des types.
   const requete = supabaseAdmin()
     .schema('app')
-    .from('link_revocations')
+    .from('link_revocations' as never)
     .select('revoked_at')
-    .eq('dossier_id', dossierId)
-    .maybeSingle();
+    .eq('dossier_id' as never, dossierId as never)
+    .maybeSingle() as unknown as Promise<{
+    data: { revoked_at: string } | null;
+    error: { message: string } | null;
+  }>;
 
   let minuteur: ReturnType<typeof setTimeout> | undefined;
   const { data, error } = await Promise.race([

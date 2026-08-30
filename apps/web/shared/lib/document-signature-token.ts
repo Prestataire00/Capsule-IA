@@ -29,7 +29,11 @@ export type DocumentSignedToken = {
   readonly expiresAt: Date;
 };
 
-export type DocumentSignatureTokenError = 'invalid_token' | 'expired_token' | 'invalid_payload';
+export type DocumentSignatureTokenError =
+  | 'invalid_token'
+  | 'expired_token'
+  | 'revoked_token'
+  | 'invalid_payload';
 
 export const generateDocumentSignatureToken = async (
   payload: DocumentSignaturePayload,

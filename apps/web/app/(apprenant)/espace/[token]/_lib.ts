@@ -126,10 +126,11 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
     const sb = supabaseAdmin();
     // Les RPC vivent dans le schéma `app` ; le client par défaut cible `public`.
     // Sans `.schema('app')`, l'appel échoue → on retombait sur le mock (Alice).
-    const [dash, comp] = await Promise.all([
+    type Rpc = { data: unknown; error: { message: string } | null };
+    const [dash, comp] = (await Promise.all([
       sb.schema('app').rpc('get_apprenant_dashboard' as never, { p_learner_id: verified.value.learnerId } as never),
       sb.schema('app').rpc('get_learner_complaints' as never, { p_learner_id: verified.value.learnerId } as never),
-    ]);
+    ])) as unknown as [Rpc, Rpc];
     if (dash.error) {
       console.error('[espace-apprenant] RPC get_apprenant_dashboard a échoué:', dash.error);
       return null;
