@@ -304,7 +304,16 @@ apprenant consomme — la fonctionnalité est donc morte côté organisme, ce qu
 **Impact métier** : la perte ou le vol du poste donne un accès complet à la base de production et
 la capacité de forger des jetons de signature.
 
-- **Correctif minimal** : chiffrer le disque (probablement déjà le cas) et vérifier qu'aucune copie ne traîne ailleurs. **0,1 j**
+**Vérification (2026-08-30)** : recherche sur tout le poste (fichiers `.env*`, `.json`, `.txt`,
+`.sh` jusqu'à cinq niveaux) d'une portion discriminante de la clé — l'en-tête d'un JWT Supabase
+étant identique pour tous les projets, un test naïf donne des faux positifs. **La clé `service_role`
+de Capsule n'existe qu'à un seul endroit**, `apps/web/.env.local`, et aucun autre projet du poste ne
+référence `asocsynsvryroovdittc`. L'exposition est donc bornée à ce fichier.
+
+*Hors périmètre Capsule, constaté au passage* : `/Users/anissa/rfc-/.env` contient une clé
+`service_role` d'un autre projet Supabase.
+
+- **Correctif minimal** : chiffrer le disque (probablement déjà le cas). **0,1 j**
 - **Correctif cible** : jeu de secrets de développement distinct de la production ; rotation des clés actuelles. **0,5 j**
 - **Priorité** : sous 30 jours.
 

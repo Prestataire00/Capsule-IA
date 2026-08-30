@@ -14,6 +14,10 @@ concurrency:
   group: db-migrate-prod
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
@@ -33,3 +37,41 @@ jobs:
         run: supabase db push --dry-run --include-all
       - name: Apply migrations
         run: supabase db push --include-all
+
+      # Un échec ici est silencieux : le code part en production sans son schéma,
+      # et rien ne le signale. Les migrations 0128 et 0129 sont restées treize
+      # jours non appliquées de cette façon (audit CAP-04). On ouvre donc une
+      # issue, qui notifie par les canaux habituels du dépôt.
+      - name: Signaler l'échec
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const titre = `Migrations non appliquées en production (run ${context.runId})`;
+            const ouvertes = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'db-migrate',
+            });
+            const corps = [
+              "Le workflow d'application des migrations a échoué.",
+              '',
+              '**Le code est déployé, son schéma ne l\'est pas** : les fonctionnalités',
+              'concernées sont inertes en production jusqu\'à résolution.',
+              '',
+              `Exécution : ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `Commit : ${context.sha}`,
+              '',
+              'Solution de repli : jouer les fichiers `supabase/migrations/` non appliqués',
+              "dans l'éditeur SQL Supabase, dans l'ordre des numéros.",
+            ].join('\n');
+            if (ouvertes.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: ouvertes.data[0].number, body: corps,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: titre, body: corps, labels: ['db-migrate'],
+              });
+            }
