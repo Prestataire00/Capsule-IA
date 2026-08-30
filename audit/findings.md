@@ -25,9 +25,9 @@ pas un contrôle : l'URL tapée directement fonctionne.
 connaît l'identifiant d'un dossier lit les montants facturés, les financeurs et l'état des règlements.
 Fuite financière inter-organismes.
 
-- **Correctif minimal** : `await requireAccess('billing')` en tête de page + `.eq('organization_id', …)` sur les trois requêtes. **0,5 j**
-- **Correctif cible** : garde d'autorisation appliquée par le layout du groupe `(dashboard)` à partir de `sectionForPath()`, pour que l'oubli devienne impossible. **2 j**
-- **Priorité** : bloquant.
+**Correctif appliqué (2026-08-30, `77ef9ec`)** : `await requireAccess('billing')` en tête de page et
+`.eq('organization_id', …)` sur les trois requêtes. Puis la garde centrale (CAP-05) rend l'oubli
+impossible sur les pages suivantes. Test `tests/page-service-role-guard.test.ts`.
 
 ---
 
@@ -46,9 +46,10 @@ le **nom et l'e-mail du réclamant**. Ce sont des données personnelles, dans un
 (réclamation) où elles sont sensibles. Accessible à tout compte authentifié, y compris `commercial`
 et `formateur` à qui la matrice donne `qualiopi: 'none'` (`permissions.ts:41`).
 
-- **Correctif minimal** : `requireAccess('qualiopi')` + `.eq('organization_id', membre.organizationId)`. **0,5 j**
-- **Correctif cible** : idem CAP-01 (garde centralisée) + repasser ces pages sur le client RLS plutôt que `service_role`. **2 j**
-- **Priorité** : bloquant.
+**Correctif appliqué (2026-08-30, `77ef9ec`)** : `requireAccess('qualiopi')` et filtre d'organisation
+sur la liste comme sur le détail.
+
+- **Correctif cible restant** : repasser ces pages sur le client RLS plutôt que `service_role`. **1 j**
 
 ---
 
@@ -64,12 +65,14 @@ individuellement :
 ```
 (`/reclamations/[id]` est traitée en CAP-02.)
 
-`/parametres/integrations/google-calendar` est la plus préoccupante *a priori* : la section
-`settings` est réservée à `owner`/`admin` dans la matrice, et la page manipule un rattachement de
-compte externe. **[À VÉRIFIER]** en phase 1.
+**Résolu (2026-08-30)** — vérification page par page :
 
-- **Correctif minimal** : garde + filtre d'organisation sur chacune. **0,5 j**
-- **Priorité** : bloquant (au moins pour la page paramètres).
+- `/formations/[id]/programme` : garde et filtre d'organisation ajoutés (`77ef9ec`).
+- `/agenda` et `/parametres/integrations/google-calendar` : **sans danger**, contrairement à ce que
+  je supposais. Les deux bornent leur lecture au seul utilisateur connecté (`.eq('user_id', user.id)`
+  après `auth.getUser()`) — un membre n'y voit que sa propre intégration. Elles sont exemptées
+  explicitement dans `tests/page-service-role-guard.test.ts`, et couvertes depuis par la garde
+  centrale (CAP-05).
 
 ---
 
@@ -233,9 +236,19 @@ les URL. Pour les 64 pages servies par le client RLS, la base limite les dégât
 il n'y a rien (CAP-01 à CAP-03). Surtout, **le prochain écran écrit sans garde reproduira la faille** :
 le défaut du système est ouvert, pas fermé.
 
-- **Correctif minimal** : ajouter `requireAccess` aux pages des sections sensibles (facturation, paramètres, qualiopi, BPF). **1 j**
-- **Correctif cible** : garde centralisée dans le layout du groupe `(dashboard)` via `sectionForPath()`, + un test de non-régression sur le modèle de `api-service-role-guard.test.ts` (qui n'inspecte aujourd'hui **que** les routes API et les Server Actions, pas les pages — c'est cet angle mort qui a laissé passer CAP-01 et CAP-02). **2 j**
-- **Priorité** : sous 30 jours.
+**Correctif appliqué (2026-08-30, `7fba53a`)** : garde d'autorisation **dans le middleware** plutôt
+que dans le layout — le middleware couvre aussi les routes qu'un layout ne voit pas. Elle refuse une
+section dont la matrice donne `none` au rôle et redirige vers l'accueil.
+
+- `ROUTE_SECTION` complété : dix racines n'étaient associées à aucune section (`/bpf`, `/emails`,
+  `/agenda`, `/sessions`, `/fiches-besoin`, `/tracabilite`…) et n'étaient donc cloisonnées pour
+  personne ;
+- une simulation rôle par rôle avant déploiement a évité deux régressions (`/programmation` fermé aux
+  gestionnaires, `/notifications` fermé aux commerciaux) ;
+- **défaut ouvert assumé** sur l'absence du claim `role` : si le hook JWT cessait de le renseigner,
+  bloquer tout le monde serait pire que le risque couvert ;
+- test `tests/route-section-coverage.test.ts` : toute nouvelle racine doit être associée à une
+  section, ou déclarée ouverte explicitement.
 
 ---
 
@@ -381,6 +394,18 @@ depuis la migration `0106`, une session de groupe se rattache à une formation, 
 `CHECK (dossier_id IS NOT NULL OR formation_id IS NOT NULL)`. La production ne contient à ce jour
 que des données d'essai — ce contrôle sera à refaire sur des volumes réels.
 
+**Valeur probante de l'émargement (CAP-11 clos)** — `[CONSTATÉ]` Le dispositif tient :
+
+- le condensat enregistré lie l'image de la signature, l'adresse IP, le navigateur, l'horodatage et
+  l'identifiant du jeton (`signer/[token]/actions.ts:55-64`) — un élément modifié invalide le tout ;
+- le jeton de signature est le seul à être **à usage unique**, avec un registre en base
+  (`app.attendance_token_jtis`, migration `0030`) et une durée de vie de 24 h ;
+- **aucune policy `UPDATE` ni `DELETE`** n'existe sur `app.attendance_signatures` : avec `FORCE ROW
+  LEVEL SECURITY`, une signature ne peut être ni modifiée ni effacée depuis l'application. Aucun code
+  applicatif n'en modifie non plus (seul un nettoyage de test E2E le fait) ;
+- le bucket `signatures` est **privé** ; seuls `avatars` et `trainer-photos` sont publics, et c'est
+  voulu (photos affichées au catalogue).
+
 **Accès horizontal dans l'espace apprenant** — `[CONSTATÉ]` Les ressources désignées par un
 identifiant d'URL sont correctement rattachées au porteur du jeton :
 `/api/espace/[token]/document/[id]` refuse un document dont `dossier_id` diffère du claim du jeton
@@ -393,5 +418,4 @@ traité en 404. Changer l'identifiant dans l'URL ne donne rien.
 
 | ID | Sujet | Pourquoi ça compte |
 |---|---|---|
-| CAP-11 | Valeur probante de l'émargement | Horodatage, non-modifiabilité a posteriori, traçabilité des corrections — cœur d'un contrôle Qualiopi. |
 | CAP-12 | Parcours de bout en bout | Inscription → émargement → attestation → facture, avec les cas limites. |
