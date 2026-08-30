@@ -1,10 +1,9 @@
 import 'server-only';
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import type { Database } from '@/shared/types/database';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { UserId } from '@/features/dossier/domain/ids';
 import { UserId as makeUserId } from '@/features/dossier/domain/ids';
+import type { ServerSupabase } from '@/shared/lib/supabase/client-type';
 
 export class UnauthenticatedError extends Error {
   readonly tag = 'UnauthenticatedError';
@@ -16,7 +15,10 @@ export class UnauthenticatedError extends Error {
 export type AuthCtx = {
   userId: UserId;
   email: string;
-  supabase: SupabaseClient<Database>;
+  // Typé par inférence : `ServerSupabase` fige une arité de génériques
+  // qui a changé côté supabase-js, d'où une incompatibilité à chaque montée de
+  // version. Le type suit désormais la fabrique.
+  supabase: ReturnType<typeof supabaseServer>;
 };
 
 export const actionClient = createSafeActionClient({

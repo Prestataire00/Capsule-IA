@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/shared/types/database';
+import type { ServerSupabase } from '@/shared/lib/supabase/client-type';
 import type { TrainerSelfRepository } from '../application/ports';
 import { TrainerProfile } from '../domain/trainer-profile';
 import { OrganizationId, TrainerId, UserId } from '@/features/dossier/domain/ids';
@@ -21,7 +20,7 @@ type TrainerRow = {
 };
 
 export class SupabaseTrainerSelfRepository implements TrainerSelfRepository {
-  constructor(private supabase: SupabaseClient<Database>) {}
+  constructor(private supabase: ServerSupabase) {}
 
   async findById(id: TrainerId): Promise<TrainerProfile | null> {
     const { data, error } = await (this.supabase as any)

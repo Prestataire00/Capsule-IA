@@ -1,11 +1,10 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/shared/types/database';
+import type { ServerSupabase } from '@/shared/lib/supabase/client-type';
 import type { AvatarStorage } from '../application/ports';
 
 const BUCKET = 'avatars';
 
 export class SupabaseAvatarStorage implements AvatarStorage {
-  constructor(private supabase: SupabaseClient<Database>) {}
+  constructor(private supabase: ServerSupabase) {}
 
   async upload(
     userId: string,

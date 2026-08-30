@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/shared/types/database';
+import type { ServerSupabase } from '@/shared/lib/supabase/client-type';
 import type { TrainerCompetencyRepository } from '../application/ports';
 import { TrainerCompetency, type CompetencyKind } from '../domain/trainer-competency';
 import { CompetencyId, TrainerId } from '@/features/dossier/domain/ids';
@@ -17,7 +16,7 @@ type Row = {
 };
 
 export class SupabaseTrainerCompetencyRepository implements TrainerCompetencyRepository {
-  constructor(private supabase: SupabaseClient<Database>) {}
+  constructor(private supabase: ServerSupabase) {}
 
   async findById(id: CompetencyId): Promise<TrainerCompetency | null> {
     const { data, error } = await (this.supabase as any)

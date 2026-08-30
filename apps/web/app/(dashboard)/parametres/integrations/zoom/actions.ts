@@ -9,6 +9,7 @@ import {
   type ZoomCredentials,
 } from '@/features/attendance/zoom-secrets-cipher';
 import { testZoomConnection as zoomApiTest } from '@/features/attendance/zoom-api-client';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -23,24 +24,16 @@ type AuthContext = {
 };
 
 const requireAdmin = async (): Promise<AuthContext | { ok: false; error: string }> => {
-  const sb = supabaseServer();
-  const {
-    data: { user },
-  } = await sb.auth.getUser();
-  if (!user) return { ok: false, error: 'unauthenticated' };
-  const { data: member } = await sb
-    .schema('app')
-    .from('memberships')
-    .select('organization_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (!member) return { ok: false, error: 'no_membership' };
-  const role = (member as { organization_id: string; role: string }).role;
+  // Interrogeait `app.memberships`, table inexistante (audit CAP-16) : toute
+  // action Zoom échouait en « no_membership ». La table réelle est `app.members`.
+  const member = await getCurrentMember();
+  if (!member) return { ok: false, error: 'unauthenticated' };
+  const role = member.role;
   if (role !== 'owner' && role !== 'admin') return { ok: false, error: 'forbidden' };
   return {
     ok: true,
-    userId: user.id,
-    organizationId: (member as { organization_id: string }).organization_id,
+    userId: member.userId,
+    organizationId: member.organizationId,
     role,
   };
 };

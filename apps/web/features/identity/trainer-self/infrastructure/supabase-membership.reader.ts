@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/shared/types/database';
+import type { ServerSupabase } from '@/shared/lib/supabase/client-type';
 import type { MembershipReader, TrainerMembership } from '../application/ports';
 import { OrganizationId, TrainerId } from '@/features/dossier/domain/ids';
 
@@ -13,7 +12,7 @@ type MembershipRow = {
 };
 
 export class SupabaseMembershipReader implements MembershipReader {
-  constructor(private supabase: SupabaseClient<Database>) {}
+  constructor(private supabase: ServerSupabase) {}
 
   async list(): Promise<TrainerMembership[]> {
     // RPC not yet in generated Database types (pending db:types:linked regen).

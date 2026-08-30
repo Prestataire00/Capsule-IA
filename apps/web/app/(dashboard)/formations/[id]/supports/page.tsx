@@ -12,6 +12,7 @@ import {
   TogglePublishButton,
   DeleteSupportButton,
 } from './supports-uploader';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 type ResourceRow = {
   id: string;
@@ -54,20 +55,12 @@ export default async function FormationSupportsPage({
 }) {
   const sb = supabaseServer();
 
-  // Auth + org
-  const {
-    data: { user },
-  } = await sb.auth.getUser();
-  if (!user) return notFound();
-
-  const { data: memberRow } = await sb
-    .schema('app')
-    .from('memberships')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  const orgId = (memberRow as { organization_id: string } | null)?.organization_id;
-  if (!orgId) return notFound();
+  // Auth + org. Interrogeait `app.memberships`, table inexistante (audit CAP-16) :
+  // la page renvoyait 404 pour tout le monde, ce qui rendait muette la
+  // fonctionnalité qui alimente les ressources de l'espace apprenant.
+  const me = await getCurrentMember();
+  if (!me) return notFound();
+  const orgId = me.organizationId;
 
   // Formation
   const { data: formation } = await sb
@@ -113,8 +106,10 @@ export default async function FormationSupportsPage({
     };
 
     for (const r of resources ?? []) {
-      resourcesByModule[r.module_id] ??= [];
-      resourcesByModule[r.module_id].push(r);
+      // `noUncheckedIndexedAccess` : l'accès indexé peut être `undefined`, même
+      // juste après l'affectation par défaut.
+      const bucket = (resourcesByModule[r.module_id] ??= []);
+      bucket.push(r);
     }
   }
 

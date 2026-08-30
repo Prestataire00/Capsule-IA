@@ -11,6 +11,7 @@ import {
 } from '@/features/attendance/zoom-secrets-cipher';
 import { fetchMeetingRecordings } from '@/features/attendance/zoom-api-client';
 import { persistSessionRecording } from '@/features/attendance/persist-session-recording';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -19,16 +20,17 @@ const adminClient = () =>
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-/** Résout l'organization_id du membre connecté (via RLS memberships). */
-async function resolveOrgId(userId: string): Promise<string | null> {
-  const sb = supabaseServer();
-  const { data } = await sb
-    .schema('app')
-    .from('memberships')
-    .select('organization_id')
-    .eq('user_id', userId)
-    .maybeSingle();
-  return (data as { organization_id: string } | null)?.organization_id ?? null;
+/**
+ * Résout l'organization_id du membre connecté.
+ *
+ * Interrogeait `app.memberships` — table qui n'existe pas (audit CAP-16) : la
+ * requête échouait, `data` restait null, et la fonctionnalité était morte sans
+ * le moindre message. La table réelle est `app.members`, déjà lue par
+ * `getCurrentMember()`.
+ */
+async function resolveOrgId(): Promise<string | null> {
+  const me = await getCurrentMember();
+  return me?.organizationId ?? null;
 }
 
 type IntegRow = {
@@ -56,7 +58,7 @@ export const fetchSessionRecording = authActionClient
   .action(async ({ parsedInput, ctx }) => {
     if (!env.ZOOM_SECRETS_KEY) throw new Error('zoom_secrets_key_missing');
 
-    const orgId = await resolveOrgId(ctx.userId as string);
+    const orgId = await resolveOrgId();
     if (!orgId) throw new Error('Organisation introuvable');
 
     // Lecture session via service_role pour accéder à zoom_meeting_id sans contrainte RLS

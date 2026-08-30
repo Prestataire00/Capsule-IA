@@ -161,6 +161,49 @@ renvoie une erreur et aucune révocation n'est possible.
 
 ---
 
+### CAP-16 — Cinq fonctionnalités interrogeaient une table qui n'existe pas
+
+**[CONSTATÉ]** Cinq écrans lisaient `app.memberships`. Cette table n'apparaît dans aucune migration,
+et la production répond `HTTP 404 / PGRST205 « Perhaps you meant the table… »`. La table réelle est
+`app.members`.
+
+Le motif était partout le même :
+
+```ts
+const { data } = await sb.schema('app').from('memberships')
+  .select('organization_id').eq('user_id', user.id).maybeSingle();
+const orgId = (data as ...)?.organization_id;
+if (!orgId) return notFound();   // ← toujours vrai
+```
+
+`supabase-js` ne lève pas d'exception : l'erreur part dans `{ error }`, ignoré, et `data` vaut
+`null`. Les cinq fonctionnalités échouaient donc **en silence**, sans message ni trace :
+
+| Écran | Effet réel |
+|---|---|
+| `/formations/[id]/supports` (page) | **404 pour tout le monde** |
+| `/formations/[id]/supports` (dépôt de fichier) | dépôt impossible |
+| `/dossiers/[id]/exercices` (actions) | exercices inopérants |
+| `/dossiers/[id]/sessions` (enregistrements) | enregistrements inopérants |
+| `/parametres/integrations/zoom` | toute action Zoom échouait en « no_membership » |
+
+**C'est la vraie cause du « Ressources à venir »** affiché aux apprenants : CAP-07 avait identifié
+l'absence de lien entrant vers la page des supports, mais même atteinte, la page renvoyait 404.
+
+**Impact métier** : les supports pédagogiques ne peuvent pas être déposés, donc l'espace apprenant
+n'a rien à afficher. Sur un contrôle Qualiopi, les ressources mises à disposition des apprenants
+sont un attendu.
+
+**Correctif appliqué (2026-08-30)** : les cinq sites passent par `getCurrentMember()`, le lecteur
+déjà en place sur `app.members`. Test `tests/table-exists.test.ts` : tout `.from()` doit viser une
+relation créée par une migration (vérifié : il détecte bien `memberships`).
+
+**Pourquoi ça n'avait pas été vu** : le typecheck signalait ces cinq appels — mais noyés dans
+140 erreurs tenues en bloc pour du bruit de types périmés (cf. CAP-06). Un compteur d'erreurs qu'on
+renonce à ramener à zéro cesse d'être un signal.
+
+---
+
 ### CAP-04 — Deux fonctionnalités livrées sont inertes : les migrations 0128 et 0129 ne sont pas appliquées
 
 **[CONSTATÉ]** `gh run list --workflow=db-migrate.yml` → les deux exécutions du 2026-08-17 sont en
@@ -212,6 +255,13 @@ alerte dans 91 fichiers — dont l'envoi d'e-mails, les jetons signés et les in
 
 **Correctif appliqué (2026-08-30)** : `apps/web/env.d.ts` déclare le module au reflet exact du schéma
 zod (requis = `string`, `.optional()` = `string | undefined`). **140 → 43 erreurs.**
+
+**Suite (2026-08-30)** : la déclaration d'`env.mjs` a ramené le compte de 140 à 43, puis deux
+corrections de fond ont ramené à 21 : le type du client Supabase est désormais **inféré** de sa
+fabrique (`shared/lib/supabase/client-type.ts`) au lieu d'être figé sur `SupabaseClient<Database>`,
+dont l'arité de génériques a changé au fil des versions ; et les cinq appels à la table inexistante
+`memberships` ont été corrigés (CAP-16). Les 21 restantes visent bien les 16 tables absentes des
+types générés.
 
 - **Reste à faire** : régénérer `database.ts`. Impossible depuis ce poste — ni Docker (pour
   `--local`), ni projet lié, ni mot de passe de base (pour `--db-url`). À faire depuis une machine

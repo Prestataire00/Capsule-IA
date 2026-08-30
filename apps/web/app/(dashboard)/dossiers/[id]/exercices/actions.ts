@@ -9,23 +9,25 @@ import {
   toggleExercisePublishSchema,
   deleteExerciseSchema,
 } from '@/features/exercices/exercise.schema';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
-/** Résout l'organization_id du membre connecté (via RLS memberships). */
-async function resolveOrgId(userId: string): Promise<string | null> {
-  const sb = supabaseServer();
-  const { data } = await sb
-    .schema('app')
-    .from('memberships')
-    .select('organization_id')
-    .eq('user_id', userId)
-    .maybeSingle();
-  return (data as { organization_id: string } | null)?.organization_id ?? null;
+/**
+ * Résout l'organization_id du membre connecté.
+ *
+ * Interrogeait `app.memberships` — table qui n'existe pas (audit CAP-16) : la
+ * requête échouait, `data` restait null, et la fonctionnalité était morte sans
+ * le moindre message. La table réelle est `app.members`, déjà lue par
+ * `getCurrentMember()`.
+ */
+async function resolveOrgId(): Promise<string | null> {
+  const me = await getCurrentMember();
+  return me?.organizationId ?? null;
 }
 
 export const createExercise = authActionClient
   .schema(createExerciseSchema)
   .action(async ({ parsedInput, ctx }) => {
-    const orgId = await resolveOrgId(ctx.userId as string);
+    const orgId = await resolveOrgId();
     if (!orgId) throw new Error('Organisation introuvable');
 
     const { error } = await ctx.supabase

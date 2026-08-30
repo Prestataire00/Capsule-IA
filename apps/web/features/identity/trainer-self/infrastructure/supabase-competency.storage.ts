@@ -1,11 +1,10 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/shared/types/database';
+import type { ServerSupabase } from '@/shared/lib/supabase/client-type';
 import type { CompetencyStorage } from '../application/ports';
 
 const BUCKET = 'trainer-cvs';
 
 export class SupabaseCompetencyStorage implements CompetencyStorage {
-  constructor(private supabase: SupabaseClient<Database>) {}
+  constructor(private supabase: ServerSupabase) {}
 
   async upload(
     orgId: string,

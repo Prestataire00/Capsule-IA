@@ -11,15 +11,15 @@ export const supabaseServer = () => {
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        get: (name) => cookieStore.get(name)?.value,
-        set: (name, value, options: CookieOptions) => {
+        get: (name: string) => cookieStore.get(name)?.value,
+        set: (name: string, value: string, options: CookieOptions) => {
           try {
             cookieStore.set({ name, value, ...options });
           } catch {
             /* RSC read-only */
           }
         },
-        remove: (name, options: CookieOptions) => {
+        remove: (name: string, options: CookieOptions) => {
           try {
             cookieStore.set({ name, value: '', ...options });
           } catch {
