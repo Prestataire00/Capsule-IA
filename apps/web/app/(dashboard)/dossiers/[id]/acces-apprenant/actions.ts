@@ -67,6 +67,59 @@ export async function generateApprenantLink(dossierId: string): Promise<Generate
   };
 }
 
+export type RevokeLinksResult = { ok: true; revokedAt: string } | { ok: false; error: string };
+
+/**
+ * Coupe tous les liens déjà envoyés pour ce dossier — espace apprenant,
+ * questionnaires, satisfaction, signature de document (audit CAP-14).
+ *
+ * On pose une date butoir plutôt que de révoquer un jeton précis : l'organisme
+ * ne connaît pas les `jti`. Régénérer un lien après cette date le rend de
+ * nouveau valide, sans lever la révocation des liens antérieurs.
+ */
+export async function revokeApprenantLinks(dossierId: string, reason?: string): Promise<RevokeLinksResult> {
+  const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const sb = admin();
+  const { data: dossier } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('organization_id')
+    .eq('id', dossierId)
+    .maybeSingle();
+  if (!dossier) return { ok: false, error: 'dossier_not_found' };
+
+  // `CurrentMember` porte l'identifiant utilisateur, pas celui du membre.
+  const { data: membre } = await sb
+    .schema('app')
+    .from('members')
+    .select('id')
+    .eq('user_id', guard.member.userId)
+    .eq('organization_id', (dossier as { organization_id: string }).organization_id)
+    .maybeSingle();
+
+  const revokedAt = new Date().toISOString();
+  const { error } = await sb
+    .schema('app')
+    .from('link_revocations')
+    .upsert(
+      {
+        dossier_id: dossierId,
+        organization_id: (dossier as { organization_id: string }).organization_id,
+        revoked_at: revokedAt,
+        revoked_by: (membre as { id: string } | null)?.id ?? null,
+        reason: reason ?? null,
+      },
+      { onConflict: 'dossier_id' },
+    );
+  if (error) return { ok: false, error: error.message };
+
+  const { forgetRevocation } = await import('@/shared/lib/link-revocation');
+  forgetRevocation(dossierId);
+  return { ok: true, revokedAt };
+}
+
 export type SendLinkResult =
   | { ok: true; emailId: string }
   | { ok: false; error: string };

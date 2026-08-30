@@ -1,8 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Link2, Copy, Check, Mail, Loader2, AlertCircle, Sparkles, FileBadge } from 'lucide-react';
-import { generateApprenantLink, sendApprenantLinkEmail, sendWelcomePacketEmail } from './actions';
+import { Link2, Copy, Check, Mail, Loader2, AlertCircle, Sparkles, FileBadge, ShieldOff } from 'lucide-react';
+import {
+  generateApprenantLink,
+  sendApprenantLinkEmail,
+  sendWelcomePacketEmail,
+  revokeApprenantLinks,
+} from './actions';
 
 type LinkState =
   | { status: 'idle' }
@@ -34,6 +39,17 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
   const [email, setEmail] = useState<EmailState>({ status: 'idle' });
   const [welcome, setWelcome] = useState<WelcomeState>({ status: 'idle' });
   const [copied, setCopied] = useState(false);
+  const [revoke, setRevoke] = useState<
+    { status: 'idle' } | { status: 'confirm' } | { status: 'working' } | { status: 'done' } | { status: 'error'; message: string }
+  >({ status: 'idle' });
+
+  const handleRevoke = () => {
+    setRevoke({ status: 'working' });
+    startTransition(async () => {
+      const result = await revokeApprenantLinks(dossierId);
+      setRevoke(result.ok ? { status: 'done' } : { status: 'error', message: result.error });
+    });
+  };
   const [pending, startTransition] = useTransition();
 
   const handleSendWelcomePacket = () => {
@@ -288,14 +304,67 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
             </div>
           )}
 
-          <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
+          <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4 space-y-3">
             <button
               type="button"
               onClick={handleGenerate}
               className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition underline-offset-2 hover:underline"
             >
-              Régénérer un nouveau lien (invalide l&apos;ancien — l&apos;ancien restera valide 90j sauf revoke)
+              Régénérer un nouveau lien
             </button>
+
+            {revoke.status === 'done' ? (
+              <div className="flex items-start gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-lg">
+                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[12px] text-emerald-900 dark:text-emerald-200">
+                  Liens révoqués. Ceux déjà envoyés ne fonctionnent plus. Régénérez un lien pour redonner
+                  l&apos;accès à l&apos;apprenant.
+                </p>
+              </div>
+            ) : revoke.status === 'error' ? (
+              <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[12px] text-red-900 dark:text-red-200">{revoke.message}</p>
+              </div>
+            ) : revoke.status === 'confirm' ? (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-lg space-y-2">
+                <p className="text-[12px] text-amber-900 dark:text-amber-200">
+                  Tous les liens déjà envoyés pour ce dossier cesseront de fonctionner : espace apprenant,
+                  questionnaires, satisfaction, signature de document.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRevoke}
+                    disabled={pending}
+                    className="bg-red-600 hover:bg-red-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition shadow-sm disabled:opacity-40"
+                  >
+                    Révoquer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRevoke({ status: 'idle' })}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setRevoke({ status: 'confirm' })}
+                disabled={revoke.status === 'working' || pending}
+                className="text-[11px] text-zinc-500 hover:text-red-600 dark:hover:text-red-400 transition inline-flex items-center gap-1.5 disabled:opacity-40"
+              >
+                {revoke.status === 'working' ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <ShieldOff className="w-3 h-3" />
+                )}
+                Révoquer les liens déjà envoyés
+              </button>
+            )}
           </div>
         </div>
       )}

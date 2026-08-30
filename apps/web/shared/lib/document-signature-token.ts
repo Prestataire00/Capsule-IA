@@ -68,6 +68,23 @@ export const verifyDocumentSignatureToken = async (
     ) {
       return err('invalid_payload');
     }
+    // Révocation par dossier (audit CAP-14). Ce jeton ne porte pas de dossier :
+    // on le retrouve via le document signé, en une lecture. Le contrôle vit ici
+    // plutôt que dans les pages pour couvrir aussi l'action de signature.
+    {
+      const { supabaseAdmin } = await import('@/shared/lib/supabase/admin');
+      const { isLinkRevoked } = await import('@/shared/lib/link-revocation');
+      const { data: doc } = await supabaseAdmin()
+        .schema('app')
+        .from('documents')
+        .select('dossier_id')
+        .eq('id', payload.doc)
+        .maybeSingle();
+      if (await isLinkRevoked((doc?.dossier_id as string | null) ?? null, payload.iat)) {
+        return err('revoked_token');
+      }
+    }
+
     return ok({
       signatureId: payload.sig,
       documentId: payload.doc,

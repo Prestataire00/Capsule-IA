@@ -134,11 +134,30 @@ qui quitte la formation reste actif jusqu'à son terme. Le seul moyen de le coup
 `TOKEN_SIGNING_KEY` — ce qui invalide **tous** les liens de **tous** les organismes. En cas de
 demande d'effacement RGPD, il n'existe aucun moyen de fermer l'accès déjà distribué.
 
-- **Correctif minimal** : table `app.revoked_token_jtis` + vérification dans les six fonctions
-  `verify*`, et un bouton « révoquer le lien » sur la fiche apprenant. **1 j**
+**Correctif appliqué (2026-08-30)** — on ne révoque pas un jeton, on révoque un **dossier** :
+l'organisme ne connaît pas les `jti`, qui ne lui sont affichés nulle part, alors qu'il raisonne
+naturellement en dossier. Une révocation pose une date butoir ; tout jeton émis avant est refusé,
+tout lien réémis ensuite fonctionne.
+
+- table `app.link_revocations` (migration `0131`, RLS activée, pas de policy `DELETE` : on lève une
+  révocation en réémettant un lien, pas en effaçant la trace) ;
+- contrôle intégré aux **six** fonctions `verify*`, seul point de passage couvrant à la fois les
+  pages et les Server Actions — 25 appelants sinon ;
+- `.setIssuedAt()` ajouté aux jetons qui en manquaient ; un jeton **sans** `iat` face à un dossier
+  révoqué est refusé, puisqu'il est nécessairement antérieur à la date butoir ;
+- bouton « Révoquer les liens déjà envoyés » sur `/dossiers/[id]/acces-apprenant`, avec confirmation ;
+- 6 tests sur la logique de comparaison (`shared/lib/link-revocation.test.ts`).
+
+**Défaut ouvert assumé** : si la base est injoignable ou la migration non appliquée, le contrôle
+laisse passer et journalise. Fermer n'apporterait rien — la page qui suit interroge la même base et
+ne peut donc rien afficher — et priverait les apprenants légitimes de leur espace. Un délai de garde
+de 2 s empêche par ailleurs une base lente de bloquer le rendu.
+
+**Le code est déployé ; la migration 0131 reste à appliquer** (cf. CAP-04) : jusque-là, le bouton
+renvoie une erreur et aucune révocation n'est possible.
+
 - **Correctif cible** : ramener l'espace apprenant à un jeton court renouvelé par e-mail à la
   demande, plutôt qu'un lien permanent de 90 jours. **3 j**
-- **Priorité** : sous 30 jours.
 
 ---
 
@@ -236,8 +255,11 @@ silencieusement sur le dossier le plus récent. Les sous-pages (`sessions`, `res
 réclamation) utilisent bien le claim `dos` : l'espace peut donc afficher un dossier en en-tête et
 les séances d'un autre.
 
-- **Correctif minimal** : passer `p_dossier_id` à la RPC et filtrer dessus. **0,25 j**
-- **Priorité** : sous 30 jours.
+**Correctif appliqué (2026-08-30)** : l'espace refuse d'afficher un dossier qui n'est pas celui du
+lien (`_lib.ts`) — défaut fermé, plutôt qu'un affichage silencieusement faux.
+
+- **Correctif cible** : passer `p_dossier_id` à la RPC et filtrer dessus, pour que le lien affiche
+  son dossier au lieu d'être refusé. **0,25 j** (nécessite une migration)
 
 ---
 
@@ -248,6 +270,14 @@ les séances d'un autre.
 rendu ; les pages passent par le client RLS ; `ensureSessionSheets` est précédé de
 `assertSessionAccess`, qui teste la visibilité de la séance avec le client RLS (donc le cloisonnement
 multi-organisme est bien appliqué en base, `actions.ts:385-394`).
+
+**Intégrité des données de production (CAP-10 clos)** — `[CONSTATÉ]` Comptages en lecture seule le
+2026-08-30 : 1 organisme, 5 membres, 3 apprenants, 2 dossiers, 6 séances, 20 documents,
+3 factures, 0 signature d'émargement. Aucune facture hors dossier, aucune feuille hors séance,
+aucun dossier sans formation. Les 5 séances « sans dossier » relèvent du modèle et non d'un défaut :
+depuis la migration `0106`, une session de groupe se rattache à une formation, avec une contrainte
+`CHECK (dossier_id IS NOT NULL OR formation_id IS NOT NULL)`. La production ne contient à ce jour
+que des données d'essai — ce contrôle sera à refaire sur des volumes réels.
 
 **Accès horizontal dans l'espace apprenant** — `[CONSTATÉ]` Les ressources désignées par un
 identifiant d'URL sont correctement rattachées au porteur du jeton :
@@ -261,6 +291,5 @@ traité en 404. Changer l'identifiant dans l'URL ne donne rien.
 
 | ID | Sujet | Pourquoi ça compte |
 |---|---|---|
-| CAP-10 | Intégrité des données réelles | Orphelins, doublons, dossiers sans session, factures sans ligne — requêtes d'agrégat à exécuter en lecture seule. |
 | CAP-11 | Valeur probante de l'émargement | Horodatage, non-modifiabilité a posteriori, traçabilité des corrections — cœur d'un contrôle Qualiopi. |
 | CAP-12 | Parcours de bout en bout | Inscription → émargement → attestation → facture, avec les cas limites. |

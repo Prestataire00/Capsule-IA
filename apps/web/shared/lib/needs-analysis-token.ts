@@ -33,7 +33,8 @@ export type NeedsAnalysisSignedToken = {
   readonly expiresAt: Date;
 };
 
-export type NeedsAnalysisTokenError = 'invalid_token' | 'expired_token' | 'invalid_payload';
+export type NeedsAnalysisTokenError = 'invalid_token' | 'expired_token'
+  | 'revoked_token' | 'invalid_payload';
 
 export const generateNeedsAnalysisToken = async (
   payload: NeedsAnalysisPayload,
@@ -76,6 +77,13 @@ export const verifyNeedsAnalysisToken = async (
       typeof payload.jti !== 'string'
     ) {
       return err('invalid_payload');
+    }
+
+    // Révocation par dossier (audit CAP-14) : un lien transféré ou envoyé à la
+    // mauvaise adresse doit pouvoir être coupé sans changer la clé de signature.
+    const { isLinkRevoked } = await import('@/shared/lib/link-revocation');
+    if (await isLinkRevoked(typeof payload.dos === 'string' ? payload.dos : null, payload.iat)) {
+      return err('revoked_token');
     }
 
     return ok({

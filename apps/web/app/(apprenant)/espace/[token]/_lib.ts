@@ -136,6 +136,16 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
     }
     if (dash.data) {
       const d = dash.data as unknown as RealDashboard;
+      // `get_apprenant_dashboard` ignore le dossier inscrit dans le jeton : elle
+      // renvoie le dossier le plus récent de l'apprenant (0028, ORDER BY
+      // start_date DESC LIMIT 1). Pour un apprenant qui suit deux formations,
+      // l'en-tête affichait donc un dossier et les sous-pages — qui, elles,
+      // utilisent le claim `dos` — les séances d'un autre. On refuse plutôt que
+      // d'afficher un dossier qui n'est pas celui du lien (audit CAP-15).
+      if (d.dossier && d.dossier.id !== verified.value.dossierId) {
+        console.warn('[espace-apprenant] dossier du jeton absent du tableau de bord');
+        return null;
+      }
       if (d.learner && d.dossier) {
         const complaintsArr = (comp.data ?? []) as unknown as RealComplaint[];
         const logoUrl = d.organization?.id ? await loadOrgLogoSignedUrl(d.organization.id) : null;
