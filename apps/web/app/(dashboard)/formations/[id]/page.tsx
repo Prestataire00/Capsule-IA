@@ -6,7 +6,7 @@ import { GroupSessionForm } from './group-session-form.client';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft, Clock, Video, MapPin, GraduationCap, Eye, EyeOff,
-  Users as UsersIcon, Banknote, FileText, Sparkles, ExternalLink, Award, Pencil,
+  Users as UsersIcon, Banknote, FileText, Sparkles, ExternalLink, Award, Pencil, FolderOpen,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
@@ -282,6 +282,12 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                 className="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition inline-flex items-center gap-1.5"
               >
                 <FileText className="w-3.5 h-3.5" /> Programme
+              </Link>
+              <Link
+                href={`/formations/${f.id}/supports`}
+                className="text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
+              >
+                <FolderOpen className="w-3.5 h-3.5" /> Supports
               </Link>
               <Link
                 href={`/formations/${f.id}/edit`}

@@ -17,6 +17,7 @@ const tabs = [
   { slug: 'financeurs', label: 'Financeurs' },
   { slug: 'depenses', label: 'Dépenses' },
   { slug: 'activite', label: 'Activité' },
+  { slug: 'tracabilite', label: 'Traçabilité' },
   { slug: 'acces-apprenant', label: 'Accès apprenant' },
 ];
 

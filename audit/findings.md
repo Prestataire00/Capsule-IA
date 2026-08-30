@@ -222,9 +222,16 @@ programmés, intégrations). Une colonne renommée ne casse rien au build et éc
 apprenant consomme — la fonctionnalité est donc morte côté organisme, ce qui explique le
 « Ressources à venir » affiché aux apprenants.
 
-- **Correctif minimal** : remettre une entrée d'onglet vers `supports`. **0,25 j**
-- **Correctif cible** : décider (rebrancher ou supprimer) et supprimer le code mort. **0,5 j**
-- **Priorité** : dette.
+**Correctif appliqué (2026-08-30)** — décision prise page par page :
+
+- `/formations/[id]/supports` : bouton « Supports » ajouté sur la fiche formation, à côté de
+  « Programme ». C'est la fonctionnalité qui alimente les ressources de l'espace apprenant : elle
+  était inatteignable, d'où le « Ressources à venir » affiché aux apprenants.
+- `/dossiers/[id]/tracabilite` : onglet « Traçabilité » ajouté à la navigation du dossier.
+- `/formations/apercu-programme` : **supprimée**, avec son jeu de données d'exemple
+  (`sample-capsule.ts`). Son propre commentaire la décrivait comme un contrôle visuel du gabarit
+  « avant branchement sur les vraies données » — branchement fait depuis, la page ne servait plus
+  qu'à afficher des données fictives dans le dashboard.
 
 ---
 
