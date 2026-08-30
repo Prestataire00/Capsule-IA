@@ -73,7 +73,74 @@ compte externe. **[À VÉRIFIER]** en phase 1.
 
 ---
 
+### CAP-13 — L'expiration des liens apprenant ne protège rien : quatre RPC répondent à Internet sans jeton
+
+**[CONSTATÉ]** `supabase/migrations/0028_apprenant_rpcs.sql:102,142`, `0078:115`, `0081:57`, `0026:92`
+
+Cinq fonctions `SECURITY DEFINER` — donc affranchies de la RLS — sont accordées à `anon` :
+
+```
+app.get_apprenant_dashboard(UUID)      app.get_apprenant_resources(UUID)
+app.get_learner_complaints(UUID)       app.get_apprenant_exercises(UUID)
+app.get_signature_context(UUID, UUID, TEXT)
+```
+
+Leur seule autorisation est la connaissance d'un UUID. Or la clé `anon` est publique — elle est
+embarquée dans le bundle navigateur. Vérification directe sur la base de production le 2026-08-30,
+depuis un simple `curl` sans session :
+
+```
+get_apprenant_dashboard  → HTTP 200   get_apprenant_resources  → HTTP 200
+get_learner_complaints   → HTTP 200   get_apprenant_exercises  → HTTP 200
+```
+
+**Ce qui rend le défaut exploitable** : la charge utile d'un JWT est du base64, **pas du chiffré**.
+L'UUID de l'apprenant (`sub`) est donc lisible en clair par quiconque détient un lien d'espace
+apprenant — y compris un lien **transféré**, **capturé en image**, ou **déjà expiré**.
+
+**Impact métier** : toute personne ayant vu passer un lien apprenant lit, depuis n'importe où et
+**sans limite de durée**, le tableau de bord de cet apprenant (identité, dossier, sessions,
+formateur), ses réclamations, ses ressources et ses exercices. La fenêtre de 90 jours du jeton est
+contournable en décodant le jeton lui-même : elle ne borne rien.
+
+- **Correctif appliqué (2026-08-30)** : les quatre appelants légitimes (`_lib.ts`, `exercises.ts`,
+  `resources.ts`, `signer/[token]/page.tsx`) passent au service role, ce qui rend la vérification du
+  jeton en amont *seule* voie d'accès ; migration `0130_revoke_anon_learner_rpcs.sql` retirant
+  `EXECUTE` à `anon` ; test `tests/anon-rpc-grants.test.ts` qui échoue si une RPC non déclarée
+  publique redevient anonyme. **Le code est déployé ; la migration reste à appliquer** (cf. CAP-04).
+- **Correctif cible** : passer les RPC apprenant en `SECURITY INVOKER` avec une RLS fondée sur le
+  jeton, plutôt que sur l'UUID en argument. **2 j**
+- **Priorité** : appliquer la migration 0130 en priorité sur toute autre.
+
+---
+
 ## Majeurs
+
+### CAP-14 — Aucun lien envoyé à un apprenant ne peut être révoqué
+
+**[CONSTATÉ]** Sept familles de jetons génèrent un identifiant unique (`jti`) et le renvoient…
+sans que rien ne le stocke ni ne le vérifie. Seul le jeton de signature fait exception
+(`app.attendance_token_jtis`, migration `0030`, usage unique + 24 h).
+
+| Famille | Durée de vie | Révocable |
+|---|---|---|
+| espace apprenant | **90 jours** | non |
+| analyse du besoin · questionnaire · satisfaction · satisfaction formateur | 60 jours | non |
+| signature de document | 30 jours | non |
+| signature d'émargement | 24 h | **oui** (usage unique) |
+
+**Impact métier** : un lien envoyé à la mauvaise adresse, transféré par erreur ou lié à un apprenant
+qui quitte la formation reste actif jusqu'à son terme. Le seul moyen de le couper est de changer
+`TOKEN_SIGNING_KEY` — ce qui invalide **tous** les liens de **tous** les organismes. En cas de
+demande d'effacement RGPD, il n'existe aucun moyen de fermer l'accès déjà distribué.
+
+- **Correctif minimal** : table `app.revoked_token_jtis` + vérification dans les six fonctions
+  `verify*`, et un bouton « révoquer le lien » sur la fiche apprenant. **1 j**
+- **Correctif cible** : ramener l'espace apprenant à un jeton court renouvelé par e-mail à la
+  demande, plutôt qu'un lien permanent de 90 jours. **3 j**
+- **Priorité** : sous 30 jours.
+
+---
 
 ### CAP-04 — Deux fonctionnalités livrées sont inertes : les migrations 0128 et 0129 ne sont pas appliquées
 
@@ -157,11 +224,43 @@ la capacité de forger des jetons de signature.
 
 ---
 
+### CAP-15 — Le lien apprenant n'affiche pas forcément le dossier pour lequel il a été émis
+
+**[CONSTATÉ]** Le jeton porte un claim `dos` (identifiant de dossier), mais
+`app.get_apprenant_dashboard` ne le reçoit pas : elle sélectionne
+`WHERE d.learner_id = p_learner_id ORDER BY d.start_date DESC LIMIT 1`
+(`0028_apprenant_rpcs.sql:55-57`).
+
+**Impact métier** : un apprenant qui suit deux formations voit son ancien lien basculer
+silencieusement sur le dossier le plus récent. Les sous-pages (`sessions`, `resources`, dépôt de
+réclamation) utilisent bien le claim `dos` : l'espace peut donc afficher un dossier en en-tête et
+les séances d'un autre.
+
+- **Correctif minimal** : passer `p_dossier_id` à la RPC et filtrer dessus. **0,25 j**
+- **Priorité** : sous 30 jours.
+
+---
+
+## Vérifié conforme
+
+**Espace formateur (5 pages)** — `[CONSTATÉ]` Aucune faille trouvée. Le layout du groupe
+(`app/(formateur)/layout.tsx:9-17`) exige une session **et** un rattachement formateur avant tout
+rendu ; les pages passent par le client RLS ; `ensureSessionSheets` est précédé de
+`assertSessionAccess`, qui teste la visibilité de la séance avec le client RLS (donc le cloisonnement
+multi-organisme est bien appliqué en base, `actions.ts:385-394`).
+
+**Accès horizontal dans l'espace apprenant** — `[CONSTATÉ]` Les ressources désignées par un
+identifiant d'URL sont correctement rattachées au porteur du jeton :
+`/api/espace/[token]/document/[id]` refuse un document dont `dossier_id` diffère du claim du jeton
+(`route.ts:34-42`) ; `/espace/[token]/questionnaires/[assignmentId]` renvoie un état `forbidden`
+traité en 404. Changer l'identifiant dans l'URL ne donne rien.
+
+---
+
 ## À qualifier (phase 1)
 
 | ID | Sujet | Pourquoi ça compte |
 |---|---|---|
-| CAP-09 | Les 13 pages de l'espace apprenant et 5 de l'espace formateur, une à une | L'accès y repose sur des jetons signés : expiration, révocation, portée d'un jeton volé restent à éprouver. |
 | CAP-10 | Intégrité des données réelles | Orphelins, doublons, dossiers sans session, factures sans ligne — requêtes d'agrégat à exécuter en lecture seule. |
 | CAP-11 | Valeur probante de l'émargement | Horodatage, non-modifiabilité a posteriori, traçabilité des corrections — cœur d'un contrôle Qualiopi. |
 | CAP-12 | Parcours de bout en bout | Inscription → émargement → attestation → facture, avec les cas limites. |

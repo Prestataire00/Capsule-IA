@@ -1,5 +1,5 @@
 import { AlertCircle, Check, Clock } from 'lucide-react';
-import { supabaseServer } from '@/shared/lib/supabase/server';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
 import { SignerForm, type SignerContext } from './signer-form';
 
@@ -94,7 +94,10 @@ export default async function SignerPage({
 
   const { attendanceSheetId, signerId, signerKind, jti: _jti } = verified.value;
 
-  const supabase = supabaseServer();
+  // Route publique : `supabaseServer()` agirait ici avec la clé `anon`, publique.
+  // `get_signature_context` est SECURITY DEFINER et n'exige que deux UUID ; on la
+  // sert donc en service role pour pouvoir la fermer à `anon` (migration 0130).
+  const supabase = supabaseAdmin();
   const { data, error } = await supabase
     .schema('app')
     .rpc('get_signature_context' as never, {

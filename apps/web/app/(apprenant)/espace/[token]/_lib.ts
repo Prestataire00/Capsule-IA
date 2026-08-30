@@ -1,6 +1,5 @@
 import 'server-only';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
-import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 // Charge le logo de l'organisme pour l'espace apprenant. L'apprenant n'est pas
@@ -118,7 +117,13 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
     return null;
   }
   {
-    const sb = supabaseServer();
+    // L'espace apprenant est une route publique : `supabaseServer()` y agit avec la
+    // clé `anon`, publique. Les RPC appelées ici sont SECURITY DEFINER et n'ont pour
+    // seule autorisation que la connaissance de l'UUID apprenant — lisible en clair
+    // dans la charge utile base64 du jeton. On passe donc par le service role, ce qui
+    // permet de retirer le droit d'exécution à `anon` (migration 0130) : la
+    // vérification du jeton ci-dessus redevient le seul chemin d'accès.
+    const sb = supabaseAdmin();
     // Les RPC vivent dans le schéma `app` ; le client par défaut cible `public`.
     // Sans `.schema('app')`, l'appel échoue → on retombait sur le mock (Alice).
     const [dash, comp] = await Promise.all([

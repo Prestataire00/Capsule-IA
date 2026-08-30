@@ -1,7 +1,6 @@
 import 'server-only';
 import { headers } from 'next/headers';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
-import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 export type ApprenantDocument = {
@@ -50,7 +49,13 @@ export async function resolveApprenantResources(token: string): Promise<Apprenan
   const verified = await verifyApprenantToken(token);
   if (!verified.ok) return null;
 
-  const sb = supabaseServer();
+  // L'espace apprenant est une route publique : `supabaseServer()` y agit avec la
+  // clé `anon`, publique. Les RPC appelées ici sont SECURITY DEFINER et n'ont pour
+  // seule autorisation que la connaissance de l'UUID apprenant — lisible en clair
+  // dans la charge utile base64 du jeton. On passe donc par le service role, ce qui
+  // permet de retirer le droit d'exécution à `anon` (migration 0130) : la
+  // vérification du jeton ci-dessus redevient le seul chemin d'accès.
+  const sb = supabaseAdmin();
   const { data, error } = await sb.schema('app').rpc(
     'get_apprenant_resources' as never,
     { p_learner_id: verified.value.learnerId } as never,
