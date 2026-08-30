@@ -271,6 +271,32 @@ types générés.
 
 ---
 
+### CAP-17 — Une écriture Supabase sur deux ne regarde pas son erreur
+
+**[CONSTATÉ]** 61 écritures (`insert`, `update`, `upsert`, `delete`) ne récupèrent pas `error` ;
+70 lectures non plus. `supabase-js` ne lève jamais d'exception : une requête refusée par la RLS,
+visant une colonne renommée ou une table absente renvoie `{ data: null, error }` et le code
+poursuit. C'est le mécanisme exact de CAP-16, resté invisible cinq mois.
+
+**Vérification des chemins critiques** — ils tiennent :
+
+- enregistrement d'une signature d'émargement et de document : `error` contrôlé ;
+- insertion des réponses de questionnaire : `error` contrôlé, redirection vers une page d'erreur ;
+- l'`update` signalé dans la signature de document ne concerne que la bascule « expiré ».
+
+**Ce qui ne tenait pas** : la bascule d'une assignation en `completed`, sur les **cinq** parcours de
+questionnaire. La réponse est bien enregistrée, mais si la bascule échoue, l'assignation reste « en
+attente » : le destinataire est relancé, et l'indicateur Qualiopi sous-compte les réponses — un
+écart entre les réponses réelles et le taux affiché sur les fiches publiques.
+
+**Correctif appliqué (2026-08-30)** : les cinq bascules journalisent leur échec.
+
+- **Correctif cible** : une règle de lint interdisant d'ignorer `error` sur une écriture, puis
+  reprise des 56 autres sites. **2 j**
+- **Priorité** : sous 30 jours.
+
+---
+
 ## Mineurs
 
 ### CAP-07 — Trois pages inatteignables depuis l'interface

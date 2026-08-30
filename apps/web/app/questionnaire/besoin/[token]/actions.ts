@@ -96,11 +96,17 @@ export async function submitNeedsAnalysis(formData: FormData): Promise<void> {
     redirect(`/questionnaire/besoin/${data.token}?error=db`);
   }
 
-  await sb
+  // La réponse est enregistrée ; si cette bascule échoue en silence, l'assignation
+  // reste « en attente » : le destinataire est relancé et l'indicateur Qualiopi
+  // sous-compte les réponses. On journalise donc l'échec (audit CAP-17).
+  const { error: statutErr } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .update({ status: 'completed' })
+    .update({ status: 'completed' } as never)
     .eq('id', assignmentId);
+  if (statutErr) {
+    console.error('[besoin] bascule du statut en « completed » échouée', statutErr);
+  }
 
   redirect(`/questionnaire/besoin/${data.token}/merci`);
 }

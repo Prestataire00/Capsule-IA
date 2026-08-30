@@ -88,11 +88,17 @@ export async function submitApprenantQuestionnaire(formData: FormData): Promise<
     redirect(`${base}/${assignmentId}?error=db`);
   }
 
-  await admin
+  // La réponse est enregistrée ; si cette bascule échoue en silence, l'assignation
+  // reste « en attente » : le destinataire est relancé et l'indicateur Qualiopi
+  // sous-compte les réponses. On journalise donc l'échec (audit CAP-17).
+  const { error: statutErr } = await admin
     .schema('app')
     .from('questionnaire_assignments')
-    .update({ status: 'completed' })
+    .update({ status: 'completed' } as never)
     .eq('id', assignmentId);
+  if (statutErr) {
+    console.error('[espace-apprenant] bascule du statut en « completed » échouée', statutErr);
+  }
 
   redirect(`${base}?done=1`);
 }
