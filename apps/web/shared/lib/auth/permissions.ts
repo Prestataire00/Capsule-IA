@@ -73,12 +73,26 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   ['/qualiopi', 'qualiopi'],
   ['/indicateurs', 'qualiopi'],
   ['/reporting', 'qualiopi'],
-  ['/notifications', 'qualiopi'],
+  // /notifications retiré du cloisonnement (audit 2026-08-30) : les notifications
+  // sont personnelles, chaque rôle doit voir les siennes. Le mapping ne servait
+  // qu'à masquer l'entrée de sidebar aux commerciaux ; avec la garde centrale il
+  // les aurait purement bloqués.
   ['/dossiers', 'dossiers'],
   ['/planning', 'dossiers'],
   ['/apprenants', 'dossiers'],
   ['/formateurs', 'dossiers'],
   ['/heures-risque', 'dossiers'],
+  // Ajouts 2026-08-30 (audit) : ces racines n'étaient associées à aucune section,
+  // donc ni masquées dans la sidebar ni filtrables par la garde centrale.
+  ['/agenda', 'dossiers'],
+  ['/sessions', 'dossiers'],
+  ['/emails', 'crm'],
+  ['/fiches-besoin', 'qualiopi'],
+  ['/amelioration-continue', 'qualiopi'],
+  ['/tracabilite', 'qualiopi'],
+  ['/bpf', 'billing'],
+  ['/programmation', 'crm'],
+  ['/rgpd', 'settings'],
 ];
 
 export function sectionForPath(path: string): Section | null {

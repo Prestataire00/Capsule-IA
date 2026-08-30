@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/env.mjs';
+import { can, sectionForPath } from '@/shared/lib/auth/permissions';
 
 // Décodage léger du payload JWT (claims custom 'role' + 'aal'). Pas de
 // vérification de signature ici : la session est validée par getUser ci-dessus ;
@@ -64,6 +65,34 @@ export const updateSession = async (req: NextRequest) => {
       url.pathname = '/login';
       url.search = `?redirectedFrom=${encodeURIComponent(path)}`;
       return NextResponse.redirect(url);
+    }
+  }
+
+  // ── Gate d'autorisation par section (audit 2026-08-30) ───────────────────
+  // Jusqu'ici, seules 17 pages sur 97 vérifiaient le rôle : `sectionForPath` ne
+  // servait qu'à masquer des entrées de sidebar, et taper l'URL suffisait à
+  // ouvrir un écran interdit. La garde est désormais posée ici, pour toutes les
+  // pages d'un coup.
+  //
+  // Fail-open volontaire sur l'absence de claim : si le hook JWT cessait de
+  // renseigner `role`, bloquer tout le monde serait pire que le risque couvert.
+  // On ne refuse que lorsque le rôle est connu ET qu'il n'a aucun accès.
+  {
+    const path = req.nextUrl.pathname;
+    const section = sectionForPath(path);
+    const exempt =
+      path.startsWith('/api') ||
+      path.startsWith('/_next') ||
+      MFA_EXEMPT.some((p) => path === p || path.startsWith(`${p}/`));
+
+    if (user && section && !exempt) {
+      const { role } = decodeClaims((await supabase.auth.getSession()).data.session?.access_token);
+      if (role && can(role, section) === 'none') {
+        const url = req.nextUrl.clone();
+        url.pathname = '/';
+        url.search = `?refus=${encodeURIComponent(section)}`;
+        return NextResponse.redirect(url);
+      }
     }
   }
 
