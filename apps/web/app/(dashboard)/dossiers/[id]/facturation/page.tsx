@@ -6,6 +6,8 @@ import { fr } from 'date-fns/locale';
 import { createClient } from '@supabase/supabase-js';
 import { Receipt } from 'lucide-react';
 import { env } from '@/env.mjs';
+import { requireAccess } from '@/shared/lib/auth/require-access';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { InfoCallout } from '@/shared/ui/info-callout';
@@ -61,7 +63,7 @@ function formatEuros(cents: number, currency = 'EUR'): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
 }
 
-async function loadData(dossierId: string) {
+async function loadData(dossierId: string, organizationId: string) {
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -70,6 +72,10 @@ async function loadData(dossierId: string) {
     .from('dossiers')
     .select('id, status, total_amount_cents, currency, organization_id')
     .eq('id', dossierId)
+    // Ce client contourne la RLS : le périmètre d'organisation doit être posé
+    // explicitement, sinon un identifiant de dossier suffit à lire la
+    // facturation d'un autre organisme.
+    .eq('organization_id', organizationId)
     .maybeSingle();
   const dossierTyped = dossierRow as unknown as {
     id: string;
@@ -84,12 +90,14 @@ async function loadData(dossierId: string) {
       .schema('app')
       .from('dossier_funders')
       .select('funder_id, amount_cents, status, external_file_number, funder:funders(name, kind)')
-      .eq('dossier_id', dossierId),
+      .eq('dossier_id', dossierId)
+      .eq('organization_id', organizationId),
     sb
       .schema('app')
       .from('invoices')
       .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id')
       .eq('dossier_id', dossierId)
+      .eq('organization_id', organizationId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),
     dossierTyped
@@ -135,7 +143,13 @@ export default async function FacturationPage({
   params: { id: string };
   searchParams?: { amountSaved?: string; amountError?: string; funderSaved?: string; funderError?: string };
 }) {
-  const { dossier, funders, invoices, funderCatalog } = await loadData(params.id);
+  // Section « billing » : ni le formateur ni le commercial n'y ont accès
+  // (matrice de rôles), et la sidebar ne fait que masquer l'entrée.
+  await requireAccess('billing');
+  const me = await getCurrentMember();
+  if (!me) notFound();
+
+  const { dossier, funders, invoices, funderCatalog } = await loadData(params.id, me.organizationId);
   if (!dossier) notFound();
 
   const currency = dossier.currency || 'EUR';

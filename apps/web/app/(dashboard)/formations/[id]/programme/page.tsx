@@ -13,6 +13,8 @@ import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { deriveProgramme, type OrgAddress, type ProgrammeFormation, type ProgrammeOrg } from '@/features/formations/programme/from-formation';
 import { ProgrammeEditor } from '@/features/formations/programme/programme-editor.client';
 import type { Programme } from '@/features/formations/programme/types';
+import { requireAccess } from '@/shared/lib/auth/require-access';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,10 @@ type Modality = ProgrammeFormation['modality'];
 const toModality = (m: string | null): Modality => (m === 'distanciel' || m === 'hybride' ? m : 'presentiel');
 
 export default async function ProgrammeEditPage({ params }: { params: { id: string } }) {
+  await requireAccess('catalogue');
+  const me = await getCurrentMember();
+  if (!me) notFound();
+
   const sb = supabaseServer();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +36,8 @@ export default async function ProgrammeEditPage({ params }: { params: { id: stri
       'id, code, title, summary, description, objectives, prerequisites, target_audience, evaluation_method, pedagogical_method, default_modality, default_duration_hours, is_published, organization_id, metadata',
     )
     .eq('id', params.id)
+    // service_role : le périmètre d'organisation ne vient pas de la RLS.
+    .eq('organization_id', me.organizationId)
     .is('deleted_at', null)
     .maybeSingle();
   if (!fRow) notFound();

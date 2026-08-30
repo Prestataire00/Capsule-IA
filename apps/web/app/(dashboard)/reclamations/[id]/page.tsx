@@ -4,6 +4,8 @@ import { ArrowLeft, Inbox, Hourglass, CheckCircle2, XCircle, User as UserIcon, M
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { ReplyForm } from './reply-form';
+import { requireAccess } from '@/shared/lib/auth/require-access';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,10 +45,14 @@ const statusConfig = {
 } as const;
 
 export default async function ReclamationDetailPage({ params }: { params: { id: string } }) {
+  await requireAccess('qualiopi');
+  const me = await getCurrentMember();
+  if (!me) notFound();
+
   const sb = admin();
   const [{ data: cData }, { data: eData }] = await Promise.all([
-    sb.schema('app').from('complaints').select('*').eq('id', params.id).maybeSingle(),
-    sb.schema('app').from('complaint_events').select('*').eq('complaint_id', params.id).order('occurred_at', { ascending: true }),
+    sb.schema('app').from('complaints').select('*').eq('id', params.id).eq('organization_id', me.organizationId).maybeSingle(),
+    sb.schema('app').from('complaint_events').select('*').eq('complaint_id', params.id).eq('organization_id', me.organizationId).order('occurred_at', { ascending: true }),
   ]);
 
   if (!cData) return notFound();

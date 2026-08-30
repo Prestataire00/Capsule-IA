@@ -9,6 +9,9 @@ import { env } from '@/env.mjs';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { notFound } from 'next/navigation';
+import { requireAccess } from '@/shared/lib/auth/require-access';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,11 +72,18 @@ const STATUS_VIS: Record<ComplaintRow['status'], StatusVis> = {
 };
 
 export default async function ReclamationsPage() {
+  await requireAccess('qualiopi');
+  const me = await getCurrentMember();
+  if (!me) notFound();
+
   const sb = admin();
   const { data } = await sb
     .schema('app')
     .from('complaints')
     .select('id, reference, subject, status, severity, reporter_name, reporter_email, created_at, metadata')
+    // Client service_role : sans ce filtre, la page listait les réclamations de
+    // TOUS les organismes, noms et e-mails des réclamants compris.
+    .eq('organization_id', me.organizationId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(200);
