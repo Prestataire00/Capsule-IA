@@ -159,8 +159,12 @@ de 2 s empêche par ailleurs une base lente de bloquer le rendu.
 **Le code est déployé ; la migration 0131 reste à appliquer** (cf. CAP-04) : jusque-là, le bouton
 renvoie une erreur et aucune révocation n'est possible.
 
-- **Correctif cible** : ramener l'espace apprenant à un jeton court renouvelé par e-mail à la
-  demande, plutôt qu'un lien permanent de 90 jours. **3 j**
+**Décision (2026-08-30)** : les durées de vie sont **validées telles quelles** et ne seront pas
+raccourcies — 90 jours pour l'espace apprenant, 60 pour les questionnaires et la satisfaction,
+30 pour la signature de document, 24 h à usage unique pour l'émargement. Elles correspondent à la
+durée réelle d'un dossier de formation ; un lien qui expire en cours de formation crée plus de
+frictions qu'il n'évite de risques. **La révocation est le levier retenu à la place** : elle permet
+de couper un lien précis quand c'est nécessaire, sans pénaliser les autres.
 
 ---
 
