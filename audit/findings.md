@@ -413,6 +413,46 @@ courante.
 
 
 
+### CAP-21 — Les trois tests de bout en bout n'avaient jamais pu s'exécuter
+
+**[CONSTATÉ]** `apps/web/tests/e2e/` contient trois specs Playwright, et `pnpm test:e2e` figure dans
+`CLAUDE.md`. Mais **aucun `playwright.config.ts` n'existait** : la commande lançait `playwright test`
+sans configuration, l'outil balayait tout le dépôt, tombait sur les fichiers Vitest, et terminait sur
+
+```
+Listing tests:
+Total: 0 tests in 0 files
+```
+
+Aucun de ces tests n'était par ailleurs joué en intégration continue.
+
+**Impact métier** : trois specs qui donnent l'apparence d'une couverture — dont
+`attendance-presentiel.spec.ts`, qui joue précisément le parcours d'émargement de bout en bout
+(signature par lien QR, capture de l'IP et du navigateur, jeton invalide) — sans avoir jamais tourné.
+C'est ce qui manquait à **CAP-12**.
+
+**[CONSTATÉ] Danger annexe** : les specs se sèment elles-mêmes, créant organisations, utilisateurs et
+dossiers via le service role, dans la base pointée par l'environnement. Or le seul fichier
+d'environnement du poste pointe la **production**. La commande, si elle avait fonctionné, aurait
+écrit dans la base de production.
+
+**Correctif appliqué (2026-08-31)** :
+
+- `playwright.config.ts` : `testDir`, serveur de développement démarré automatiquement, chargement
+  de `.env.test.local` puis `.env.local`. Les 7 tests des 3 fichiers sont désormais découverts ;
+- garde-fou `refuse-production.ts` : la suite s'interrompt si la cible est le projet de production.
+  Il s'exécute au chargement de la configuration, et pas seulement dans `globalSetup`, car Playwright
+  exécute la portée module des specs dès la collecte ;
+- job `e2e` en intégration continue, calqué sur le job pgTAP existant : instance Supabase locale,
+  clés exportées depuis `supabase status`, rapport archivé en cas d'échec. En `continue-on-error`
+  tant que la suite n'est pas stabilisée.
+
+**[À VÉRIFIER]** Les tests sont découverts et la configuration est valide, mais la suite **n'a pas
+encore été exécutée** : il faut Docker pour une instance Supabase locale, absent de ce poste. La
+première exécution réelle reste à faire.
+
+---
+
 ### CAP-07 — Trois pages inatteignables depuis l'interface
 
 **[CONSTATÉ]** Aucun lien entrant dans tout le code (analyse sur les 130 pages) :
@@ -524,4 +564,4 @@ traité en 404. Changer l'identifiant dans l'URL ne donne rien.
 
 | ID | Sujet | Pourquoi ça compte |
 |---|---|---|
-| CAP-12 | Parcours de bout en bout **exécuté** | Le câblage a été vérifié dans le code, mais aucun parcours réel n'a été joué : la production ne contient que des données d'essai et je n'ai pas de compte de test. À faire sur le premier dossier réel. |
+| CAP-12 | Parcours de bout en bout **exécuté** | Le câblage est vérifié dans le code, et la suite E2E qui joue l'émargement est désormais exécutable (CAP-21) — mais elle n'a pas encore tourné, faute de Docker sur ce poste. |

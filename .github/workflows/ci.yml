@@ -84,3 +84,70 @@ jobs:
       - name: Stop Supabase
         if: always()
         run: supabase stop --workdir supabase --no-backup
+
+  e2e:
+    name: Parcours de bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          # Version figée — même raison que le job pgTAP ci-dessus.
+          version: 2.98.2
+
+      # La suite sème ses propres organisations et utilisateurs via le service
+      # role : elle exige une base jetable. Le garde-fou de
+      # `playwright.config.ts` refuse d'ailleurs de cibler la production.
+      - name: Start Supabase (local)
+        run: supabase start --workdir supabase
+
+      - name: Exporte les clés de l'instance locale
+        run: |
+          supabase status --workdir supabase -o env \
+            | sed -E 's/^API_URL=/NEXT_PUBLIC_SUPABASE_URL=/;
+                      s/^ANON_KEY=/NEXT_PUBLIC_SUPABASE_ANON_KEY=/;
+                      s/^SERVICE_ROLE_KEY=/SUPABASE_SERVICE_ROLE_KEY=/' \
+            | grep -E '^(NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
+            >> "$GITHUB_ENV"
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run E2E
+        # TODO — rendre bloquant une fois la suite stabilisée en intégration.
+        continue-on-error: true
+        env:
+          TOKEN_SIGNING_KEY: cle-de-test-e2e-au-moins-32-caracteres
+          CRON_SECRET: secret-cron-de-test-au-moins-32-caracteres
+          PUBLIC_APP_URL: http://localhost:3000
+          EMAIL_FROM: e2e@example.com
+        run: pnpm --filter web test:e2e
+
+      - name: Rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --workdir supabase --no-backup
