@@ -211,6 +211,40 @@ renonce à ramener à zéro cesse d'être un signal.
 
 ---
 
+### CAP-18 — Aucun e-mail automatique n'est parti depuis le 17 août
+
+**[CONSTATÉ]** `gh run list --workflow=transactional-emails.yml` : dernière exécution réussie le
+**2026-08-17**, puis **quatorze échecs consécutifs**, un par jour, jusqu'au 2026-08-30. Les
+exécutions échouent en quelques secondes sans démarrer la moindre étape — c'est le blocage de
+facturation GitHub Actions (cf. CAP-04), pas un défaut du code.
+
+Ce que cette tâche quotidienne envoie (`app/api/cron/transactional-emails/route.ts`) :
+
+- les **convocations J-7** aux apprenants avant chaque séance ;
+- les **enquêtes de satisfaction** à la fin d'un dossier ;
+- les **attestations de fin de formation** et **certificats de réalisation** ;
+- les **envois programmés** (`app.email_schedules`), c'est-à-dire toutes les règles créées depuis
+  l'écran Programmation.
+
+**Impact métier** : depuis deux semaines, aucun apprenant n'est convoqué, aucune enquête de
+satisfaction n'est envoyée — donc les indicateurs Qualiopi affichés sur les fiches publiques ne se
+mettent plus à jour — et aucune attestation ne part automatiquement. La plateforme paraît
+fonctionner : rien ne signale l'absence d'envoi, ni dans l'interface ni ailleurs.
+
+**Atténuation [CONSTATÉ]** : la production ne contient que des données d'essai (2 dossiers,
+3 apprenants), donc il est probable qu'aucun envoi n'était réellement dû sur la période. Le
+mécanisme n'en est pas moins mort, et il le resterait à l'arrivée du premier dossier réel.
+
+**Correctif appliqué (2026-08-30)** : le workflow ouvre désormais une issue à chaque échec, en
+indiquant ce qui n'est pas parti et la commande de repli manuel.
+
+- **Correctif cible** : sortir la planification de GitHub Actions. La pile inclut déjà `pg_cron`
+  côté Supabase : un `cron.schedule` appelant l'endpoint via `pg_net`, avec le secret rangé dans
+  Supabase Vault, supprime la dépendance à la facturation Actions. **1 j**
+- **Priorité** : bloquant dès le premier dossier réel.
+
+---
+
 ### CAP-04 — Deux fonctionnalités livrées sont inertes : les migrations 0128 et 0129 ne sont pas appliquées
 
 **[CONSTATÉ]** `gh run list --workflow=db-migrate.yml` → les deux exécutions du 2026-08-17 sont en
@@ -422,4 +456,4 @@ traité en 404. Changer l'identifiant dans l'URL ne donne rien.
 
 | ID | Sujet | Pourquoi ça compte |
 |---|---|---|
-| CAP-12 | Parcours de bout en bout | Inscription → émargement → attestation → facture, avec les cas limites. |
+| CAP-12 | Parcours de bout en bout **exécuté** | Le câblage a été vérifié dans le code, mais aucun parcours réel n'a été joué : la production ne contient que des données d'essai et je n'ai pas de compte de test. À faire sur le premier dossier réel. |

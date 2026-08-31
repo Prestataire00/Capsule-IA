@@ -14,6 +14,10 @@ concurrency:
   group: transactional-emails
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   tick:
     runs-on: ubuntu-latest
@@ -32,3 +36,43 @@ jobs:
           cat /tmp/resp.json || true
           echo
           test "$http" = "200"
+
+      # Un échec ici ne se voit nulle part : aucune convocation, aucune enquête
+      # de satisfaction, aucune attestation de fin n'est envoyée, et personne
+      # n'en est averti. La tâche a échoué quatorze jours d'affilée sans que
+      # rien ne le signale (audit CAP-18).
+      - name: Signaler l'échec
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ouvertes = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'cron-emails',
+            });
+            const corps = [
+              "Le tick quotidien des e-mails transactionnels a échoué.",
+              '',
+              "**Rien n'est parti aujourd'hui** : convocations J-7, enquêtes de satisfaction,",
+              'attestations de fin de formation et envois programmés.',
+              '',
+              `Exécution : ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Repli manuel :',
+              '```',
+              'curl -X POST -H "Authorization: Bearer $CRON_SECRET" \\',
+              '  https://capsule-ia.up.railway.app/api/cron/transactional-emails',
+              '```',
+            ].join('\n');
+            if (ouvertes.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: ouvertes.data[0].number, body: corps,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: `E-mails transactionnels non envoyés (run ${context.runId})`,
+                body: corps, labels: ['cron-emails'],
+              });
+            }
