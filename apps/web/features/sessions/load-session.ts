@@ -132,20 +132,32 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
       document_id: string | null;
     }[]) ?? [];
 
-  const sheets: SessionSheet[] = [];
-  for (const sh of sheetRows) {
-    const { data: sigs } = await sb
-      .schema('app')
-      .from('attendance_signatures')
-      .select('status')
-      .eq('attendance_sheet_id', sh.id);
-    const rows = (sigs as { status: string }[] | null) ?? [];
-    sheets.push({
-      ...sh,
-      total: rows.length,
-      signed: rows.filter((r) => r.status === 'signed').length,
-    });
+  // Une seule requête pour toutes les feuilles, au lieu d'une par feuille : une
+  // formation de plusieurs jours en compte deux par jour, soit autant
+  // d'allers-retours en base pour un simple comptage (audit CAP-22).
+  const { data: sigsRows, error: sigsErr } = await sb
+    .schema('app')
+    .from('attendance_signatures')
+    .select('attendance_sheet_id, status')
+    .in(
+      'attendance_sheet_id',
+      sheetRows.map((sh) => sh.id),
+    );
+  if (sigsErr) console.error('[load-session] lecture des signatures échouée', sigsErr);
+
+  const parFeuille = new Map<string, { total: number; signed: number }>();
+  for (const r of (sigsRows as { attendance_sheet_id: string; status: string }[] | null) ?? []) {
+    const acc = parFeuille.get(r.attendance_sheet_id) ?? { total: 0, signed: 0 };
+    acc.total += 1;
+    if (r.status === 'signed') acc.signed += 1;
+    parFeuille.set(r.attendance_sheet_id, acc);
   }
+
+  const sheets: SessionSheet[] = sheetRows.map((sh) => ({
+    ...sh,
+    total: parFeuille.get(sh.id)?.total ?? 0,
+    signed: parFeuille.get(sh.id)?.signed ?? 0,
+  }));
 
   return { session, formation, dossierIds, learners, sheets };
 }

@@ -389,6 +389,34 @@ attente » : le destinataire est relancé, et l'indicateur Qualiopi sous-compte 
 
 ---
 
+### CAP-22 — Un comptage d'émargement interrogeait la base une fois par demi-journée
+
+**[CONSTATÉ]** `features/sessions/load-session.ts:135` exécutait une requête **par feuille
+d'émargement**, dans une boucle, pour un simple comptage de signatures. Une formation de cinq jours
+compte dix demi-journées, donc dix allers-retours en base à chaque affichage de la séance.
+
+**[CONSTATÉ]** Deux colonnes très filtrées par le code n'avaient par ailleurs aucun index :
+
+- `attendance_sheets(session_id)` — « les feuilles de cette séance », la lecture la plus fréquente du
+  module émargement (7 sites). Seul `dossier_id` était indexé ; or depuis la migration `0106`, une
+  feuille de session de groupe a `dossier_id NULL` — pour ces sessions, l'index existant ne sert à
+  rien ;
+- `questionnaire_responses(assignment_id)` — 10 sites.
+
+**Impact métier** : aucun aujourd'hui, la base contient quelques dizaines de lignes. Ces lectures
+croissent avec le nombre de séances et de questionnaires, donc avec l'activité de l'organisme.
+
+**Correctif appliqué (2026-08-31)** : la boucle est repliée en une requête unique suivie d'un
+regroupement en mémoire, avec contrôle de l'erreur au passage (CAP-17) ; migration `0134` pour les
+deux index.
+
+**Écartés après vérification** : `dossiers.status` et `documents.kind`, de faible cardinalité et
+toujours filtrés avec `organization_id` déjà indexé ; `session_participants(session_id)`, déjà servi
+par la première colonne de sa clé primaire. Le reste du code ne contient **aucun autre** motif de
+requête en boucle.
+
+---
+
 ## Mineurs
 
 ### CAP-19 — Une ligne « sans organisation » ouvrait les prospects à tous les organismes
