@@ -76,6 +76,47 @@ individuellement :
 
 ---
 
+### CAP-20 — Les signatures manuscrites de tous les organismes étaient lisibles par n'importe quel compte
+
+**[CONSTATÉ]** Quatre policies de lecture sur `storage.objects` n'avaient pour seule condition que
+le nom du seau :
+
+```sql
+CREATE POLICY "signatures_member_read" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'signatures');
+```
+
+Aucune borne d'organisation, aucune borne d'utilisateur. Les seaux sont pourtant **privés** — ce que
+j'avais vérifié et jugé suffisant en clôturant CAP-11. Ça ne l'est pas : « privé » signifie seulement
+qu'il n'existe pas d'URL publique, la lecture reste gouvernée par ces policies.
+
+| Seau | Contenu |
+|---|---|
+| `signatures` | images de **signature manuscrite** des apprenants et des formateurs |
+| `prospect-documents` | pièces jointes des prospects (identité, justificatifs de financement) |
+| `pedagogical` | supports de cours — le fonds de commerce de l'organisme |
+| `zoom_imports` | CSV de présence Zoom, avec noms et adresses des participants |
+
+**[DÉDUIT]** Et il n'y avait pas même d'identifiant à deviner : `storage.list()` s'appuie sur ce même
+`SELECT`. Un membre de n'importe quel organisme pouvait **énumérer** puis télécharger l'intégralité
+de ces quatre seaux, pour toute la plateforme.
+
+**Impact métier** : une signature manuscrite est réutilisable — son exposition affaiblit directement
+la valeur probante de l'émargement, alors même que le reste du dispositif est solide (CAP-11). S'y
+ajoutent des données personnelles de prospects et les supports pédagogiques, lisibles par des
+organismes concurrents hébergés sur la même plateforme.
+
+**Correctif appliqué (2026-08-31)** : migration `0133`. Chaque chemin d'objet commence par un
+identifiant permettant de remonter à l'organisation — feuille d'émargement, prospect, ou
+l'organisation elle-même pour `pedagogical` — les quatre policies s'appuient dessus, selon l'idiome
+déjà utilisé par la policy d'écriture de `pedagogical` (migration `0077`). Vérifié : les lectures
+applicatives passent toutes par le service role, aucun parcours n'est cassé. Test
+`tests/storage-policy-scope.test.ts`.
+
+**Le code est déployé ; la migration reste à appliquer** (cf. CAP-04).
+
+---
+
 ### CAP-13 — L'expiration des liens apprenant ne protège rien : quatre RPC répondent à Internet sans jeton
 
 **[CONSTATÉ]** `supabase/migrations/0028_apprenant_rpcs.sql:102,142`, `0078:115`, `0081:57`, `0026:92`
@@ -350,6 +391,28 @@ attente » : le destinataire est relancé, et l'indicateur Qualiopi sous-compte 
 
 ## Mineurs
 
+### CAP-19 — Une ligne « sans organisation » ouvrait les prospects à tous les organismes
+
+**[CONSTATÉ]** Trois policies de `app.prospects` acceptaient `organization_id IS NULL`, rendant une
+telle ligne lisible **et modifiable** par tout utilisateur authentifié, quel que soit son organisme.
+Un prospect porte des données personnelles : identité, e-mail, téléphone, date de naissance, RQTH,
+situation, pièces jointes.
+
+Ce motif est légitime sur neuf autres policies — gabarits de documents, règles Qualiopi, playbooks
+financeurs, drapeaux de fonctionnalité : une ligne sans organisation y désigne un modèle fourni par
+la plateforme et partagé par tous. Il ne l'est pas pour une personne physique.
+
+**Faille latente [CONSTATÉ]** : aucun chemin du code ne crée de prospect sans organisation — le
+formulaire public la déduit de la formation — et la production n'en contient aucun. La colonne
+l'autorise pourtant : un import ou une insertion manuelle suffirait.
+
+**Correctif appliqué (2026-08-31)** : migration `0132`, les trois policies exigent l'organisation
+courante.
+
+---
+
+
+
 ### CAP-07 — Trois pages inatteignables depuis l'interface
 
 **[CONSTATÉ]** Aucun lien entrant dans tout le code (analyse sur les 130 pages) :
@@ -443,6 +506,11 @@ que des données d'essai — ce contrôle sera à refaire sur des volumes réels
   applicatif n'en modifie non plus (seul un nettoyage de test E2E le fait) ;
 - le bucket `signatures` est **privé** ; seuls `avatars` et `trainer-photos` sont publics, et c'est
   voulu (photos affichées au catalogue).
+
+**Réserve levée le 2026-08-31** : « privé » ne suffisait pas. La policy de lecture du seau
+n'imposait aucune borne d'organisation, ce qui exposait les images de signature de toute la
+plateforme — voir **CAP-20**. Le dispositif d'émargement lui-même reste conforme ; c'était son
+stockage qui ne l'était pas.
 
 **Accès horizontal dans l'espace apprenant** — `[CONSTATÉ]` Les ressources désignées par un
 identifiant d'URL sont correctement rattachées au porteur du jeton :

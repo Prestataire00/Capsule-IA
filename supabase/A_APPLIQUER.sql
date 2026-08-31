@@ -2,14 +2,19 @@
 -- Capsule IA — migrations à appliquer en production
 --
 -- À coller tel quel dans l'éditeur SQL Supabase (SQL Editor → New query → Run).
--- L'ordre compte : 0130 ferme la faille critique, 0131 rend la révocation
--- possible, 0128 et 0129 débloquent deux fonctionnalités livrées mais inertes.
+-- L'ordre compte :
+--   0130  ferme les RPC apprenant aux appels anonymes        (critique)
+--   0131  rend les liens envoyés révocables                  (majeur)
+--   0132  retire la tolérance « organisation nulle » sur les prospects
+--   0133  cloisonne par organisme la lecture de quatre seaux (critique)
+--   0128  notes de suivi visibles par les commerciaux
+--   0129  déclencheurs événementiels des envois programmés
 --
--- Ces quatre migrations n'ont pas pu être appliquées par la chaîne habituelle
+-- Ces migrations n'ont pas pu être appliquées par la chaîne habituelle
 -- (blocage de facturation GitHub Actions). Une fois jouées ici, le workflow
 -- `db-migrate` les considérera comme déjà appliquées.
 --
--- Généré le 2026-08-30 · audit CAP-04, CAP-13, CAP-14
+-- Généré le 2026-08-31 · audit CAP-04, CAP-13, CAP-14, CAP-19, CAP-20
 -- ════════════════════════════════════════════════════════════════════════════
 
 BEGIN;
@@ -99,6 +104,124 @@ WITH CHECK (organization_id = app.current_organization_id() AND app.is_staff());
 
 COMMENT ON TABLE app.link_revocations IS
   'Date butoir par dossier : tout jeton émis avant `revoked_at` est refusé (audit CAP-14).';
+
+-- ─────────────────────────────────────────────────────────
+-- 0132_prospects_org_stricte.sql
+-- ─────────────────────────────────────────────────────────
+
+-- 0132 — Retire la tolérance « organisation nulle » sur les prospects.
+--
+-- Constat (audit 2026-08-31, CAP-19) : trois policies de `app.prospects`
+-- acceptaient `organization_id IS NULL`, ce qui rend une telle ligne lisible ET
+-- modifiable par n'importe quel utilisateur authentifié, quel que soit son
+-- organisme. Or un prospect porte des données personnelles : identité, e-mail,
+-- téléphone, date de naissance, RQTH, situation, pièces jointes.
+--
+-- Ce motif est légitime ailleurs — gabarits de documents, indicateurs Qualiopi,
+-- playbooks financeurs, drapeaux de fonctionnalité : une ligne sans organisation
+-- y désigne un modèle fourni par la plateforme et partagé par tous. Il ne l'est
+-- pas pour une personne physique.
+--
+-- Faille **latente** au moment du constat : aucun chemin du code ne crée de
+-- prospect sans organisation (le formulaire public la déduit de la formation),
+-- et la production n'en contient aucun. La colonne l'autorise pourtant — un
+-- import ou une insertion manuelle suffirait.
+
+DROP POLICY IF EXISTS prospects_select ON app.prospects;
+CREATE POLICY prospects_select ON app.prospects FOR SELECT TO authenticated
+USING (organization_id = app.current_organization_id() AND deleted_at IS NULL);
+
+DROP POLICY IF EXISTS prospects_update ON app.prospects;
+CREATE POLICY prospects_update ON app.prospects FOR UPDATE TO authenticated
+USING (organization_id = app.current_organization_id() AND deleted_at IS NULL)
+WITH CHECK (organization_id = app.current_organization_id());
+
+DROP POLICY IF EXISTS prospects_referent_read ON app.prospects;
+CREATE POLICY prospects_referent_read ON app.prospects FOR SELECT TO authenticated
+USING (
+  organization_id = app.current_organization_id()
+  AND deleted_at IS NULL
+  AND app.has_role('referent')
+);
+
+-- ─────────────────────────────────────────────────────────
+-- 0133_storage_cloisonnement.sql
+-- ─────────────────────────────────────────────────────────
+
+-- 0133 — Cloisonne par organisme la lecture de quatre seaux de stockage.
+--
+-- Constat (audit 2026-08-31, CAP-20) : quatre policies de lecture n'avaient pour
+-- seule condition que « le seau est bien celui-ci ». Aucune borne d'organisation,
+-- aucune borne d'utilisateur :
+--
+--     USING (bucket_id = 'signatures')
+--
+-- Tout compte authentifié — donc un membre de n'importe quel autre organisme de
+-- la plateforme — pouvait non seulement télécharger ces objets, mais aussi les
+-- **lister** : `storage.list()` s'appuie sur ce même SELECT. Il n'y avait donc
+-- même pas d'identifiant à deviner.
+--
+--   signatures         images de signature manuscrite des apprenants et formateurs
+--   prospect-documents pièces jointes des prospects (identité, justificatifs)
+--   pedagogical        supports de cours — le fonds de commerce de l'organisme
+--   zoom_imports       CSV de présence Zoom, avec noms et adresses des participants
+--
+-- Le premier est le plus grave : une signature manuscrite est réutilisable, et
+-- son exposition affaiblit la valeur probante de l'émargement.
+--
+-- Chaque chemin d'objet commence par un identifiant qui permet de remonter à
+-- l'organisation ; les policies s'appuient dessus, comme le fait déjà
+-- `pedagogical_staff_insert` (migration 0077).
+
+-- ── signatures : {attendance_sheet_id}/{kind}/{signer_id}.png ───────────────
+DROP POLICY IF EXISTS "signatures_member_read" ON storage.objects;
+CREATE POLICY "signatures_member_read"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'signatures'
+    AND EXISTS (
+      SELECT 1 FROM app.attendance_sheets s
+      WHERE s.id::text = (storage.foldername(name))[1]
+        AND s.organization_id = app.current_organization_id()
+    )
+  );
+
+-- ── zoom_imports : {attendance_sheet_id}/{horodatage}-{fichier}.csv ─────────
+DROP POLICY IF EXISTS "zoom_imports_member_read" ON storage.objects;
+CREATE POLICY "zoom_imports_member_read"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'zoom_imports'
+    AND EXISTS (
+      SELECT 1 FROM app.attendance_sheets s
+      WHERE s.id::text = (storage.foldername(name))[1]
+        AND s.organization_id = app.current_organization_id()
+    )
+  );
+
+-- ── prospect-documents : {prospect_id}/{clé}.{ext} ──────────────────────────
+DROP POLICY IF EXISTS "prospect_docs_member_read" ON storage.objects;
+CREATE POLICY "prospect_docs_member_read"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'prospect-documents'
+    AND EXISTS (
+      SELECT 1 FROM app.prospects p
+      WHERE p.id::text = (storage.foldername(name))[1]
+        AND p.organization_id = app.current_organization_id()
+    )
+  );
+
+-- ── pedagogical : {organization_id}/{module_id}/{fichier} ───────────────────
+-- L'organisation est déjà le premier segment du chemin : même idiome que la
+-- policy d'écriture posée en 0077.
+DROP POLICY IF EXISTS "pedagogical_member_read" ON storage.objects;
+CREATE POLICY "pedagogical_member_read"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'pedagogical'
+    AND (storage.foldername(name))[1] = app.current_organization_id()::text
+  );
 
 -- ─────────────────────────────────────────────────────────
 -- 0128_prospect_events_commercial.sql
