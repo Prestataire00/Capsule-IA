@@ -2,7 +2,6 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
-import { supabaseServer } from '@/shared/lib/supabase/server';
 import {
   encryptZoomCredentials,
   decryptZoomCredentials,
