@@ -443,11 +443,12 @@ function IdentityStep({
       </FormField>
 
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Téléphone">
+        <FormField label="Téléphone" required>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
             <input
               type="tel"
+              required
               value={value.phone}
               onChange={(e) => update('phone', e.target.value)}
               placeholder="06 12 34 56 78"
@@ -827,9 +828,12 @@ function FundingStep({
                 className={inputClass}
               />
             </FormField>
-            <FormField label="SIRET">
+            {/* Obligatoire pour un salarié seulement : c'est là qu'il y a un
+                employeur, et le financement OPCO ne s'instruit pas sans SIRET. */}
+            <FormField label="SIRET" required={value.status === 'salarie'}>
               <input
                 type="text"
+                required={value.status === 'salarie'}
                 value={value.companySiret}
                 onChange={(e) => update('companySiret', e.target.value)}
                 placeholder="123 456 789 00012"
@@ -1596,9 +1600,10 @@ function CompanyStep({
             className={inputClass}
           />
         </FormField>
-        <FormField label="SIRET">
+        <FormField label="SIRET" required>
           <input
             type="text"
+            required
             value={value.companySiret}
             onChange={(e) => update('companySiret', e.target.value)}
             placeholder="123 456 789 00012"
@@ -1902,11 +1907,12 @@ function EmployeesStep({
             </FormField>
 
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Téléphone">
+              <FormField label="Téléphone" required>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
                   <input
                     type="tel"
+                    required
                     value={emp.phone}
                     onChange={(e) => update(idx, { phone: e.target.value })}
                     placeholder="06 12 34 56 78"

@@ -11,6 +11,16 @@ export const PROSPECT_SITUATIONS = [
 
 export const PROSPECT_MODALITIES = ['presentiel', 'distanciel', 'hybride'] as const;
 
+/**
+ * Un SIRET fait 14 chiffres. Les saisies contiennent presque toujours des
+ * espaces — l'autocomplétion SIRENE en met elle-même — on les ignore plutôt que
+ * de renvoyer l'utilisateur à sa mise en forme.
+ */
+export const siretValide = (v: string): boolean => /^\d{14}$/.test(v.replace(/[\s.]/g, ''));
+
+/** Un téléphone exploitable : au moins 6 chiffres, quel que soit le formatage. */
+export const telephoneValide = (v: string): boolean => (v.match(/\d/g) ?? []).length >= 6;
+
 // Fiche besoin (analyse des besoins) saisie en ligne dans le formulaire.
 export const needsAnalysisSchema = z.object({
   currentLevel: z.coerce.number().int().min(1).max(5),
@@ -28,7 +38,12 @@ export const prospectFieldsSchema = z.object({
   firstName: z.string().trim().min(1, 'Prénom requis').max(100),
   lastName: z.string().trim().min(1, 'Nom requis').max(100),
   email: z.string().trim().toLowerCase().email('Email invalide').max(255),
-  phone: z.string().trim().max(30).optional().or(z.literal('')),
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Téléphone requis')
+    .max(30)
+    .refine(telephoneValide, 'Téléphone invalide'),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide').optional().or(z.literal('')),
   rqth: z.boolean(),
 
@@ -39,6 +54,8 @@ export const prospectFieldsSchema = z.object({
 
   situation: z.enum(PROSPECT_SITUATIONS),
   companyName: z.string().trim().max(200).optional().or(z.literal('')),
+  // Optionnel ici : l'obligation dépend de la situation, elle est portée par le
+  // `superRefine` en fin de schéma.
   companySiret: z.string().trim().max(20).optional().or(z.literal('')),
   companyAddress: z
     .object({
@@ -52,7 +69,29 @@ export const prospectFieldsSchema = z.object({
   referentPhone: z.string().trim().max(30).optional().or(z.literal('')),
   funderKinds: z.array(z.enum(FUNDER_VALUES)).min(1, 'Sélectionnez au moins un financement'),
   needsAnalysis: needsAnalysisSchema.optional(),
-});
+})
+  .superRefine((v, ctx) => {
+    // Le bloc « Entreprise » n'apparaît que pour un salarié ou un demandeur
+    // d'emploi : exiger un SIRET d'un indépendant ou d'un particulier créerait
+    // une impasse, le champ n'étant pas affiché.
+    //
+    // On ne l'exige que du salarié : c'est là qu'il y a un employeur, et le
+    // financement OPCO ne peut pas être instruit sans lui. Un demandeur
+    // d'emploi peut renseigner l'entreprise sans que ce soit bloquant.
+    if (v.situation !== 'salarie') return;
+
+    if (!v.companySiret || v.companySiret.trim() === '') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['companySiret'], message: 'SIRET requis' });
+      return;
+    }
+    if (!siretValide(v.companySiret)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['companySiret'],
+        message: 'SIRET invalide (14 chiffres)',
+      });
+    }
+  });
 
 export type ProspectFields = z.infer<typeof prospectFieldsSchema>;
 
@@ -65,7 +104,12 @@ export const employeeSchema = z.object({
   firstName: z.string().trim().min(1, 'Prénom requis').max(100),
   lastName: z.string().trim().min(1, 'Nom requis').max(100),
   email: z.string().trim().toLowerCase().email('Email invalide').max(255),
-  phone: z.string().trim().max(30).optional().or(z.literal('')),
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Téléphone requis')
+    .max(30)
+    .refine(telephoneValide, 'Téléphone invalide'),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide').optional().or(z.literal('')),
   rqth: z.boolean(),
   needsAnalysis: needsAnalysisSchema.optional(),
@@ -74,7 +118,12 @@ export type EmployeeFields = z.infer<typeof employeeSchema>;
 
 export const companyEnrollmentSchema = z.object({
   companyName: z.string().trim().min(1, 'Nom de l’entreprise requis').max(200),
-  companySiret: z.string().trim().max(20).optional().or(z.literal('')),
+  companySiret: z
+    .string()
+    .trim()
+    .min(1, 'SIRET requis')
+    .max(20)
+    .refine(siretValide, 'SIRET invalide (14 chiffres)'),
   companyAddress: z
     .object({
       line1: z.string().trim().max(200).optional().or(z.literal('')),
