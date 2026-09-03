@@ -1,17 +1,3 @@
--- ════════════════════════════════════════════════════════════════════════════
--- Capsule IA — reliquat à appliquer
---
--- Les migrations 0128 à 0135 sont DÉJÀ APPLIQUÉES (vérifié en production le
--- 2026-09-03 : les tables link_revocations et declared_indicators existent).
--- Ne reste que ce rattrapage : 0130 révoquait le droit d'exécution au seul rôle
--- `anon`, alors que PostgreSQL l'accorde à PUBLIC par défaut — `anon` en
--- héritait, et les RPC répondaient toujours.
---
--- À coller dans l'éditeur SQL Supabase. Ré-exécutable sans risque.
--- ════════════════════════════════════════════════════════════════════════════
-
-BEGIN;
-
 -- 0136 — Rattrapage : la migration 0130 ne fermait rien.
 --
 -- 0130 révoquait `EXECUTE` au seul rôle `anon`. Or PostgreSQL accorde
@@ -43,5 +29,3 @@ GRANT EXECUTE ON FUNCTION app.get_apprenant_exercises(UUID)           TO service
 GRANT EXECUTE ON FUNCTION app.get_signature_context(UUID, UUID, TEXT) TO service_role;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;
