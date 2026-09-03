@@ -14,7 +14,6 @@ import {
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
 import { can, sectionForPath } from '@/shared/lib/auth/permissions';
-import { dossiers, learnerFullName } from '@/shared/mock/data';
 
 type Tone = 'violet' | 'amber' | 'rose' | 'emerald' | 'orange';
 
@@ -147,12 +146,18 @@ const avatarPalette = [
   'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
 ];
 
-const recentDossiers = dossiers.slice(0, 3);
+export type SidebarDossier = { id: string; reference: string; learnerName: string };
 
 export function SidebarRail({
   counts,
   user,
-}: { counts?: SidebarCounts; user?: { fullName: string; roleLabel: string; role: string } } = {}) {
+  recentDossiers = [],
+}: {
+  counts?: SidebarCounts;
+  user?: { fullName: string; roleLabel: string; role: string };
+  /** Vrais derniers dossiers de l'organisme (auparavant ceux du module de démo). */
+  recentDossiers?: SidebarDossier[];
+} = {}) {
   const pathname = usePathname();
   const displayName = user?.fullName ?? 'Mon compte';
   const displayRole = user?.roleLabel ?? '';
@@ -394,14 +399,14 @@ export function SidebarRail({
               })}
 
               {/* Récents (uniquement pour la section Dossiers) */}
-              {flyoutGroup?.showRecents && (
+              {flyoutGroup?.showRecents && recentDossiers.length > 0 && (
                 <li className="pt-4">
                   <p className="px-3 mb-1 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium">
                     Récents
                   </p>
                   <ul className="space-y-0.5">
                     {recentDossiers.map((d) => {
-                      const learnerName = learnerFullName(d.learnerId);
+                      const learnerName = d.learnerName;
                       const inits = learnerName.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
                       const palIdx = learnerName.charCodeAt(0) % avatarPalette.length;
                       return (

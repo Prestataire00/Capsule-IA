@@ -16,12 +16,9 @@ import { DonutChart, DonutLegend } from '@/shared/ui/donut-chart';
 import { LineChart } from '@/shared/ui/line-chart';
 import { ProgressBar } from '@/shared/ui/progress-bar';
 
-import {
-  dossiers, learnerFullName, formationTitle, companyName,
-} from '@/shared/mock/data';
-
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getHomeCharts } from '@/features/reports/home-charts.query';
+import { getRecentDossiers } from '@/features/reports/recent-dossiers.query';
 import { getOrgKpis } from '@/features/reports/org-kpis.query';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
@@ -43,6 +40,7 @@ const taskColors = {
 export default async function Home() {
   const kpis = await getOrgKpis(supabaseServer());
   const charts = await getHomeCharts(supabaseServer());
+  const recents = await getRecentDossiers(supabaseServer());
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   const tasks = [
     { icon: FileSignature, label: 'Documents à signer', count: kpis.toSign, href: '/documents', color: 'violet' as const },
@@ -150,36 +148,37 @@ export default async function Home() {
               <div>Statut</div>
               <div>Avancement</div>
             </div>
+            {recents.length === 0 ? (
+              <p className="px-5 py-8 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
+                Aucun dossier pour l&apos;instant.
+              </p>
+            ) : (
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {dossiers.slice(0, 5).map((d) => {
-                const completion = d.sessionsCount > 0 ? Math.round((d.sessionsDone / d.sessionsCount) * 100) : 0;
-                return (
-                  <li key={d.id}>
-                    <Link
-                      href={`/dossiers/${d.id}`}
-                      className="grid grid-cols-[110px_1fr_1fr_1fr_100px_120px] gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition items-center"
-                    >
-                      <IdPill>{d.reference}</IdPill>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Avatar name={learnerFullName(d.learnerId)} />
-                        <span className="text-zinc-900 dark:text-zinc-100 truncate">{learnerFullName(d.learnerId)}</span>
-                      </div>
-                      <span className="text-zinc-700 dark:text-zinc-300 truncate">{formationTitle(d.formationId)}</span>
-                      <span className="text-zinc-500 dark:text-zinc-400 truncate">{companyName(d.companyId) ?? '—'}</span>
-                      <StatusPill tone={dossierStatusTone(d.status)}>
-                        {dossierStatusLabel(d.status)}
-                      </StatusPill>
-                      <div className="flex items-center gap-2">
-                        <ProgressBar value={completion} tone={completion === 100 ? 'emerald' : 'violet'} size="sm" />
-                        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums w-9 text-right">
-                          {completion}%
-                        </span>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
+              {recents.map((d) => (
+                <li key={d.id}>
+                  <Link
+                    href={`/dossiers/${d.id}`}
+                    className="grid grid-cols-[110px_1fr_1fr_1fr_100px_120px] gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition items-center"
+                  >
+                    <IdPill>{d.reference}</IdPill>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Avatar name={d.learnerName} />
+                      <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.learnerName}</span>
+                    </div>
+                    <span className="text-zinc-700 dark:text-zinc-300 truncate">{d.formationTitle}</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 truncate">{d.companyName ?? '—'}</span>
+                    <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
+                    <div className="flex items-center gap-2">
+                      <ProgressBar value={d.progress} tone={d.progress === 100 ? 'emerald' : 'violet'} size="sm" />
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums w-9 text-right">
+                        {d.progress}%
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
             </ul>
+            )}
           </div>
         </section>
 

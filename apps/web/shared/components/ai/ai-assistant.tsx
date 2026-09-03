@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAction } from 'next-safe-action/hooks';
 import { Sparkles, X, Send, ArrowRight, Bot, User as UserIcon } from 'lucide-react';
-import { initialSuggestions } from './mock-responses';
+import { initialSuggestions } from './suggestions';
 import { askAssistant } from './actions';
 import { cn } from '@/shared/lib/cn';
 

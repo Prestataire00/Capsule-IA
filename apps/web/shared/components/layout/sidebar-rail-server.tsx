@@ -2,6 +2,8 @@ import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { SidebarRail, type SidebarCounts } from './sidebar-rail';
+import { supabaseServer } from '@/shared/lib/supabase/server';
+import { getRecentDossiers } from '@/features/reports/recent-dossiers.query';
 import { getCurrentMember, roleLabel } from '@/shared/lib/auth/current-member';
 
 async function fetchSidebarCounts(): Promise<SidebarCounts> {
@@ -59,5 +61,19 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
 export async function SidebarRailServer() {
   const [counts, me] = await Promise.all([fetchSidebarCounts(), getCurrentMember()]);
   const user = me ? { fullName: me.fullName, roleLabel: roleLabel(me.role), role: me.role } : undefined;
-  return <SidebarRail counts={counts} user={user} />;
+  // Les « Récents » du menu Dossiers venaient du module de démonstration : trois
+  // dossiers fictifs, les mêmes pour tous les organismes (audit CAP-28).
+  const recents = await getRecentDossiers(supabaseServer(), 3);
+
+  return (
+    <SidebarRail
+      counts={counts}
+      user={user}
+      recentDossiers={recents.map((d) => ({
+        id: d.id,
+        reference: d.reference,
+        learnerName: d.learnerName,
+      }))}
+    />
+  );
 }

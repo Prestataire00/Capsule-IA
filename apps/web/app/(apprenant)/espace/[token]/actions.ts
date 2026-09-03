@@ -6,7 +6,6 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
-import { learners } from '@/shared/mock/data';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 
 const COMPLAINT_CATEGORIES = [
@@ -122,63 +121,13 @@ export async function submitComplaint(formData: FormData): Promise<void> {
     }
     complaint = rpcData as unknown as { id: string; reference: string };
   } else {
-    // Fallback legacy (token non-JWT pour démo) : insert direct, learner_id null
-    const learner = learners.find((l) => l.id === 'l-1');
-    reporterName = learner ? `${learner.firstName} ${learner.lastName}` : null;
-    reporterEmail = learner?.email ?? null;
-
-    const { data: orgRow, error: orgErr } = await supabase
-      .schema('app')
-      .from('organizations')
-      .select('id, name')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (orgErr || !orgRow) {
-      console.error('[submitComplaint] no organization found', orgErr);
-      redirect(`/espace/${token}#reclamation?error=no_organization`);
-    }
-    const org = orgRow as { id: string; name: string };
-    orgName = org.name;
-    const reference = generateReference();
-
-    const insertRow = {
-      organization_id: org.id,
-      reference,
-      learner_id: null,
-      dossier_id: null,
-      company_id: null,
-      source: 'questionnaire',
-      channel: 'espace_apprenant',
-      reporter_name: reporterName,
-      reporter_email: reporterEmail,
-      subject,
-      description,
-      severity: 'medium',
-      status: 'open',
-      metadata: {
-        category,
-        category_label: CATEGORY_LABELS[category],
-        submitted_from: 'espace_apprenant',
-        token_preview: token.slice(0, 8),
-        ip_address: ipAddress,
-        user_agent: userAgent,
-      },
-    };
-
-    const { data: created, error: insertErr } = await supabase
-      .schema('app')
-      .from('complaints')
-      .insert(insertRow)
-      .select('id, reference')
-      .single();
-
-    if (insertErr || !created) {
-      console.error('[submitComplaint] insert failed', insertErr);
-      redirect(`/espace/${token}#reclamation?error=db_error`);
-    }
-    complaint = created as { id: string; reference: string };
+    // Repli « démo » supprimé (audit CAP-28). Un jeton invalide déposait ici une
+    // vraie réclamation au nom d'une apprenante fictive du module de données de
+    // démonstration, rattachée à la PREMIÈRE organisation de la base — donc
+    // potentiellement celle d'un autre organisme. Un lien invalide doit être
+    // refusé, pas réorienté.
+    console.warn('[submitComplaint] jeton invalide:', verified.error);
+    redirect(`/espace/${token}#reclamation?error=invalid_token`);
   }
   const org = { name: orgName };
 
