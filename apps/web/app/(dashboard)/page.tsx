@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   ArrowUpRight, FolderOpen, Clock, GraduationCap, BarChart3,
-  FileSignature, ClipboardCheck, ClipboardList, Calendar,
+  FileSignature, ClipboardCheck, ClipboardList, Calendar, Info,
 } from 'lucide-react';
 
 import { StatCard } from '@/shared/ui/stat-card';
@@ -37,7 +37,16 @@ const taskColors = {
   rose: { bg: 'bg-rose-100 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400' },
 };
 
-export default async function Home() {
+const MOTIFS: Record<string, string> = {
+  'no-trainer-membership':
+    "Cet accès est réservé aux formateurs. Votre compte n'est rattaché à aucune fiche formateur — vous avez été ramené ici.",
+};
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: { reason?: string; refus?: string };
+}) {
   const kpis = await getOrgKpis(supabaseServer());
   const charts = await getHomeCharts(supabaseServer());
   const recents = await getRecentDossiers(supabaseServer());
@@ -53,8 +62,23 @@ export default async function Home() {
   const start = format(today, 'd MMM', { locale: fr });
   const end = format(new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000), 'd MMM yyyy', { locale: fr });
 
+  // Les redirections de la garde d'accès étaient muettes : l'utilisateur se
+  // retrouvait sur l'accueil sans savoir pourquoi, et lisait ça comme un bug
+  // (audit CAP-29).
+  const motif = searchParams?.reason
+    ? MOTIFS[searchParams.reason]
+    : searchParams?.refus
+      ? `Vous n'avez pas accès à la section « ${searchParams.refus} » avec votre rôle.`
+      : null;
+
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
+      {motif && (
+        <div className="mb-6 flex items-start gap-2.5 p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-lg">
+          <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-[13px] text-amber-900 dark:text-amber-200">{motif}</p>
+        </div>
+      )}
       <header className="flex items-end justify-between mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">

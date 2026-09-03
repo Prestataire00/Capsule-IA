@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { LoginSchema, type LoginInput } from './schema';
+import { resolveLanding } from '@/shared/lib/auth/landing';
 
 type LoginResult = { ok: false; error: string };
 
@@ -28,7 +29,15 @@ export async function login(input: LoginInput): Promise<LoginResult> {
 
   if (error) return { ok: false, error: 'Identifiants incorrects.' };
 
-  redirect(safeRedirect(parsed.data.redirectedFrom));
+  // Une destination explicite (page demandée avant connexion) prime. Sinon on
+  // aiguille selon l'identité : l'espace de l'organisme pour un membre,
+  // l'espace formateur pour un formateur sans rôle interne (audit CAP-29).
+  if (parsed.data.redirectedFrom) redirect(safeRedirect(parsed.data.redirectedFrom));
+
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  redirect(user ? ((await resolveLanding(user.id)) ?? '/login?motif=aucun-acces') : '/');
 }
 
 /** Déconnexion : invalide la session et renvoie vers la page de connexion. */
