@@ -135,7 +135,27 @@ export const deactivateMemberAction = authActionClient
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', parsedInput.memberId)
       .eq('organization_id', orgId);
-    if (error) throw new Error(`deactivate_member_failed: ${error.message}`);
+    // L'erreur était relancée : l'écran affichait « Échec de la désactivation »
+    // sans jamais dire pourquoi, et la cause partait dans les journaux du serveur,
+    // hors de portée de l'utilisateur (audit CAP-31).
+    if (error) {
+      console.error('[membres] désactivation refusée', error);
+      return { ok: false as const, error: 'update_failed', details: error.message };
+    }
+
+    // Une règle de sécurité qui refuse en LECTURE ne lève pas d'erreur : elle met
+    // simplement zéro ligne à jour. Sans ce contrôle, l'écran annonçait un succès
+    // alors que rien n'avait bougé.
+    const { data: apres } = await ctx.supabase
+      .schema('app')
+      .from('members')
+      .select('deleted_at')
+      .eq('id', parsedInput.memberId)
+      .maybeSingle();
+    if (apres && (apres as { deleted_at: string | null }).deleted_at === null) {
+      return { ok: false as const, error: 'rls_denied' };
+    }
+
     revalidatePath('/parametres/membres');
     return { ok: true as const };
   });

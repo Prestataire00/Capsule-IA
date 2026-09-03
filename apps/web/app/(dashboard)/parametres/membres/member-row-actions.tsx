@@ -17,6 +17,8 @@ const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Action non autorisée.',
   last_owner: 'Impossible : dernier propriétaire.',
   not_found: 'Membre introuvable.',
+  rls_denied:
+    'Refusé par la base : votre session ne vous reconnaît pas comme administrateur. Déconnectez-vous puis reconnectez-vous, et réessayez.',
 };
 
 export function MemberRowActions(props: {
@@ -76,7 +78,11 @@ export function MemberRowActions(props: {
       setError(null);
       const res = await deactivate.executeAsync({ memberId: props.memberId });
       if (!res?.data?.ok) {
-        setError(ERROR_LABEL[res?.data?.error ?? ''] ?? 'Échec de la désactivation.');
+        const d = res?.data as { error?: string; details?: string } | undefined;
+        setError(
+          ERROR_LABEL[d?.error ?? ''] ??
+            (d?.details ? `Échec de la désactivation : ${d.details}` : 'Échec de la désactivation.'),
+        );
       }
     });
 
