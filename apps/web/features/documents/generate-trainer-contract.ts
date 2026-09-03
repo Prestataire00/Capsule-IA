@@ -32,6 +32,7 @@ CONTRAINTES DE SORTIE :
 - Balises autorisées : <h1>, <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>, <table>, <thead>, <tbody>, <tr>, <th>, <td>.
 - Français juridique, précis et sobre. Contrat complet, prêt à signer.
 - N'invente JAMAIS une donnée (raison sociale, SIRET, montant, date). Insère uniquement les données réelles fournies ci-dessous ; pour toute donnée essentielle manquante (tarif/honoraires, dates, description précise de la mission), insère « [à compléter] ».
+- Les variables « contrat_… » ci-dessous ont été saisies par l'organisme : reprends-les FIDÈLEMENT, sans les reformuler ni les compléter, aux endroits correspondants — contrat_objet à l'article Objet, contrat_date_debut / contrat_date_fin / contrat_calendrier à l'article Durée, contrat_remuneration et contrat_tva à l'article Rémunération, contrat_preavis_jours au préavis de résiliation hors faute, contrat_propriete_intellectuelle à l'article Propriété intellectuelle, contrat_lieu_signature au bloc final. Une variable absente reste « [à compléter] ».
 
 STRUCTURE ET CLAUSES OBLIGATOIRES (numérote les articles) :
 - Titre + Préambule désignant les deux parties (raison sociale, SIRET, siège, représentant de chacune).

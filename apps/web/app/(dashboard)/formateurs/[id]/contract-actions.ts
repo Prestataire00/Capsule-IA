@@ -6,6 +6,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { resolveOrgVariables } from '@/features/documents/templates/resolve-org-variables';
 import { generateTrainerContractHtml } from '@/features/documents/generate-trainer-contract';
 import { wrapGeneratedHtml } from '@/features/documents/templates/wrap-generated-html';
+import { contractDetailsSchema, contractVariables } from '@/features/trainers/contract-details';
 
 type Result = { ok: true; documentId: string } | { ok: false; error: string };
 
@@ -27,7 +28,7 @@ type TrainerRow = {
  * comme document standalone (kind='trainer_contract', metadata.trainer_id). Il est
  * ensuite consultable/brandé et envoyable en signature via l'aperçu du document.
  */
-export async function generateTrainerContract(trainerId: string): Promise<Result> {
+export async function generateTrainerContract(trainerId: string, details?: unknown): Promise<Result> {
   await requireAccess('dossiers', 'manage');
   const sb = supabaseServer();
 
@@ -41,6 +42,12 @@ export async function generateTrainerContract(trainerId: string): Promise<Result
   const t = data as unknown as TrainerRow | null;
   if (!t) return { ok: false, error: 'trainer_not_found' };
 
+  // Les éléments saisis avant génération (objet, dates, rémunération, préavis…).
+  // Invalides ou absents, on continue : le rédacteur remettra « [à compléter] »,
+  // ce qui reste préférable à un refus de générer.
+  const parse = contractDetailsSchema.safeParse(details ?? {});
+  const saisis = parse.success ? contractVariables(parse.data) : {};
+
   const orgVars = await resolveOrgVariables(sb as never, t.organization_id);
   const variables: Record<string, string> = {
     ...orgVars,
@@ -51,6 +58,7 @@ export async function generateTrainerContract(trainerId: string): Promise<Result
     formateur_telephone: t.phone ?? '',
     formateur_specialites: (t.specialties ?? []).join(', '),
     formateur_statut: t.is_internal ? 'Formateur interne' : 'Formateur externe (indépendant)',
+    ...saisis,
   };
 
   const gen = await generateTrainerContractHtml(variables);
