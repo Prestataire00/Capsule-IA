@@ -10,6 +10,7 @@ import { ContractUpload } from './contract-upload';
 import { ContractGenerate } from './contract-generate';
 import { TrainerProfileEdit } from './profile-edit';
 import { TrainerIdentityEdit } from './identity-edit';
+import { SpaceAccess } from './space-access';
 
 type Trainer = {
   id: string;
@@ -39,7 +40,9 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
   const { data } = await sb
     .schema('app')
     .from('trainers')
-    .select('id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path, photo_path, cv_path, bio')
+    .select(
+      'id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path, photo_path, cv_path, bio, user_id, space_disabled_at',
+    )
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -144,6 +147,14 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
               specialties: t.specialties ?? [],
             }}
           />
+
+          <div className="mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800">
+            <SpaceAccess
+              trainerId={t.id}
+              disabledAt={(t as { space_disabled_at?: string | null }).space_disabled_at ?? null}
+              hasAccount={Boolean((t as { user_id?: string | null }).user_id)}
+            />
+          </div>
         </Card>
       </div>
 

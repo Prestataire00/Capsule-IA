@@ -1,15 +1,3 @@
--- ════════════════════════════════════════════════════════════════════════════
--- Capsule IA — migration à appliquer
---
--- 0137 : bouton « Fermer l'accès » sur la fiche formateur.
---        Ajoute deux colonnes à app.trainers et filtre la RPC qui alimente
---        l'espace formateur. Sans ça, le bouton restera sans effet.
---
--- À coller dans l'éditeur SQL Supabase. Ré-exécutable sans risque.
--- ════════════════════════════════════════════════════════════════════════════
-
-BEGIN;
-
 -- 0137 — Couper l'accès à l'espace d'un formateur, depuis sa fiche.
 --
 -- Il n'existait aucun moyen de retirer l'accès à un formateur sans supprimer sa
@@ -64,5 +52,3 @@ $$;
 GRANT EXECUTE ON FUNCTION app.list_my_trainer_memberships() TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

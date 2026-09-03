@@ -7,6 +7,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendTrainerInvite } from '@/features/trainers/send-trainer-invite';
 import { TrainerIdentitySchema, type TrainerIdentityInput } from './identity-schema';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -111,4 +112,52 @@ export async function updateTrainerBio(trainerId: string, bio: string): Promise<
   revalidatePath(`/formateurs/${trainerId}`);
   revalidatePath('/formateurs');
   return { ok: true };
+}
+
+export type SpaceAccessResult = { ok: true; disabled: boolean } | { ok: false; error: string };
+
+/**
+ * Ouvre ou ferme l'espace d'un formateur, depuis sa fiche.
+ *
+ * Réservé aux administrateurs et au propriétaire de l'organisme. La fiche reste
+ * intacte : seul l'accès est coupé, et il se rouvre d'un clic (audit CAP-30).
+ */
+export async function setTrainerSpaceAccess(
+  trainerId: string,
+  disabled: boolean,
+): Promise<SpaceAccessResult> {
+  const membre = await getCurrentMember();
+  if (!membre) return { ok: false, error: 'Session expirée — reconnectez-vous.' };
+  if (membre.role !== 'owner' && membre.role !== 'admin') {
+    return { ok: false, error: 'Réservé aux administrateurs.' };
+  }
+
+  const sb = supabaseAdmin();
+  const { data: moi } = await sb
+    .schema('app')
+    .from('members')
+    .select('id')
+    .eq('user_id', membre.userId)
+    .eq('organization_id', membre.organizationId)
+    .maybeSingle();
+
+  const { error } = await sb
+    .schema('app')
+    .from('trainers')
+    .update({
+      space_disabled_at: disabled ? new Date().toISOString() : null,
+      space_disabled_by: disabled ? ((moi as { id: string } | null)?.id ?? null) : null,
+    } as never)
+    .eq('id', trainerId)
+    .eq('organization_id', membre.organizationId)
+    .is('deleted_at', null);
+
+  if (error) {
+    console.error('[formateurs] fermeture de l’espace échouée', error);
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/formateurs/${trainerId}`);
+  revalidatePath('/formateurs');
+  return { ok: true, disabled };
 }
