@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, FolderOpen } from 'lucide-react';
+import { ArrowLeft, FolderOpen , Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -109,9 +109,19 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
         />
 
         <section className="mt-10">
-          <h2 className="text-[13px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-4">
-            Formations &amp; dossiers ({dossiers.length})
-          </h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <h2 className="text-[13px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Formations &amp; dossiers ({dossiers.length})
+            </h2>
+            {/* Assiduité de cet apprenant, demi-journée par demi-journée,
+                absences et demi-journées non émargées comprises. */}
+            <a
+              href={`/api/emargements/export.csv?learnerId=${params.id}`}
+              className="text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" /> Émargements (CSV)
+            </a>
+          </div>
           {dossiers.length === 0 ? (
             <EmptyState
               icon={FolderOpen}

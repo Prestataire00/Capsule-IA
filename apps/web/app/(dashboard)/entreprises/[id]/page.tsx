@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, Globe, Hash, MapPin, User, Users, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Globe, Hash, MapPin, User, Users, FolderOpen, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatCard } from '@/shared/ui/stat-card';
@@ -127,7 +127,17 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
       </section>
 
       <section className="space-y-3">
-        <SectionLabel>Dossiers ({dossiers.length})</SectionLabel>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <SectionLabel>Dossiers ({dossiers.length})</SectionLabel>
+          {/* Un financeur ou un auditeur demande l'assiduité de tous les salariés
+              d'une entreprise : l'export la produit, absents compris. */}
+          <a
+            href={`/api/emargements/export.csv?companyId=${params.id}`}
+            className="text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" /> Émargements (CSV)
+          </a>
+        </div>
         {dossiers.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun dossier lié à cette entreprise.</p>
         ) : (
