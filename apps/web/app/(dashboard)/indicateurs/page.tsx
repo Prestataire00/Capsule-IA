@@ -10,6 +10,10 @@ import { StatCard } from '@/shared/ui/stat-card';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { loadIndicateurs } from '@/features/indicateurs/load-indicateurs';
+import { loadDeclared, fusionner } from '@/features/indicateurs/declared';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { DeclaredPanel } from './declared-panel.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +31,28 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
         : currentYear;
 
   const sb = supabaseServer();
-  const data = await loadIndicateurs(sb as never, year);
+  const me = await getCurrentMember();
+  const calcul = await loadIndicateurs(sb as never, year);
+
+  // Les chiffres déclarés à la main complètent le calcul : un organisme arrive
+  // avec un historique, et la fiche publique ne peut pas rester vide en
+  // attendant que la plateforme accumule des données (CAP-24).
+  const declarations = me ? await loadDeclared(me.organizationId, year) : [];
+  const data = fusionner(calcul, declarations);
+
+  const { data: formationRows } = me
+    ? await supabaseAdmin()
+        .schema('app')
+        .from('formations')
+        .select('id, title')
+        .eq('organization_id', me.organizationId)
+        .is('deleted_at', null)
+        .order('title')
+    : { data: [] };
+  const formations = ((formationRows ?? []) as { id: string; title: string }[]).map((f) => ({
+    id: f.id,
+    title: f.title,
+  }));
 
   const periods: Array<{ value: string; label: string }> = [
     { value: String(currentYear), label: String(currentYear) },
@@ -98,6 +123,24 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
           accent="purple"
         />
       </div>
+
+      <DeclaredPanel
+        lignes={declarations.map((d) => ({
+          id: d.id,
+          formationId: d.formationId,
+          formationTitle: d.formationTitle,
+          year: d.year,
+          learnersTrained: d.learnersTrained,
+          satisfactionRate: d.satisfactionRate,
+          satisfactionResponses: d.satisfactionResponses,
+          responseRate: d.responseRate,
+          formationsDelivered: d.formationsDelivered,
+          source: d.source,
+          note: d.note,
+        }))}
+        formations={formations}
+        anneeParDefaut={year ?? currentYear}
+      />
 
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800">
