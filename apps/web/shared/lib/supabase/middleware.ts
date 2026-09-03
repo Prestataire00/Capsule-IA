@@ -1,19 +1,29 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/env.mjs';
-import { can, sectionForPath } from '@/shared/lib/auth/permissions';
+import { can, roleConnu, sectionForPath } from '@/shared/lib/auth/permissions';
 
 // Décodage léger du payload JWT (claims custom 'role' + 'aal'). Pas de
 // vérification de signature ici : la session est validée par getUser ci-dessus ;
 // on ne lit ces claims que pour router. atob = compatible Edge runtime.
+/**
+ * Le rôle métier vit sous le claim `user_role`, **pas** `role`.
+ *
+ * `role` est réservé par PostgREST (il pilote le `SET ROLE`) et vaut toujours
+ * `authenticated` pour un utilisateur connecté. La migration 0091 a déplacé le
+ * rôle applicatif sous `user_role` pour cette raison exacte. Lire `role` ici
+ * renvoyait donc `authenticated`, absent de la matrice, donc « aucun accès » —
+ * et redirigeait tout le monde vers l'accueil sur presque chaque page
+ * (audit CAP-23).
+ */
 function decodeClaims(token: string | undefined): { role?: string; aal?: string } {
   if (!token) return {};
   try {
     const part = token.split('.')[1];
     if (!part) return {};
     const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
-    const p = JSON.parse(json) as { role?: string; aal?: string };
-    return { role: p.role, aal: p.aal };
+    const p = JSON.parse(json) as { user_role?: string; aal?: string };
+    return { role: p.user_role, aal: p.aal };
   } catch {
     return {};
   }
@@ -87,7 +97,10 @@ export const updateSession = async (req: NextRequest) => {
 
     if (user && section && !exempt) {
       const { role } = decodeClaims((await supabase.auth.getSession()).data.session?.access_token);
-      if (role && can(role, section) === 'none') {
+      // Refus uniquement sur un rôle **connu** : toute autre valeur laisse
+      // passer, pour qu'un changement de claim ne puisse plus verrouiller la
+      // plateforme entière.
+      if (roleConnu(role) && can(role, section) === 'none') {
         const url = req.nextUrl.clone();
         url.pathname = '/';
         url.search = `?refus=${encodeURIComponent(section)}`;

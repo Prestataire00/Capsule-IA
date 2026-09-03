@@ -51,6 +51,19 @@ const MATRIX: Record<string, Record<Section, Access>> = {
 };
 
 /** Niveau d'accès d'un rôle à une section (défaut : `none` pour un rôle inconnu). */
+/**
+ * Le rôle est-il connu de la matrice ?
+ *
+ * `can()` renvoie `'none'` pour toute valeur inconnue, ce qui est le bon défaut
+ * pour *accorder* un accès, mais dangereux pour en *refuser* un : une garde qui
+ * bloque sur `can(...) === 'none'` verrouille alors toute la plateforme dès que
+ * la valeur lue n'est pas celle attendue. C'est précisément ce qui est arrivé le
+ * 2026-08-30 (audit CAP-23). Un refus doit donc exiger un rôle **connu**.
+ */
+export function roleConnu(role: string | null | undefined): boolean {
+  return !!role && role in MATRIX;
+}
+
 export function can(role: string | null | undefined, section: Section): Access {
   if (!role) return 'none';
   return MATRIX[role]?.[section] ?? 'none';
