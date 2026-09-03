@@ -15,8 +15,11 @@ export class SupabaseMembershipReader implements MembershipReader {
   constructor(private supabase: ServerSupabase) {}
 
   async list(): Promise<TrainerMembership[]> {
-    // RPC not yet in generated Database types (pending db:types:linked regen).
-    const { data, error } = await (this.supabase.rpc as any)('list_my_trainer_memberships');
+    // Les deux RPC vivent dans le schéma `app` : sans `.schema('app')`, PostgREST
+    // les cherche dans `public` et renvoie PGRST202. L'erreur remontait jusqu'au
+    // layout, qui plantait — un formateur invité ne pouvait jamais entrer dans
+    // son espace (audit CAP-26).
+    const { data, error } = await (this.supabase.schema('app').rpc as any)('list_my_trainer_memberships');
     if (error) throw error;
     return ((data ?? []) as MembershipRow[]).map((r) => ({
       organizationId: OrganizationId(r.organization_id),
@@ -29,8 +32,7 @@ export class SupabaseMembershipReader implements MembershipReader {
   }
 
   async linkOrphans(): Promise<number> {
-    // RPC not yet in generated Database types (pending db:types:linked regen).
-    const { data, error } = await (this.supabase.rpc as any)('link_my_trainer_rows');
+    const { data, error } = await (this.supabase.schema('app').rpc as any)('link_my_trainer_rows');
     if (error) throw error;
     return (data as number | null) ?? 0;
   }

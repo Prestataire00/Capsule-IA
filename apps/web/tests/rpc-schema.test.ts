@@ -42,7 +42,11 @@ describe("appels .rpc() et schéma Postgres", () => {
     for (const file of walk(WEB_ROOT)) {
       const lines = fs.readFileSync(file, 'utf-8').split('\n');
       lines.forEach((line, i) => {
-        for (const m of line.matchAll(/\.rpc\(\s*'(\w+)'/g)) {
+        // `.rpc('x')` mais aussi `(client.rpc as any)('x')` : c'est sous cette
+        // seconde forme, que la version précédente du motif ne voyait pas, que
+        // deux appels au schéma `app` sont passés — et que l'espace formateur
+        // est resté inaccessible (audit CAP-26).
+        for (const m of line.matchAll(/\.rpc\b[^'"\n]{0,24}\(\s*'(\w+)'/g)) {
           const fn = m[1]!;
           // Le chaînage peut s'étaler sur plusieurs lignes : sb\n.schema('app')\n.rpc(...)
           const context = lines.slice(Math.max(0, i - 4), i + 1).join('\n');
