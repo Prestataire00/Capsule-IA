@@ -5,6 +5,25 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, Loader2, FileText, Download } from 'lucide-react';
 
+/** Traduit la réponse d'une route de dépôt en message lisible. */
+function messageErreur(json: { error?: string; detail?: string }): string {
+  switch (json.error) {
+    case 'forbidden':
+      return 'Réservé aux administrateurs.';
+    case 'unauthenticated':
+      return 'Session expirée — reconnectez-vous.';
+    case 'invalid_file_type':
+      return `Format non accepté${json.detail ? ` (${json.detail})` : ''}. Les photos prises sur iPhone sont souvent en HEIC : exportez-les en JPEG.`;
+    case 'file_too_large':
+      return 'Fichier trop lourd.';
+    case 'trainer_not_found':
+      return 'Formateur introuvable.';
+    default:
+      return `Échec de l'envoi${json.detail ? ` : ${json.detail}` : ''}.`;
+  }
+}
+
+
 export function ContractUpload({
   trainerId,
   hasContract,
@@ -33,7 +52,7 @@ export function ContractUpload({
       fd.set('file', file);
       const res = await fetch(`/formateurs/${trainerId}/contract/upload`, { method: 'POST', body: fd });
       const json = await res.json();
-      if (!json.ok) setError(json.error === 'forbidden' ? "Réservé aux administrateurs." : 'Échec de l’envoi.');
+      if (!json.ok) setError(messageErreur(json));
       else router.refresh();
     } catch {
       setError('Échec de l’envoi.');

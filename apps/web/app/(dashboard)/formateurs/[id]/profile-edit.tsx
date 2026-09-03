@@ -5,6 +5,25 @@ import { useRouter } from 'next/navigation';
 import { Camera, Loader2, Save, FileText, Download } from 'lucide-react';
 import { updateTrainerBio } from './profile-actions';
 
+/** Traduit la réponse d'une route de dépôt en message lisible. */
+function messageErreur(json: { error?: string; detail?: string }): string {
+  switch (json.error) {
+    case 'forbidden':
+      return 'Réservé aux administrateurs.';
+    case 'unauthenticated':
+      return 'Session expirée — reconnectez-vous.';
+    case 'invalid_file_type':
+      return `Format non accepté${json.detail ? ` (${json.detail})` : ''}. Les photos prises sur iPhone sont souvent en HEIC : exportez-les en JPEG.`;
+    case 'file_too_large':
+      return 'Fichier trop lourd.';
+    case 'trainer_not_found':
+      return 'Formateur introuvable.';
+    default:
+      return `Échec de l'envoi${json.detail ? ` : ${json.detail}` : ''}.`;
+  }
+}
+
+
 export function TrainerProfileEdit({
   trainerId,
   photoUrl,
@@ -38,7 +57,13 @@ export function TrainerProfileEdit({
     if (!file) return;
     setPhotoErr(null);
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      setPhotoErr('Image PNG, JPG ou WebP uniquement.');
+      // Les photos d'un album iPhone sont en HEIC : le dire, plutôt que de
+      // laisser l'utilisateur chercher pourquoi son image est refusée.
+      setPhotoErr(
+        file.type === 'image/heic' || file.type === 'image/heif'
+          ? 'Les photos iPhone sont en HEIC. Ouvrez-la dans Aperçu ou Photos, puis exportez-la en JPEG.'
+          : `Image PNG, JPG ou WebP uniquement${file.type ? ` (reçu : ${file.type})` : ''}.`,
+      );
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
@@ -51,7 +76,7 @@ export function TrainerProfileEdit({
       fd.set('file', file);
       const res = await fetch(`/formateurs/${trainerId}/photo/upload`, { method: 'POST', body: fd });
       const json = await res.json();
-      if (!json.ok) setPhotoErr(json.error === 'forbidden' ? 'Réservé aux administrateurs.' : "Échec de l'envoi.");
+      if (!json.ok) setPhotoErr(messageErreur(json));
       else router.refresh();
     } catch {
       setPhotoErr("Échec de l'envoi.");
@@ -79,7 +104,7 @@ export function TrainerProfileEdit({
       fd.set('file', file);
       const res = await fetch(`/formateurs/${trainerId}/cv/upload`, { method: 'POST', body: fd });
       const json = await res.json();
-      if (!json.ok) setCvErr(json.error === 'forbidden' ? 'Réservé aux administrateurs.' : "Échec de l'envoi.");
+      if (!json.ok) setCvErr(messageErreur(json));
       else router.refresh();
     } catch {
       setCvErr("Échec de l'envoi.");
