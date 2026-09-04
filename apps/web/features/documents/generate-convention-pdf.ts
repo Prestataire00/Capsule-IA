@@ -24,6 +24,17 @@ export type ConventionInput = {
     birthDate: string | null;
     address: string | null;
   };
+  /**
+   * Convention groupée : les salariés d'une même entreprise inscrits à une même
+   * séance figurent tous sur UNE convention, au lieu d'une chacun. Absent ou
+   * réduit à une personne, le document garde sa forme individuelle.
+   */
+  participants?: ReadonlyArray<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    birthDate: string | null;
+  }>;
   company: {
     name: string;
     siret: string | null;
@@ -199,12 +210,29 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   if (input.organization.representativeName) c = drawKeyValue(doc, c, font, fontBold, 'Représenté par', input.organization.representativeName);
   c = { ...c, y: c.y - 12 };
 
-  // Section 2 — Bénéficiaire
-  c = drawHeading(doc, c, fontBold, '2. Bénéficiaire de la formation');
-  c = drawKeyValue(doc, c, font, fontBold, 'Nom', `${input.learner.firstName} ${input.learner.lastName}`);
-  c = drawKeyValue(doc, c, font, fontBold, 'Email', input.learner.email);
-  if (input.learner.birthDate) c = drawKeyValue(doc, c, font, fontBold, 'Date de naissance', fmtDate(input.learner.birthDate));
-  if (input.learner.address) c = drawKeyValue(doc, c, font, fontBold, 'Adresse', input.learner.address);
+  // Section 2 — Bénéficiaire(s)
+  const groupe = (input.participants?.length ?? 0) > 1;
+  c = drawHeading(doc, c, fontBold, groupe ? '2. Bénéficiaires de la formation' : '2. Bénéficiaire de la formation');
+
+  if (groupe) {
+    c = drawKeyValue(doc, c, font, fontBold, 'Effectif', `${input.participants!.length} participants`);
+    for (const [i, p] of input.participants!.entries()) {
+      const naissance = p.birthDate ? ` — né(e) le ${fmtDate(p.birthDate)}` : '';
+      c = drawKeyValue(
+        doc,
+        c,
+        font,
+        fontBold,
+        String(i + 1).padStart(2, '0'),
+        `${p.firstName} ${p.lastName} — ${p.email}${naissance}`,
+      );
+    }
+  } else {
+    c = drawKeyValue(doc, c, font, fontBold, 'Nom', `${input.learner.firstName} ${input.learner.lastName}`);
+    c = drawKeyValue(doc, c, font, fontBold, 'Email', input.learner.email);
+    if (input.learner.birthDate) c = drawKeyValue(doc, c, font, fontBold, 'Date de naissance', fmtDate(input.learner.birthDate));
+    if (input.learner.address) c = drawKeyValue(doc, c, font, fontBold, 'Adresse', input.learner.address);
+  }
   if (input.company) {
     c = drawKeyValue(doc, c, font, fontBold, 'Entreprise', input.company.name);
     if (input.company.siret) c = drawKeyValue(doc, c, font, fontBold, 'SIRET entreprise', input.company.siret);
@@ -280,10 +308,17 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   const colW = (COL - 24) / 2;
   c.page.drawRectangle({ x: MARGIN, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
   c.page.drawRectangle({ x: MARGIN + colW + 24, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
-  c.page.drawText('Le bénéficiaire', { x: MARGIN + colW + 32, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
-  c.page.drawText(`${input.learner.firstName} ${input.learner.lastName}`, {
-    x: MARGIN + colW + 32, y: c.y - 70, size: 8, font, color: COLOR_BODY,
+  // Sur une convention groupée, le signataire est l'entreprise cliente : ses
+  // salariés ne signent pas individuellement un document qui les concerne tous.
+  c.page.drawText(groupe ? 'Le client' : 'Le bénéficiaire', {
+    x: MARGIN + colW + 32, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED,
   });
+  c.page.drawText(
+    groupe
+      ? (input.company?.name ?? 'Le client')
+      : `${input.learner.firstName} ${input.learner.lastName}`,
+    { x: MARGIN + colW + 32, y: c.y - 70, size: 8, font, color: COLOR_BODY },
+  );
 
   // Colonne organisme : signature + cachet OF apposés automatiquement
   const sigAnchor = { x: MARGIN, y: c.y - 80, width: colW, height: 80 };

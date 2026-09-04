@@ -10,6 +10,9 @@ import { loadSession } from '@/features/sessions/load-session';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { env } from '@/env.mjs';
 import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
+import { buildGroupConventions } from '@/features/documents/build-group-convention';
+import { generateConventionPDF } from '@/features/documents/generate-convention-pdf';
+import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
 // Assigne un questionnaire à TOUS les apprenants de la session (1 assignation par
 // apprenant/dossier). Idempotent : saute les apprenants déjà assignés à ce modèle.
@@ -170,4 +173,49 @@ export const sendSessionConvocationsRecap = authActionClient
     const r = await sendConvocationsRecap(parsedInput.sessionId);
     revalidatePath(`/sessions/${parsedInput.sessionId}`);
     return { ok: true as const, entreprises: r.entreprises, envoyes: r.envoyes, erreurs: r.erreurs };
+  });
+
+/**
+ * Une convention groupée par entreprise cliente de la séance.
+ *
+ * Chaque société qui a inscrit au moins deux salariés reçoit un document unique
+ * les listant tous, au lieu d'une convention par dossier. Les particuliers et
+ * les entreprises n'ayant qu'un inscrit gardent leur convention individuelle,
+ * qui reste la bonne réponse dans leur cas (audit CAP-32).
+ */
+export const generateGroupConventions = authActionClient
+  .schema(z.object({ sessionId: z.string().uuid() }))
+  .action(async ({ parsedInput, ctx }) => {
+    const loaded = await loadSession(ctx.supabase, parsedInput.sessionId);
+    if (!loaded) return { ok: false as const, error: 'session_not_found' };
+
+    const conventions = await buildGroupConventions(parsedInput.sessionId);
+    if (conventions.length === 0) {
+      return { ok: true as const, count: 0, entreprises: [] as string[] };
+    }
+
+    const admin = supabaseAdmin();
+    const entreprises: string[] = [];
+
+    for (const c of conventions) {
+      const bytes = await generateConventionPDF(c.input);
+      await persistGeneratedDocument(admin as never, {
+        organizationId: c.organizationId,
+        dossierId: c.anchorDossierId,
+        kind: 'convention',
+        title: `Convention de formation — ${c.companyName} (${c.dossierIds.length} participants)`,
+        bytes,
+        generationInput: c.input,
+        metadata: {
+          grouped: true,
+          session_id: parsedInput.sessionId,
+          company_id: c.companyId,
+          dossier_ids: c.dossierIds,
+        },
+      });
+      entreprises.push(c.companyName);
+    }
+
+    revalidatePath(`/sessions/${parsedInput.sessionId}/documents`);
+    return { ok: true as const, count: conventions.length, entreprises };
   });
