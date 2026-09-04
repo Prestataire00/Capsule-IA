@@ -508,3 +508,81 @@ export function funderEmail(
   return { subject, html };
 }
 
+
+
+export type ConvocationsRecapData = {
+  companyName: string;
+  contactName: string | null;
+  formationTitle: string;
+  sessionDate: string; // ISO
+  sessionStartTime: string;
+  sessionEndTime: string;
+  modality: string;
+  location: string | null;
+  remoteUrl: string | null;
+  learners: ReadonlyArray<{ fullName: string; email: string | null }>;
+};
+
+/**
+ * Récapitulatif adressé au responsable d'une entreprise cliente : la convocation
+ * de TOUS ses salariés inscrits à une séance, en un seul envoi, qu'il peut
+ * transmettre ou imprimer.
+ *
+ * Les convocations individuelles partent en parallèle aux apprenants : celle-ci
+ * ne les remplace pas, elle donne à l'entreprise la vue d'ensemble qui lui
+ * manquait.
+ */
+export function convocationsRecapEmail(data: ConvocationsRecapData): { subject: string; html: string } {
+  const dateFR = new Date(data.sessionDate).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const modalityLabel = MODALITY_LABEL[data.modality] ?? data.modality;
+  const lieu = data.remoteUrl ? 'À distance' : (data.location ?? 'Lieu à préciser');
+
+  const subject = `Convocations ${data.companyName} — ${data.formationTitle} le ${dateFR}`;
+
+  const lignes = data.learners
+    .map(
+      (l) => `
+      <tr>
+        <td style="padding:9px 0; border-top:1px solid #f4f4f5; font-size:14px; color:#18181b;">${escapeHtml(l.fullName)}</td>
+        <td style="padding:9px 0; border-top:1px solid #f4f4f5; font-size:13px; color:#71717a; text-align:right;">${escapeHtml(l.email ?? '—')}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Convocations — ${escapeHtml(data.companyName)}</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px; text-transform:capitalize;">${dateFR}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
+        ${data.contactName ? `Bonjour ${escapeHtml(data.contactName)}, ` : 'Bonjour, '}voici les convocations de vos
+        ${data.learners.length > 1 ? `${data.learners.length} collaborateurs` : 'collaborateurs'} inscrits à
+        <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong>. Chacun a également reçu la sienne.
+      </p>
+
+      <table style="width:100%; border-collapse:collapse; margin:0 0 20px;">
+        <tr>
+          <td style="padding:0 0 6px; font-size:13px; color:#71717a;">Horaires</td>
+          <td style="padding:0 0 6px; font-size:13px; color:#18181b; text-align:right;">${escapeHtml(data.sessionStartTime)} – ${escapeHtml(data.sessionEndTime)}</td>
+        </tr>
+        <tr>
+          <td style="padding:0 0 6px; font-size:13px; color:#71717a;">Modalité</td>
+          <td style="padding:0 0 6px; font-size:13px; color:#18181b; text-align:right;">${escapeHtml(modalityLabel)}</td>
+        </tr>
+        <tr>
+          <td style="padding:0; font-size:13px; color:#71717a;">Lieu</td>
+          <td style="padding:0; font-size:13px; color:#18181b; text-align:right;">${escapeHtml(lieu)}</td>
+        </tr>
+      </table>
+
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#a1a1aa; font-weight:600; margin:0 0 4px;">Participants convoqués</p>
+      <table style="width:100%; border-collapse:collapse;">${lignes}</table>
+    `)}
+  `);
+
+  return { subject, html };
+}

@@ -9,6 +9,7 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { loadSession } from '@/features/sessions/load-session';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { env } from '@/env.mjs';
+import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
 
 // Assigne un questionnaire à TOUS les apprenants de la session (1 assignation par
 // apprenant/dossier). Idempotent : saute les apprenants déjà assignés à ce modèle.
@@ -153,4 +154,20 @@ export const sendSessionAccess = authActionClient
 
     revalidatePath(`/sessions/${parsedInput.sessionId}/acces`);
     return { ok: true as const, sent, skipped };
+  });
+
+/**
+ * Envoi manuel du récapitulatif des convocations aux entreprises clientes de la
+ * séance. Le récap part aussi tout seul à J-7 ; ce bouton sert à le renvoyer,
+ * ou à l'envoyer plus tôt.
+ */
+export const sendSessionConvocationsRecap = authActionClient
+  .schema(z.object({ sessionId: z.string().uuid() }))
+  .action(async ({ parsedInput, ctx }) => {
+    const loaded = await loadSession(ctx.supabase, parsedInput.sessionId);
+    if (!loaded) return { ok: false as const, error: 'session_not_found' };
+
+    const r = await sendConvocationsRecap(parsedInput.sessionId);
+    revalidatePath(`/sessions/${parsedInput.sessionId}`);
+    return { ok: true as const, entreprises: r.entreprises, envoyes: r.envoyes, erreurs: r.erreurs };
   });

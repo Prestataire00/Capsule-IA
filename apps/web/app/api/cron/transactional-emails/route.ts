@@ -22,6 +22,7 @@ import {
   sendNeedsAnalysisForDossier,
   sendNeedsAnalysisForLearner,
 } from '@/features/questionnaire/needs-analysis';
+import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -274,6 +275,19 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
       } catch (e) {
         errors.push(`convocation ${session.id} / ${learner.email}: ${(e as Error).message}`);
       }
+    }
+  }
+
+  // Récap aux entreprises clientes : une fois les convocations individuelles
+  // parties, le responsable de chaque société reçoit celles de ses salariés en
+  // un seul envoi. Il ne recevait rien jusqu'ici.
+  for (const s of sessionRows as unknown as { id: string }[]) {
+    try {
+      const recap = await sendConvocationsRecap(s.id);
+      sent += recap.envoyes;
+      errors.push(...recap.erreurs);
+    } catch (e) {
+      errors.push(`recap ${s.id}: ${e instanceof Error ? e.message : 'échec'}`);
     }
   }
 
