@@ -54,17 +54,6 @@ type LearnerRow = {
   email: string;
 };
 
-type FormationRow = {
-  id: string;
-  title: string;
-};
-
-type TrainerRow = {
-  id: string;
-  first_name: string;
-  last_name: string;
-};
-
 function admin() {
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -220,10 +209,10 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
     const { data: dossierRow } = await sb
       .schema('app')
       .from('dossiers')
-      .select('id, formation_id')
+      .select('id, formation_id, organization_id')
       .eq('id', session.dossier_id)
       .maybeSingle();
-    const dossier = dossierRow as { formation_id: string } | null;
+    const dossier = dossierRow as { id: string; formation_id: string; organization_id: string } | null;
     if (!dossier) continue;
 
     const { data: formationRow } = await sb
@@ -269,7 +258,15 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
           trainerName,
           espaceUrl: espaceUrlFor(learner.id),
         });
-        const r = await sendEmail({ to: learner.email, subject: tpl.subject, html: tpl.html });
+        // Journalisée avec son dossier : la convocation envoyée prouve l'indicateur 9.
+        const r = await sendEmail({
+          to: learner.email,
+          subject: tpl.subject,
+          html: tpl.html,
+          organizationId: dossier.organization_id,
+          dossierId: dossier.id,
+          kind: 'convocation_j7',
+        });
         if (r.ok) sent++;
         else if (r.reason !== 'no_api_key') errors.push(`convocation ${session.id} / ${learner.email}: send_failed`);
       } catch (e) {

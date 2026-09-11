@@ -48,7 +48,7 @@ const TODO_BY_NUMBER: Record<number, string> = {
   6: "Renseignez le programme et les modalités pédagogiques dans la fiche formation — cela valide l'indicateur.",
   7: "Joignez la preuve de l'adéquation du contenu au référentiel de la certification visée.",
   8: "Le positionnement à l'entrée est recueilli par le questionnaire de positionnement (fiche besoin) : sa complétion valide l'indicateur.",
-  9: "Joignez la preuve de l'information donnée sur les conditions de déroulement (convocation, livret d'accueil, informations pratiques).",
+  9: "La convocation envoyée à l'apprenant (automatiquement à J-7) ou un document de convocation généré valide l'indicateur. À défaut, joignez la preuve de l'information donnée sur les conditions de déroulement (livret d'accueil, règlement intérieur).",
   10: "Joignez la preuve de l'adaptation de la prestation et du suivi (entretiens, ajustements, comptes rendus).",
   11: "Envoyez le questionnaire d'évaluation des acquis — sa complétion valide l'indicateur.",
   12: "Créez les feuilles d'émargement des séances et faites-les signer : leur finalisation valide l'indicateur.",
@@ -64,6 +64,7 @@ const TODO_BY_NUMBER: Record<number, string> = {
 const TAB_BY_NUMBER: Partial<Record<number, { tab: DossierTab; linkLabel: string }>> = {
   4: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
   8: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
+  9: { tab: 'documents', linkLabel: 'Générer la convocation' },
   11: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
   12: { tab: 'emargements', linkLabel: 'Gérer les émargements' },
   30: { tab: 'questionnaires', linkLabel: 'Envoyer le questionnaire' },
