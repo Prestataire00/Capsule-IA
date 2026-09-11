@@ -2,7 +2,7 @@
 // Justification: vue agrégée de la conformité Qualiopi par dossier — densité, drill-down rapide.
 
 import Link from 'next/link';
-import { ShieldCheck, ShieldAlert, Download } from 'lucide-react';
+import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
@@ -106,20 +106,15 @@ export default async function QualiopiOrgPage({
             État de conformité de l'organisme et des dossiers en cours.
           </p>
         </div>
-        <button
-          type="button"
-          className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
-        >
-          <Download className="w-3.5 h-3.5" />
-          Exporter audit (ZIP)
-        </button>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      {/* Retirés (audit CAP-34) : une carte « Certification ✓ Valide jusqu'à mars
+          2027 » écrite en dur, identique pour tous les organismes, et un bouton
+          « Exporter audit (ZIP) » sans aucune action. */}
+      <section className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
         <StatCard label="Dossiers Qualiopi-ready" value={`${ready}/${inScope.length}`} hint={inScope.length > 0 && ready === inScope.length ? 'tous prêts' : '—'} href="/qualiopi?filter=ready" />
         <StatCard label="Dossiers bloquants" value={blocking} hint={blocking > 0 ? 'à traiter' : 'aucun'} href="/qualiopi?filter=blocking" />
         <StatCard label="Indicateurs satisfaits" value={`${satisfied}`} hint={`/ ${totalIndicators}`} />
-        <StatCard label="Certification" value="✓" hint="Valide jusqu'à mars 2027" />
       </section>
 
       <div className="flex items-center justify-between mb-3">

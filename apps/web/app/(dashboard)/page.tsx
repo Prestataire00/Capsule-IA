@@ -50,6 +50,10 @@ export default async function Home({
   const kpis = await getOrgKpis(supabaseServer());
   const charts = await getHomeCharts(supabaseServer());
   const recents = await getRecentDossiers(supabaseServer());
+  // `qualiopiRate` est une fraction entre 0 et 1. Le camembert la recevait brute
+  // comme un pourcentage : il affichait « 1 % » ou « 0,85 % », toujours
+  // « À compléter ». Une seule conversion, partagée avec la carte.
+  const tauxQualiopi = Math.round(kpis.qualiopiRate * 100);
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   const tasks = [
     { icon: FileSignature, label: 'Documents à signer', count: kpis.toSign, href: '/documents', color: 'violet' as const },
@@ -98,7 +102,7 @@ export default async function Home({
         <StatCard href="/dossiers" label="Dossiers actifs" value={kpis.dossiersActive} icon={FolderOpen} accent="purple" />
         <StatCard href="/factures" label="CA en cours" value={euro.format(kpis.revenueInProgressCents / 100)} icon={Clock} accent="emerald" />
         <StatCard href="/dossiers" label="Clôturés ce mois" value={kpis.dossiersClosedThisMonth} icon={GraduationCap} accent="blue" />
-        <StatCard href="/qualiopi" label="Taux Qualiopi" value={`${Math.round(kpis.qualiopiRate * 100)}%`} icon={BarChart3} accent="amber" />
+        <StatCard href="/qualiopi" label="Taux Qualiopi" value={`${tauxQualiopi}%`} icon={BarChart3} accent="amber" />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
@@ -218,15 +222,15 @@ export default async function Home({
           <div className="flex items-center gap-5">
             <DonutChart
               data={[
-                { label: 'Conforme', value: kpis.qualiopiRate, color: '#10b981' },
-                { label: 'Restant', value: Math.max(0, 100 - kpis.qualiopiRate), color: '#e4e4e7' },
+                { label: 'Conforme', value: tauxQualiopi, color: '#10b981' },
+                { label: 'Restant', value: Math.max(0, 100 - tauxQualiopi), color: '#e4e4e7' },
               ]}
               size={120}
               strokeWidth={16}
-              centerTitle={<span>{kpis.qualiopiRate}%</span>}
+              centerTitle={<span>{tauxQualiopi}%</span>}
               centerSubtitle={
-                <span className={kpis.qualiopiRate >= 90 ? 'text-emerald-600' : 'text-amber-600'}>
-                  {kpis.qualiopiRate >= 90 ? 'Conforme' : 'À compléter'}
+                <span className={tauxQualiopi >= 90 ? 'text-emerald-600' : 'text-amber-600'}>
+                  {tauxQualiopi >= 90 ? 'Conforme' : 'À compléter'}
                 </span>
               }
             />
