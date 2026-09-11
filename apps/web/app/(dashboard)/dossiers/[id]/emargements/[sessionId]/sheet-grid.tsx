@@ -7,7 +7,9 @@ import { SignaturePad, type SignaturePadHandle } from '@/features/attendance/sig
 import { STATE_LABELS, STATUS_LABELS, type AttendanceStatus, type ParticipantState } from '@/features/attendance/completeness';
 import { MARK_STATUSES, attendanceErrorLabel } from '@/features/attendance/schemas';
 import type { ParticipantRow, SheetView } from '@/features/attendance/queries/load-session-emargement';
+import { JustificationUpload } from '@/features/attendance/justification-upload';
 import { attestExit, generateParticipantSignatureLink, markAttendance, signOnDevice } from './actions';
+import { JustificationsRow } from './justifications-row';
 
 const TON: Record<ParticipantState, string> = {
   complet: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -157,6 +159,7 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
                 </span>
               </div>
               {p.absenceReason && <p className="text-[11px] text-zinc-500 mt-1">Motif : {p.absenceReason}</p>}
+              {p.justifications.length > 0 && <JustificationsRow items={p.justifications} />}
 
               {liens[k] && (
                 <div className="mt-2 flex gap-2">
@@ -338,6 +341,13 @@ function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; p
         </button>
         {erreur && <span role="alert" className="text-[12px] text-red-600 dark:text-red-400">{erreur}</span>}
       </div>
+      {absent && !formateur && (
+        <JustificationUpload
+          endpoint="/api/attendance/justifications"
+          fields={{ sheetId, learnerId: participant.id }}
+          hint="Déposé par vous, il est accepté d’office et l’absence est notée « excusée »."
+        />
+      )}
     </div>
   );
 }

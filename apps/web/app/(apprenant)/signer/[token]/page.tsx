@@ -1,6 +1,7 @@
 import { AlertCircle, Check, Clock, Lock } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
+import { JustificationUpload } from '@/features/attendance/justification-upload';
 import { SignerForm, type SignerContext } from './signer-form';
 
 export const dynamic = 'force-dynamic';
@@ -33,11 +34,13 @@ function FullScreenMessage({
   tone,
   title,
   description,
+  children,
 }: {
   icon: React.ReactNode;
   tone: 'error' | 'warning' | 'success';
   title: string;
   description: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   const toneClasses = {
     error: 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
@@ -50,6 +53,7 @@ function FullScreenMessage({
         <div className={`w-16 h-16 rounded-full ${toneClasses} flex items-center justify-center mx-auto mb-4`}>{icon}</div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{title}</h1>
         <div className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">{description}</div>
+        {children && <div className="mt-6">{children}</div>}
       </div>
     </div>
   );
@@ -125,14 +129,20 @@ export default async function SignerPage({ params }: { params: { token: string }
     );
   }
 
+  // Absent : dépôt d'un justificatif (apprenant seulement).
+  const justificatif =
+    signerKind === 'learner' ? <JustificationUpload endpoint={`/api/signer/${params.token}/justificatif`} fields={{}} /> : null;
+
   if (row.sheet_finalized) {
     return (
       <FullScreenMessage
         tone="warning"
         icon={<Lock className="w-8 h-8" />}
         title="Feuille clôturée"
-        description="Cette feuille de présence a été clôturée par l’organisme : elle ne peut plus être signée."
-      />
+        description="Cette feuille de présence a été clôturée par l’organisme : elle ne peut plus être signée. Absent(e) ? Vous pouvez encore envoyer un justificatif."
+      >
+        {!row.entry_signed_at && justificatif}
+      </FullScreenMessage>
     );
   }
 
@@ -142,8 +152,10 @@ export default async function SignerPage({ params }: { params: { token: string }
         tone="warning"
         icon={<AlertCircle className="w-8 h-8" />}
         title="Vous êtes noté(e) absent(e)"
-        description="Si vous êtes présent(e), signalez-le à votre formateur : il pourra corriger la feuille ou vous faire signer sur place."
-      />
+        description="Si vous êtes présent(e), signalez-le à votre formateur. Sinon, vous pouvez envoyer un justificatif à l’organisme."
+      >
+        {justificatif}
+      </FullScreenMessage>
     );
   }
 
@@ -169,8 +181,10 @@ export default async function SignerPage({ params }: { params: { token: string }
         tone="warning"
         icon={<Lock className="w-8 h-8" />}
         title="L’émargement de cette demi-journée est fermé"
-        description="Contactez votre formateur ou l’organisme : ils peuvent corriger la feuille de présence."
-      />
+        description="Contactez votre formateur ou l’organisme : ils peuvent corriger la feuille de présence. Absent(e) ? Envoyez votre justificatif."
+      >
+        {etape === 'entry' && justificatif}
+      </FullScreenMessage>
     );
   }
 

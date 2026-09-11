@@ -8,6 +8,7 @@ import { parseZoomCsv } from '@/features/attendance/zoom-csv-parser';
 import { renderAttendancePdf, type PdfSignatureLine } from '@/features/attendance/pdf-render';
 import { accessibleSession, accessibleSheet } from '@/features/attendance/access';
 import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link';
+import { markJustifiedAbsence } from '@/features/attendance/justifications';
 import { recordAttendanceStep } from '@/features/attendance/record-step';
 import { sendSheetLinks, type SendLinksResult } from '@/features/attendance/send-links';
 import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
@@ -140,6 +141,49 @@ export async function attestExit(input: AttestExitInput): Promise<Result> {
   } as never);
   if (error) return erreur('sortie attestée refusée', error);
   return { ok: true };
+}
+
+// ── Justificatifs d'absence : décision de l'équipe ─────────────────────────
+export async function decideJustification(input: {
+  id: string;
+  decision: 'acceptee' | 'refusee';
+  note?: string | null;
+}): Promise<Result<{ marked: boolean }>> {
+  if (typeof input?.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(input.id) || (input.decision !== 'acceptee' && input.decision !== 'refusee')) {
+    return { ok: false, error: 'invalid_payload' };
+  }
+  const note = typeof input.note === 'string' ? input.note.trim().slice(0, 500) || null : null;
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .schema('app')
+    .from('attendance_justifications' as never)
+    .select('attendance_sheet_id, learner_id, comment')
+    .eq('id' as never, input.id as never)
+    .maybeSingle();
+  const j = data as { attendance_sheet_id: string; learner_id: string; comment: string | null } | null;
+  if (!j) return { ok: false, error: 'justification_not_found' };
+  const acces = await accessibleSheet(j.attendance_sheet_id);
+  if (!acces.ok) return { ok: false, error: acces.error };
+
+  const { data: maj, error } = await sb
+    .schema('app')
+    .from('attendance_justifications' as never)
+    .update({ decision: input.decision, decided_by: acces.userId, decided_at: new Date().toISOString(), decision_note: note } as never)
+    .eq('id' as never, input.id as never)
+    .eq('decision' as never, 'en_attente' as never)
+    .select('id');
+  if (error) return erreur('décision de justificatif refusée', error);
+  if (!(maj ?? []).length) return { ok: false, error: 'justification_already_decided' };
+
+  const marked =
+    input.decision === 'acceptee' &&
+    (await markJustifiedAbsence({
+      sheetId: j.attendance_sheet_id,
+      learnerId: j.learner_id,
+      reason: note ?? j.comment ?? 'Justificatif reçu et accepté',
+      actor: acces.userId,
+    }));
+  return { ok: true, marked };
 }
 
 // ── Envoi des liens par e-mail (bouton de l'équipe) ────────────────────────

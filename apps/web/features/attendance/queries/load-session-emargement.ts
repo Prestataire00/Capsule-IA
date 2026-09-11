@@ -41,6 +41,17 @@ export type ParticipantRow = {
   readonly absenceReason: string | null;
   readonly captureMode: string | null;
   readonly state: ParticipantState;
+  /** Justificatifs d'absence déposés pour cette feuille (apprenants). */
+  readonly justifications: JustificationView[];
+};
+
+export type JustificationView = {
+  readonly id: string;
+  readonly fileName: string;
+  readonly decision: 'en_attente' | 'acceptee' | 'refusee';
+  readonly via: 'apprenant' | 'equipe';
+  readonly comment: string | null;
+  readonly createdAt: string;
 };
 
 export type SheetView = {
@@ -179,6 +190,22 @@ export async function loadSessionEmargement(
     fenetres.set(f.sheet_id, { start: new Date(f.window_start), end: new Date(f.window_end) });
   }
 
+  // Justificatifs des feuilles ainsi autorisées (migration 0149 absente : aucun).
+  const justifs = new Map<string, JustificationView[]>();
+  if (sheetRows.length) {
+    const { data: jData } = await admin
+      .schema('app')
+      .from('attendance_justifications' as never)
+      .select('id, attendance_sheet_id, learner_id, file_name, decision, submitted_via, comment, created_at')
+      .in('attendance_sheet_id' as never, sheetRows.map((sh) => sh.id) as never)
+      .order('created_at' as never, { ascending: true });
+    type J = { id: string; attendance_sheet_id: string; learner_id: string; file_name: string; decision: JustificationView['decision']; submitted_via: JustificationView['via']; comment: string | null; created_at: string };
+    for (const j of (jData ?? []) as J[]) {
+      const k = `${j.attendance_sheet_id}|${j.learner_id}`;
+      justifs.set(k, [...(justifs.get(k) ?? []), { id: j.id, fileName: j.file_name, decision: j.decision, via: j.submitted_via, comment: j.comment, createdAt: j.created_at }]);
+    }
+  }
+
   const sheets: SheetView[] = sheetRows
     .map((sheet) => {
       const halfDay: HalfDay = sheet.half_day ?? 'full';
@@ -220,6 +247,7 @@ export async function loadSessionEmargement(
             absenceReason: g?.absence_reason ?? null,
             captureMode: g?.capture_mode ?? null,
             state: participantState(p.kind, faits),
+            justifications: p.kind === 'learner' ? (justifs.get(`${sheet.id}|${p.id}`) ?? []) : [],
           };
         })
         .sort((a, b) => (a.kind === b.kind ? a.fullName.localeCompare(b.fullName, 'fr') : a.kind === 'trainer' ? -1 : 1));

@@ -1,10 +1,13 @@
 // ARCHETYPE: command
 import { notFound } from 'next/navigation';
-import { Video, Play, CheckCircle2, CircleDashed, KeyRound, QrCode } from 'lucide-react';
+import { Video, Play, CheckCircle2, CircleDashed, FileWarning, KeyRound, QrCode } from 'lucide-react';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { JustificationUpload } from '@/features/attendance/justification-upload';
+import { DECISION_LABELS, MAX_JUSTIFICATIONS_PER_SHEET } from '@/features/attendance/justification-rules';
 import { resolveApprenantContext, formatSessionDate, formatSessionTime } from '../_lib';
 import { loadSessionSignatureQRs, HALF_DAY_LABEL } from './attendance-qr';
+import { loadAbsences } from './absences';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,10 +69,11 @@ async function resolvePublishedReplays(token: string): Promise<Map<string, Repla
 }
 
 export default async function EspaceSessionsPage({ params }: { params: { token: string } }) {
-  const [ctx, replays, sigQrs] = await Promise.all([
+  const [ctx, replays, sigQrs, absences] = await Promise.all([
     resolveApprenantContext(params.token),
     resolvePublishedReplays(params.token),
     loadSessionSignatureQRs(params.token),
+    loadAbsences(params.token),
   ]);
   if (!ctx) return notFound();
 
@@ -86,6 +90,55 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
           </p>
         </div>
       </header>
+
+      {absences.length > 0 && (
+        <section className="mb-6 bg-white dark:bg-zinc-900 border border-amber-200/70 dark:border-amber-900/40 rounded-xl shadow-sm p-5 space-y-4">
+          <div>
+            <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+              <FileWarning className="w-4 h-4 text-amber-600" aria-hidden />
+              Absences
+            </h2>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Envoyez un justificatif (arrêt de travail, convocation…) : l’organisme l’examine et peut excuser l’absence.
+            </p>
+          </div>
+          <ul className="space-y-4">
+            {absences.map((a) => {
+              const accepte = a.excused || a.justifications.some((j) => j.decision === 'acceptee');
+              return (
+                <li key={a.sheetId} className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 capitalize">
+                      {a.startsAt ? formatSessionDate(a.startsAt) : 'Séance'} · {HALF_DAY_LABEL[a.halfDay] ?? 'Journée'}
+                    </p>
+                    <span
+                      className={`text-[11px] px-2 py-0.5 rounded-full ${
+                        accepte
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                      }`}
+                    >
+                      {accepte ? 'Absence excusée' : 'Absence non justifiée'}
+                    </span>
+                  </div>
+                  {a.justifications.length > 0 && (
+                    <ul className="text-[12px] text-zinc-600 dark:text-zinc-300 space-y-0.5">
+                      {a.justifications.map((j) => (
+                        <li key={j.id}>
+                          {j.fileName} — {DECISION_LABELS[j.decision] ?? j.decision}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {!accepte && a.justifications.length < MAX_JUSTIFICATIONS_PER_SHEET && (
+                    <JustificationUpload endpoint={`/api/espace/${params.token}/justificatif`} fields={{ sheetId: a.sheetId }} />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5">
         {ctx.sessions.length === 0 ? (
