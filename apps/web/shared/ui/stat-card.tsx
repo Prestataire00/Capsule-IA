@@ -1,21 +1,28 @@
 // ARCHETYPE: shared
-import Link from 'next/link';
+// Carte chiffre clé : rendu coloré de KpiCard (pictogramme sur carré de couleur, fond teinté).
+// L'API est conservée telle quelle pour tous les appelants existants.
 import { cn } from '@/shared/lib/cn';
-import { ArrowUpRight } from 'lucide-react';
+import { KpiCard, type Accent as KpiAccent } from './kpi-card';
 
 type Accent = 'violet' | 'orange' | 'rose' | 'blue' | 'purple' | 'emerald' | 'amber' | 'zinc';
 
-// Charte v4 : pas de pastille d'icône colorée. L'accent ne teinte plus qu'un fin
-// liseré au survol (quand la carte est cliquable) ; l'icône reste monochrome.
-const accentRing: Record<Accent, string> = {
-  violet: 'group-hover:border-orange-200 dark:group-hover:border-orange-900/50',
-  orange: 'group-hover:border-orange-200 dark:group-hover:border-orange-900/50',
-  rose: 'group-hover:border-rose-200 dark:group-hover:border-rose-900/40',
-  blue: 'group-hover:border-blue-200 dark:group-hover:border-blue-900/40',
-  purple: 'group-hover:border-purple-200 dark:group-hover:border-purple-900/40',
-  emerald: 'group-hover:border-emerald-200 dark:group-hover:border-emerald-900/40',
-  amber: 'group-hover:border-amber-200 dark:group-hover:border-amber-900/40',
-  zinc: 'group-hover:border-zinc-300 dark:group-hover:border-zinc-700',
+// « violet » est l'ancien accent d'action (désormais orange) ; « zinc », l'accent par défaut, prend un bleu ciel.
+const TO_KPI: Record<Accent, KpiAccent> = {
+  violet: 'orange',
+  orange: 'orange',
+  rose: 'rose',
+  blue: 'blue',
+  purple: 'purple',
+  emerald: 'emerald',
+  amber: 'amber',
+  zinc: 'sky',
+};
+
+const hintColors = {
+  neutral: 'text-zinc-500 dark:text-zinc-400',
+  success: 'text-emerald-600 dark:text-emerald-400',
+  warning: 'text-amber-600 dark:text-amber-400',
+  danger: 'text-red-600 dark:text-red-400',
 };
 
 export function StatCard({
@@ -23,7 +30,7 @@ export function StatCard({
   value,
   hint,
   hintTone,
-  icon: Icon,
+  icon,
   accent = 'zinc',
   href,
   className,
@@ -37,42 +44,15 @@ export function StatCard({
   href?: string;
   className?: string;
 }) {
-  const hintColors = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-600 dark:text-emerald-500',
-    warning: 'text-amber-600 dark:text-amber-500',
-    danger: 'text-red-600 dark:text-red-500',
-  };
-
-  const content = (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-2 min-w-0">
-          {Icon && <Icon className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500" />}
-          <span className="truncate">{label}</span>
-        </p>
-        {href && (
-          <ArrowUpRight className="w-4 h-4 shrink-0 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-600 dark:group-hover:text-orange-300 transition" />
-        )}
-      </div>
-      <p className="text-[26px] leading-none font-extrabold mt-3 tabular-nums text-zinc-900 dark:text-zinc-100">
-        {value}
-      </p>
-      {hint && (
-        <p className={cn('text-[12px] mt-2 tabular-nums', hintColors[hintTone ?? 'neutral'])}>{hint}</p>
-      )}
-    </>
+  return (
+    <KpiCard
+      label={label}
+      value={value}
+      icon={icon}
+      accent={TO_KPI[accent]}
+      href={href}
+      className={className}
+      hint={hint ? <span className={cn(hintColors[hintTone ?? 'neutral'])}>{hint}</span> : undefined}
+    />
   );
-
-  const baseClass = cn(
-    'group bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm transition block',
-    href && 'hover:shadow-md',
-    href && accentRing[accent],
-    className,
-  );
-
-  if (href) {
-    return <Link href={href} className={baseClass}>{content}</Link>;
-  }
-  return <div className={baseClass}>{content}</div>;
 }
