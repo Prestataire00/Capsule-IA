@@ -57,10 +57,10 @@ export default async function SignDocumentPage({ params }: { params: { token: st
   const { data: docRow } = await admin
     .schema('app')
     .from('documents')
-    .select('title, content_html')
+    .select('title, content_html, storage_path')
     .eq('id', sig.document_id)
     .maybeSingle();
-  const doc = docRow as { title: string; content_html: string | null } | null;
+  const doc = docRow as { title: string; content_html: string | null; storage_path: string | null } | null;
   if (!doc) return <ErrorScreen title="Introuvable" message="Le document est introuvable." />;
 
   if (sig.status === 'signed') {
@@ -98,14 +98,29 @@ export default async function SignDocumentPage({ params }: { params: { token: st
         .doc-sheet ul { margin: 6px 0 6px 18px; list-style: disc; }
         .doc-sheet .doc-header { font-size: 12px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 16px; }
       `}</style>
-      <article className="doc-sheet bg-white text-zinc-900 rounded-lg border border-zinc-200/70 dark:border-zinc-800 shadow-sm px-10 py-10 max-h-[55vh] overflow-y-auto">
-        {doc.content_html ? (
-          // eslint-disable-next-line react/no-danger
+      {doc.content_html ? (
+        <article className="doc-sheet bg-white text-zinc-900 rounded-lg border border-zinc-200/70 dark:border-zinc-800 shadow-sm px-10 py-10 max-h-[55vh] overflow-y-auto">
+          {/* eslint-disable-next-line react/no-danger */}
           <div dangerouslySetInnerHTML={{ __html: doc.content_html }} />
-        ) : (
+        </article>
+      ) : doc.storage_path ? (
+        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200/70 dark:border-zinc-800 shadow-sm overflow-hidden">
+          <iframe
+            src={`/api/signer/document/${params.token}/fichier`}
+            title={doc.title}
+            className="w-full h-[55vh] bg-white"
+          />
+          <p className="px-4 py-2 text-[12px] text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800">
+            <a href={`/api/signer/document/${params.token}/fichier`} target="_blank" rel="noopener noreferrer" className="underline">
+              Ouvrir le document dans un nouvel onglet
+            </a>
+          </p>
+        </div>
+      ) : (
+        <article className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200/70 dark:border-zinc-800 shadow-sm px-10 py-10">
           <p className="text-[13px] text-zinc-500">Aperçu du document indisponible.</p>
-        )}
-      </article>
+        </article>
+      )}
 
       <SignForm token={params.token} />
     </Screen>
