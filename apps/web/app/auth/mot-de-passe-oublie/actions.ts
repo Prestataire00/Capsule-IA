@@ -6,6 +6,7 @@ import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { passwordResetEmail } from '@/shared/lib/email/templates';
+import { authCallbackLink } from '@/shared/lib/auth/email-link';
 
 const EmailSchema = z.object({ email: z.string().email() });
 
@@ -30,22 +31,18 @@ export async function requestPasswordReset(input: { email: string }): Promise<Fo
   if (!parsed.success) return { ok: false, error: 'Adresse email invalide.' };
 
   const email = parsed.data.email;
-  const redirectTo = `${baseUrl()}/auth/callback?next=${encodeURIComponent('/auth/reset-password')}`;
 
   try {
     const admin = supabaseAdmin();
-    const { data, error } = await admin.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: { redirectTo },
-    });
+    const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email });
 
-    const link = (data as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+    const hash = data?.properties?.hashed_token;
     // Compte inexistant / erreur : on répond ok sans rien divulguer (anti-énumération).
-    if (error || !link) {
+    if (error || !hash) {
       if (error) console.error('[requestPasswordReset] generateLink', error.message);
       return { ok: true };
     }
+    const link = authCallbackLink(baseUrl(), hash, 'recovery', '/auth/reset-password');
 
     const tpl = passwordResetEmail({ resetUrl: link });
     const r = await sendEmail({ to: email, subject: tpl.subject, html: tpl.html, kind: 'password_reset' });

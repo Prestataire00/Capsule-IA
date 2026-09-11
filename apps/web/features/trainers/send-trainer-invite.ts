@@ -2,6 +2,7 @@ import 'server-only';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { trainerWelcomeEmail } from '@/shared/lib/email/templates';
+import { authCallbackLink } from '@/shared/lib/auth/email-link';
 import { env } from '@/env.mjs';
 
 /**
@@ -11,10 +12,17 @@ import { env } from '@/env.mjs';
  * (Resend/SMTP) : l'e-mail intégré de Supabase Auth n'est pas fiable en prod
  * sans SMTP custom — même raison que la réinitialisation de mot de passe.
  * `inviteUserByEmail` s'appuyait dessus, et l'invitation n'arrivait pas.
+ *
+ * Le lien passe par `/auth/callback` (voir `authCallbackLink`) : le formateur
+ * choisit son mot de passe, puis arrive dans son espace. Un compte déjà créé
+ * (invitation renvoyée, mot de passe jamais choisi) reçoit un lien de
+ * réinitialisation : même parcours.
  */
 export type InviteResult =
   | { ok: true; existingAccount: boolean }
   | { ok: false; reason: 'link_failed' | 'send_failed'; details?: string };
+
+const APRES_MOT_DE_PASSE = `/auth/reset-password?next=${encodeURIComponent('/formateur')}`;
 
 export async function sendTrainerInvite(args: {
   email: string;
@@ -23,32 +31,26 @@ export async function sendTrainerInvite(args: {
 }): Promise<InviteResult> {
   const admin = supabaseAdmin();
   const baseUrl = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-  const redirectTo = `${baseUrl}/formateur`;
+  if (!baseUrl) return { ok: false, reason: 'link_failed', details: 'PUBLIC_APP_URL manquant' };
 
   // `invite` échoue si l'utilisateur existe déjà : on retombe alors sur un lien
-  // de connexion, pour que l'e-mail parte dans les deux cas.
+  // de réinitialisation, pour que l'e-mail parte dans les deux cas.
   let existingAccount = false;
   let link: string | null = null;
 
-  const invite = await admin.auth.admin.generateLink({
-    type: 'invite',
-    email: args.email,
-    options: { redirectTo },
-  });
-  link = invite.data?.properties?.action_link ?? null;
+  const invite = await admin.auth.admin.generateLink({ type: 'invite', email: args.email });
+  const inviteHash = invite.data?.properties?.hashed_token;
+  if (inviteHash) link = authCallbackLink(baseUrl, inviteHash, 'invite', APRES_MOT_DE_PASSE);
 
   if (!link) {
     existingAccount = true;
-    const magic = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: args.email,
-      options: { redirectTo },
-    });
-    link = magic.data?.properties?.action_link ?? null;
-    if (!link) {
-      console.error('[sendTrainerInvite] generateLink', invite.error?.message, magic.error?.message);
-      return { ok: false, reason: 'link_failed', details: magic.error?.message ?? invite.error?.message };
+    const recovery = await admin.auth.admin.generateLink({ type: 'recovery', email: args.email });
+    const recoveryHash = recovery.data?.properties?.hashed_token;
+    if (!recoveryHash) {
+      console.error('[sendTrainerInvite] generateLink', invite.error?.message, recovery.error?.message);
+      return { ok: false, reason: 'link_failed', details: recovery.error?.message ?? invite.error?.message };
     }
+    link = authCallbackLink(baseUrl, recoveryHash, 'recovery', APRES_MOT_DE_PASSE);
   }
 
   const tpl = trainerWelcomeEmail({

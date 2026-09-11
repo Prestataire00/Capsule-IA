@@ -10,7 +10,7 @@ const inputClass =
 
 const labelClass = 'block text-[12px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5';
 
-export function ResetForm() {
+export function ResetForm({ next = '/' }: { next?: string }) {
   const router = useRouter();
   const [newPassword, setNewPwd] = useState('');
   const [confirmPassword, setConfirm] = useState('');
@@ -25,7 +25,7 @@ export function ResetForm() {
       const result = await setNewPassword({ newPassword, confirmPassword });
       if (result.ok) {
         setDone(true);
-        router.replace('/');
+        router.replace(next);
         router.refresh();
       } else {
         setError(result.error);

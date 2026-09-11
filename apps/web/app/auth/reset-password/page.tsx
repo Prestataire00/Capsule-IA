@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
 import { Logo } from '@/shared/ui/logo';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { safeInternalPath } from '@/shared/lib/auth/email-link';
 import { AuthShell } from '../_components/auth-shell';
 import { ResetForm } from './reset-form';
 
@@ -13,13 +14,15 @@ export const dynamic = 'force-dynamic';
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: { error?: string; next?: string };
 }) {
   const {
     data: { user },
   } = await supabaseServer().auth.getUser();
 
   const invalid = !user || searchParams.error;
+  const next = safeInternalPath(searchParams.next);
+  const formateur = next.startsWith('/formateur');
 
   return (
     <AuthShell>
@@ -28,10 +31,12 @@ export default async function ResetPasswordPage({
           <div className="flex flex-col items-center text-center mb-7">
             <Logo size="lg" className="mb-5" />
             <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Nouveau mot de passe
+              {formateur ? 'Votre espace formateur' : 'Nouveau mot de passe'}
             </h1>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
-              Choisissez un nouveau mot de passe pour votre compte.
+              {formateur
+                ? `Choisissez le mot de passe de votre compte${user?.email ? ` ${user.email}` : ''}.`
+                : 'Choisissez un nouveau mot de passe pour votre compte.'}
             </p>
           </div>
 
@@ -49,7 +54,7 @@ export default async function ResetPasswordPage({
               </Link>
             </div>
           ) : (
-            <ResetForm />
+            <ResetForm next={next} />
           )}
         </div>
 
