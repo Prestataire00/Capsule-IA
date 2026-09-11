@@ -23,7 +23,9 @@ import {
   Accessibility,
   Check,
   AlertCircle,
+  TrendingUp,
 } from 'lucide-react';
+import type { FormationIndicatorsView } from '@/features/indicateurs/formation-indicators-view';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { AccordionSection } from '@/shared/ui/accordion-section';
 import { RichText } from '@/shared/ui/rich-text';
@@ -332,6 +334,7 @@ export function FormationForm({
   trainers = [],
   orgVat = { regime: 'exempt', rate: 0 },
   contacts = [],
+  indicators = null,
 }: {
   mode: 'create' | 'edit';
   formationId?: string;
@@ -341,6 +344,8 @@ export function FormationForm({
   orgVat?: OrgVat;
   /** Membres de l'organisme, proposés comme référents (Paramètres → Membres). */
   contacts?: OrgContact[];
+  /** Résultats réels de la formation, lus sur la page Indicateurs (lecture seule). */
+  indicators?: FormationIndicatorsView | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -866,7 +871,61 @@ export function FormationForm({
         forceOpen={hasErrorIn(SECTION4_FIELDS)}
       >
         <RichField name="evaluationMethod" label="Modalités d'évaluation" control={control} minHeight={90} />
-        <RichField name="resultIndicators" label="Indicateurs de résultats" control={control} minHeight={90} />
+        {/* Les indicateurs ne se saisissent plus ici : ils viennent de la page
+            « Indicateurs de résultats », organisée par formation. Un champ libre
+            dans le formulaire créait un second jeu de chiffres, qui pouvait
+            contredire le calcul réel (audit CAP-33). */}
+        <div className="rounded-lg border border-zinc-200/60 dark:border-zinc-800 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-zinc-400" /> Indicateurs de résultats
+            </p>
+            <a
+              href="/indicateurs"
+              className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline underline-offset-2"
+            >
+              Gérer dans Indicateurs de résultats →
+            </a>
+          </div>
+
+          {mode === 'create' || !indicators ? (
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Ils apparaîtront ici une fois la formation créée, calculés depuis les dossiers terminés et
+              les questionnaires de satisfaction.
+            </p>
+          ) : indicators.learners === 0 && indicators.satisfactionResponses === 0 ? (
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Aucun résultat pour l&apos;instant. Vos résultats antérieurs à Capsule se déclarent sur la page
+              Indicateurs de résultats, formation par formation.
+            </p>
+          ) : (
+            <>
+              <dl className="grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Apprenants formés</dt>
+                  <dd className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{indicators.learners}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Satisfaction</dt>
+                  <dd className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    {indicators.satisfactionRate === null ? '—' : `${indicators.satisfactionRate} %`}
+                    <span className="ml-1.5 text-[12px] font-normal text-zinc-500">
+                      {indicators.satisfactionResponses} réponse{indicators.satisfactionResponses > 1 ? 's' : ''}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+              {indicators.declaredSources.length > 0 && (
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Inclut des chiffres déclarés — {indicators.declaredSources.join(' · ')}
+                </p>
+              )}
+            </>
+          )}
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            Ces chiffres sont repris sur le programme et sur la fiche publique de la formation.
+          </p>
+        </div>
       </AccordionSection>
 
       {/* ── Section 5 : Accessibilité & contact ──────────────────────────── */}

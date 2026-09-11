@@ -11,6 +11,8 @@ import { loadOrgVat } from '@/features/formations/load-org-vat';
 import { loadOrgContacts } from '@/features/formations/load-org-contacts';
 import { env } from '@/env.mjs';
 import { fromRow, type FormationRowLike } from '@/features/formations/mapping';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { loadFormationIndicators } from '@/features/indicateurs/formation-indicators';
 
 const FORMATION_COLUMNS =
   'id, code, title, summary, description, objectives, prerequisites, target_audience, ' +
@@ -35,9 +37,14 @@ export default async function EditFormationPage({ params }: { params: { id: stri
 
   const initial = fromRow(row as unknown as FormationRowLike);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [orgVat, contacts] = await Promise.all([loadOrgVat(), loadOrgContacts()]);
+  const me = await getCurrentMember();
+  const [orgVat, contacts, indicators] = await Promise.all([
+    loadOrgVat(),
+    loadOrgContacts(),
+    me ? loadFormationIndicators(me.organizationId, params.id) : Promise.resolve(null),
+  ]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trainers = ((trainerRows as any[]) ?? []).map((t) => ({
     id: t.id as string,
     name: `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || 'Formateur',
@@ -68,7 +75,7 @@ export default async function EditFormationPage({ params }: { params: { id: stri
           </div>
         </header>
 
-        <FormationForm mode="edit" formationId={params.id} initial={initial} trainers={trainers} orgVat={orgVat} contacts={contacts} />
+        <FormationForm mode="edit" formationId={params.id} initial={initial} trainers={trainers} orgVat={orgVat} contacts={contacts} indicators={indicators} />
       </div>
     </div>
   );

@@ -106,7 +106,10 @@ function mapFormation(row: FullRow, c: CatalogMeta): ProgrammeFormation {
     pedagogicalMethod: row.pedagogical_method ?? '',
     teachingTeam: c.teachingTeam ?? '',
     evaluationMethod: row.evaluation_method ?? '',
-    resultIndicators: c.resultIndicators ?? '',
+    // Les résultats publiés viennent de la section calculée (RPC), ajoutée plus
+    // bas. Reprendre aussi l'ancien texte libre les afficherait deux fois, avec
+    // des chiffres qui pouvaient se contredire (audit CAP-33).
+    resultIndicators: '',
     accessibilityInfo: c.accessibilityInfo ?? '',
     accessDelay: c.accessDelay ?? '',
     referentContact: c.referentContact ?? '',

@@ -15,6 +15,8 @@ import { ProgrammeEditor } from '@/features/formations/programme/programme-edito
 import type { Programme } from '@/features/formations/programme/types';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { loadFormationIndicators } from '@/features/indicateurs/formation-indicators';
+import { indicatorsPlainText } from '@/features/indicateurs/formation-indicators-view';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +44,10 @@ export default async function ProgrammeEditPage({ params }: { params: { id: stri
     .maybeSingle();
   if (!fRow) notFound();
 
+  // Les résultats du programme sont ceux de la page Indicateurs, et non plus un
+  // texte saisi à la main dans la formation (audit CAP-33).
+  const indicateurs = await loadFormationIndicators(me.organizationId, params.id);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: oRow } = await (sb as any)
     .schema('app')
@@ -64,7 +70,7 @@ export default async function ProgrammeEditPage({ params }: { params: { id: stri
     pedagogicalMethod: fRow.pedagogical_method ?? '',
     teachingTeam: str('teachingTeam'),
     evaluationMethod: fRow.evaluation_method ?? '',
-    resultIndicators: str('resultIndicators'),
+    resultIndicators: indicatorsPlainText(indicateurs),
     accessibilityInfo: str('accessibilityInfo'),
     accessDelay: str('accessDelay'),
     referentContact: str('referentContact'),
