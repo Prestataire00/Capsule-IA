@@ -32,24 +32,26 @@ async function ficheRattachee(userId: string): Promise<boolean> {
 }
 
 /**
- * Formateur = une fiche rattachée au compte. Faute de rattachement, on relie
- * les fiches libres portant exactement l'e-mail du compte — la règle de
- * `link_my_trainer_rows`, qui ne jouait jusqu'ici qu'à l'entrée de l'espace
- * formateur : un formateur qui se connectait par la page de connexion était
- * refusé avant d'y arriver.
+ * Formateur = une fiche rattachée au compte. Faute de rattachement, la fiche
+ * qui porte l'e-mail du compte lui est reliée — y compris si elle pointait
+ * vers un autre compte (ancien compte, adresse corrigée sur la fiche) : l'e-mail
+ * de la fiche est la clé d'accès affichée à l'organisme, c'est lui qui fait foi.
+ *
+ * Seulement pour une adresse confirmée (lien d'invitation, de connexion ou de
+ * réinitialisation ouvert) : sinon, créer un compte à l'adresse d'un formateur
+ * suffirait à prendre sa fiche. La colonne `email` est en `citext`.
  */
 export async function isTrainer(userId: string): Promise<boolean> {
   if (await ficheRattachee(userId)) return true;
   const admin = supabaseAdmin();
   const { data: compte } = await admin.auth.admin.getUserById(userId);
   const email = compte?.user?.email?.trim().toLowerCase();
-  if (!email) return false;
+  if (!email || !compte?.user?.email_confirmed_at) return false;
   const { data: reliees, error } = await admin
     .schema('app')
     .from('trainers')
     .update({ user_id: userId } as never)
     .eq('email', email)
-    .is('user_id', null)
     .is('deleted_at', null)
     .select('id');
   if (error) {

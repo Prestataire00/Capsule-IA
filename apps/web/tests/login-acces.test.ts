@@ -21,10 +21,11 @@ describe('page de connexion', () => {
 });
 
 describe('aiguillage du formateur', () => {
-  it('relie une fiche libre portant l’e-mail exact du compte, dès la connexion', () => {
+  it('relie la fiche portant l’e-mail du compte, même liée à un ancien compte — adresse confirmée seulement', () => {
     const landing = lire('../shared/lib/auth/landing.ts');
     expect(landing).toContain(".eq('email', email)");
-    expect(landing).toContain(".is('user_id', null)");
+    expect(landing).toContain('email_confirmed_at');
     expect(landing).toContain(".is('deleted_at', null)");
+    expect(landing).not.toContain(".is('user_id', null)");
   });
 });
