@@ -45,6 +45,12 @@ export function SessionCard({ s, organizationName, emphasize = false }: { s: MyS
             </a>
           )}
           <Link
+            href={`/seance/${s.id}/fiches-besoin`}
+            className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <ClipboardList className="w-3.5 h-3.5" /> Fiches besoin
+          </Link>
+          <Link
             href={`/seance/${s.id}/questionnaires`}
             className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
           >
