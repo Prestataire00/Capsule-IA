@@ -40,6 +40,9 @@ export type ParticipantRow = {
   readonly earlyDeparture: string | null;
   readonly absenceReason: string | null;
   readonly captureMode: string | null;
+  /** Images de signature (seau privé `signatures`) : entrée, sortie. */
+  readonly signatureImagePath: string | null;
+  readonly exitImagePath: string | null;
   readonly state: ParticipantState;
   /** Justificatifs d'absence déposés pour cette feuille (apprenants). */
   readonly justifications: JustificationView[];
@@ -94,6 +97,8 @@ type SignatureRow = {
   late_arrival_time: string | null;
   early_departure_time: string | null;
   absence_reason: string | null;
+  signature_image_path?: string | null;
+  exit_image_path?: string | null;
 };
 type SheetRow = {
   id: string;
@@ -129,7 +134,7 @@ export async function loadSessionEmargement(
     .schema('app')
     .from('attendance_sheets')
     .select(
-      'id, half_day, status, finalized_at, document_id, signatures:attendance_signatures(participant_kind, learner_id, trainer_id, status, signed_at, exit_signed_at, exit_attested_by, capture_mode, evidence_source, late_arrival_time, early_departure_time, absence_reason)',
+      'id, half_day, status, finalized_at, document_id, signatures:attendance_signatures(participant_kind, learner_id, trainer_id, status, signed_at, exit_signed_at, exit_attested_by, capture_mode, evidence_source, late_arrival_time, early_departure_time, absence_reason, signature_image_path, exit_image_path)',
     )
     .eq('session_id', sessionId);
   if (sheetsError) throw sheetsError;
@@ -246,6 +251,8 @@ export async function loadSessionEmargement(
             earlyDeparture: hhmm(g?.early_departure_time ?? null),
             absenceReason: g?.absence_reason ?? null,
             captureMode: g?.capture_mode ?? null,
+            signatureImagePath: g?.signature_image_path ?? null,
+            exitImagePath: g?.exit_image_path ?? null,
             state: participantState(p.kind, faits),
             justifications: p.kind === 'learner' ? (justifs.get(`${sheet.id}|${p.id}`) ?? []) : [],
           };

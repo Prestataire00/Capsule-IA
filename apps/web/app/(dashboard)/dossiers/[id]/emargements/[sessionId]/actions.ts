@@ -127,6 +127,36 @@ export async function markUnsignedAbsent(input: { sheetId: string }): Promise<Re
   return { ok: true, marked };
 }
 
+/** « Tous présents » : les apprenants attendus qui n'ont rien signé sont notés présents (constat de l'équipe). */
+export async function markAllPresent(input: { sheetId: string }): Promise<Result<{ marked: number }>> {
+  const acces = await accessibleSheet(input.sheetId);
+  if (!acces.ok) return { ok: false, error: acces.error };
+  const vue = await loadSessionEmargement(supabaseServer(), acces.value.session_id);
+  const feuille = vue?.sheets.find((s) => s.id === input.sheetId);
+  if (!feuille) return { ok: false, error: 'attendance_sheet_not_found' };
+  const cibles = feuille.participants.filter((p) => p.kind === 'learner' && p.expected && p.state === 'a_signer');
+  if (cibles.length === 0) return { ok: false, error: 'nothing_to_mark' };
+
+  const sb = supabaseAdmin();
+  let marked = 0;
+  for (const p of cibles) {
+    const { error } = await sb.schema('app').rpc('set_attendance_mark' as never, {
+      p_attendance_sheet_id: input.sheetId,
+      p_signer_id: p.id,
+      p_signer_kind: 'learner',
+      p_status: 'present',
+      p_late_arrival: null,
+      p_early_departure: null,
+      p_reason: null,
+      p_capture_mode: 'grille',
+      p_actor: acces.userId,
+    } as never);
+    if (error) return erreur('marquage groupé refusé', error);
+    marked++;
+  }
+  return { ok: true, marked };
+}
+
 /** L'apprenant a oublié de signer sa sortie : l'équipe l'atteste, avec l'heure. */
 export async function attestExit(input: AttestExitInput): Promise<Result> {
   const p = attestExitSchema.safeParse(input);

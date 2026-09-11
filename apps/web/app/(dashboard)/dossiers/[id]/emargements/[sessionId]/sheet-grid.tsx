@@ -257,7 +257,7 @@ function AttesteurSortie({ sheetId, participant, defaut, onDone }: { sheetId: st
   );
 }
 
-function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; participant: ParticipantRow; onDone: () => void }) {
+export function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; participant: ParticipantRow; onDone: () => void }) {
   const formateur = participant.kind === 'trainer';
   const statuts: readonly AttendanceStatus[] = formateur ? ['present', 'absent'] : MARK_STATUSES;
   const [statut, setStatut] = useState<AttendanceStatus>(participant.status ?? 'present');
@@ -352,7 +352,7 @@ function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; p
   );
 }
 
-function SignatureTablette({
+export function SignatureTablette({
   sheetId,
   participant,
   moment,
