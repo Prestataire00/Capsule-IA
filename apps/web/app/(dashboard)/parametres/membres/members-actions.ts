@@ -128,13 +128,24 @@ export const deactivateMemberAction = authActionClient
     if (target.role === 'owner' && owners.length <= 1) {
       return { ok: false as const, error: 'last_owner' };
     }
+    // Règles de la base (members_update) : seul un propriétaire touche à un
+    // propriétaire ; et l'on ne se retire pas soi-même l'accès.
+    if (target.role === 'owner' && currentRole !== 'owner') return { ok: false as const, error: 'owner_only' };
+    if (target.user_id === ctx.userId) return { ok: false as const, error: 'self' };
 
-    const { error } = await ctx.supabase
+    // Écriture en service role, après les contrôles ci-dessus (faits sous RLS).
+    // Avec la session de l'utilisateur, la désactivation échouait toujours :
+    // PostgREST relit la ligne modifiée, et la politique de lecture ne montre
+    // que les membres actifs (`deleted_at IS NULL`) — la base refusait donc la
+    // nouvelle ligne (« new row violates row-level security policy »).
+    const admin = supabaseAdmin();
+    const { error } = await admin
       .schema('app')
       .from('members')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', parsedInput.memberId)
-      .eq('organization_id', orgId);
+      .eq('organization_id', orgId)
+      .is('deleted_at', null);
     // L'erreur était relancée : l'écran affichait « Échec de la désactivation »
     // sans jamais dire pourquoi, et la cause partait dans les journaux du serveur,
     // hors de portée de l'utilisateur (audit CAP-31).
@@ -143,17 +154,15 @@ export const deactivateMemberAction = authActionClient
       return { ok: false as const, error: 'update_failed', details: error.message };
     }
 
-    // Une règle de sécurité qui refuse en LECTURE ne lève pas d'erreur : elle met
-    // simplement zéro ligne à jour. Sans ce contrôle, l'écran annonçait un succès
-    // alors que rien n'avait bougé.
-    const { data: apres } = await ctx.supabase
+    // Contrôle : la ligne est bien désactivée (sinon, ne pas annoncer un succès).
+    const { data: apres } = await admin
       .schema('app')
       .from('members')
       .select('deleted_at')
       .eq('id', parsedInput.memberId)
       .maybeSingle();
-    if (apres && (apres as { deleted_at: string | null }).deleted_at === null) {
-      return { ok: false as const, error: 'rls_denied' };
+    if (!apres || (apres as { deleted_at: string | null }).deleted_at === null) {
+      return { ok: false as const, error: 'update_failed', details: 'la désactivation n’a pas été enregistrée' };
     }
 
     revalidatePath('/parametres/membres');

@@ -17,6 +17,8 @@ const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Action non autorisée.',
   last_owner: 'Impossible : dernier propriétaire.',
   not_found: 'Membre introuvable.',
+  owner_only: 'Seul un propriétaire peut désactiver un autre propriétaire.',
+  self: 'Vous ne pouvez pas désactiver votre propre compte.',
   rls_denied:
     'Refusé par la base : votre session ne vous reconnaît pas comme administrateur. Déconnectez-vous puis reconnectez-vous, et réessayez.',
 };
