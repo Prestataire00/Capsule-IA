@@ -1,74 +1,18 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- Capsule IA — migrations à appliquer
 --
---   0137  bouton « Fermer l'accès » sur la fiche formateur
 --   0138  correctif : le déclencheur d'audit faisait échouer la désactivation
 --         d'un membre (et toute écriture faite avec la session utilisateur)
 --   0139  référentiel Qualiopi officiel : renumérotation RNQ V9, applicabilité,
 --         moteur par vérifications, recalcul des check-lists
+--   0140  Qualiopi au niveau de l'organisme : statut par indicateur et dépôt
+--         de preuves (espace de stockage privé)
 --
--- Les trois sont rejouables sans risque : si l'une est déjà passée, elle ne
--- change rien. À coller dans l'éditeur SQL Supabase, puis « Run ».
+-- Les trois sont rejouables sans risque. La 0137 est déjà en production.
+-- À coller dans l'éditeur SQL Supabase, puis « Run ».
 -- ════════════════════════════════════════════════════════════════════════════
 
 BEGIN;
-
--- ───────────── 0137_trainer_space_access.sql ─────────────
-
--- 0137 — Couper l'accès à l'espace d'un formateur, depuis sa fiche.
---
--- Il n'existait aucun moyen de retirer l'accès à un formateur sans supprimer sa
--- fiche — donc son historique, ses contrats et ses rattachements. Un organisme
--- doit pouvoir fermer l'espace d'un intervenant dont la mission s'achève, tout
--- en conservant sa trace (audit CAP-30).
---
--- `space_disabled_at` est nul tant que l'accès est ouvert. Une date le ferme :
--- la fiche reste intacte, l'espace se referme, et rouvrir se fait en remettant
--- la colonne à nul.
-
-ALTER TABLE app.trainers
-  ADD COLUMN IF NOT EXISTS space_disabled_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS space_disabled_by UUID REFERENCES app.members(id) ON DELETE SET NULL;
-
-COMMENT ON COLUMN app.trainers.space_disabled_at IS
-  'Date de fermeture de l''espace formateur. NULL = accès ouvert (audit CAP-30).';
-
--- La RPC qui liste les rattachements d'un formateur alimente son espace : elle
--- doit ignorer les fiches dont l'accès est fermé, sans quoi la fermeture ne
--- vaudrait que pour l'affichage.
-CREATE OR REPLACE FUNCTION app.list_my_trainer_memberships()
-RETURNS TABLE (
-  organization_id   UUID,
-  organization_name TEXT,
-  trainer_id        UUID,
-  first_name        TEXT,
-  last_name         TEXT,
-  is_internal       BOOLEAN
-)
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = app, public
-AS $$
-  SELECT
-    t.organization_id,
-    o.name,
-    t.id,
-    t.first_name,
-    t.last_name,
-    t.is_internal
-  FROM app.trainers t
-  JOIN app.organizations o ON o.id = t.organization_id
-  WHERE t.user_id = auth.uid()
-    AND t.deleted_at IS NULL
-    AND t.space_disabled_at IS NULL
-    AND o.deleted_at IS NULL
-  ORDER BY o.name;
-$$;
-
-GRANT EXECUTE ON FUNCTION app.list_my_trainer_memberships() TO authenticated;
-
-NOTIFY pgrst, 'reload schema';
 
 -- ───────────── 0138_audit_row_security_definer.sql ─────────────
 
@@ -524,6 +468,111 @@ COMMENT ON COLUMN app.qualiopi_indicators.auto_checks IS
   'Vérifications automatiques ; l''indicateur est satisfait si toutes passent, ou si une preuve valide est déposée (audit CAP-35).';
 COMMENT ON COLUMN app.qualiopi_indicators.referential_version IS
   'Version du RNQ : legacy (ancien jeu, désactivé), v9 (guide de lecture du 8 janvier 2024), v10 à venir (33 indicateurs au 1er novembre 2026).';
+
+NOTIFY pgrst, 'reload schema';
+
+-- ───────────── 0140_qualiopi_organisme.sql ─────────────
+
+-- 0140 — Qualiopi au niveau de l'organisme : statut par indicateur et preuves.
+--
+-- Constat (audit 2026-09-11, CAP-36) : sur les 32 indicateurs, 17 relèvent de
+-- l'organisme et non d'un dossier (information du public, moyens, veille,
+-- réclamations, amélioration continue…). Aucun n'était évalué ni suivi, et
+-- aucune preuve ne pouvait être déposée : la table `qualiopi_proofs` existait,
+-- mais rien dans l'application ne l'alimentait.
+--
+-- Sur le modèle de l'auto-évaluation de Digiforma — une validation par
+-- indicateur —, enrichi de ce qui lui manque : les preuves elles-mêmes.
+--
+-- 1. `qualiopi_org_indicator_status` : où en est l'organisme sur chaque
+--    indicateur (à traiter, en cours, conforme, non applicable), avec une note.
+--    Pas de suppression : on change de statut, on ne l'efface pas.
+-- 2. Seau de stockage privé `qualiopi-proofs` pour les pièces déposées :
+--    PDF, images, documents bureautiques. Chemin : {organisation}/I{numéro}/…,
+--    lecture et écriture bornées à l'organisation courante (idiome de 0133).
+
+-- ── 1. Statut par indicateur ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS app.qualiopi_org_indicator_status (
+  id              UUID PRIMARY KEY DEFAULT uuidv7(),
+  organization_id UUID NOT NULL REFERENCES app.organizations(id) ON DELETE CASCADE,
+  indicator_id    UUID NOT NULL REFERENCES app.qualiopi_indicators(id) ON DELETE CASCADE,
+  status          TEXT NOT NULL DEFAULT 'a_traiter'
+                  CHECK (status IN ('a_traiter', 'en_cours', 'conforme', 'non_applicable')),
+  note            TEXT CHECK (note IS NULL OR length(note) <= 2000),
+  updated_by      UUID REFERENCES app.members(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, indicator_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_qualiopi_org_status_org
+  ON app.qualiopi_org_indicator_status (organization_id);
+
+ALTER TABLE app.qualiopi_org_indicator_status ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app.qualiopi_org_indicator_status FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS qualiopi_org_status_select ON app.qualiopi_org_indicator_status;
+CREATE POLICY qualiopi_org_status_select ON app.qualiopi_org_indicator_status
+  FOR SELECT TO authenticated
+  USING (organization_id = app.current_organization_id());
+
+DROP POLICY IF EXISTS qualiopi_org_status_insert ON app.qualiopi_org_indicator_status;
+CREATE POLICY qualiopi_org_status_insert ON app.qualiopi_org_indicator_status
+  FOR INSERT TO authenticated
+  WITH CHECK (organization_id = app.current_organization_id() AND app.is_staff());
+
+DROP POLICY IF EXISTS qualiopi_org_status_update ON app.qualiopi_org_indicator_status;
+CREATE POLICY qualiopi_org_status_update ON app.qualiopi_org_indicator_status
+  FOR UPDATE TO authenticated
+  USING (organization_id = app.current_organization_id() AND app.is_staff())
+  WITH CHECK (organization_id = app.current_organization_id() AND app.is_staff());
+
+COMMENT ON TABLE app.qualiopi_org_indicator_status IS
+  'Auto-évaluation de l''organisme par indicateur Qualiopi : statut et note (audit CAP-36).';
+
+-- ── 2. Seau des preuves ─────────────────────────────────────────────────────
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'qualiopi-proofs',
+  'qualiopi-proofs',
+  false,
+  20971520, -- 20 Mo
+  ARRAY[
+    'application/pdf',
+    'image/png', 'image/jpeg', 'image/webp',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain'
+  ]
+)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "qualiopi_proofs_read" ON storage.objects;
+CREATE POLICY "qualiopi_proofs_read"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'qualiopi-proofs'
+    AND (storage.foldername(name))[1] = app.current_organization_id()::text
+  );
+
+DROP POLICY IF EXISTS "qualiopi_proofs_insert" ON storage.objects;
+CREATE POLICY "qualiopi_proofs_insert"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'qualiopi-proofs'
+    AND (storage.foldername(name))[1] = app.current_organization_id()::text
+    AND app.is_staff()
+  );
+
+DROP POLICY IF EXISTS "qualiopi_proofs_delete" ON storage.objects;
+CREATE POLICY "qualiopi_proofs_delete"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'qualiopi-proofs'
+    AND (storage.foldername(name))[1] = app.current_organization_id()::text
+    AND app.is_staff()
+  );
 
 NOTIFY pgrst, 'reload schema';
 
