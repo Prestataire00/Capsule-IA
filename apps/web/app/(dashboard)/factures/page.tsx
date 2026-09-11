@@ -15,6 +15,8 @@ import { InvoiceActions } from './invoice-actions';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { AutoRemindersToggle } from './auto-reminders-toggle.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,9 +64,15 @@ type InvoiceRow = {
   dossier: { reference: string } | null;
   funder: { name: string } | null;
   company: { name: string } | null;
+  kind: string;
+  related_invoice_id: string | null;
   /** Somme des règlements enregistrés. */
   paid_cents: number;
+  /** Somme des avoirs émis sur cette facture (TTC). */
+  credited_cents: number;
 };
+
+const KIND_BADGE: Record<string, string> = { deposit: 'Acompte', balance: 'Solde', credit_note: 'Avoir' };
 
 const STATUSES: InvoiceStatus[] = ['draft', 'issued', 'paid', 'partially_paid', 'overdue', 'cancelled'];
 
@@ -74,14 +82,16 @@ function resolvePayer(inv: InvoiceRow): string | null {
   return null;
 }
 
-async function loadInvoices(status: InvoiceStatus | null): Promise<InvoiceRow[]> {
+async function loadInvoices(organizationId: string, status: InvoiceStatus | null): Promise<InvoiceRow[]> {
   const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   let query = sb
     .schema('app')
     .from('invoices')
-    .select('id, reference, status, issued_at, due_at, paid_at, total_cents, currency, dossier:dossiers(reference), funder:funders(name), company:companies(name)')
+    .select('id, reference, status, issued_at, due_at, paid_at, total_cents, currency, kind, related_invoice_id, dossier:dossiers(reference), funder:funders(name), company:companies(name)')
+    // Client service_role : sans ce filtre, la liste montrait les factures de tous les organismes.
+    .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
@@ -95,16 +105,30 @@ async function loadInvoices(status: InvoiceStatus | null): Promise<InvoiceRow[]>
     console.error('[factures] load failed', error);
     return [];
   }
-  const rows = (data ?? []) as unknown as Omit<InvoiceRow, 'paid_cents'>[];
+  const rows = (data ?? []) as unknown as Omit<InvoiceRow, 'paid_cents' | 'credited_cents'>[];
   const ids = rows.map((r) => r.id);
-  const { data: payRows } = ids.length
-    ? await sb.schema('app').from('payments').select('invoice_id, amount_cents').in('invoice_id', ids)
-    : { data: [] };
+  const [{ data: payRows }, { data: creditRows }] = ids.length
+    ? await Promise.all([
+        sb.schema('app').from('payments').select('invoice_id, amount_cents').in('invoice_id', ids),
+        sb
+          .schema('app')
+          .from('invoices')
+          .select('related_invoice_id, total_cents')
+          .in('related_invoice_id', ids)
+          .eq('kind', 'credit_note')
+          .neq('status', 'cancelled')
+          .is('deleted_at', null),
+      ])
+    : [{ data: [] }, { data: [] }];
   const paid = new Map<string, number>();
   for (const p of (payRows ?? []) as Array<{ invoice_id: string; amount_cents: number }>) {
     paid.set(p.invoice_id, (paid.get(p.invoice_id) ?? 0) + Number(p.amount_cents));
   }
-  return rows.map((r) => ({ ...r, paid_cents: paid.get(r.id) ?? 0 }));
+  const credited = new Map<string, number>();
+  for (const c of (creditRows ?? []) as Array<{ related_invoice_id: string; total_cents: number }>) {
+    credited.set(c.related_invoice_id, (credited.get(c.related_invoice_id) ?? 0) + Number(c.total_cents));
+  }
+  return rows.map((r) => ({ ...r, paid_cents: paid.get(r.id) ?? 0, credited_cents: credited.get(r.id) ?? 0 }));
 }
 
 export default async function FacturesPage({
@@ -113,14 +137,29 @@ export default async function FacturesPage({
   searchParams: { status?: string };
 }) {
   await requireAccess('billing');
+  const me = await getCurrentMember();
+  if (!me) return null;
   const status = STATUSES.includes(searchParams.status as InvoiceStatus)
     ? (searchParams.status as InvoiceStatus)
     : null;
   const exportHref = status ? `/api/factures/export.csv?status=${status}` : '/api/factures/export.csv';
-  const invoices = await loadInvoices(status);
+  const invoices = await loadInvoices(me.organizationId, status);
+  const { data: orgRow } = await createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+    .schema('app')
+    .from('organizations')
+    .select('auto_payment_reminders')
+    .eq('id', me.organizationId)
+    .maybeSingle();
+  const autoReminders = Boolean((orgRow as { auto_payment_reminders?: boolean } | null)?.auto_payment_reminders);
 
-  const issued = invoices.filter((i) => i.status === 'issued' || i.status === 'paid' || i.status === 'overdue');
-  const totalIssued = issued.reduce((acc, i) => acc + i.total_cents, 0);
+  const credits = invoices.filter((i) => i.kind === 'credit_note');
+  const issued = invoices.filter(
+    (i) => i.kind !== 'credit_note' && (i.status === 'issued' || i.status === 'paid' || i.status === 'overdue'),
+  );
+  const totalIssued =
+    issued.reduce((acc, i) => acc + i.total_cents, 0) - credits.reduce((acc, i) => acc + i.total_cents, 0);
   const paid = invoices.filter((i) => i.status === 'paid');
   const totalPaid = paid.reduce((acc, i) => acc + i.total_cents, 0);
   const overdue = invoices.filter((i) => i.status === 'overdue');
@@ -137,6 +176,9 @@ export default async function FacturesPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ManageOnly section="billing">
+            <AutoRemindersToggle enabled={autoReminders} />
+          </ManageOnly>
           <a
             href={exportHref}
             className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
@@ -212,6 +254,17 @@ export default async function FacturesPage({
             >
               <span className="tabular-nums text-[11px] text-zinc-700 dark:text-zinc-300">
                 {inv.reference.startsWith('PROV-') ? 'Brouillon' : inv.reference}
+                {KIND_BADGE[inv.kind] && (
+                  <span
+                    className={`ml-1.5 rounded px-1 py-px text-[10px] ${
+                      inv.kind === 'credit_note'
+                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                        : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
+                    }`}
+                  >
+                    {KIND_BADGE[inv.kind]}
+                  </span>
+                )}
               </span>
               {inv.dossier ? (
                 <IdPill>{inv.dossier.reference}</IdPill>
@@ -238,7 +291,10 @@ export default async function FacturesPage({
                 invoiceId={inv.id}
                 status={inv.status}
                 pdfUrl={`/api/invoices/${inv.id}/facture.pdf`}
-                remainingCents={Math.max(0, inv.total_cents - inv.paid_cents)}
+                remainingCents={Math.max(0, inv.total_cents - inv.paid_cents - inv.credited_cents)}
+                kind={inv.kind}
+                reference={inv.reference}
+                creditableCents={Math.max(0, inv.total_cents - inv.credited_cents)}
               />
             </li>
           ))}

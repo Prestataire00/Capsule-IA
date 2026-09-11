@@ -106,7 +106,7 @@ function composeAddress(raw: unknown): string | null {
 
 // ── Numérotation ─────────────────────────────────────────────────────────────
 
-export async function nextDocumentNumber(sb: Sb, organizationId: string, prefix: 'DEV' | 'FAC'): Promise<string | null> {
+export async function nextDocumentNumber(sb: Sb, organizationId: string, prefix: 'DEV' | 'FAC' | 'AV'): Promise<string | null> {
   const { data, error } = await sb
     .schema('app')
     .rpc('next_document_number', { p_org: organizationId, p_prefix: prefix });
@@ -944,6 +944,7 @@ export async function createInvoiceFromQuote(
     .from('invoices')
     .select('id')
     .eq('quote_id', quoteId)
+    .in('kind', ['invoice', 'balance'])
     .neq('status', 'cancelled')
     .is('deleted_at', null)
     .limit(1)

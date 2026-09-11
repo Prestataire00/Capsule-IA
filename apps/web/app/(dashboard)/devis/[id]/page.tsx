@@ -156,6 +156,7 @@ export default async function DevisDetailPage({ params }: { params: { id: string
               documentId={quote.document_id}
               invoice={summary.invoice}
               canManage={canManage}
+              clientKind={quote.client_kind}
             />
           </div>
 

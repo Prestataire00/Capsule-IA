@@ -27,6 +27,10 @@ export const QUOTE_ERROR_LABELS: Record<string, string> = {
   insert_failed: 'Le devis n’a pas pu être créé.',
   no_session: 'Aucune session planifiée pour ce dossier.',
   no_needs_analysis: 'L’analyse du besoin n’a pas encore été reçue.',
+  percent_out_of_range: 'Pourcentage d’acompte entre 1 et 99 %.',
+  individual_cap: 'Particulier : l’acompte est plafonné à 30 % du prix (art. L.6353-6).',
+  exceeds_quote: 'Le cumul des acomptes atteindrait le montant du devis : facturez le solde.',
+  already_invoiced: 'La facture du devis est déjà émise : plus d’acompte possible.',
 };
 
 /** Message d'erreur lisible depuis le retour d'une Server Action (next-safe-action), ou null si succès. */

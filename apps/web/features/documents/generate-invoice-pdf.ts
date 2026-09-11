@@ -44,6 +44,10 @@ export type InvoiceInput = {
     currency: string;
     paymentTerms: string | null;
     dossierReference: string | null;
+    /** invoice | deposit | balance | credit_note */
+    kind?: string;
+    /** Avoir : référence de la facture qu'il annule. */
+    relatedReference?: string | null;
   };
   lines: InvoiceLine[];
   generatedAt: Date;
@@ -139,14 +143,25 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
     c = { ...c, y: c.y - 10 };
   }
 
-  // Titre FACTURE en grand à droite
-  c.page.drawText('FACTURE', {
+  // Titre en grand à droite : FACTURE, ACOMPTE (facture d'acompte) ou AVOIR.
+  const title = input.invoice.kind === 'credit_note' ? 'AVOIR' : input.invoice.kind === 'deposit' ? 'ACOMPTE' : 'FACTURE';
+  c.page.drawText(title, {
     x: MARGIN + COL - 100, y: A4.height - MARGIN - 4, size: 24, font: fontBold, color: COLOR_BODY,
   });
-  const statusLabel = STATUS_LABEL[input.invoice.status] ?? input.invoice.status.toUpperCase();
+  const statusLabel =
+    input.invoice.kind === 'deposit'
+      ? "FACTURE D'ACOMPTE"
+      : input.invoice.kind === 'balance'
+        ? 'FACTURE DE SOLDE'
+        : (STATUS_LABEL[input.invoice.status] ?? input.invoice.status.toUpperCase());
   c.page.drawText(statusLabel, {
     x: MARGIN + COL - 100, y: A4.height - MARGIN - 22, size: 8, font: fontBold, color: COLOR_ACCENT,
   });
+  if (input.invoice.relatedReference) {
+    c.page.drawText(`Sur facture ${input.invoice.relatedReference}`, {
+      x: MARGIN + COL - 100, y: A4.height - MARGIN - 34, size: 8, font, color: COLOR_MUTED,
+    });
+  }
 
   c = { ...c, y: c.y - 20 };
   c.page.drawLine({

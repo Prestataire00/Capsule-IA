@@ -118,6 +118,8 @@ export type InvoiceHeader = {
   currency: string;
   organization_id: string;
   metadata: Record<string, unknown> | null;
+  kind: string;
+  related_invoice_id: string | null;
 } & InvoiceParties;
 
 export async function loadInvoiceHeader(sb: Sb, invoiceId: string, organizationId: string): Promise<InvoiceHeader | null> {
@@ -126,7 +128,7 @@ export async function loadInvoiceHeader(sb: Sb, invoiceId: string, organizationI
     .from('invoices')
     .select(
       'id, reference, status, issued_at, due_at, payment_terms, subtotal_cents, vat_cents, total_cents, currency, ' +
-        'organization_id, funder_id, company_id, dossier_id, quote_id, metadata',
+        'organization_id, funder_id, company_id, dossier_id, quote_id, metadata, kind, related_invoice_id',
     )
     .eq('id', invoiceId)
     .eq('organization_id', organizationId)
@@ -145,7 +147,7 @@ export async function buildInvoicePdf(
   const inv = await loadInvoiceHeader(sb, invoiceId, organizationId);
   if (!inv) return null;
 
-  const [{ data: orgRow }, { data: linesRows }, { data: dossierRow }, { data: quoteRow }, recipient, branding] =
+  const [{ data: orgRow }, { data: linesRows }, { data: dossierRow }, { data: quoteRow }, recipient, branding, { data: relatedRow }] =
     await Promise.all([
       sb
         .schema('app')
@@ -167,6 +169,9 @@ export async function buildInvoicePdf(
         : Promise.resolve({ data: null }),
       resolveInvoiceRecipient(sb, inv),
       loadOrgBranding(sb as never, inv.organization_id),
+      inv.related_invoice_id
+        ? sb.schema('app').from('invoices').select('reference').eq('id', inv.related_invoice_id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
   const org = orgRow as {
@@ -213,6 +218,8 @@ export async function buildInvoicePdf(
       currency: inv.currency,
       paymentTerms: inv.payment_terms,
       dossierReference: [dossierRef, quoteRef ? `devis ${quoteRef}` : null].filter(Boolean).join(' · ') || null,
+      kind: inv.kind,
+      relatedReference: (relatedRow as { reference?: string } | null)?.reference ?? null,
     },
     lines: lines.map((l) => ({
       description: l.description,
@@ -231,7 +238,7 @@ export async function buildInvoicePdf(
         organizationId: inv.organization_id,
         dossierId: inv.dossier_id ?? null,
         kind: 'facture',
-        title: `Facture ${inv.reference}`,
+        title: `${inv.kind === 'credit_note' ? 'Avoir' : 'Facture'} ${inv.reference}`,
         bytes,
         generationInput: input,
       });

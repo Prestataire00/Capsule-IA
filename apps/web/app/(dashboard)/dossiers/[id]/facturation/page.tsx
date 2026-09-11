@@ -24,6 +24,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { can } from '@/shared/lib/auth/permissions';
 import { loadQuotesForDossier } from '@/features/billing/quotes/queries';
+import { INVOICE_KIND_LABELS, type InvoiceKind } from '@/features/billing/domain/invoice-kinds';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { QuoteCard } from '../../../devis/_components/quote-card.client';
 import { GenerateQuoteButton } from '../../../devis/_components/generate-quote-button.client';
@@ -102,7 +103,7 @@ async function loadData(dossierId: string, organizationId: string) {
     sb
       .schema('app')
       .from('invoices')
-      .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id, quote_id')
+      .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id, quote_id, kind')
       .eq('dossier_id', dossierId)
       .eq('organization_id', organizationId)
       .is('deleted_at', null)
@@ -140,6 +141,7 @@ async function loadData(dossierId: string, organizationId: string) {
       currency: string;
       funder_id: string | null;
       quote_id: string | null;
+      kind: string;
     }>,
   };
 }
@@ -178,7 +180,7 @@ export default async function FacturationPage({
     ? await quoteSb
         .schema('app')
         .from('invoices')
-        .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id, quote_id')
+        .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id, quote_id, kind')
         .in('id', extraInvoiceIds)
         .eq('organization_id', me.organizationId)
     : { data: [] };
@@ -203,6 +205,7 @@ export default async function FacturationPage({
         ? Math.round(i.subtotal_cents / (quoteShares.get(i.quote_id) ?? 1))
         : i.subtotal_cents,
     status: i.status,
+    kind: i.kind,
   }));
   const plan = buildBillingPlan(totalHt, allocations, invoiceInputs);
 
@@ -543,6 +546,7 @@ export default async function FacturationPage({
                 className="grid grid-cols-[160px_1fr_140px_120px_120px_100px] gap-3 py-3 px-1 items-center text-[13px]"
               >
                 <span className="tabular-nums text-[11px] text-zinc-700 dark:text-zinc-300">
+                  {inv.kind !== 'invoice' && `${INVOICE_KIND_LABELS[inv.kind as InvoiceKind] ?? ''} · `}
                   {inv.reference.startsWith('PROV-') ? 'Brouillon (n° à l’émission)' : inv.reference}
                 </span>
                 <span className="text-zinc-500 dark:text-zinc-400">

@@ -28,6 +28,8 @@ export type InvoiceInput = {
   /** Montant HT (app.invoices.subtotal_cents). */
   subtotalHtCents: number;
   status: string;
+  /** 'credit_note' : un avoir vient en déduction du facturé. */
+  kind?: string;
 };
 
 /** Identifiant de payeur : un financeur (funderId) ou le reste à charge (null). */
@@ -65,6 +67,10 @@ const CANCELLED = 'cancelled';
 
 const sanitize = (cents: number): number => Math.max(0, Math.round(cents));
 
+/** HT d'une facture pour les totaux : un avoir est déduit. */
+const signedHt = (inv: InvoiceInput): number =>
+  (inv.kind === 'credit_note' ? -1 : 1) * sanitize(inv.subtotalHtCents);
+
 /** Construit le plan de facturation à partir du total, des allocations et des factures existantes. */
 export function buildBillingPlan(
   totalHtCents: number,
@@ -77,7 +83,7 @@ export function buildBillingPlan(
   const invoicedByFunder = new Map<string, number>();
   let invoicedResteACharge = 0;
   for (const inv of active) {
-    const amount = sanitize(inv.subtotalHtCents);
+    const amount = signedHt(inv);
     if (inv.funderId == null) {
       invoicedResteACharge += amount;
     } else {
@@ -111,7 +117,7 @@ export function buildBillingPlan(
     status: null,
   };
 
-  const invoicedTotal = active.reduce((sum, i) => sum + sanitize(i.subtotalHtCents), 0);
+  const invoicedTotal = active.reduce((sum, i) => sum + signedHt(i), 0);
 
   return {
     totalHtCents: total,

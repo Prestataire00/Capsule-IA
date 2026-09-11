@@ -3,10 +3,10 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Ban, CheckCircle2, Eye, Loader2, Receipt, RotateCcw, Send, XCircle } from 'lucide-react';
+import { Ban, CheckCircle2, Eye, Loader2, Percent, Receipt, RotateCcw, Send, XCircle } from 'lucide-react';
 import type { QuoteStatus } from '@/features/billing/domain/quote';
 import { canSendQuote } from '@/features/billing/domain/quote';
-import { changeQuoteStatus, invoiceFromQuote, sendQuote } from '../actions';
+import { changeQuoteStatus, invoiceDeposit, invoiceFromQuote, sendQuote } from '../actions';
 import { actionError } from './labels';
 
 type Props = {
@@ -17,6 +17,7 @@ type Props = {
   documentId: string | null;
   invoice: { id: string; reference: string; status: string } | null;
   canManage: boolean;
+  clientKind: 'company' | 'individual';
 };
 
 const btn =
@@ -125,6 +126,30 @@ export function QuoteSideActions(p: Props) {
           onClick={() => run(null, () => invoiceFromQuote({ quoteId: p.quoteId }), 'Facture brouillon créée.')}
         >
           <Receipt className="w-3.5 h-3.5" /> Créer la facture
+        </button>
+      )}
+
+      {p.canManage && p.status === 'signed' && (
+        <button
+          type="button"
+          disabled={pending}
+          className={btn}
+          onClick={() => {
+            const cap = p.clientKind === 'individual' ? 30 : 99;
+            const raw = window.prompt(
+              `Pourcentage d'acompte${p.clientKind === 'individual' ? ' (particulier : 30 % max, art. L.6353-6)' : ''} :`,
+              '30',
+            );
+            if (raw == null) return;
+            const percent = Number.parseFloat(raw.replace(',', '.'));
+            if (!(percent > 0 && percent <= cap)) {
+              setMessage({ tone: 'err', text: `Pourcentage invalide (1 à ${cap} %).` });
+              return;
+            }
+            run(null, () => invoiceDeposit({ quoteId: p.quoteId, percent }), `Facture d'acompte de ${percent} % créée — la facture de solde est recalculée.`);
+          }}
+        >
+          <Percent className="w-3.5 h-3.5" /> Facture d’acompte
         </button>
       )}
 

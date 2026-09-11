@@ -6,7 +6,9 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
+import { createDepositInvoice } from '@/features/billing/invoices/deposits';
 import {
+  DepositSchema,
   DossierQuoteSchema,
   QuoteIdSchema,
   QuoteStatusSchema,
@@ -106,6 +108,17 @@ export const generateQuoteForDossier = authActionClient.schema(DossierQuoteSchem
   if (!r.ok) return { ok: false as const, error: r.reason };
   await revalidateQuote(sb, r.quoteId);
   return { ok: true as const, quoteId: r.quoteId };
+});
+
+export const invoiceDeposit = authActionClient.schema(DepositSchema).action(async ({ parsedInput }) => {
+  const me = await billingManager();
+  if (!me) return { ok: false as const, error: 'forbidden' };
+  const sb = admin();
+  const r = await createDepositInvoice(sb, parsedInput.quoteId, me.organizationId, parsedInput.percent);
+  if (!r.ok) return { ok: false as const, error: r.error };
+  await revalidateQuote(sb, parsedInput.quoteId);
+  revalidatePath('/factures');
+  return { ok: true as const, invoiceId: r.invoiceId };
 });
 
 export const invoiceFromQuote = authActionClient.schema(QuoteIdSchema).action(async ({ parsedInput }) => {

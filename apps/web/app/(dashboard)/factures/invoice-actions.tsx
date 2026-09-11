@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Mail, Check, Loader2, AlertCircle, FileText, BellRing } from 'lucide-react';
 import { sendInvoiceByEmail, sendPaymentReminder } from './actions';
 import { PaymentButton } from './payment-button.client';
+import { CreditNoteButton } from './credit-note-button.client';
 
 type SendState =
   | { status: 'idle' }
@@ -21,6 +22,9 @@ export function InvoiceActions({
   showPdfLink = true,
   status,
   remainingCents,
+  kind,
+  reference,
+  creditableCents,
 }: {
   invoiceId: string;
   pdfUrl?: string;
@@ -28,6 +32,10 @@ export function InvoiceActions({
   status?: string;
   /** Reste à encaisser : affiche le bouton de règlement sur une facture émise. */
   remainingCents?: number;
+  kind?: string;
+  reference?: string;
+  /** TTC encore créditable : affiche le bouton « avoir » sur une facture émise. */
+  creditableCents?: number;
 }) {
   const [send, setSend] = useState<SendState>({ status: 'idle' });
   const [remind, setRemind] = useState<SendState>({ status: 'idle' });
@@ -86,12 +94,17 @@ export function InvoiceActions({
         </Link>
       )}
 
-      {status && REMINDABLE.has(status) && remainingCents != null && remainingCents > 0 && (
+      {kind !== 'credit_note' && status && REMINDABLE.has(status) && remainingCents != null && remainingCents > 0 && (
         <PaymentButton invoiceId={invoiceId} remainingCents={remainingCents} />
       )}
 
+      {kind !== 'credit_note' && status && status !== 'draft' && status !== 'cancelled' && reference &&
+        creditableCents != null && creditableCents > 0 && (
+          <CreditNoteButton invoiceId={invoiceId} reference={reference} creditableCents={creditableCents} />
+        )}
+
       {/* Relance de paiement — visible uniquement pour les factures impayées émises. */}
-      {status && REMINDABLE.has(status) && (
+      {kind !== 'credit_note' && status && REMINDABLE.has(status) && (
         remind.status === 'sent' ? (
           <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 px-1.5 py-1" title="Relance envoyée">
             <Check className="w-3 h-3" />

@@ -30,3 +30,8 @@ export const QuoteStatusSchema = z.object({
 });
 
 export const DossierQuoteSchema = z.object({ dossierId: z.string().uuid() });
+
+export const DepositSchema = z.object({
+  quoteId: z.string().uuid(),
+  percent: z.number().min(1).max(99),
+});

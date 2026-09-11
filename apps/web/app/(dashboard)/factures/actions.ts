@@ -24,6 +24,8 @@ import {
   nextDocumentNumber,
 } from '@/features/billing/quotes/quote-service';
 import { buildInvoicePdf, loadInvoiceHeader } from '@/features/billing/invoices/invoice-pdf';
+import { createCreditNote, creditedCents } from '@/features/billing/invoices/credit-notes';
+import { sendInvoiceReminder } from '@/features/billing/invoices/reminders';
 
 const admin = () => supabaseAdmin() as unknown as SupabaseClient;
 
@@ -115,7 +117,7 @@ export async function createInvoice(formData: FormData): Promise<void> {
     sb
       .schema('app')
       .from('invoices')
-      .select('funder_id, subtotal_cents, status')
+      .select('funder_id, subtotal_cents, status, kind')
       .eq('dossier_id', data.dossierId)
       .is('deleted_at', null),
   ]);
@@ -150,8 +152,8 @@ export async function createInvoice(formData: FormData): Promise<void> {
     status: (f.status as FunderAllocationInput['status']) ?? 'pending',
   }));
   const existingInvoices: InvoiceInput[] = (
-    (invoiceRows ?? []) as unknown as Array<{ funder_id: string | null; subtotal_cents: number; status: string }>
-  ).map((i) => ({ funderId: i.funder_id, subtotalHtCents: i.subtotal_cents, status: i.status }));
+    (invoiceRows ?? []) as unknown as Array<{ funder_id: string | null; subtotal_cents: number; status: string; kind: string }>
+  ).map((i) => ({ funderId: i.funder_id, subtotalHtCents: i.subtotal_cents, status: i.status, kind: i.kind }));
 
   const plan = buildBillingPlan(dossier.total_amount_cents ?? 0, allocations, existingInvoices);
   const guard = canBill(plan, payer, subtotalCents);
@@ -215,9 +217,9 @@ const money = (cents: number, currency: string) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
 
 /**
- * Envoie la facture au payeur (financeur, responsable de l'entreprise ou
- * particulier), PDF en pièce jointe. Un brouillon est d'abord émis (numéro
- * définitif) : on n'adresse jamais un brouillon à un client.
+ * Envoie la facture (ou l'avoir) au payeur — financeur, responsable de
+ * l'entreprise ou particulier —, PDF en pièce jointe. Un brouillon est d'abord
+ * émis (numéro définitif) : on n'adresse jamais un brouillon à un client.
  */
 export async function sendInvoiceByEmail(invoiceId: string): Promise<SendInvoiceResult> {
   const me = await billingManager();
@@ -237,31 +239,32 @@ export async function sendInvoiceByEmail(invoiceId: string): Promise<SendInvoice
   const inv = pdf.header;
   if (!pdf.recipient.email) return { ok: false, error: 'no_recipient_email' };
 
+  const label = inv.kind === 'credit_note' ? 'Avoir' : inv.kind === 'deposit' ? "Facture d'acompte" : 'Facture';
   const greeting = pdf.recipient.attention ?? pdf.recipient.name;
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;color:#18181b;line-height:1.55;background:#fafafa;margin:0;padding:24px;">
   <div style="max-width:580px;margin:0 auto;">
     <div style="background:white;border:1px solid #e4e4e7;border-radius:12px;padding:32px;">
-      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#f97316;font-weight:600;margin:0 0 8px;">Facture</p>
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#f97316;font-weight:600;margin:0 0 8px;">${label}</p>
       <h1 style="font-size:20px;font-weight:600;margin:0 0 16px;">${escapeHtml(inv.reference)}</h1>
       <p style="font-size:13px;color:#52525b;margin:0 0 20px;">
         Bonjour ${escapeHtml(greeting)},<br>
-        Veuillez trouver ci-jointe la facture ${escapeHtml(inv.reference)}${pdf.recipient.attention ? ` adressée à ${escapeHtml(pdf.recipient.name)}` : ''}.
+        Veuillez trouver ci-joint ${inv.kind === 'credit_note' ? "l'avoir" : 'la facture'} ${escapeHtml(inv.reference)}${pdf.recipient.attention ? ` adressé${inv.kind === 'credit_note' ? '' : 'e'} à ${escapeHtml(pdf.recipient.name)}` : ''}.
       </p>
       <table style="width:100%;border-collapse:collapse;border-top:1px solid #f4f4f5;">
         <tr><td style="padding:8px 0;font-size:12px;color:#71717a;">Total HT</td><td style="padding:8px 0;font-size:13px;text-align:right;">${money(inv.subtotal_cents, inv.currency)}</td></tr>
         <tr><td style="padding:8px 0;font-size:12px;color:#71717a;">TVA</td><td style="padding:8px 0;font-size:13px;text-align:right;">${money(inv.vat_cents, inv.currency)}</td></tr>
-        <tr style="border-top:1px solid #f4f4f5;"><td style="padding:12px 0 0;font-size:13px;font-weight:600;">Total à régler</td><td style="padding:12px 0 0;font-size:15px;font-weight:600;text-align:right;">${money(inv.total_cents, inv.currency)}</td></tr>
+        <tr style="border-top:1px solid #f4f4f5;"><td style="padding:12px 0 0;font-size:13px;font-weight:600;">${inv.kind === 'credit_note' ? 'Montant de l’avoir' : 'Total à régler'}</td><td style="padding:12px 0 0;font-size:15px;font-weight:600;text-align:right;">${money(inv.total_cents, inv.currency)}</td></tr>
       </table>
-      ${inv.due_at ? `<p style="font-size:12px;color:#71717a;margin:20px 0 0;">À régler avant le <strong style="color:#18181b;">${new Date(`${inv.due_at}T12:00:00Z`).toLocaleDateString('fr-FR')}</strong>.</p>` : ''}
+      ${inv.due_at && inv.kind !== 'credit_note' ? `<p style="font-size:12px;color:#71717a;margin:20px 0 0;">À régler avant le <strong style="color:#18181b;">${new Date(`${inv.due_at}T12:00:00Z`).toLocaleDateString('fr-FR')}</strong>.</p>` : ''}
     </div>
   </div>
 </body></html>`;
 
   const result = await sendEmail({
     to: pdf.recipient.email,
-    subject: `Facture ${inv.reference} — ${money(inv.total_cents, inv.currency)}`,
+    subject: `${label} ${inv.reference} — ${money(inv.total_cents, inv.currency)}`,
     html,
-    attachments: [{ filename: `facture-${inv.reference}.pdf`, content: Buffer.from(pdf.bytes).toString('base64') }],
+    attachments: [{ filename: `${inv.kind === 'credit_note' ? 'avoir' : 'facture'}-${inv.reference}.pdf`, content: Buffer.from(pdf.bytes).toString('base64') }],
     organizationId: me.organizationId,
     dossierId: inv.dossier_id ?? undefined,
     kind: 'invoice_sent',
@@ -273,7 +276,7 @@ export async function sendInvoiceByEmail(invoiceId: string): Promise<SendInvoice
   return { ok: true };
 }
 
-// ── Statut & relance ────────────────────────────────────────────────────────
+// ── Statut, règlements, avoirs, relances ────────────────────────────────────
 
 export type InvoiceStatusValue = 'draft' | 'issued' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
 
@@ -282,7 +285,7 @@ export type InvoiceMutationResult = { ok: true } | { ok: false; error: string };
 /**
  * Change le statut d'une facture. Toute sortie du brouillon (hors annulation)
  * l'émet : numéro définitif, date d'émission, échéance. Une facture émise ne
- * redevient jamais brouillon (numérotation continue) — on l'annule.
+ * redevient jamais brouillon (numérotation continue) — on émet un avoir.
  */
 export async function setInvoiceStatus(invoiceId: string, status: InvoiceStatusValue): Promise<InvoiceMutationResult> {
   const me = await billingManager();
@@ -340,7 +343,7 @@ export type RecordPaymentInput = z.infer<typeof paymentSchema>;
 
 /**
  * Enregistre un règlement (acompte, solde, paiement OPCO…). Le statut suit la
- * somme encaissée : partielle, puis payée quand le total est atteint.
+ * somme encaissée (avoirs déduits) : partielle, puis payée quand le dû est soldé.
  */
 export async function recordPayment(input: RecordPaymentInput): Promise<InvoiceMutationResult> {
   const me = await billingManager();
@@ -351,6 +354,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<InvoiceM
   const sb = admin();
   const header = await loadInvoiceHeader(sb, parsed.data.invoiceId, me.organizationId);
   if (!header) return { ok: false, error: 'not_found' };
+  if (header.kind === 'credit_note') return { ok: false, error: 'is_credit_note' };
   if (header.status === 'draft') return { ok: false, error: 'not_issued' };
   if (header.status === 'cancelled') return { ok: false, error: 'cancelled' };
 
@@ -370,7 +374,8 @@ export async function recordPayment(input: RecordPaymentInput): Promise<InvoiceM
   const { data: paidRows } = await sb.schema('app').from('payments').select('amount_cents, paid_at').eq('invoice_id', header.id);
   const payments = (paidRows ?? []) as Array<{ amount_cents: number; paid_at: string }>;
   const paid = payments.reduce((s, p) => s + Number(p.amount_cents), 0);
-  const settled = settlementStatus(header.total_cents, paid);
+  const due = Number(header.total_cents) - (await creditedCents(sb, header.id));
+  const settled = settlementStatus(due, paid);
   const lastPaidAt = payments.map((p) => p.paid_at).sort().at(-1) ?? null;
   // Une facture échue partiellement réglée reste en retard tant qu'elle n'est pas soldée.
   const status = settled === 'paid' ? 'paid' : header.status === 'overdue' ? 'overdue' : settled;
@@ -386,65 +391,48 @@ export async function recordPayment(input: RecordPaymentInput): Promise<InvoiceM
   return { ok: true };
 }
 
-/**
- * Relance de paiement par e-mail (PDF joint) au payeur, tracée dans metadata
- * (last_reminder_at + reminder_count).
- */
+const creditNoteSchema = z.object({
+  invoiceId: z.string().uuid(),
+  /** TTC en centimes ; null = avoir total. */
+  amountCents: z.number().int().positive().max(100_000_000).nullable(),
+  reason: z.string().trim().max(300),
+});
+
+/** Émet un avoir (total ou partiel) sur une facture émise. */
+export async function createCreditNoteAction(
+  input: z.infer<typeof creditNoteSchema>,
+): Promise<{ ok: true; reference: string } | { ok: false; error: string }> {
+  const me = await billingManager();
+  if (!me) return { ok: false, error: 'forbidden' };
+  const parsed = creditNoteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'invalid' };
+
+  const r = await createCreditNote(admin(), parsed.data.invoiceId, me.organizationId, parsed.data.amountCents, parsed.data.reason);
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath('/factures');
+  return { ok: true, reference: r.reference };
+}
+
+/** Relance de paiement manuelle (PDF joint) au payeur. */
 export async function sendPaymentReminder(invoiceId: string): Promise<SendInvoiceResult> {
   const me = await billingManager();
   if (!me) return { ok: false, error: 'forbidden' };
-  const sb = admin();
+  const r = await sendInvoiceReminder(admin(), invoiceId, me.organizationId);
+  if (!r.ok) return r;
+  revalidatePath('/factures');
+  return { ok: true };
+}
 
-  const pdf = await buildInvoicePdf(sb, invoiceId, me.organizationId);
-  if (!pdf) return { ok: false, error: 'invoice_not_found' };
-  const inv = pdf.header;
-  if (!pdf.recipient.email) return { ok: false, error: 'no_recipient_email' };
-
-  const { data: paidRows } = await sb.schema('app').from('payments').select('amount_cents').eq('invoice_id', inv.id);
-  const paid = ((paidRows ?? []) as Array<{ amount_cents: number }>).reduce((s, p) => s + Number(p.amount_cents), 0);
-  const due = Math.max(0, inv.total_cents - paid);
-  const dueLabel = inv.due_at ? new Date(`${inv.due_at}T12:00:00Z`).toLocaleDateString('fr-FR') : null;
-  const overdue = inv.due_at ? inv.due_at < todayParis() : false;
-
-  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;color:#18181b;line-height:1.55;background:#fafafa;margin:0;padding:24px;">
-  <div style="max-width:580px;margin:0 auto;">
-    <div style="background:white;border:1px solid #e4e4e7;border-radius:12px;padding:32px;">
-      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#d97706;font-weight:600;margin:0 0 8px;">Relance de paiement</p>
-      <h1 style="font-size:20px;font-weight:600;margin:0 0 16px;">Facture ${escapeHtml(inv.reference)}</h1>
-      <p style="font-size:13px;color:#52525b;margin:0 0 20px;">
-        Bonjour ${escapeHtml(pdf.recipient.attention ?? pdf.recipient.name)},<br>
-        Sauf erreur de notre part, la facture <strong>${escapeHtml(inv.reference)}</strong> présente un solde de
-        <strong>${money(due, inv.currency)}</strong> à ce jour.
-        ${dueLabel ? `Son échéance ${overdue ? 'était fixée' : 'est fixée'} au <strong>${dueLabel}</strong>.` : ''}
-        Nous vous remercions de bien vouloir procéder à son règlement dans les meilleurs délais. La facture est jointe à ce message.
-      </p>
-      <p style="font-size:12px;color:#a1a1aa;margin:24px 0 0;">Si le règlement a déjà été effectué, merci de ne pas tenir compte de ce message.</p>
-    </div>
-  </div>
-</body></html>`;
-
-  const result = await sendEmail({
-    to: pdf.recipient.email,
-    subject: `Relance — facture ${inv.reference} (${money(due, inv.currency)})`,
-    html,
-    attachments: [{ filename: `facture-${inv.reference}.pdf`, content: Buffer.from(pdf.bytes).toString('base64') }],
-    organizationId: me.organizationId,
-    dossierId: inv.dossier_id ?? undefined,
-    kind: 'invoice_reminder',
-    metadata: { invoice_id: inv.id },
-  });
-  if (!result.ok) return { ok: false, error: result.reason };
-
-  const meta = (inv.metadata ?? {}) as Record<string, unknown>;
-  const count = typeof meta.reminder_count === 'number' ? meta.reminder_count : 0;
-  const nowIso = new Date().toISOString();
-  await sb
+/** Active ou coupe les relances automatiques (paiement et signature des devis). */
+export async function setAutoPaymentReminders(enabled: boolean): Promise<InvoiceMutationResult> {
+  const me = await billingManager();
+  if (!me) return { ok: false, error: 'forbidden' };
+  const { error } = await admin()
     .schema('app')
-    .from('invoices')
-    .update({ metadata: { ...meta, last_reminder_at: nowIso, reminder_count: count + 1 }, updated_at: nowIso } as never)
-    .eq('id', inv.id)
-    .eq('organization_id', me.organizationId);
-
+    .from('organizations')
+    .update({ auto_payment_reminders: enabled } as never)
+    .eq('id', me.organizationId);
+  if (error) return { ok: false, error: error.message };
   revalidatePath('/factures');
   return { ok: true };
 }
