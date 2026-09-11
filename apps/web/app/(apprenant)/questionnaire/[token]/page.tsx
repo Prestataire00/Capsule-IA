@@ -55,7 +55,7 @@ export default function QuestionnairePage() {
           {questions.map((q, i) => (
             <fieldset key={q.id}>
               <legend className="text-[15px] font-medium mb-3">
-                <span className="font-mono text-[11px] text-zinc-400 mr-2">{i + 1}.</span>
+                <span className="tabular-nums text-[11px] text-zinc-400 mr-2">{i + 1}.</span>
                 {q.label}
               </legend>
 

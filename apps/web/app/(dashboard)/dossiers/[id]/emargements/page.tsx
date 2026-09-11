@@ -132,12 +132,12 @@ export default async function EmargementsPage({ params }: { params: { id: string
           {lignes.map((l) => {
             const contenu = (
               <div className="grid grid-cols-[80px_1fr_auto] sm:grid-cols-[90px_1fr_110px_130px] gap-3 py-3 px-1 text-[13px] items-center">
-                <span className="font-mono text-[11px] text-zinc-500">{jour(l.startsAt)}</span>
+                <span className="tabular-nums text-[11px] text-zinc-500">{jour(l.startsAt)}</span>
                 <span className="text-zinc-900 dark:text-zinc-100 truncate">
                   {l.title}
                   <span className="text-zinc-400 dark:text-zinc-500"> · {HALF_DAY_LABELS[l.halfDay] ?? l.halfDay}</span>
                 </span>
-                <span className="hidden sm:block font-mono text-[11px] text-zinc-600 dark:text-zinc-300">
+                <span className="hidden sm:block tabular-nums text-[11px] text-zinc-600 dark:text-zinc-300">
                   {heure(l.entree)} → {heure(l.sortie)}
                 </span>
                 <StatusPill tone={TON[l.state]}>{l.finalized ? `${STATE_LABELS[l.state]} · close` : STATE_LABELS[l.state]}</StatusPill>

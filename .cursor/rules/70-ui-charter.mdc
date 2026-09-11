@@ -67,8 +67,13 @@ Focus extrême, 1 chose par écran, beaucoup de blanc, stepper, max 480px centr�
 
 ## Typographie
 
-- 1 famille principale : **Inter** (déjà via `next/font`)
-- 1 famille mono : **JetBrains Mono** (IDs, codes, raccourcis)
+- **v3.1 (sept. 2026) — « tech & moderne », même DA** : famille principale **Geist Sans** (paquet `geist`, via `app/layout.tsx`), titres h1/h2 serrés (`letter-spacing: -0.025em`, posé en global)
+- 1 famille mono : **Geist Mono** — **réservée aux identifiants, codes, SIRET, URL, raccourcis clavier**
+- **Dates, heures, montants, compteurs, pourcentages : JAMAIS en mono** → sans + `tabular-nums` (chiffres alignés). Le mono sur des dates donne un effet « terminal / prompt » à proscrire.
+- Dates dans les listes : préférer la **pastille calendrier** (mois en bandeau, jour en `text-[17px] tabular-nums`) — cf. `app/(dashboard)/sessions/page.tsx`
+- Ombres : `shadow-sm/md/lg` sont redéfinies en ombres **en couches très diffuses** (`tailwind.config.ts`) ; les boutons de marque peuvent porter une ombre teintée (`shadow-violet-700/30`)
+- Statuts : `StatusPill` porte un liseré `ring-1 ring-inset` de sa couleur (plus net que le fond seul)
+- Fond de l'espace de travail : trame de points + halo orange/violet estompé (`.bg-app-canvas` sur `<main>`)
 - **Tailles autorisées** : 11, 12 (text-xs), 13, 15, 17, 20 (text-xl), 24 (text-2xl), 30 (text-3xl pour hero only)
 - **Poids autorisés** :
   - `font-normal` (400) : texte de body

@@ -43,7 +43,7 @@ function NotifRow({ n }: { n: Notif }) {
             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${meta.tone}`}>{meta.label}</span>
           </div>
           <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 mt-1">{n.subject ?? meta.label}</p>
-          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 tabular-nums">
             {format(parseISO(n.created_at), 'dd/MM/yyyy HH:mm')}
           </p>
         </div>

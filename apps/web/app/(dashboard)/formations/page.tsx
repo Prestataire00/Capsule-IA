@@ -196,7 +196,7 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                       {f.is_published ? (<><Eye className="w-2.5 h-2.5" /> publiée</>) : (<><EyeOff className="w-2.5 h-2.5" /> brouillon</>)}
                     </span>
                     {enrolled > 0 && (
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono inline-flex items-center gap-1">
+                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums inline-flex items-center gap-1">
                         <UsersIcon className="w-3 h-3" />
                         {enrolled} apprenant{enrolled > 1 ? 's' : ''}
                       </span>

@@ -29,7 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <SidebarRailServer />
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar />
-        <main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
+        <main className="relative isolate bg-app-canvas flex-1 min-w-0 overflow-x-hidden">{children}</main>
       </div>
       <AiAssistant />
     </div>

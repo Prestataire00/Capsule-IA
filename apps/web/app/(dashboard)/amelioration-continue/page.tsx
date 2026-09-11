@@ -204,7 +204,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                 <div key={statut} className="bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-3">
                   <div className="flex items-baseline justify-between mb-3 px-1">
                     <h2 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{AXIS_STATUS_LABELS[statut]}</h2>
-                    <span className="text-[11px] font-mono text-zinc-500">{duStatut.length}</span>
+                    <span className="text-[11px] tabular-nums text-zinc-500">{duStatut.length}</span>
                   </div>
                   {duStatut.length === 0 ? (
                     <p className="text-[12px] text-zinc-400 px-1 py-2">Aucun axe.</p>

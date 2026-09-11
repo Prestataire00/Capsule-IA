@@ -1,10 +1,12 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import { cookies } from 'next/headers';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
-const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
+// Geist : sans géométrique « produit tech » ; le mono est réservé aux identifiants et codes.
+const sans = GeistSans;
+const mono = GeistMono;
 
 const COOKIE_KEY = 'i-a-infinity-theme';
 
@@ -32,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // → pas de mismatch d'hydratation, pas de risque que React l'écrase.
   const themeCookie = cookies().get(COOKIE_KEY)?.value;
   const isDark = themeCookie === 'dark';
-  const htmlClass = `${inter.variable} ${mono.variable}${isDark ? ' dark' : ''}`;
+  const htmlClass = `${sans.variable} ${mono.variable}${isDark ? ' dark' : ''}`;
 
   return (
     <html

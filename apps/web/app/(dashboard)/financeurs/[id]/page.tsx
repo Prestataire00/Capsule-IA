@@ -221,7 +221,7 @@ export default async function FinanceurDetailPage({
                     <StatusPill tone={ds.tone}>{ds.label}</StatusPill>
                     <StatusPill tone={fs.tone}>{fs.label}</StatusPill>
                   </div>
-                  <span className="font-mono text-right text-zinc-900 dark:text-zinc-100">
+                  <span className="tabular-nums text-right text-zinc-900 dark:text-zinc-100">
                     {formatEurosCents(l.amount_cents)}
                   </span>
                 </li>

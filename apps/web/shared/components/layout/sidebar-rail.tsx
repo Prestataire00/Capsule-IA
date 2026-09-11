@@ -221,14 +221,8 @@ export function SidebarRail({
         onMouseLeave={() => setHovered(null)}
       >
         {/* Icon-bar */}
-        <nav
-          className="w-20 flex flex-col items-center border-r border-orange-200/60 dark:border-zinc-800"
-          style={{
-            background:
-              'linear-gradient(180deg, hsl(24 100% 97%) 0%, hsl(24 95% 92%) 50%, hsl(24 90% 88%) 100%)',
-          }}
-        >
-          <div className="dark:hidden contents">{/* gradient clair (défaut ci-dessus) */}</div>
+        {/* Dégradé pêche en clair (DA Capsule IA) ; en sombre, zinc avec une lueur orange en pied. */}
+        <nav className="w-20 flex flex-col items-center border-r border-orange-200/60 dark:border-zinc-800/80 bg-[linear-gradient(180deg,hsl(24_100%_97%)_0%,hsl(24_95%_92%)_50%,hsl(24_90%_88%)_100%)] dark:bg-[linear-gradient(180deg,rgb(9_9_11)_0%,rgb(9_9_11)_60%,rgb(67_20_7/0.35)_100%)] shadow-[inset_-1px_0_0_rgb(255_255_255/0.6)] dark:shadow-none">
 
           {/* Logo planète + wordmark Capsule IA (empilés) */}
           <Link href="/" className="mt-4 mb-2 shrink-0 flex flex-col items-center gap-1" aria-label="Accueil">
@@ -263,7 +257,7 @@ export function SidebarRail({
                   className={cn(
                     'relative flex flex-col items-center gap-0.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
                     active
-                      ? 'bg-orange-500 text-white shadow-sm'
+                      ? 'bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-md shadow-orange-600/30 ring-1 ring-inset ring-white/20'
                       : isHover
                       ? 'bg-orange-100/70 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
                       : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
@@ -309,7 +303,7 @@ export function SidebarRail({
               className={cn(
                 'flex flex-col items-center gap-0.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
                 isActive('/parametres')
-                  ? 'bg-orange-500 text-white shadow-sm'
+                  ? 'bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-md shadow-orange-600/30 ring-1 ring-inset ring-white/20'
                   : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
               )}
               onMouseEnter={() => setHovered(null)}
@@ -376,7 +370,7 @@ export function SidebarRail({
                         className={cn(
                           'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition',
                           active
-                            ? 'bg-orange-500 text-white shadow-sm'
+                            ? 'bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-md shadow-orange-600/30 ring-1 ring-inset ring-white/20'
                             : 'bg-orange-100/70 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400 group-hover:scale-105',
                         )}
                       >

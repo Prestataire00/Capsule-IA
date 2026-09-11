@@ -171,7 +171,7 @@ export default async function FichesBesoinPage() {
                 <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
                   {formationTitle}
                 </h2>
-                <span className="text-[11px] font-mono text-zinc-400">{list.length}</span>
+                <span className="text-[11px] tabular-nums text-zinc-400">{list.length}</span>
               </div>
 
               <ul className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
@@ -196,7 +196,7 @@ export default async function FichesBesoinPage() {
                             Niveau : {LEVEL_LABELS[f.answers.currentLevel] ?? f.answers.currentLevel}
                           </span>
                         )}
-                        <span className="font-mono text-[11px] text-zinc-400">
+                        <span className="tabular-nums text-[11px] text-zinc-400">
                           {f.dateIso ? format(parseISO(f.dateIso), 'dd MMM yyyy', { locale: fr }) : '—'}
                         </span>
                       </summary>

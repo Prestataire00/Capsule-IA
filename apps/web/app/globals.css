@@ -12,25 +12,35 @@
   body {
     @apply bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100;
   }
+  /* Titres serrés : c'est ce qui donne l'allure « produit tech » à Geist. */
+  h1,
+  h2 {
+    letter-spacing: -0.025em;
+  }
+  h3 {
+    letter-spacing: -0.015em;
+  }
   :focus-visible {
-    @apply outline-none ring-2 ring-zinc-900/20 dark:ring-zinc-100/20 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-zinc-950 rounded;
+    @apply outline-none ring-2 ring-orange-500/30 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-zinc-950 rounded;
   }
   ::selection {
-    @apply bg-zinc-900/10 dark:bg-zinc-100/20;
+    @apply bg-orange-500/15 dark:bg-orange-400/25;
   }
 }
 
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgb(228 228 231 / 0.6) transparent;
+    scrollbar-color: rgb(212 212 216 / 0.7) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgb(228 228 231 / 0.6);
+    background-color: rgb(212 212 216 / 0.7);
     border-radius: 3px;
   }
+  .dark .scrollbar-thin { scrollbar-color: rgb(63 63 70 / 0.8) transparent; }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(63 63 70 / 0.8); }
 
   /* Masque totalement la barre de défilement (ex. barre d'onglets scrollable). */
   .scrollbar-hide {
@@ -38,6 +48,30 @@
     -ms-overflow-style: none;
   }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  /* Fond de l'espace de travail : trame de points + halo chaud, estompés vers le bas.
+     Posé sur <main> (qui doit être `relative isolate`) — le contenu reste au-dessus. */
+  .bg-app-canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 480px;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(60% 70% at 85% 0%, rgb(249 115 22 / 0.07), transparent 70%),
+      radial-gradient(50% 60% at 15% 0%, rgb(139 92 246 / 0.06), transparent 70%),
+      radial-gradient(circle at 1px 1px, rgb(24 24 27 / 0.07) 1px, transparent 0);
+    background-size: auto, auto, 22px 22px;
+    -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent);
+    mask-image: linear-gradient(to bottom, black 30%, transparent);
+  }
+  .dark .bg-app-canvas::before {
+    background-image:
+      radial-gradient(60% 70% at 85% 0%, rgb(249 115 22 / 0.08), transparent 70%),
+      radial-gradient(50% 60% at 15% 0%, rgb(139 92 246 / 0.1), transparent 70%),
+      radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.06) 1px, transparent 0);
+  }
 
   /* Animations utilitaires (subset de tailwindcss-animate, sans conflit avec duration-X) */
   .animate-in {

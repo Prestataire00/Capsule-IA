@@ -175,7 +175,7 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
                             <FileText className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
                             <span className="text-[12px] text-zinc-900 dark:text-zinc-100 truncate">{s.title}</span>
                             {s.fileSizeBytes && (
-                              <span className="text-[10px] text-zinc-400 font-mono">
+                              <span className="text-[10px] text-zinc-400 tabular-nums">
                                 {Math.round(s.fileSizeBytes / 1024)} Ko
                               </span>
                             )}

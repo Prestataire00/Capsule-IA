@@ -67,8 +67,8 @@ function DossierCard({ d }: { d: Row }) {
       <p className="text-[12px] text-zinc-600 dark:text-zinc-400 truncate">{d.formation?.title ?? '—'}</p>
       {d.company?.name && <p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate mt-0.5">{d.company.name}</p>}
       <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800/60">
-        <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
-        <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtEuros(d.total_amount_cents)}</span>
+        <span className="tabular-nums text-[10px] text-zinc-400 dark:text-zinc-500">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
+        <span className=" text-[11px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtEuros(d.total_amount_cents)}</span>
       </div>
     </Link>
   );
@@ -265,10 +265,10 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   <div className="text-zinc-900 dark:text-zinc-100 truncate">{learnerName(d)}</div>
                   <div className="text-zinc-500 dark:text-zinc-400 truncate">{d.company?.name ?? '—'}</div>
                   <div className="text-zinc-700 dark:text-zinc-300 truncate">{d.formation?.title ?? '—'}</div>
-                  <div className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <div className="tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
                     {fmtDate(d.start_date)} → {fmtDate(d.end_date)}
                   </div>
-                  <div className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums">
+                  <div className=" text-[11px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums">
                     {fmtEuros(d.total_amount_cents)}
                   </div>
                   <div><DossierStatusControl dossierId={d.id} status={d.status as DossierStatus} compact /></div>

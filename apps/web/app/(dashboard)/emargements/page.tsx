@@ -112,7 +112,7 @@ export default async function EmargementsPage({
                       </span>
                     )}
                   </span>
-                  <span className="font-mono text-[11px] text-zinc-600 dark:text-zinc-300 tabular-nums">{g.sheetCount}</span>
+                  <span className=" text-[11px] text-zinc-600 dark:text-zinc-300 tabular-nums">{g.sheetCount}</span>
                   <div className="flex items-center gap-2">
                     <ProgressBar
                       value={g.signedCount}
@@ -120,7 +120,7 @@ export default async function EmargementsPage({
                       tone={isFull ? 'emerald' : 'amber'}
                       size="sm"
                     />
-                    <span className="text-[11px] font-mono text-zinc-700 dark:text-zinc-300 tabular-nums w-12 text-right">
+                    <span className="text-[11px] text-zinc-700 dark:text-zinc-300 tabular-nums w-12 text-right">
                       {g.signedCount}/{g.expectedCount}
                     </span>
                   </div>

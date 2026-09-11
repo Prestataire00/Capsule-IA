@@ -519,7 +519,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                         {s.title || 'Session'}
                         {isGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">groupe</span>}
                       </span>
-                      <span className="font-mono text-[10px] text-zinc-400 shrink-0">
+                      <span className="tabular-nums text-[10px] text-zinc-400 shrink-0">
                         {new Date(s.starts_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </span>
                     </div>

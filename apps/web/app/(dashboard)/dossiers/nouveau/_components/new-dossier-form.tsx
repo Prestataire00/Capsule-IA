@@ -299,7 +299,7 @@ export function NewDossierForm({
 
               <div>
                 <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-2">
-                  Modules · <span className="font-mono">{totalHours} h</span>
+                  Modules · <span className="tabular-nums">{totalHours} h</span>
                 </p>
                 {modules.length === 0 ? (
                   <p className="text-[13px] text-zinc-500">
@@ -312,7 +312,7 @@ export function NewDossierForm({
                         key={`${m.moduleId}-${i}`}
                         className="bg-zinc-50 dark:bg-zinc-900 rounded-lg px-3 py-2.5 flex items-center gap-3 group"
                       >
-                        <span className="font-mono text-[11px] text-zinc-400 w-4">{i + 1}.</span>
+                        <span className="tabular-nums text-[11px] text-zinc-400 w-4">{i + 1}.</span>
                         <span className="text-[13px] text-zinc-900 dark:text-zinc-100 flex-1 truncate">{m.title}</span>
                         <input
                           type="number"
@@ -480,9 +480,9 @@ export function NewDossierForm({
                       }`}
                     >
                       <span>
-                        Financé : <span className="font-mono">{eurosFromCents(fundersTotalCents)}</span> ·
+                        Financé : <span className="tabular-nums">{eurosFromCents(fundersTotalCents)}</span> ·
                         Reste à charge :{' '}
-                        <span className="font-mono">{eurosFromCents(Math.max(0, resteAChargeCents ?? 0))}</span>
+                        <span className="tabular-nums">{eurosFromCents(Math.max(0, resteAChargeCents ?? 0))}</span>
                       </span>
                       {fundersOverTotal && <span className="font-medium">dépasse le total</span>}
                     </div>

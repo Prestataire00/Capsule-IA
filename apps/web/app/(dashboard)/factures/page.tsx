@@ -212,12 +212,12 @@ export default async function FacturesPage({
               ) : (
                 <span className="text-zinc-400 text-[11px]">—</span>
               )}
-              <span className="font-mono text-[11px] text-zinc-500">
+              <span className="tabular-nums text-[11px] text-zinc-500">
                 {inv.issued_at ? `Émise ${format(parseISO(inv.issued_at), 'dd MMM', { locale: fr })}` : 'Brouillon'}
                 {inv.due_at && inv.status === 'issued' && ` · échéance ${format(parseISO(inv.due_at), 'dd/MM')}`}
                 {inv.paid_at && ` · payée ${format(parseISO(inv.paid_at), 'dd/MM')}`}
               </span>
-              <span className="font-mono text-[13px] font-medium text-zinc-900 dark:text-zinc-100 text-right">
+              <span className="tabular-nums text-[13px] font-medium text-zinc-900 dark:text-zinc-100 text-right">
                 {formatEuros(inv.total_cents, inv.currency)}
               </span>
               <InvoiceStatusControl invoiceId={inv.id} status={inv.status} />

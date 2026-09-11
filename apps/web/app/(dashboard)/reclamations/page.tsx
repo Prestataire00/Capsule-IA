@@ -144,7 +144,7 @@ export default async function ReclamationsPage() {
                   <span className="text-zinc-500 dark:text-zinc-400 truncate text-[12px]">
                     {c.reporter_name ?? <span className="text-zinc-400">anonyme</span>}
                   </span>
-                  <span className="font-mono text-[11px] text-zinc-500">
+                  <span className="tabular-nums text-[11px] text-zinc-500">
                     {format(parseISO(c.created_at), 'dd MMM yyyy', { locale: fr })}
                   </span>
                   <StatusPill tone={sevTone[c.severity]}>{sevLabel[c.severity]}</StatusPill>

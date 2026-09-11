@@ -66,7 +66,7 @@ export default async function AuditPage() {
         ) : (
           lignes.map((a) => (
             <li key={a.id} className="grid grid-cols-[140px_120px_180px_1fr_180px] gap-3 py-3 px-1 items-center text-[13px]">
-              <span className="font-mono text-[11px] text-zinc-500">
+              <span className="tabular-nums text-[11px] text-zinc-500">
                 {format(parseISO(a.occurred_at), 'dd MMM HH:mm', { locale: fr })}
               </span>
               <StatusPill tone={actionTone[a.action]}>{actionLabel[a.action]}</StatusPill>

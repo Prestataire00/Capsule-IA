@@ -34,16 +34,16 @@ export async function Topbar() {
   const notifications = ((recent as any[]) ?? []) as Notif[];
 
   return (
-    <header className="h-16 flex-shrink-0 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-40 flex items-center px-6 gap-4">
+    <header className="h-16 flex-shrink-0 border-b border-zinc-200/60 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl backdrop-saturate-150 sticky top-0 z-40 flex items-center px-6 gap-4">
       <div className="flex-1" />
 
       <form action="/dossiers" method="get" className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
         <input
           type="search"
           name="q"
           placeholder="Rechercher un dossier, apprenant, formation…"
-          className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-[13px] focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
+          className="w-full h-10 bg-white dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800 rounded-xl pl-10 pr-3 text-[13px] shadow-sm transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
         />
       </form>
 

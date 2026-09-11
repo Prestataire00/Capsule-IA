@@ -358,7 +358,7 @@ export default async function QualiopiPage({
               >
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Critère {c.n}</p>
                 <p className="text-[12px] text-zinc-900 dark:text-zinc-100 max-w-[180px] truncate">{c.label}</p>
-                <p className="text-[11px] font-mono text-zinc-500 mt-0.5">
+                <p className="text-[11px] tabular-nums text-zinc-500 mt-0.5">
                   {c.ok}/{c.total}
                 </p>
               </Link>
@@ -523,7 +523,7 @@ export default async function QualiopiPage({
                     <span className="text-zinc-900 dark:text-zinc-100">{d.learnerName}</span>
                     <span className="text-zinc-500 dark:text-zinc-400 truncate">{d.formationTitle}</span>
                     <span className="text-zinc-500 dark:text-zinc-400">{dossierStatusLabel(d.status)}</span>
-                    <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
+                    <span className="tabular-nums text-[11px] text-zinc-700 dark:text-zinc-300">
                       {d.satisfied}/{d.total}
                     </span>
                     {d.ready ? (

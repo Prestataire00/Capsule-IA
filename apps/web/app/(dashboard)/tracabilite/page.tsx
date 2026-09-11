@@ -110,7 +110,7 @@ export default async function TracabilitePage({
                   key={r.id}
                   className="grid grid-cols-[150px_1fr_140px_130px_100px] gap-3 px-5 py-3 items-center text-[13px]"
                 >
-                  <span className="font-mono text-[11px] text-zinc-500">
+                  <span className="tabular-nums text-[11px] text-zinc-500">
                     {format(parseISO(r.occurred_at), 'dd MMM HH:mm', { locale: fr })}
                   </span>
                   <span className="text-zinc-700 dark:text-zinc-300 truncate">

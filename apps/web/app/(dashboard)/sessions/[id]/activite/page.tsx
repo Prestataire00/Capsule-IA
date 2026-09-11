@@ -57,7 +57,7 @@ export default async function SessionActivityTab({ params }: { params: { id: str
             <p className="text-zinc-800 dark:text-zinc-200 truncate">{r.subject ?? '—'}</p>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{r.recipient}</p>
           </div>
-          <span className="font-mono text-[11px] text-zinc-400 shrink-0">
+          <span className="tabular-nums text-[11px] text-zinc-400 shrink-0">
             {format(parseISO(r.sent_at), 'dd MMM HH:mm', { locale: fr })}
           </span>
           <StatusPill tone={r.status === 'sent' ? 'success' : 'danger'}>

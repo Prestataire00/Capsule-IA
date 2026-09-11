@@ -87,7 +87,7 @@ export default async function ReportingPage() {
                 <ul className="flex flex-wrap gap-2">
                   {funders.map(([k, n]) => (
                     <li key={k} className="inline-flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full px-3 py-1 text-[12px] text-zinc-700 dark:text-zinc-300">
-                      {FUNDER_LABEL[k] ?? k} <span className="font-mono font-medium">{n}</span>
+                      {FUNDER_LABEL[k] ?? k} <span className="tabular-nums font-medium">{n}</span>
                     </li>
                   ))}
                 </ul>

@@ -198,7 +198,7 @@ export default async function Home({
                     <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
                     <div className="flex items-center gap-2">
                       <ProgressBar value={d.progress} tone={d.progress === 100 ? 'emerald' : 'violet'} size="sm" />
-                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums w-9 text-right">
+                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums w-9 text-right">
                         {d.progress}%
                       </span>
                     </div>

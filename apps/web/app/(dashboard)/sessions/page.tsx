@@ -19,8 +19,12 @@ type SearchParams = { q?: string; formation?: string };
 type SessionRow = any;
 
 const TZ = 'Europe/Paris';
-const dayFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' });
+const dayFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, day: 'numeric' });
+const monthFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, month: 'short' });
+const weekdayFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, weekday: 'long' });
 const timeFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+
+const ROW_GRID = 'grid grid-cols-[190px_1fr_1fr_130px_110px] gap-4 px-5';
 
 const STATUS: Record<string, { label: string; tone: 'info' | 'success' | 'neutral' | 'danger' }> = {
   planned: { label: 'Planifiée', tone: 'info' },
@@ -38,12 +42,38 @@ function SessionItem({ s }: { s: SessionRow }) {
   const formation = s.formation ?? s.dossier?.formation;
   // Toutes les lignes pointent vers le hub session (page à onglets).
   const titleHref = `/sessions/${s.id}`;
+  const start = new Date(s.starts_at);
+  const isPast = new Date(s.ends_at).getTime() < Date.now();
   return (
-    <li className="grid grid-cols-[150px_1fr_1fr_130px_100px] gap-3 py-3 px-4 text-[13px] items-center hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
-      <div className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-        <span className="capitalize">{dayFmt.format(new Date(s.starts_at))}</span>
-        <br />
-        {timeFmt.format(new Date(s.starts_at))} – {timeFmt.format(new Date(s.ends_at))}
+    <li className={`${ROW_GRID} py-3 text-[13px] items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+      <div className="flex items-center gap-3 min-w-0">
+        {/* Pastille calendrier : le mois en bandeau, le jour en gros chiffres alignés. */}
+        <div
+          className={`w-11 shrink-0 rounded-lg border overflow-hidden text-center bg-white dark:bg-zinc-900 shadow-sm ${
+            isPast ? 'border-zinc-200/80 dark:border-zinc-800' : 'border-violet-200/80 dark:border-violet-900/60'
+          }`}
+        >
+          <div
+            className={`text-[10px] font-medium uppercase tracking-wider leading-4 ${
+              isPast ? 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400' : 'bg-violet-600 text-white'
+            }`}
+          >
+            {monthFmt.format(start).replace('.', '')}
+          </div>
+          <div
+            className={`text-[17px] font-medium leading-7 tabular-nums ${
+              isPast ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'
+            }`}
+          >
+            {dayFmt.format(start)}
+          </div>
+        </div>
+        <div className="min-w-0 leading-tight">
+          <p className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 capitalize">{weekdayFmt.format(start)}</p>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums mt-1">
+            {timeFmt.format(start)} – {timeFmt.format(new Date(s.ends_at))}
+          </p>
+        </div>
       </div>
       <div className="min-w-0">
         <Link href={titleHref} className="text-zinc-900 dark:text-zinc-100 hover:text-violet-600 truncate block">
@@ -180,7 +210,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   }
 
   const listHeader = (
-    <li className="grid grid-cols-[150px_1fr_1fr_130px_100px] gap-3 py-2.5 px-4 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
+    <li className={`${ROW_GRID} py-2.5 text-[10px] font-medium tracking-wider uppercase text-zinc-400 dark:text-zinc-500 bg-zinc-50/70 dark:bg-zinc-950/40`}>
       <div>Quand</div>
       <div>Session</div>
       <div>Formation</div>
@@ -202,9 +232,9 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         <ManageOnly section="catalogue">
           <Link
             href="/sessions/nouvelle"
-            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+            className="bg-gradient-to-b from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white text-[13px] font-medium px-4 h-10 rounded-xl transition shadow-sm shadow-violet-700/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             Planifier une session
           </Link>
         </ManageOnly>
@@ -218,7 +248,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
             name="q"
             defaultValue={searchParams.q}
             placeholder="Rechercher une session, un apprenant…"
-            className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md pl-9 pr-3 py-2 text-[13px] w-80 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
+            className="h-10 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl pl-9 pr-3 text-[13px] w-80 shadow-sm transition focus:outline-none focus:border-violet-300 dark:focus:border-violet-800 focus:ring-4 focus:ring-violet-500/10 placeholder:text-zinc-400"
           />
           {formationId && <input type="hidden" name="formation" value={formationId} />}
         </form>
@@ -272,22 +302,24 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         <div className="space-y-8">
           {groupList.map((g) => (
             <section key={g.formation?.id ?? 'none'}>
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-violet-500" />
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+                  <span className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/50 ring-1 ring-inset ring-violet-600/10 dark:ring-violet-400/20 flex items-center justify-center">
+                    <GraduationCap className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                  </span>
                   {g.formation ? (
-                    <Link href={`/formations/${g.formation.id}`} className="hover:text-violet-600">
+                    <Link href={`/formations/${g.formation.id}`} className="hover:text-violet-600 transition-colors">
                       {g.formation.title}
                     </Link>
                   ) : (
                     'Sessions hors formation'
                   )}
                 </h2>
-                <span className="text-[11px] text-zinc-400">
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 tabular-nums bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-full px-2.5 py-0.5">
                   {g.sessions.length} session{g.sessions.length > 1 ? 's' : ''}
                 </span>
               </div>
-              <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+              <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
                 {listHeader}
                 {g.sessions.map((s) => (
                   <SessionItem key={s.id} s={s} />

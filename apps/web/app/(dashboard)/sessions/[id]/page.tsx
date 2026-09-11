@@ -34,7 +34,7 @@ export default async function SessionOverview({ params }: { params: { id: string
             >
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{col.title}</h2>
-                <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums">
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                   {faites}/{col.steps.length}
                 </span>
               </div>
@@ -105,7 +105,7 @@ function Etape({ step }: { step: BoardStep }) {
         <span className="sr-only"> — {ETAT_LU[step.state]}</span>
       </span>
       {step.compte && (
-        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums">
+        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
           {step.total === 0 ? '—' : `${step.done}/${step.total}`}
         </span>
       )}

@@ -105,12 +105,12 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
             <li key={l.key} className="flex items-center gap-3 px-5 py-2.5 text-[13px]">
               <span className="font-mono text-[10px] text-zinc-400 w-12">{l.code}</span>
               <span className="flex-1 text-zinc-700 dark:text-zinc-300">{l.label}</span>
-              <span className="font-mono text-zinc-900 dark:text-zinc-100">{eur(financial.lines[l.key])}</span>
+              <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{eur(financial.lines[l.key])}</span>
             </li>
           ))}
           <li className="flex items-center gap-3 px-5 py-3 text-[14px] font-semibold bg-zinc-50/60 dark:bg-zinc-950/40">
             <span className="flex-1 text-zinc-900 dark:text-zinc-100">Total des produits</span>
-            <span className="font-mono text-violet-700 dark:text-violet-400">{eur(financial.totalCents)}</span>
+            <span className="tabular-nums text-violet-700 dark:text-violet-400">{eur(financial.totalCents)}</span>
           </li>
         </ul>
       </section>
@@ -155,7 +155,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <li className="flex items-center gap-3 px-5 py-2.5">
       <span className="flex-1 text-zinc-700 dark:text-zinc-300">{label}</span>
-      <span className="font-mono text-zinc-900 dark:text-zinc-100">{value}</span>
+      <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{value}</span>
     </li>
   );
 }

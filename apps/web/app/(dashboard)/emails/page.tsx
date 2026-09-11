@@ -153,7 +153,7 @@ export default async function EmailsPage({
                 key={r.id}
                 className="grid grid-cols-[130px_1fr_1fr_140px_90px_150px_90px] gap-3 px-5 py-3 items-center text-[13px]"
               >
-                <span className="font-mono text-[11px] text-zinc-500">
+                <span className="tabular-nums text-[11px] text-zinc-500">
                   {format(parseISO(r.sent_at), 'dd MMM HH:mm', { locale: fr })}
                 </span>
                 <span className="text-zinc-700 dark:text-zinc-300 truncate" title={r.recipient}>

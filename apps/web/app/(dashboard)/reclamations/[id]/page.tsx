@@ -140,7 +140,7 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
                       <span className={`text-[12px] font-medium ${isFromLearner ? 'text-rose-700 dark:text-rose-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
                         {payload.by ?? 'Système'}
                       </span>
-                      <span className="text-[10px] text-zinc-400 font-mono">
+                      <span className="text-[10px] text-zinc-400 tabular-nums">
                         {new Date(ev.occurred_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>

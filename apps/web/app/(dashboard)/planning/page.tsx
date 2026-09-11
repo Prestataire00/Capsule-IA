@@ -185,7 +185,7 @@ export default async function PlanningPage({
             {HOURS.map((h) => (
               <div key={h} className="contents">
                 <div className="h-16 border-b border-r border-zinc-100 dark:border-zinc-800/60 px-2 py-1">
-                  <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{String(h).padStart(2, '0')}:00</p>
+                  <p className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">{String(h).padStart(2, '0')}:00</p>
                 </div>
                 {days.map((_, dayIdx) => (
                   <div

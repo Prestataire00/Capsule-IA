@@ -181,14 +181,14 @@ export default async function QuestionnairesPage({
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium">{labels[kind] ?? q.template?.title ?? kind}</span>
                   <IdPill>{q.dossier?.reference ?? '—'}</IdPill>
                   <span className="text-zinc-700 dark:text-zinc-300 truncate">{q.recipient_name ?? q.recipient_email ?? '—'}</span>
-                  <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span className="tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
                     {submittedAt
                       ? `répondu ${format(parseISO(submittedAt), 'dd/MM', { locale: fr })}`
                       : q.due_at
                         ? `due ${format(parseISO(q.due_at), 'dd/MM', { locale: fr })}`
                         : '—'}
                   </span>
-                  <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span className="tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
                     {nps != null ? `${nps}/10` : '—'}
                   </span>
                   <StatusPill tone={q.status === 'completed' ? 'success' : q.status === 'expired' ? 'danger' : q.status === 'in_progress' ? 'warning' : 'info'}>

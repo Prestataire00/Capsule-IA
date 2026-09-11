@@ -111,11 +111,11 @@ export default async function HeuresRisquePage() {
                         </span>
                       )}
                     </span>
-                    <span className="font-mono text-[12px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtHours(r.hours_planned)}</span>
-                    <span className="font-mono text-[12px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtHours(r.hours_delivered)}</span>
-                    <span className="font-mono text-[12px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtHours(r.projected_final_hours)}</span>
-                    <span className="font-mono text-[12px] text-rose-600 tabular-nums">−{fmtHours(gap)}</span>
-                    <span className="font-mono text-[12px] text-zinc-500 tabular-nums">{Number(r.attendance_rate).toFixed(0)}%</span>
+                    <span className=" text-[12px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtHours(r.hours_planned)}</span>
+                    <span className=" text-[12px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtHours(r.hours_delivered)}</span>
+                    <span className=" text-[12px] text-zinc-700 dark:text-zinc-300 tabular-nums">{fmtHours(r.projected_final_hours)}</span>
+                    <span className=" text-[12px] text-rose-600 tabular-nums">−{fmtHours(gap)}</span>
+                    <span className=" text-[12px] text-zinc-500 tabular-nums">{Number(r.attendance_rate).toFixed(0)}%</span>
                   </Link>
                 </li>
               );

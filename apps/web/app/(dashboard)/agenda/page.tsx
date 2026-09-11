@@ -88,7 +88,7 @@ function AgendaListRow({ e, timeText }: { e: CalEvent; timeText: string }) {
   const inner = (
     <div className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950/40 transition">
       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: e.bgColor ?? DEFAULT_BG }} />
-      <span className="font-mono text-[12px] text-zinc-500 dark:text-zinc-400 w-[92px] flex-shrink-0 tabular-nums">
+      <span className=" text-[12px] text-zinc-500 dark:text-zinc-400 w-[92px] flex-shrink-0 tabular-nums">
         {timeText}
       </span>
       <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate flex-1">{e.title || '(sans titre)'}</span>
@@ -375,7 +375,7 @@ export default async function AgendaPage({
             {HOURS.map((h) => (
               <div key={h} className="contents">
                 <div className="border-b border-r border-zinc-100 dark:border-zinc-800/60 px-1.5 py-1" style={{ height: ROW_H }}>
-                  <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{pad(h)}:00</p>
+                  <p className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">{pad(h)}:00</p>
                 </div>
                 {days.map((d) => (
                   <div key={`${h}-${d.key}`} className="border-b border-r last:border-r-0 border-zinc-100 dark:border-zinc-800/60" style={{ height: ROW_H }} />

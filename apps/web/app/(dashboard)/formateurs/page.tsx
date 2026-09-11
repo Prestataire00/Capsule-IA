@@ -156,7 +156,7 @@ export default async function FormateursPage() {
                     }>
                       {t.is_internal ? 'Interne' : 'Externe'}
                     </span>
-                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
                       {t.contract_path ? 'contrat ✓' : 'sans contrat'}
                     </span>
                   </div>

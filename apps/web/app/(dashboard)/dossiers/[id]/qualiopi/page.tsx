@@ -237,7 +237,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                   Critère {criterion}
                   {label ? ` — ${label}` : ''}
                 </SectionLabel>
-                <span className="font-mono text-[11px] text-zinc-500">{okCount}/{applicables.length}</span>
+                <span className="tabular-nums text-[11px] text-zinc-500">{okCount}/{applicables.length}</span>
               </div>
               <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
                 {items.map((ind) => {

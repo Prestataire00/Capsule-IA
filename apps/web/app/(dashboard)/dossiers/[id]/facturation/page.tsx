@@ -317,7 +317,7 @@ export default async function FacturationPage({
                       </span>
                     )}
                   </span>
-                  <span className="font-mono text-right text-zinc-700 dark:text-zinc-300">
+                  <span className="tabular-nums text-right text-zinc-700 dark:text-zinc-300">
                     {formatEuros(f.amount_cents, currency)}
                   </span>
                   <form action={removeDossierFunder} className="text-right">
@@ -440,14 +440,14 @@ export default async function FacturationPage({
                     </span>
                   )}
                 </span>
-                <span className="font-mono text-right text-zinc-700 dark:text-zinc-300">
+                <span className="tabular-nums text-right text-zinc-700 dark:text-zinc-300">
                   {formatEuros(line.allocatedHtCents, currency)}
                 </span>
-                <span className="font-mono text-right text-zinc-700 dark:text-zinc-300">
+                <span className="tabular-nums text-right text-zinc-700 dark:text-zinc-300">
                   {formatEuros(line.invoicedHtCents, currency)}
                 </span>
                 <span
-                  className={`font-mono text-right ${
+                  className={`tabular-nums text-right ${
                     line.remainingHtCents < 0
                       ? 'text-red-600 dark:text-red-400'
                       : 'text-zinc-900 dark:text-zinc-100'
@@ -498,12 +498,12 @@ export default async function FacturationPage({
                     ? `Émise le ${format(parseISO(inv.issued_at), 'dd MMM yyyy', { locale: fr })}`
                     : 'Brouillon'}
                 </span>
-                <span className="font-mono text-[11px] text-zinc-500">
+                <span className="tabular-nums text-[11px] text-zinc-500">
                   {inv.due_at && inv.status === 'issued'
                     ? `Échéance ${format(parseISO(inv.due_at), 'dd/MM/yy')}`
                     : '—'}
                 </span>
-                <span className="font-mono text-[13px] font-medium text-zinc-900 dark:text-zinc-100 text-right">
+                <span className="tabular-nums text-[13px] font-medium text-zinc-900 dark:text-zinc-100 text-right">
                   {formatEuros(inv.total_cents, inv.currency)}
                 </span>
                 <StatusPill tone={statusTone[inv.status]}>{statusLabel[inv.status]}</StatusPill>

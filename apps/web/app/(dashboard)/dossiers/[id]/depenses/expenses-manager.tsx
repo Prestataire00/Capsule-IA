@@ -130,7 +130,7 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
                     {[r.supplier_name, r.label].filter(Boolean).join(' · ') || '—'}
                   </p>
                 </div>
-                <span className="text-right font-mono text-zinc-900 dark:text-zinc-100">{eur(r.amount_cents)}</span>
+                <span className="text-right tabular-nums text-zinc-900 dark:text-zinc-100">{eur(r.amount_cents)}</span>
                 <span className="text-right text-[12px] text-zinc-500">
                   {r.incurred_on ? new Date(r.incurred_on).toLocaleDateString('fr-FR') : '—'}
                 </span>
@@ -147,7 +147,7 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
             ))}
             <li className="px-4 py-3 grid grid-cols-[1fr_120px_90px_40px] gap-3 items-center text-[13px] bg-zinc-50/60 dark:bg-zinc-950/40 font-semibold">
               <span>Total des charges du dossier</span>
-              <span className="text-right font-mono text-violet-700 dark:text-violet-400">{eur(total)}</span>
+              <span className="text-right tabular-nums text-violet-700 dark:text-violet-400">{eur(total)}</span>
               <span />
               <span />
             </li>

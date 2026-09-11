@@ -220,7 +220,7 @@ export default async function TracabilitePage({
                         <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">
                           {targetLabel(row, resourceTitles)}
                         </span>
-                        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">
+                        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
                           {targetKindLabel(row.target_kind)}
                         </span>
                       </div>
@@ -228,7 +228,7 @@ export default async function TracabilitePage({
                         <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
                           {actorLabel(row.actor_kind)}
                         </span>
-                        <span className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                        <span className="text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">
                           {formatDateFR(row.occurred_at)}
                         </span>
                       </div>

@@ -72,7 +72,7 @@ export function DonutLegend({ data }: { data: Slice[] }) {
         <li key={s.label} className="flex items-center gap-2.5 text-[13px]">
           <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: s.color }} />
           <span className="text-zinc-700 dark:text-zinc-300 flex-1 truncate">{s.label}</span>
-          <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+          <span className=" text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
             {Math.round((s.value / total) * 100)}%
           </span>
         </li>

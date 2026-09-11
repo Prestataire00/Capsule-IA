@@ -39,7 +39,7 @@ export function HalfDaySheetBlock({
             {heure(sheet.windowStart)}–{heure(sheet.windowEnd)} · entrée puis sortie, avec le même lien
           </p>
         </div>
-        <span className="text-[12px] font-mono text-zinc-500 dark:text-zinc-400">
+        <span className="text-[12px] tabular-nums text-zinc-500 dark:text-zinc-400">
           {traites}/{attendus.length} traité{attendus.length > 1 ? 's' : ''}
         </span>
       </header>
