@@ -1,101 +1,69 @@
 'use server';
 
-import { headers } from 'next/headers';
-import { createHash } from 'node:crypto';
-import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
+import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
+import { recordAttendanceStep } from '@/features/attendance/record-step';
 
-const PNG_DATAURL_PREFIX = 'data:image/png;base64,';
-const MAX_PNG_BYTES = 512 * 1024;
-
-const adminClient = () =>
-  createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-export type RecordSignatureInput = {
-  readonly token: string;
-  readonly dataUrl: string;
-};
-
-export type RecordSignatureResult =
-  | { ok: true; signatureId: string; hash: string; signedAt: string }
+export type SignStepResult =
+  | {
+      ok: true;
+      signedAt: string;
+      status: string;
+      lateArrival: string | null;
+      earlyDeparture: string | null;
+      /** Après la sortie : l'espace de formation de l'apprenant. */
+      espaceUrl: string | null;
+    }
   | { ok: false; error: string };
 
-export const recordSignature = async (
-  input: RecordSignatureInput,
-): Promise<RecordSignatureResult> => {
+/**
+ * Signature par lien personnel (ou QR, même URL) : entrée puis sortie.
+ * Sans dessin, la confirmation n'est acceptée que pour une séance à distance
+ * ou hybride (vérifié en base).
+ *
+ * Une fois l'entrée et la sortie signées, l'apprenant reçoit l'accès à son
+ * espace de formation : avoir signé avec son lien personnel prouve qu'il le
+ * détient (principe repris de SoSafe).
+ */
+export async function signStep(input: { token: string; moment: 'entry' | 'exit'; dataUrl: string | null }): Promise<SignStepResult> {
   const verified = await verifySignatureToken(input.token);
-  if (!verified.ok) {
-    return { ok: false, error: verified.error };
-  }
+  if (!verified.ok) return { ok: false, error: verified.error };
   const { attendanceSheetId, signerId, signerKind, jti } = verified.value;
+  if (input.moment !== 'entry' && input.moment !== 'exit') return { ok: false, error: 'invalid_moment' };
 
-  if (!input.dataUrl.startsWith(PNG_DATAURL_PREFIX)) {
-    return { ok: false, error: 'invalid_image_format' };
-  }
-  const b64 = input.dataUrl.slice(PNG_DATAURL_PREFIX.length);
-  const buffer = Buffer.from(b64, 'base64');
-  if (buffer.length === 0) return { ok: false, error: 'empty_image' };
-  if (buffer.length > MAX_PNG_BYTES) return { ok: false, error: 'image_too_large' };
-
-  const h = await headers();
-  const cfIp = h.get('cf-connecting-ip');
-  const xff = h.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const xreal = h.get('x-real-ip');
-  const ip = cfIp || xff || xreal || '0.0.0.0';
-  const userAgent = h.get('user-agent') ?? 'unknown';
-  const cfCountry = h.get('cf-ipcountry');
-  const country =
-    cfCountry && cfCountry !== 'XX' && cfCountry.length === 2 ? cfCountry.toUpperCase() : null;
-  const signedAt = new Date().toISOString();
-
-  const signatureHash = createHash('sha256')
-    .update(buffer)
-    .update('|')
-    .update(ip)
-    .update('|')
-    .update(userAgent)
-    .update('|')
-    .update(signedAt)
-    .update('|')
-    .update(jti)
-    .digest('hex');
-
-  const sb = adminClient();
-  const path = `${attendanceSheetId}/${signerKind}/${signerId}.png`;
-
-  const upload = await sb.storage.from('signatures').upload(path, buffer, {
-    contentType: 'image/png',
-    upsert: true,
+  const r = await recordAttendanceStep({
+    sheetId: attendanceSheetId,
+    signerId,
+    signerKind,
+    moment: input.moment,
+    dataUrl: input.dataUrl,
+    tokenJti: jti,
+    captureMode: input.dataUrl ? 'lien' : 'visio',
+    actorUserId: null,
   });
-  if (upload.error) {
-    return { ok: false, error: `storage_upload_failed: ${upload.error.message}` };
+  if (!r.ok) return r;
+
+  let espaceUrl: string | null = null;
+  if (input.moment === 'exit' && signerKind === 'learner' && env.PUBLIC_APP_URL) {
+    const { data } = await supabaseAdmin()
+      .schema('app')
+      .rpc('get_signature_context' as never, {
+        p_attendance_sheet_id: attendanceSheetId,
+        p_signer_id: signerId,
+        p_signer_kind: signerKind,
+      } as never)
+      .maybeSingle();
+    const ctx = data as { learner_dossier_id: string | null; organization_id: string } | null;
+    if (ctx?.learner_dossier_id) {
+      const espace = await generateApprenantUrl(
+        { learnerId: signerId, organizationId: ctx.organization_id, dossierId: ctx.learner_dossier_id },
+        env.PUBLIC_APP_URL,
+      );
+      espaceUrl = espace.url;
+    }
   }
 
-  const { data, error } = await sb.schema('app').rpc('record_attendance_signature' as never, {
-    p_attendance_sheet_id: attendanceSheetId,
-    p_signer_id: signerId,
-    p_signer_kind: signerKind,
-    p_image_path: path,
-    p_signature_hash: signatureHash,
-    p_signer_ip: ip,
-    p_signer_user_agent: userAgent,
-    p_signer_country: country,
-    p_token_jti: jti,
-    p_evidence_source: 'qr',
-    p_evidence_payload: null,
-  } as never);
-
-  if (error) {
-    return { ok: false, error: `rpc_failed: ${error.message}` };
-  }
-
-  return {
-    ok: true,
-    signatureId: data as unknown as string,
-    hash: signatureHash,
-    signedAt,
-  };
-};
+  return { ok: true, signedAt: r.signedAt, status: r.status, lateArrival: r.lateArrival, earlyDeparture: r.earlyDeparture, espaceUrl };
+}

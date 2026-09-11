@@ -33,11 +33,16 @@ export type SignatureTokenError =
   | 'expired_token'
   | 'invalid_payload';
 
+/**
+ * `emission` : identifiant et échéance d'un jeton déjà enregistré en base,
+ * pour le ré-émettre à l'identique (voir `issueAttendanceLink`).
+ */
 export const generateSignatureToken = async (
   payload: SignaturePayload,
+  emission?: { readonly jti: string; readonly expiresAt: Date },
 ): Promise<SignedToken> => {
-  const jti = randomUUID();
-  const expiresAt = new Date(Date.now() + TTL_SECONDS * 1000);
+  const jti = emission?.jti ?? randomUUID();
+  const expiresAt = emission?.expiresAt ?? new Date(Date.now() + TTL_SECONDS * 1000);
 
   const token = await new SignJWT({
     sheet: payload.attendanceSheetId,

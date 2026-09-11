@@ -35,6 +35,9 @@ const GUARDS = [
   'verifyApprenantToken',
   'verifyQuestionnaireToken',
   'verifySignatureToken',
+  // Émargement : utilisateur connecté + feuille ou séance lue sous RLS.
+  'accessibleSheet',
+  'accessibleSession',
 ];
 
 function routeFiles(dir: string, out: string[] = []): string[] {
@@ -83,6 +86,8 @@ describe('routes API et service_role', () => {
       'assertSessionAccess',
       'canAccessDossier',
       'auth.getUser',
+      'accessibleSheet',
+      'accessibleSession',
     ];
 
     const walk = (dir: string, out: string[] = []): string[] => {

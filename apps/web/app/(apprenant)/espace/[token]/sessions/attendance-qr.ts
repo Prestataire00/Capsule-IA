@@ -1,7 +1,7 @@
 import 'server-only';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
-import { generateSignatureUrl } from '@/features/attendance/generate-signature-url';
+import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link';
 import { renderQrPng } from '@/shared/lib/qr';
 import { env } from '@/env.mjs';
 
@@ -60,22 +60,25 @@ export async function loadSessionSignatureQRs(token: string): Promise<Map<string
   const { data: sigs } = await admin
     .schema('app')
     .from('attendance_signatures')
-    .select('attendance_sheet_id, signed_at')
+    .select('attendance_sheet_id, signed_at, exit_signed_at')
     .in('attendance_sheet_id', sheetRows.map((s) => s.id))
     .eq('participant_kind', 'learner')
     .eq('learner_id', learnerId);
   const signedSet = new Set<string>();
-  for (const s of (sigs ?? []) as { attendance_sheet_id: string; signed_at: string | null }[]) {
-    if (s.signed_at) signedSet.add(s.attendance_sheet_id);
+  // Terminé quand l'entrée ET la sortie sont signées.
+  for (const s of (sigs ?? []) as unknown as { attendance_sheet_id: string; signed_at: string | null; exit_signed_at: string | null }[]) {
+    if (s.signed_at && s.exit_signed_at) signedSet.add(s.attendance_sheet_id);
   }
 
   for (const sheet of sheetRows) {
-    const { url } = await generateSignatureUrl({
-      attendanceSheetId: sheet.id,
+    const lien = await issueAttendanceLink({
+      sheetId: sheet.id,
       signerId: learnerId,
       signerKind: 'learner',
       baseUrl: env.PUBLIC_APP_URL,
     });
+    if (!lien.ok) continue;
+    const url = lien.link.url;
     const png = await renderQrPng(url, { width: 240 });
     const qrDataUrl = `data:image/png;base64,${png.toString('base64')}`;
     const arr = out.get(sheet.session_id) ?? [];
