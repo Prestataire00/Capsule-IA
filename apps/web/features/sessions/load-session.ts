@@ -149,13 +149,15 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
   for (const r of (sigsRows as { attendance_sheet_id: string; status: string }[] | null) ?? []) {
     const acc = parFeuille.get(r.attendance_sheet_id) ?? { total: 0, signed: 0 };
     acc.total += 1;
-    if (r.status === 'signed') acc.signed += 1;
+    // Présences (signées ou attestées) ; « signed » n'est pas un statut : le compteur restait à 0.
+    if (r.status === 'present' || r.status === 'late' || r.status === 'remote') acc.signed += 1;
     parFeuille.set(r.attendance_sheet_id, acc);
   }
 
   const sheets: SessionSheet[] = sheetRows.map((sh) => ({
     ...sh,
-    total: parFeuille.get(sh.id)?.total ?? 0,
+    // Sur les apprenants attendus : une ligne n'existe qu'une fois la présence recueillie.
+    total: learners.length,
     signed: parFeuille.get(sh.id)?.signed ?? 0,
   }));
 

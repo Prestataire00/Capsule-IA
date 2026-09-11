@@ -209,7 +209,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         .eq('participant_kind', 'learner')
         .in('attendance_sheet_id', sheetIds);
       const sigs = ((sigRows as { status: string }[] | null) ?? []);
-      const signed = sigs.filter((s) => s.status === 'signed').length;
+      const signed = sigs.filter((s) => s.status === 'present' || s.status === 'late' || s.status === 'remote').length;
       presenceRate = sigs.length ? Math.round((signed / sigs.length) * 100) : null;
     }
   }

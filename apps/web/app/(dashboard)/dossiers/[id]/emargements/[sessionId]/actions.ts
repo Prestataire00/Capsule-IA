@@ -139,7 +139,7 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
     sb
       .schema('app')
       .from('attendance_signatures')
-      .select('participant_kind, learner_id, trainer_id, signer_ip, signer_country, evidence_source, signature_image_path')
+      .select('participant_kind, learner_id, trainer_id, signer_ip, signer_country, evidence_source, signature_image_path, exit_image_path')
       .eq('attendance_sheet_id', ref.id),
   ]);
   const ctx = ctxData as unknown as {
@@ -155,6 +155,7 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
     signer_country: string | null;
     evidence_source: PdfSignatureLine['evidenceSource'] | null;
     signature_image_path: string | null;
+    exit_image_path: string | null;
   };
   const sigs = new Map<string, Sig>();
   for (const g of (sigsData ?? []) as unknown as Sig[]) sigs.set(`${g.participant_kind}:${g.learner_id ?? g.trainer_id}`, g);
@@ -162,11 +163,10 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
   const lines: PdfSignatureLine[] = [];
   for (const p of feuille.participants) {
     const g = sigs.get(`${p.kind}:${p.id}`);
-    let url: string | null = null;
-    if (g?.signature_image_path) {
-      const { data: u } = await sb.storage.from('signatures').createSignedUrl(g.signature_image_path, 300);
-      url = u?.signedUrl ?? null;
-    }
+    const signer = async (chemin: string | null | undefined) =>
+      chemin ? ((await sb.storage.from('signatures').createSignedUrl(chemin, 300)).data?.signedUrl ?? null) : null;
+    const url = await signer(g?.signature_image_path);
+    const exitUrl = await signer(g?.exit_image_path);
     lines.push({
       participantKind: p.kind,
       fullName: p.fullName,
@@ -177,6 +177,12 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
       signerCountry: g?.signer_country ?? null,
       evidenceSource: g?.evidence_source ?? 'manual',
       signatureSignedUrl: url,
+      exitAt: p.exitAt,
+      exitSignatureUrl: exitUrl,
+      lateArrival: p.lateArrival,
+      earlyDeparture: p.earlyDeparture,
+      absenceReason: p.absenceReason,
+      captureMode: p.captureMode,
     });
   }
 

@@ -6,7 +6,10 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getRecentDossiers } from '@/features/reports/recent-dossiers.query';
 import { getCurrentMember, roleLabel } from '@/shared/lib/auth/current-member';
 
-async function fetchSidebarCounts(): Promise<SidebarCounts> {
+// Service role : chaque compteur est borné à l'organisation du membre — sans ce
+// filtre, les badges additionnaient les données de tous les organismes.
+async function fetchSidebarCounts(orgId: string | null): Promise<SidebarCounts> {
+  if (!orgId) return {};
   try {
     const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -17,16 +20,21 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
         .schema('app')
         .from('complaints')
         .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
         .in('status', ['open', 'in_progress']),
       sb
         .schema('app')
-        .from('attendance_signatures')
-        .select('id', { count: 'exact', head: true })
-        .is('signed_at', null),
+        .from('attendance_sheets')
+        // Feuilles à clôturer : séance terminée, feuille encore ouverte.
+        .select('id, sessions!inner(ends_at)', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .neq('status', 'finalized')
+        .lt('sessions.ends_at', new Date().toISOString()),
       sb
         .schema('app')
         .from('questionnaire_responses')
         .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
         .in('status', ['pending', 'in_progress']),
       sb
         .schema('app')
@@ -35,6 +43,7 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
         // simplement émise (en attente de paiement normal) ne fait pas clignoter
         // le badge en permanence.
         .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
         .eq('status', 'overdue'),
       sb
         .schema('app')
@@ -42,6 +51,7 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
         .select('id', { count: 'exact', head: true })
         .eq('validation_status', 'pending_validation')
         .is('converted_dossier_id', null)
+        .eq('organization_id', orgId)
         .is('deleted_at', null),
     ]);
 
@@ -59,7 +69,8 @@ async function fetchSidebarCounts(): Promise<SidebarCounts> {
 }
 
 export async function SidebarRailServer() {
-  const [counts, me] = await Promise.all([fetchSidebarCounts(), getCurrentMember()]);
+  const me = await getCurrentMember();
+  const counts = await fetchSidebarCounts(me?.organizationId ?? null);
   const user = me ? { fullName: me.fullName, roleLabel: roleLabel(me.role), role: me.role } : undefined;
   // Les « Récents » du menu Dossiers venaient du module de démonstration : trois
   // dossiers fictifs, les mêmes pour tous les organismes (audit CAP-28).

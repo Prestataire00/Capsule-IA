@@ -2,38 +2,27 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Taux d'assiduité d'un dossier, en % : signatures effectivement signées sur
- * signatures attendues, toutes feuilles d'émargement du dossier confondues.
- * Retourne 100 quand aucune feuille n'existe (dossier sans émargement attendu).
+ * Taux d'assiduité d'un dossier, en % : heures réellement suivies sur heures
+ * dispensées, demi-journée par demi-journée, retards et départs anticipés
+ * déduits (`app.recompute_dossier_hours`, 0146).
+ *
+ * L'ancien calcul divisait les signatures posées par les lignes existantes —
+ * or une ligne n'existait qu'une fois signée : ≈ 100 % en toutes
+ * circonstances, reporté tel quel sur les attestations.
+ *
+ * Tant qu'aucune séance n'a été dispensée, rien n'était attendu : 100.
  */
-export async function computeDossierAttendanceRate(
-  sb: SupabaseClient,
-  dossierId: string,
-): Promise<number> {
-  const { data: sheets } = await sb
+export async function computeDossierAttendanceRate(sb: SupabaseClient, dossierId: string): Promise<number> {
+  const { error } = await sb.schema('app').rpc('recompute_dossier_hours' as never, { p_dossier_id: dossierId } as never);
+  if (error) console.error('[assiduité] recalcul des heures impossible', error.message);
+
+  const { data } = await sb
     .schema('app')
-    .from('attendance_sheets')
-    .select('id')
-    .eq('dossier_id', dossierId);
-
-  const sheetIds = (sheets ?? []).map((s: { id: string }) => s.id);
-  if (sheetIds.length === 0) return 100;
-
-  const [{ count: totalCount }, { count: signedCount }] = await Promise.all([
-    sb
-      .schema('app')
-      .from('attendance_signatures')
-      .select('id', { count: 'exact', head: true })
-      .in('attendance_sheet_id', sheetIds),
-    sb
-      .schema('app')
-      .from('attendance_signatures')
-      .select('id', { count: 'exact', head: true })
-      .in('attendance_sheet_id', sheetIds)
-      .not('signed_at', 'is', null),
-  ]);
-
-  const total = totalCount ?? 0;
-  const signed = signedCount ?? 0;
-  return total > 0 ? (signed / total) * 100 : 100;
+    .from('dossier_hours_tracking' as never)
+    .select('hours_delivered, attendance_rate')
+    .eq('dossier_id' as never, dossierId as never)
+    .maybeSingle();
+  const h = data as { hours_delivered: number | string; attendance_rate: number | string } | null;
+  if (!h || Number(h.hours_delivered) <= 0) return 100;
+  return Number(h.attendance_rate);
 }

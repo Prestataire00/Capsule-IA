@@ -26,7 +26,7 @@ function fmtHours(n: number): string {
 
 export default async function HeuresRisquePage() {
   const sb = supabaseServer();
-  // RLS : dossier_hours_tracking est scopé à l'organisation du JWT (policy dossier_hours_tracking_rw).
+  // RLS : dossier_hours_tracking est lisible pour l'organisation du JWT (policy dossier_hours_tracking_select, 0146).
   // Select plat + cast : la table n'est pas (encore) dans database.ts (cf. page par-dossier).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trackingTable = sb.schema('app').from('dossier_hours_tracking' as never) as any;
