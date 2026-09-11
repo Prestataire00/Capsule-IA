@@ -128,7 +128,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
         </Link>
         {isPdf ? (
           <a
-            href={`/api/documents/${doc.id}`}
+            href={`/api/documents/${doc.id}?dl=1`}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
@@ -142,13 +142,29 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
       </div>
 
       {isPdf ? (
-        <div className="max-w-[900px] mx-auto rounded-sm shadow-lg overflow-hidden bg-white">
-          <iframe
-            src={`/api/documents/${doc.id}`}
-            title={doc.title}
-            className="w-full bg-white"
-            style={{ height: '85vh', border: 'none' }}
-          />
+        <div className="max-w-[900px] mx-auto">
+          <div className="rounded-sm shadow-lg overflow-hidden bg-white">
+            <object data={`/api/documents/${doc.id}`} type={doc.mime_type ?? 'application/pdf'} className="w-full bg-white" style={{ height: '85vh' }}>
+              {/* Repli si le navigateur n'affiche pas le PDF dans la page (Safari, lecteurs désactivés). */}
+              <div className="p-10 text-center">
+                <p className="text-[14px] text-zinc-700">Votre navigateur n&apos;affiche pas le document ici.</p>
+                <a
+                  href={`/api/documents/${doc.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition"
+                >
+                  Ouvrir le document
+                </a>
+              </div>
+            </object>
+          </div>
+          <p className="no-print text-center text-[12px] text-zinc-500 dark:text-zinc-400 mt-3">
+            L&apos;aperçu ne s&apos;affiche pas ?{' '}
+            <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-orange-600 dark:text-orange-400 hover:underline">
+              Ouvrir le document dans un nouvel onglet
+            </a>
+          </p>
         </div>
       ) : (
         <>

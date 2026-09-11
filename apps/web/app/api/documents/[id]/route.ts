@@ -1,23 +1,39 @@
 // ARCHETYPE: command
-// Téléchargement d'un document (staff). Autorisation via RLS (supabaseServer) :
-// si l'utilisateur voit le document, on renvoie une URL signée courte.
+// Consultation / téléchargement d'un document (staff). Autorisation via RLS
+// (supabaseServer) : si l'utilisateur voit le document, on lui sert le fichier.
+//
+// Le fichier est relayé depuis NOTRE domaine, pas par une redirection vers l'URL
+// signée du stockage : Safari refuse d'afficher un PDF d'un autre domaine dans un
+// cadre intégré, et l'aperçu restait blanc. `?dl=1` force le téléchargement.
 import { NextResponse, type NextRequest } from 'next/server';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
+/** Nom de fichier sûr pour l'en-tête Content-Disposition. */
+function safeName(title: string | null, path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? 'pdf';
+  const base = (title ?? 'document')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9 ._-]/g, '')
+    .trim()
+    .slice(0, 80) || 'document';
+  return base.toLowerCase().endsWith(`.${ext}`) ? base : `${base}.${ext}`;
+}
+
+export async function GET(req: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
   const sb = supabaseServer();
   const { data: doc } = await sb
     .schema('app')
     .from('documents')
-    .select('id, storage_path')
+    .select('id, title, storage_path, mime_type')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
 
-  const row = doc as { id: string; storage_path: string | null } | null;
+  const row = doc as { id: string; title: string | null; storage_path: string | null; mime_type: string | null } | null;
   if (!row || !row.storage_path) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
@@ -29,5 +45,20 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'signing_failed' }, { status: 500 });
   }
 
-  return NextResponse.redirect(signed.signedUrl);
+  const upstream = await fetch(signed.signedUrl);
+  if (!upstream.ok || !upstream.body) {
+    console.error('[api/documents] lecture du fichier impossible:', upstream.status, row.storage_path);
+    return NextResponse.json({ error: 'file_unreadable' }, { status: 502 });
+  }
+
+  const disposition = req.nextUrl.searchParams.get('dl') === '1' ? 'attachment' : 'inline';
+  const headers = new Headers({
+    'Content-Type': row.mime_type ?? upstream.headers.get('content-type') ?? 'application/octet-stream',
+    'Content-Disposition': `${disposition}; filename="${safeName(row.title, row.storage_path)}"`,
+    'Cache-Control': 'private, max-age=60',
+  });
+  const length = upstream.headers.get('content-length');
+  if (length) headers.set('Content-Length', length);
+
+  return new Response(upstream.body, { headers });
 }
