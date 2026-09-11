@@ -2,12 +2,12 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Copy, GraduationCap, Link2, Loader2, MonitorCheck, PenLine, SlidersHorizontal, User as UserIcon, X } from 'lucide-react';
+import { Check, Copy, GraduationCap, Link2, Loader2, LogOut, MonitorCheck, PenLine, SlidersHorizontal, User as UserIcon, X } from 'lucide-react';
 import { SignaturePad, type SignaturePadHandle } from '@/features/attendance/signature-pad';
 import { STATE_LABELS, STATUS_LABELS, type AttendanceStatus, type ParticipantState } from '@/features/attendance/completeness';
 import { MARK_STATUSES, attendanceErrorLabel } from '@/features/attendance/schemas';
 import type { ParticipantRow, SheetView } from '@/features/attendance/queries/load-session-emargement';
-import { generateParticipantSignatureLink, markAttendance, signOnDevice } from './actions';
+import { attestExit, generateParticipantSignatureLink, markAttendance, signOnDevice } from './actions';
 
 const TON: Record<ParticipantState, string> = {
   complet: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -22,19 +22,21 @@ const heure = (iso: string | null) =>
 
 const champ =
   'text-[12px] px-2 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30';
+// Cible tactile d'au moins 32 px : la grille sert aussi au formateur sur téléphone.
 const bouton =
-  'inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition disabled:opacity-40';
+  'inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 min-h-8 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition disabled:opacity-40';
 
 type Tablette = { participant: ParticipantRow; moment: 'entry' | 'exit' } | null;
 
 /**
  * Grille d'une demi-journée : entrée, sortie et état de chaque participant ;
  * lien personnel, signature sur l'appareil (mode tablette), marquage par
- * l'équipe (présent, retard, absent, excusé, départ anticipé).
+ * l'équipe (présent, retard, absent, excusé, départ anticipé), sortie attestée.
  */
 export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: string }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState<string | null>(null);
+  const [sortie, setSortie] = useState<string | null>(null);
   const [liens, setLiens] = useState<Record<string, string>>({});
   const [copie, setCopie] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
   const [pending, start] = useTransition();
   const verrou = sheet.finalized;
   const aDistance = modality === 'distanciel' || modality === 'hybride';
+  const finFenetre = heure(sheet.windowEnd) ?? '17:00';
 
   const presentVisio = (p: ParticipantRow) => {
     setErreur(null);
@@ -77,7 +80,7 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
         </p>
       )}
       <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
-        <li className="hidden sm:grid grid-cols-[1fr_72px_72px_120px_auto] gap-2 px-3 py-2 text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        <li className="hidden sm:grid grid-cols-[1fr_80px_80px_120px_auto] gap-2 px-3 py-2 text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           <span>Participant</span>
           <span>Entrée</span>
           <span>Sortie</span>
@@ -88,15 +91,12 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
           const k = `${p.kind}:${p.id}`;
           const Icone = p.kind === 'learner' ? GraduationCap : UserIcon;
           const entree = heure(p.entryAt) ?? (p.attestedAt ? 'attestée' : null);
+          const sortieTxt = p.exitAt ? `${heure(p.exitAt)}${p.exitAttested ? ' (attestée)' : ''}` : null;
           const aSigner = p.state === 'a_signer' || p.state === 'absent' || p.state === 'excuse';
-          const momentTablette: 'entry' | 'exit' | null = p.entryAt
-            ? p.kind === 'learner' && !p.exitAt
-              ? 'exit'
-              : null
-            : 'entry';
+          const momentTablette: 'entry' | 'exit' | null = p.entryAt ? (p.kind === 'learner' && !p.exitAt ? 'exit' : null) : 'entry';
           return (
             <li key={k} className="px-3 py-2.5">
-              <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_72px_72px_120px_auto] gap-2 items-center text-[13px]">
+              <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_120px_auto] gap-2 items-center text-[13px]">
                 <div className="flex items-center gap-2 min-w-0">
                   <Icone className={`w-4 h-4 flex-shrink-0 ${p.kind === 'learner' ? 'text-rose-500' : 'text-blue-500'}`} aria-hidden />
                   <span className="truncate text-zinc-900 dark:text-zinc-100">{p.fullName}</span>
@@ -107,16 +107,22 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
                   {p.lateArrival && <span className="block text-[10px] text-amber-600">retard {p.lateArrival}</span>}
                 </span>
                 <span className="hidden sm:block font-mono text-[12px] text-zinc-600 dark:text-zinc-300">
-                  {heure(p.exitAt) ?? (p.kind === 'trainer' ? '' : '—')}
+                  {sortieTxt ?? (p.kind === 'trainer' ? '' : '—')}
                   {p.earlyDeparture && <span className="block text-[10px] text-amber-600">départ {p.earlyDeparture}</span>}
                 </span>
                 <span className={`hidden sm:inline-flex w-fit text-[11px] px-2 py-0.5 rounded-full ${TON[p.state]}`}>{STATE_LABELS[p.state]}</span>
                 {!verrou && (
-                  <div className="flex items-center gap-1 justify-end">
+                  <div className="flex flex-wrap items-center gap-1 justify-end">
                     {momentTablette && (
                       <button type="button" className={bouton} onClick={() => setTablette({ participant: p, moment: momentTablette })}>
                         <PenLine className="w-3.5 h-3.5" />
                         {momentTablette === 'entry' ? 'Signer l’entrée' : 'Signer la sortie'}
+                      </button>
+                    )}
+                    {p.kind === 'learner' && p.state === 'entree_seule' && (
+                      <button type="button" className={bouton} onClick={() => setSortie(sortie === k ? null : k)} aria-expanded={sortie === k}>
+                        <LogOut className="w-3.5 h-3.5" />
+                        Attester la sortie
                       </button>
                     )}
                     {aDistance && p.kind === 'learner' && p.state === 'a_signer' && (
@@ -130,21 +136,26 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
                         <Link2 className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {p.kind === 'learner' && (
-                      <button
-                        type="button"
-                        className={bouton}
-                        onClick={() => setOuvert(ouvert === k ? null : k)}
-                        aria-expanded={ouvert === k}
-                        aria-label={`Marquer la présence de ${p.fullName}`}
-                      >
-                        <SlidersHorizontal className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className={bouton}
+                      onClick={() => setOuvert(ouvert === k ? null : k)}
+                      aria-expanded={ouvert === k}
+                      aria-label={`Marquer la présence de ${p.fullName}`}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 )}
               </div>
-              <span className={`sm:hidden inline-flex mt-1 text-[11px] px-2 py-0.5 rounded-full ${TON[p.state]}`}>{STATE_LABELS[p.state]}</span>
+              {/* Sur téléphone : état, entrée et sortie sous le nom. */}
+              <div className="sm:hidden mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                <span className={`inline-flex px-2 py-0.5 rounded-full ${TON[p.state]}`}>{STATE_LABELS[p.state]}</span>
+                <span className="font-mono">
+                  Entrée {entree ?? '—'}
+                  {p.kind === 'learner' ? ` · Sortie ${sortieTxt ?? '—'}` : ''}
+                </span>
+              </div>
               {p.absenceReason && <p className="text-[11px] text-zinc-500 mt-1">Motif : {p.absenceReason}</p>}
 
               {liens[k] && (
@@ -163,6 +174,18 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
                     {copie === k ? 'Copié' : 'Copier'}
                   </button>
                 </div>
+              )}
+
+              {sortie === k && !verrou && (
+                <AttesteurSortie
+                  sheetId={sheet.id}
+                  participant={p}
+                  defaut={finFenetre}
+                  onDone={() => {
+                    setSortie(null);
+                    router.refresh();
+                  }}
+                />
               )}
 
               {ouvert === k && !verrou && (
@@ -195,11 +218,50 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
   );
 }
 
+function AttesteurSortie({ sheetId, participant, defaut, onDone }: { sheetId: string; participant: ParticipantRow; defaut: string; onDone: () => void }) {
+  const [valeur, setValeur] = useState(defaut);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <div className="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800 space-y-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-[11px] text-zinc-500 space-y-1">
+          <span className="block">Heure de sortie</span>
+          <input type="time" value={valeur} onChange={(e) => setValeur(e.target.value)} className={champ} />
+        </label>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              setErreur(null);
+              const r = await attestExit({ sheetId, learnerId: participant.id, exitTime: valeur.slice(0, 5) });
+              if (r.ok) onDone();
+              else setErreur(attendanceErrorLabel(r.error));
+            })
+          }
+          className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 disabled:opacity-40"
+        >
+          {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Attester la sortie
+        </button>
+      </div>
+      <p className="text-[11px] text-zinc-500">
+        Vous attestez que {participant.fullName} est resté(e) jusqu’à cette heure. La sortie sera notée « attestée par l’équipe ».
+      </p>
+      {erreur && <p role="alert" className="text-[12px] text-red-600 dark:text-red-400">{erreur}</p>}
+    </div>
+  );
+}
+
 function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; participant: ParticipantRow; onDone: () => void }) {
+  const formateur = participant.kind === 'trainer';
+  const statuts: readonly AttendanceStatus[] = formateur ? ['present', 'absent'] : MARK_STATUSES;
   const [statut, setStatut] = useState<AttendanceStatus>(participant.status ?? 'present');
   const [arrivee, setArrivee] = useState(participant.lateArrival ?? '');
   const [depart, setDepart] = useState(participant.earlyDeparture ?? '');
   const [motif, setMotif] = useState(participant.absenceReason ?? '');
+  const [source, setSource] = useState<'grille' | 'papier'>('grille');
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const absent = statut === 'absent' || statut === 'absent_justified';
@@ -210,14 +272,14 @@ function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; p
         <label className="text-[11px] text-zinc-500 space-y-1">
           <span className="block">Statut</span>
           <select value={statut} onChange={(e) => setStatut(e.target.value as AttendanceStatus)} className={champ}>
-            {MARK_STATUSES.map((s) => (
+            {statuts.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABELS[s]}
               </option>
             ))}
           </select>
         </label>
-        {!absent && (
+        {!absent && !formateur && (
           <>
             <label className="text-[11px] text-zinc-500 space-y-1">
               <span className="block">Arrivée (retard)</span>
@@ -229,6 +291,13 @@ function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; p
             </label>
           </>
         )}
+        <label className="text-[11px] text-zinc-500 space-y-1">
+          <span className="block">D’après</span>
+          <select value={source} onChange={(e) => setSource(e.target.value as 'grille' | 'papier')} className={champ}>
+            <option value="grille">Constat de l’équipe</option>
+            <option value="papier">Feuille papier signée</option>
+          </select>
+        </label>
       </div>
       {absent && (
         <label className="block text-[11px] text-zinc-500 space-y-1">
@@ -251,10 +320,12 @@ function MarqueurPresence({ sheetId, participant, onDone }: { sheetId: string; p
               const r = await markAttendance({
                 sheetId,
                 learnerId: participant.id,
+                signerKind: participant.kind,
                 status: statut,
-                lateArrival: absent ? null : arrivee.slice(0, 5) || null,
-                earlyDeparture: absent ? null : depart.slice(0, 5) || null,
+                lateArrival: absent || formateur ? null : arrivee.slice(0, 5) || null,
+                earlyDeparture: absent || formateur ? null : depart.slice(0, 5) || null,
                 reason: absent ? motif.trim() || null : null,
+                captureMode: source,
               });
               if (r.ok) onDone();
               else setErreur(attendanceErrorLabel(r.error));

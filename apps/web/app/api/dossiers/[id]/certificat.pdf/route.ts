@@ -74,18 +74,21 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     contact_email: string | null;
   } | null) ?? null;
 
-  // Heures réalisées : source de vérité = dossier_hours_tracking (moteur 0061/0062).
-  // Fallback : durée prévue du dossier + taux d'assiduité calculé sur émargements.
+  // Heures réalisées = heures SUIVIES par l'apprenant (retards, départs anticipés
+  // et absences déduits), recalculées à la demande (0146, 0147). Le certificat
+  // reprenait les heures dispensées : un absent y figurait pour la durée complète.
+  await sb.schema('app').rpc('recompute_dossier_hours' as never, { p_dossier_id: params.id } as never);
   const { data: hoursRow } = await sb
     .schema('app')
     .from('dossier_hours_tracking')
-    .select('hours_planned, hours_delivered, attendance_rate')
+    .select('hours_planned, hours_delivered, hours_attended, attendance_rate')
     .eq('dossier_id', params.id)
     .maybeSingle();
-  const hours = hoursRow as { hours_planned: number; hours_delivered: number; attendance_rate: number } | null;
+  const hours = hoursRow as { hours_planned: number; hours_delivered: number; hours_attended: number; attendance_rate: number } | null;
 
   const plannedHours = hours?.hours_planned ?? d.total_hours;
-  const deliveredHours = hours?.hours_delivered ?? d.total_hours;
+  // Sans aucune séance dispensée (organisme qui n'émarge pas dans Capsule), la durée prévue.
+  const deliveredHours = hours && Number(hours.hours_delivered) > 0 ? Number(hours.hours_attended) : d.total_hours;
   const attendanceRate = hours?.attendance_rate ?? (await computeDossierAttendanceRate(sb, params.id));
 
   const branding = await loadOrgBranding(sb as never, d.organization_id);

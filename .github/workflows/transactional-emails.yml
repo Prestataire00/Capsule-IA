@@ -5,10 +5,10 @@ name: Emails transactionnels (quotidien)
 # formation, rappels programmés (app.email_schedules), etc.
 # Nécessite le secret de dépôt CRON_SECRET (même valeur que la variable
 # d'environnement CRON_SECRET côté Railway).
+# Désormais planifiée par la base (pg_cron + pg_net, migration 0147) : un second
+# déclenchement quotidien ici enverrait les e-mails en double.
 on:
-  schedule:
-    - cron: '0 7 * * *' # tous les jours à 07:00 UTC (~09:00 Paris en été)
-  workflow_dispatch: {} # permet un déclenchement manuel depuis l'onglet Actions
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
 
 concurrency:
   group: transactional-emails

@@ -11,19 +11,33 @@ import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link
 import { recordAttendanceStep } from '@/features/attendance/record-step';
 import { sendSheetLinks, type SendLinksResult } from '@/features/attendance/send-links';
 import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
-import { attendanceErrorCode, deviceSignatureSchema, markSchema, type DeviceSignatureInput, type MarkInput } from '@/features/attendance/schemas';
+import {
+  attendanceErrorCode,
+  attestExitSchema,
+  deviceSignatureSchema,
+  markSchema,
+  type AttestExitInput,
+  type DeviceSignatureInput,
+  type MarkInput,
+} from '@/features/attendance/schemas';
 
 /**
  * Actions d'émargement de l'équipe et du formateur.
  *
- * Toutes écrivent en service role : chacune vérifie d'abord, sous RLS, que
- * l'utilisateur voit la feuille (ou la séance) visée — équipe de l'organisme
- * ou formateur de la séance. Elles n'agissaient jusqu'ici sur aucune garde.
+ * Toutes écrivent en service role : chacune vérifie d'abord le rôle
+ * (gestion de l'émargement) et, sous RLS, l'accès à la feuille ou à la séance.
+ * Aucun message brut de la base n'est renvoyé au navigateur.
  */
 
 const ATTENDANCE_THRESHOLD = 0.75;
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+function erreur(contexte: string, e: { message: string }): { ok: false; error: string } {
+  const code = attendanceErrorCode(e.message);
+  if (code === 'erreur_inconnue') console.error(`[émargement] ${contexte}`, e);
+  return { ok: false, error: code };
+}
 
 async function estAttendu(sessionId: string, kind: 'learner' | 'trainer', id: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin()
@@ -35,7 +49,7 @@ async function estAttendu(sessionId: string, kind: 'learner' | 'trainer', id: st
   );
 }
 
-// ── Lien personnel ─────────────────────────────────────────────────────────
+// ── Lien personnel, remis par l'équipe ─────────────────────────────────────
 export async function generateParticipantSignatureLink(input: {
   sheetId: string;
   participantId: string;
@@ -47,11 +61,14 @@ export async function generateParticipantSignatureLink(input: {
   if (!(await estAttendu(acces.value.session_id, input.participantKind, input.participantId))) {
     return { ok: false, error: 'signer_not_expected' };
   }
+  // Lien tracé « équipe » : la signature faite avec lui est rattachée à qui l'a émis.
   const r = await issueAttendanceLink({
     sheetId: input.sheetId,
     signerId: input.participantId,
     signerKind: input.participantKind,
     baseUrl: env.PUBLIC_APP_URL,
+    channel: 'equipe',
+    issuedBy: acces.userId,
   });
   if (!r.ok) return { ok: false, error: r.error };
   return { ok: true, url: r.link.url, expiresAt: r.link.expiresAt.toISOString() };
@@ -66,7 +83,8 @@ export async function markAttendance(input: MarkInput): Promise<Result> {
 
   const { error } = await supabaseAdmin().schema('app').rpc('set_attendance_mark' as never, {
     p_attendance_sheet_id: p.data.sheetId,
-    p_learner_id: p.data.learnerId,
+    p_signer_id: p.data.learnerId,
+    p_signer_kind: p.data.signerKind,
     p_status: p.data.status,
     p_late_arrival: p.data.lateArrival ?? null,
     p_early_departure: p.data.earlyDeparture ?? null,
@@ -74,11 +92,53 @@ export async function markAttendance(input: MarkInput): Promise<Result> {
     p_capture_mode: p.data.captureMode,
     p_actor: acces.userId,
   } as never);
-  if (error) {
-    const code = attendanceErrorCode(error.message);
-    if (code === 'erreur_inconnue') console.error('[émargement] marquage refusé', error);
-    return { ok: false, error: code === 'erreur_inconnue' ? error.message : code };
+  if (error) return erreur('marquage refusé', error);
+  return { ok: true };
+}
+
+/** Clôture en vue : les apprenants qui n'ont rien signé sont marqués absents. */
+export async function markUnsignedAbsent(input: { sheetId: string }): Promise<Result<{ marked: number }>> {
+  const acces = await accessibleSheet(input.sheetId);
+  if (!acces.ok) return { ok: false, error: acces.error };
+  const vue = await loadSessionEmargement(supabaseServer(), acces.value.session_id);
+  const feuille = vue?.sheets.find((s) => s.id === input.sheetId);
+  if (!feuille) return { ok: false, error: 'attendance_sheet_not_found' };
+  const cibles = feuille.participants.filter((p) => p.kind === 'learner' && p.expected && p.state === 'a_signer');
+  if (cibles.length === 0) return { ok: false, error: 'nothing_to_mark' };
+
+  const sb = supabaseAdmin();
+  let marked = 0;
+  for (const p of cibles) {
+    const { error } = await sb.schema('app').rpc('set_attendance_mark' as never, {
+      p_attendance_sheet_id: input.sheetId,
+      p_signer_id: p.id,
+      p_signer_kind: 'learner',
+      p_status: 'absent',
+      p_late_arrival: null,
+      p_early_departure: null,
+      p_reason: null,
+      p_capture_mode: 'grille',
+      p_actor: acces.userId,
+    } as never);
+    if (error) return erreur('marquage groupé refusé', error);
+    marked++;
   }
+  return { ok: true, marked };
+}
+
+/** L'apprenant a oublié de signer sa sortie : l'équipe l'atteste, avec l'heure. */
+export async function attestExit(input: AttestExitInput): Promise<Result> {
+  const p = attestExitSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'saisie_invalide' };
+  const acces = await accessibleSheet(p.data.sheetId);
+  if (!acces.ok) return { ok: false, error: acces.error };
+  const { error } = await supabaseAdmin().schema('app').rpc('attest_attendance_exit' as never, {
+    p_attendance_sheet_id: p.data.sheetId,
+    p_learner_id: p.data.learnerId,
+    p_exit_time: p.data.exitTime,
+    p_actor: acces.userId,
+  } as never);
+  if (error) return erreur('sortie attestée refusée', error);
   return { ok: true };
 }
 
@@ -122,13 +182,33 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
   const ref = acces.value;
   if (ref.status === 'finalized') return { ok: false, error: 'attendance_sheet_finalized' };
 
-  // Même règle que l'écran, vérifiée côté serveur.
+  const sb = supabaseAdmin();
+  // Verrou : la feuille passe « en cours de clôture ». Plus aucune signature ni
+  // aucun marquage n'y entre (déclencheur 0147), et un second clic échoue ici.
+  const { data: verrou } = await sb
+    .schema('app')
+    .from('attendance_sheets')
+    .update({ status: 'completed' })
+    .eq('id', ref.id)
+    .in('status', ['open', 'partial'])
+    .select('id');
+  if (!verrou?.length) return { ok: false, error: 'finalize_in_progress' };
+  const relacher = async () => {
+    await sb.schema('app').from('attendance_sheets').update({ status: 'open' }).eq('id', ref.id).eq('status', 'completed');
+  };
+
+  // Même règle que l'écran, vérifiée sur l'état verrouillé.
   const vue = await loadSessionEmargement(supabaseServer(), ref.session_id);
   const feuille = vue?.sheets.find((sh) => sh.id === ref.id);
-  if (!vue || !feuille) return { ok: false, error: 'attendance_sheet_not_found' };
-  if (!feuille.ready) return { ok: false, error: 'sheet_incomplete' };
+  if (!vue || !feuille) {
+    await relacher();
+    return { ok: false, error: 'attendance_sheet_not_found' };
+  }
+  if (!feuille.ready) {
+    await relacher();
+    return { ok: false, error: 'sheet_incomplete' };
+  }
 
-  const sb = supabaseAdmin();
   const [{ data: ctxData }, { data: sigsData }] = await Promise.all([
     sb
       .schema('app')
@@ -139,7 +219,7 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
     sb
       .schema('app')
       .from('attendance_signatures')
-      .select('participant_kind, learner_id, trainer_id, signer_ip, signer_country, evidence_source, signature_image_path, exit_image_path')
+      .select('participant_kind, learner_id, trainer_id, evidence_source, signature_image_path, exit_image_path')
       .eq('attendance_sheet_id', ref.id),
   ]);
   const ctx = ctxData as unknown as {
@@ -151,34 +231,30 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
     participant_kind: 'learner' | 'trainer';
     learner_id: string | null;
     trainer_id: string | null;
-    signer_ip: string | null;
-    signer_country: string | null;
     evidence_source: PdfSignatureLine['evidenceSource'] | null;
     signature_image_path: string | null;
     exit_image_path: string | null;
   };
   const sigs = new Map<string, Sig>();
   for (const g of (sigsData ?? []) as unknown as Sig[]) sigs.set(`${g.participant_kind}:${g.learner_id ?? g.trainer_id}`, g);
+  const signer = async (chemin: string | null | undefined) =>
+    chemin ? ((await sb.storage.from('signatures').createSignedUrl(chemin, 300)).data?.signedUrl ?? null) : null;
 
   const lines: PdfSignatureLine[] = [];
   for (const p of feuille.participants) {
     const g = sigs.get(`${p.kind}:${p.id}`);
-    const signer = async (chemin: string | null | undefined) =>
-      chemin ? ((await sb.storage.from('signatures').createSignedUrl(chemin, 300)).data?.signedUrl ?? null) : null;
-    const url = await signer(g?.signature_image_path);
-    const exitUrl = await signer(g?.exit_image_path);
     lines.push({
       participantKind: p.kind,
       fullName: p.fullName,
-      status:
-        p.status === 'absent_justified' ? 'excused' : p.status === 'remote' ? 'present' : (p.status ?? 'absent'),
+      status: p.status === 'absent_justified' ? 'excused' : p.status === 'remote' ? 'present' : (p.status ?? 'absent'),
       signedAt: p.entryAt ?? p.attestedAt,
-      signerIp: g?.signer_ip ?? null,
-      signerCountry: g?.signer_country ?? null,
+      signerIp: null,
+      signerCountry: null,
       evidenceSource: g?.evidence_source ?? 'manual',
-      signatureSignedUrl: url,
+      signatureSignedUrl: await signer(g?.signature_image_path),
       exitAt: p.exitAt,
-      exitSignatureUrl: exitUrl,
+      exitSignatureUrl: await signer(g?.exit_image_path),
+      exitAttested: p.exitAttested,
       lateArrival: p.lateArrival,
       earlyDeparture: p.earlyDeparture,
       absenceReason: p.absenceReason,
@@ -195,14 +271,15 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
       formationTitle: ctx?.dossiers?.formations?.title ?? ctx?.sessions?.formation?.title ?? ctx?.sessions?.title ?? '—',
       organizationName: ctx?.organizations?.name ?? '—',
       organizationLogoUrl: ctx?.organizations?.logo_url ?? null,
-      sessionStartsAt: new Date(vue.session.startsAt),
-      sessionEndsAt: new Date(vue.session.endsAt),
+      sessionStartsAt: new Date(feuille.windowStart),
+      sessionEndsAt: new Date(feuille.windowEnd),
       modality: vue.session.modality,
       location: vue.session.location,
       lines,
     });
   } catch (e) {
     console.error('[émargement] PDF non généré', e);
+    await relacher();
     return { ok: false, error: 'pdf_render_failed' };
   }
 
@@ -210,7 +287,10 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
   const documentId = randomUUID();
   const chemin = `${ref.organization_id}/emargements/${ref.id}-${documentId}.pdf`;
   const up = await sb.storage.from('documents').upload(chemin, pdf, { contentType: 'application/pdf', upsert: false });
-  if (up.error) return { ok: false, error: 'storage_upload_failed' };
+  if (up.error) {
+    await relacher();
+    return { ok: false, error: 'storage_upload_failed' };
+  }
 
   const { error: docErr } = await sb
     .schema('app')
@@ -227,23 +307,26 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
       file_size_bytes: pdf.length,
       file_hash: hash,
       generated_at: new Date().toISOString(),
-      metadata: { attendance_sheet_id: ref.id },
+      metadata: { attendance_sheet_id: ref.id, session_id: ref.session_id },
     } as never);
   if (docErr) {
     await sb.storage.from('documents').remove([chemin]);
+    await relacher();
     return { ok: false, error: 'documents_insert_failed' };
   }
 
-  const { error: majErr } = await sb
+  const { data: clos, error: majErr } = await sb
     .schema('app')
     .from('attendance_sheets')
     .update({ status: 'finalized', finalized_at: new Date().toISOString(), finalized_by: acces.userId, document_id: documentId })
     .eq('id', ref.id)
-    .neq('status', 'finalized');
-  if (majErr) {
-    // La feuille n'est pas clôturée : on ne laisse pas un PDF orphelin présenté comme définitif.
+    .eq('status', 'completed')
+    .select('id');
+  if (majErr || !clos?.length) {
+    // La feuille n'est pas clôturée : pas de PDF orphelin présenté comme définitif.
     await sb.schema('app').from('documents').delete().eq('id', documentId);
     await sb.storage.from('documents').remove([chemin]);
+    await relacher();
     return { ok: false, error: 'finalize_update_failed' };
   }
   return { ok: true, documentId, documentPath: chemin, hash };
@@ -285,13 +368,17 @@ export async function importZoomCsv(input: {
   const acces = await accessibleSheet(input.sheetId);
   if (!acces.ok) return { ok: false, error: acces.error };
   if (acces.value.session_id !== input.sessionId) return { ok: false, error: 'forbidden' };
-  if (acces.value.status === 'finalized') return { ok: false, error: 'attendance_sheet_finalized' };
+  if (acces.value.status !== 'open' && acces.value.status !== 'partial') return { ok: false, error: 'attendance_sheet_finalized' };
+  if (typeof input.csvContent !== 'string' || input.csvContent.length > 2_000_000) return { ok: false, error: 'parse_failed' };
 
   const sb = supabaseAdmin();
-  const { data: sessionRow } = await sb.schema('app').from('sessions').select('starts_at, ends_at').eq('id', input.sessionId).maybeSingle();
-  const session = sessionRow as { starts_at: string; ends_at: string } | null;
-  if (!session) return { ok: false, error: 'session_dates_missing' };
-  const sessionMinutes = Math.round((new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()) / 60_000);
+  // Présence mesurée sur la demi-journée de la feuille, pas sur la séance entière.
+  const { data: w } = await sb.schema('app').rpc('attendance_sheet_window' as never, { p_sheet_id: input.sheetId } as never).maybeSingle();
+  const fenetre = w as { window_start: string; window_end: string } | null;
+  if (!fenetre) return { ok: false, error: 'session_dates_missing' };
+  const debut = new Date(fenetre.window_start).getTime();
+  const fin = new Date(fenetre.window_end).getTime();
+  const minutesFenetre = Math.max(1, Math.round((fin - debut) / 60_000));
 
   const parsed = parseZoomCsv(input.csvContent);
   if (!parsed.ok) return { ok: false, error: `parse_failed:${parsed.error.code}` };
@@ -301,9 +388,7 @@ export async function importZoomCsv(input: {
   const learnerIds = ((attendus ?? []) as { participant_kind: string; participant_id: string }[])
     .filter((e) => e.participant_kind === 'learner')
     .map((e) => e.participant_id);
-  const { data: learners } = learnerIds.length
-    ? await sb.schema('app').from('learners').select('id, email').in('id', learnerIds)
-    : { data: [] };
+  const { data: learners } = learnerIds.length ? await sb.schema('app').from('learners').select('id, email').in('id', learnerIds) : { data: [] };
   const parEmail = new Map<string, string>();
   for (const l of (learners ?? []) as { id: string; email: string | null }[]) {
     const e = l.email?.toLowerCase().trim();
@@ -312,7 +397,10 @@ export async function importZoomCsv(input: {
 
   const { error: archiveErr } = await sb.storage
     .from('zoom_imports')
-    .upload(`${input.sheetId}/${Date.now()}-${input.csvFilename}`, input.csvContent, { contentType: 'text/csv', upsert: false });
+    .upload(`${input.sheetId}/${Date.now()}-${input.csvFilename.replace(/[^\w.-]/g, '_').slice(0, 120)}`, input.csvContent, {
+      contentType: 'text/csv',
+      upsert: false,
+    });
   if (archiveErr) console.error('[zoom-csv] archive du fichier impossible', archiveErr.message);
 
   let matched = 0;
@@ -323,11 +411,15 @@ export async function importZoomCsv(input: {
       unmatchedRows.push(row);
       continue;
     }
+    const minutes =
+      row.joinTime && row.leaveTime
+        ? Math.max(0, (Math.min(fin, row.leaveTime.getTime()) - Math.max(debut, row.joinTime.getTime())) / 60_000)
+        : row.durationMinutes;
     // Précédence humaine : une signature n'est jamais remplacée par un journal Zoom.
     const { error } = await sb.schema('app').rpc('record_zoom_attendance' as never, {
       p_attendance_sheet_id: input.sheetId,
       p_learner_id: learnerId,
-      p_status: row.durationMinutes >= ATTENDANCE_THRESHOLD * sessionMinutes ? 'present' : 'late',
+      p_status: minutes >= ATTENDANCE_THRESHOLD * minutesFenetre ? 'present' : 'late',
       p_signature_hash: createHash('sha256').update(row.rawLine).digest('hex'),
       p_evidence_source: 'zoom_csv',
       p_evidence_payload: {
@@ -378,7 +470,7 @@ export async function ensureSessionSheets(sessionId: string): Promise<EnsureShee
   const { data, error } = await supabaseAdmin()
     .schema('app')
     .rpc('materialize_attendance_slots' as never, { p_session_id: sessionId } as never);
-  if (error) return { ok: false, error: error.message };
+  if (error) return erreur('création des feuilles impossible', error);
   return { ok: true, created: (data as number | null) ?? 0 };
 }
 
@@ -393,28 +485,18 @@ export async function convertLegacyFullSheet(sessionId: string): Promise<Convert
   if (!acces.ok) return { ok: false, error: acces.error };
   const sb = supabaseAdmin();
 
-  const { data: full } = await sb
-    .schema('app')
-    .from('attendance_sheets')
-    .select('id, status')
-    .eq('session_id', sessionId)
-    .eq('half_day', 'full')
-    .maybeSingle();
+  const { data: full } = await sb.schema('app').from('attendance_sheets').select('id, status').eq('session_id', sessionId).eq('half_day', 'full').maybeSingle();
   if (!full) return { ok: false, error: 'no_full_sheet' };
   const fullSheet = full as { id: string; status: string };
   if (fullSheet.status === 'finalized') return { ok: false, error: 'full_sheet_finalized' };
 
-  const { count } = await sb
-    .schema('app')
-    .from('attendance_signatures')
-    .select('*', { count: 'exact', head: true })
-    .eq('attendance_sheet_id', fullSheet.id);
+  const { count } = await sb.schema('app').from('attendance_signatures').select('*', { count: 'exact', head: true }).eq('attendance_sheet_id', fullSheet.id);
   if ((count ?? 0) > 0) return { ok: false, error: 'full_sheet_has_signatures' };
 
   const { error: delErr } = await sb.schema('app').from('attendance_sheets').delete().eq('id', fullSheet.id);
-  if (delErr) return { ok: false, error: delErr.message };
+  if (delErr) return erreur('suppression de la feuille journée impossible', delErr);
 
   const { data, error } = await sb.schema('app').rpc('materialize_attendance_slots' as never, { p_session_id: sessionId } as never);
-  if (error) return { ok: false, error: error.message };
+  if (error) return erreur('création des feuilles impossible', error);
   return { ok: true, created: (data as number | null) ?? 0 };
 }

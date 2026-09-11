@@ -1,8 +1,6 @@
 import { AlertCircle, Check, Clock, Lock } from 'lucide-react';
-import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { SignerForm, type SignerContext } from './signer-form';
 
 export const dynamic = 'force-dynamic';
@@ -10,58 +8,52 @@ export const dynamic = 'force-dynamic';
 type SignatureContextRow = {
   signer_full_name: string | null;
   signer_kind: 'learner' | 'trainer';
-  learner_dossier_id: string | null;
   dossier_reference: string | null;
   formation_title: string | null;
   session_title: string | null;
-  session_starts_at: string;
-  session_ends_at: string;
   session_modality: string;
   half_day: string | null;
   window_start: string;
   window_end: string;
-  organization_id: string;
   organization_name: string;
   sheet_finalized: boolean;
   expected: boolean;
   entry_signed_at: string | null;
   exit_signed_at: string | null;
+  attendance_status: string | null;
 };
 
 const HALF_DAY: Record<string, string> = { morning: 'Matin', afternoon: 'Après-midi', full: 'Journée', evening: 'Soirée' };
+const PARIS = 'Europe/Paris';
+const date = (iso: string) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: PARIS }).format(new Date(iso));
+const heure = (iso: string) => new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: PARIS }).format(new Date(iso));
 
 function FullScreenMessage({
   icon,
   tone,
   title,
   description,
-  action,
 }: {
   icon: React.ReactNode;
   tone: 'error' | 'warning' | 'success';
   title: string;
   description: React.ReactNode;
-  action?: React.ReactNode;
 }) {
   const toneClasses = {
     error: 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
     warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400',
     success: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
   }[tone];
-
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="max-w-[400px] text-center">
         <div className={`w-16 h-16 rounded-full ${toneClasses} flex items-center justify-center mx-auto mb-4`}>{icon}</div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{title}</h1>
         <div className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">{description}</div>
-        {action && <div className="mt-6">{action}</div>}
       </div>
     </div>
   );
 }
-
-const date = (iso: string) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' }).format(new Date(iso));
 
 export default async function SignerPage({ params }: { params: { token: string } }) {
   const verified = await verifySignatureToken(params.token);
@@ -84,7 +76,7 @@ export default async function SignerPage({ params }: { params: { token: string }
   }
 
   const { attendanceSheetId, signerId, signerKind } = verified.value;
-  // Route publique : la fonction est réservée au service role (0130, 0145).
+  // Route publique : la fonction est réservée au service role.
   const { data, error } = await supabaseAdmin()
     .schema('app')
     .rpc('get_signature_context' as never, {
@@ -93,15 +85,9 @@ export default async function SignerPage({ params }: { params: { token: string }
       p_signer_kind: signerKind,
     } as never)
     .maybeSingle();
-
   if (error || !data) {
     return (
-      <FullScreenMessage
-        tone="error"
-        icon={<AlertCircle className="w-8 h-8" />}
-        title="Émargement introuvable"
-        description="Cette feuille de présence n’existe plus."
-      />
+      <FullScreenMessage tone="error" icon={<AlertCircle className="w-8 h-8" />} title="Émargement introuvable" description="Cette feuille de présence n’existe plus." />
     );
   }
   const row = data as unknown as SignatureContextRow;
@@ -117,17 +103,8 @@ export default async function SignerPage({ params }: { params: { token: string }
     );
   }
 
-  const termine = row.entry_signed_at && (signerKind === 'trainer' || row.exit_signed_at);
-  if (termine) {
-    let espace: string | null = null;
-    if (signerKind === 'learner' && row.learner_dossier_id && env.PUBLIC_APP_URL) {
-      espace = (
-        await generateApprenantUrl(
-          { learnerId: signerId, organizationId: row.organization_id, dossierId: row.learner_dossier_id },
-          env.PUBLIC_APP_URL,
-        )
-      ).url;
-    }
+  // Terminé : pas d'accès à l'espace depuis cette page, qui s'ouvre avec le seul lien.
+  if (row.entry_signed_at && (signerKind === 'trainer' || row.exit_signed_at)) {
     return (
       <FullScreenMessage
         tone="success"
@@ -135,21 +112,14 @@ export default async function SignerPage({ params }: { params: { token: string }
         title="Émargement complet"
         description={
           <>
-            Entrée signée le {date(row.entry_signed_at!)}
+            Entrée signée le {date(row.entry_signed_at)}
             {row.exit_signed_at && (
               <>
                 <br />
-                Sortie signée le {date(row.exit_signed_at)}
+                Sortie enregistrée le {date(row.exit_signed_at)}
               </>
             )}
           </>
-        }
-        action={
-          espace ? (
-            <a href={espace} className="inline-flex bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2.5 rounded-md">
-              Accéder à mon espace de formation
-            </a>
-          ) : undefined
         }
       />
     );
@@ -166,6 +136,44 @@ export default async function SignerPage({ params }: { params: { token: string }
     );
   }
 
+  if (!row.entry_signed_at && (row.attendance_status === 'absent' || row.attendance_status === 'absent_justified')) {
+    return (
+      <FullScreenMessage
+        tone="warning"
+        icon={<AlertCircle className="w-8 h-8" />}
+        title="Vous êtes noté(e) absent(e)"
+        description="Si vous êtes présent(e), signalez-le à votre formateur : il pourra corriger la feuille ou vous faire signer sur place."
+      />
+    );
+  }
+
+  // Fenêtre de signature, vérifiée avant de faire dessiner quoi que ce soit.
+  const maintenant = Date.now();
+  const ouverture = new Date(row.window_start).getTime() - 60 * 60_000;
+  const fermetureEntree = new Date(row.window_end).getTime();
+  const fermetureSortie = fermetureEntree + 120 * 60_000;
+  const etape = row.entry_signed_at ? 'exit' : 'entry';
+  if (maintenant < ouverture) {
+    return (
+      <FullScreenMessage
+        tone="warning"
+        icon={<Clock className="w-8 h-8" />}
+        title="L’émargement n’est pas encore ouvert"
+        description={`Revenez à partir de ${heure(new Date(ouverture).toISOString())} (${HALF_DAY[row.half_day ?? 'full'] ?? 'journée'} du ${date(row.window_start).split(' à ')[0]}).`}
+      />
+    );
+  }
+  if ((etape === 'entry' && maintenant > fermetureEntree) || (etape === 'exit' && maintenant > fermetureSortie)) {
+    return (
+      <FullScreenMessage
+        tone="warning"
+        icon={<Lock className="w-8 h-8" />}
+        title="L’émargement de cette demi-journée est fermé"
+        description="Contactez votre formateur ou l’organisme : ils peuvent corriger la feuille de présence."
+      />
+    );
+  }
+
   const context: SignerContext = {
     signerFullName: row.signer_full_name ?? 'Signataire',
     signerKind,
@@ -178,5 +186,5 @@ export default async function SignerPage({ params }: { params: { token: string }
     organizationName: row.organization_name,
   };
 
-  return <SignerForm token={params.token} context={context} initialStep={row.entry_signed_at ? 'exit' : 'entry'} entrySignedAt={row.entry_signed_at} />;
+  return <SignerForm token={params.token} context={context} initialStep={etape} entrySignedAt={row.entry_signed_at} />;
 }

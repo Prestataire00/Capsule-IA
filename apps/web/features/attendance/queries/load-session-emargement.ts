@@ -34,6 +34,8 @@ export type ParticipantRow = {
   /** Présence attestée sans signature (équipe, Zoom). */
   readonly attestedAt: string | null;
   readonly exitAt: string | null;
+  /** Sortie attestée par l'équipe (l'apprenant avait oublié de signer). */
+  readonly exitAttested: boolean;
   readonly lateArrival: string | null;
   readonly earlyDeparture: string | null;
   readonly absenceReason: string | null;
@@ -75,6 +77,7 @@ type SignatureRow = {
   status: AttendanceStatus;
   signed_at: string | null;
   exit_signed_at: string | null;
+  exit_attested_by?: string | null;
   capture_mode: string | null;
   evidence_source: string | null;
   late_arrival_time: string | null;
@@ -115,7 +118,7 @@ export async function loadSessionEmargement(
     .schema('app')
     .from('attendance_sheets')
     .select(
-      'id, half_day, status, finalized_at, document_id, signatures:attendance_signatures(participant_kind, learner_id, trainer_id, status, signed_at, exit_signed_at, capture_mode, evidence_source, late_arrival_time, early_departure_time, absence_reason)',
+      'id, half_day, status, finalized_at, document_id, signatures:attendance_signatures(participant_kind, learner_id, trainer_id, status, signed_at, exit_signed_at, exit_attested_by, capture_mode, evidence_source, late_arrival_time, early_departure_time, absence_reason)',
     )
     .eq('session_id', sessionId);
   if (sheetsError) throw sheetsError;
@@ -169,11 +172,17 @@ export async function loadSessionEmargement(
 
   const debut = new Date(s.starts_at);
   const fin = new Date(s.ends_at);
+  // Fenêtres calculées par la base (pause déjeuner de l'organisme) ; repli local.
+  const fenetres = new Map<string, { start: Date; end: Date }>();
+  const { data: fenData } = await admin.schema('app').rpc('attendance_session_windows' as never, { p_session_id: sessionId } as never);
+  for (const f of (fenData ?? []) as { sheet_id: string; window_start: string; window_end: string }[]) {
+    fenetres.set(f.sheet_id, { start: new Date(f.window_start), end: new Date(f.window_end) });
+  }
 
   const sheets: SheetView[] = sheetRows
     .map((sheet) => {
       const halfDay: HalfDay = sheet.half_day ?? 'full';
-      const fenetre = halfDayWindow(debut, fin, halfDay);
+      const fenetre = fenetres.get(sheet.id) ?? halfDayWindow(debut, fin, halfDay);
       const parSignataire = new Map<string, SignatureRow>();
       for (const g of sheet.signatures ?? []) {
         const id = g.learner_id ?? g.trainer_id;
@@ -205,6 +214,7 @@ export async function loadSessionEmargement(
             entryAt: faits && isSelfSigned(faits) ? faits.signedAt : null,
             attestedAt: faits && isAttested(faits) ? faits.signedAt : null,
             exitAt: g?.exit_signed_at ?? null,
+            exitAttested: Boolean(g?.exit_attested_by),
             lateArrival: hhmm(g?.late_arrival_time ?? null),
             earlyDeparture: hhmm(g?.early_departure_time ?? null),
             absenceReason: g?.absence_reason ?? null,

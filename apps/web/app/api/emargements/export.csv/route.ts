@@ -83,7 +83,8 @@ const cell = (v: string | number | null | undefined): string => {
 export async function GET(req: Request) {
   const membre = await getCurrentMember();
   if (!membre) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
-  if (can(membre.role, 'attendance') === 'none') {
+  // Réservé à l'équipe : un formateur n'exporte pas les absences de tout l'organisme.
+  if (can(membre.role, 'attendance') === 'none' || membre.role === 'formateur') {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
@@ -129,21 +130,31 @@ export async function GET(req: Request) {
   }
   const seanceIds = [...dossiersParSeance.keys()];
 
-  let qFeuilles = sb
-    .schema('app')
-    .from('attendance_sheets')
-    .select('id, session_id, dossier_id, half_day, finalized_at, session:sessions(starts_at, title)')
-    .eq('organization_id', org);
-  qFeuilles = seanceIds.length
-    ? qFeuilles.or(`dossier_id.in.(${dossierIds.join(',')}),session_id.in.(${seanceIds.join(',')})`)
-    : qFeuilles.in('dossier_id', dossierIds);
-  if (sessionId) qFeuilles = qFeuilles.eq('session_id', sessionId);
-  const { data: feuillesData, error: errF } = await qFeuilles;
+  // Deux lectures (feuilles propres aux dossiers, feuilles des séances de
+  // groupe) plutôt qu'un filtre `or` composé à la main.
+  const feuillesDe = () => {
+    let q = sb
+      .schema('app')
+      .from('attendance_sheets')
+      .select('id, session_id, dossier_id, half_day, finalized_at, session:sessions(starts_at, title)')
+      .eq('organization_id', org);
+    if (sessionId) q = q.eq('session_id', sessionId);
+    return q;
+  };
+  const [propres, groupes] = await Promise.all([
+    feuillesDe().in('dossier_id', dossierIds),
+    seanceIds.length ? feuillesDe().in('session_id', seanceIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  const errF = propres.error ?? groupes.error;
   if (errF) {
     console.error('[export-emargements] feuilles', errF.message);
     return NextResponse.json({ error: 'query_failed' }, { status: 500 });
   }
-  const feuilles = (feuillesData ?? []) as unknown as FeuilleRow[];
+  const feuilles = [
+    ...new Map(
+      ([...(propres.data ?? []), ...(groupes.data ?? [])] as unknown as FeuilleRow[]).map((f) => [f.id, f] as const),
+    ).values(),
+  ];
   if (feuilles.length === 0) return csv([]);
 
   // 3. Les présences recueillies. Leur absence est une information : « non émargé ».

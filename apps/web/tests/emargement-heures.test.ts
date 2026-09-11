@@ -41,7 +41,8 @@ describe('sorties et compteurs', () => {
     const exp = lire('../app/api/emargements/export.csv/route.ts');
     expect(exp).not.toContain('start_at,');
     expect(exp).toContain('sessions(starts_at, title)');
-    expect(exp).toContain('session_id.in.(');
+    expect(exp).toContain("feuillesDe().in('session_id', seanceIds)");
+    expect(exp).not.toContain('.or(');
   });
 
   it('présente entrée et sortie sur le PDF clôturé', () => {

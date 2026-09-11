@@ -30,7 +30,14 @@ export async function GET(req: NextRequest, { params }: { params: { sessionId: s
     if (sheet.finalized || (seule && sheet.id !== seule)) continue;
     for (const p of sheet.participants) {
       if (p.kind !== 'learner' || !p.expected || (p.state !== 'a_signer' && p.state !== 'entree_seule')) continue;
-      const lien = await issueAttendanceLink({ sheetId: sheet.id, signerId: p.id, signerKind: 'learner', baseUrl: env.PUBLIC_APP_URL });
+      const lien = await issueAttendanceLink({
+        sheetId: sheet.id,
+        signerId: p.id,
+        signerKind: 'learner',
+        baseUrl: env.PUBLIC_APP_URL,
+        channel: 'equipe',
+        issuedBy: acces.userId,
+      });
       if (!lien.ok) continue;
       const png = await renderQrPng(lien.link.url, { width: 300 });
       cards.push({

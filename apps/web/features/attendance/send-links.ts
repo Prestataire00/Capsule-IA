@@ -116,11 +116,16 @@ export async function sendSheetLinks(sheetId: string, mode: LinkMode, baseUrl: s
 
   const { envoyer, ignores, sansEmail } = linkRecipients(candidats, mode, dejaEnvoyes);
   const halfDay: HalfDay = sheet.half_day ?? 'full';
-  const fenetre = halfDayWindow(new Date(session.starts_at), new Date(session.ends_at), halfDay);
+  // Fenêtre de la base (pause déjeuner de l'organisme), à défaut le calcul local.
+  const { data: w } = await sb.schema('app').rpc('attendance_sheet_window' as never, { p_sheet_id: sheetId } as never).maybeSingle();
+  const lue = w as { window_start: string; window_end: string } | null;
+  const fenetre = lue
+    ? { start: new Date(lue.window_start), end: new Date(lue.window_end) }
+    : halfDayWindow(new Date(session.starts_at), new Date(session.ends_at), halfDay);
   const resultat: SendLinksResult = { sent: 0, ignored: ignores, withoutEmail: sansEmail, failed: [] };
 
   for (const c of envoyer) {
-    const lien = await issueAttendanceLink({ sheetId, signerId: c.id, signerKind: 'learner', baseUrl });
+    const lien = await issueAttendanceLink({ sheetId, signerId: c.id, signerKind: 'learner', baseUrl, channel: 'email' });
     if (!lien.ok) {
       resultat.failed.push(c.name);
       continue;

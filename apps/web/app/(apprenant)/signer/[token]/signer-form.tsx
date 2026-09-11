@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Check, FileText, Loader2, MonitorCheck } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Check, FileText, Loader2, MonitorCheck, Type } from 'lucide-react';
 import { InfoCallout } from '@/shared/ui/info-callout';
 import { SignaturePad, type SignaturePadHandle } from '@/features/attendance/signature-pad';
 import { attendanceErrorLabel } from '@/features/attendance/schemas';
@@ -31,8 +31,9 @@ const heure = (iso: string) => new Intl.DateTimeFormat('fr-FR', { hour: '2-digit
 const jour = (iso: string) => new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: PARIS }).format(new Date(iso));
 
 /**
- * Émargement en deux temps, repris de SoSafe : signature d'entrée, puis de
- * sortie avec le même lien. À distance, un bouton confirme la présence.
+ * Émargement en deux temps : signature d'entrée, puis de sortie avec le même
+ * lien. À distance, un bouton confirme la présence. Pour qui ne peut pas
+ * signer au doigt, la signature peut être le nom écrit dans la zone.
  */
 export function SignerForm({
   token,
@@ -52,25 +53,25 @@ export function SignerForm({
   const [encre, setEncre] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [confirmeDepart, setConfirmeDepart] = useState(false);
   const pad = useRef<SignaturePadHandle>(null);
-  const visioPossible = context.modality === 'distanciel' || context.modality === 'hybride';
+  const aDistance = context.modality === 'distanciel';
   const unSeulTemps = context.signerKind === 'trainer';
+  const finPrevue = heure(context.windowEnd);
 
-  // Après la sortie, l'apprenant rejoint son espace (5 secondes pour lire la confirmation).
-  const espace = etat.nom === 'termine' ? etat.espaceUrl : null;
-  useEffect(() => {
-    if (!espace) return;
-    const t = setTimeout(() => window.location.assign(espace), 5000);
-    return () => clearTimeout(t);
-  }, [espace]);
-
-  const envoyer = async (moment: Moment, avecDessin: boolean) => {
+  const envoyer = async (moment: Moment, avecTrace: boolean) => {
     setErreur(null);
-    const dataUrl = avecDessin ? pad.current?.toDataUrl() ?? null : null;
-    if (avecDessin && !dataUrl) return;
+    // Sortie plus de 15 minutes avant la fin : on fait confirmer le départ anticipé.
+    if (moment === 'exit' && !confirmeDepart && Date.now() < new Date(context.windowEnd).getTime() - 15 * 60_000) {
+      setConfirmeDepart(true);
+      return;
+    }
+    const dataUrl = avecTrace ? (pad.current?.toDataUrl() ?? null) : null;
+    if (avecTrace && !dataUrl) return;
     setEnvoi(true);
     const r = await signStep({ token, moment, dataUrl });
     setEnvoi(false);
+    setConfirmeDepart(false);
     if (!r.ok) {
       setErreur(attendanceErrorLabel(r.error));
       return;
@@ -86,7 +87,7 @@ export function SignerForm({
         <div className="flex-1 min-w-0">
           <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{context.formationTitle}</p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 capitalize">
-            {jour(context.windowStart)} · {context.halfDayLabel} · {heure(context.windowStart)}–{heure(context.windowEnd)}
+            {jour(context.windowStart)} · {context.halfDayLabel} · {heure(context.windowStart)}–{finPrevue}
           </p>
         </div>
       </div>
@@ -98,6 +99,7 @@ export function SignerForm({
             return (
               <li
                 key={m}
+                aria-current={encours ? 'step' : undefined}
                 className={`rounded-md px-2.5 py-1.5 border ${
                   fait
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400'
@@ -130,14 +132,10 @@ export function SignerForm({
           </p>
           {etat.depart && <p className="text-[12px] text-amber-600 mt-2">Départ anticipé noté à {etat.depart}.</p>}
           {etat.espaceUrl && (
-            <a
-              href={etat.espaceUrl}
-              className="mt-6 inline-flex bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2.5 rounded-md"
-            >
+            <a href={etat.espaceUrl} className="mt-6 inline-flex bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2.5 rounded-md">
               Accéder à mon espace de formation
             </a>
           )}
-          {etat.espaceUrl && <p className="text-[11px] text-zinc-400 mt-2">Ouverture automatique dans quelques secondes…</p>}
         </div>
       </div>
     );
@@ -150,8 +148,8 @@ export function SignerForm({
           {entete}
           <InfoCallout tone="info" className="mb-5">
             Entrée enregistrée à <strong>{etat.heure}</strong>
-            {etat.retard ? ` (arrivée notée à ${etat.retard})` : ''}. Revenez sur ce même lien à la fin de la demi-journée pour signer
-            votre sortie.
+            {etat.retard ? ` (arrivée notée à ${etat.retard})` : ''}. Revenez sur ce même lien à la fin de la demi-journée ({finPrevue}) pour
+            signer votre sortie.
           </InfoCallout>
           <button
             type="button"
@@ -178,9 +176,30 @@ export function SignerForm({
           <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
             <SignaturePad ref={pad} onInk={setEncre} height={200} label={`Signature de ${context.signerFullName}`} />
           </div>
-          <button type="button" onClick={() => pad.current?.clear()} disabled={envoi} className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 mt-2">
-            Effacer
-          </button>
+          <div className="flex items-center justify-between mt-2">
+            <button type="button" onClick={() => pad.current?.clear()} disabled={envoi} className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+              Effacer
+            </button>
+            <button
+              type="button"
+              onClick={() => pad.current?.writeName(context.signerFullName)}
+              disabled={envoi}
+              className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1"
+            >
+              <Type className="w-3.5 h-3.5" aria-hidden />
+              Je ne peux pas signer au doigt : signer avec mon nom
+            </button>
+          </div>
+          {confirmeDepart && (
+            <div role="alertdialog" aria-labelledby="depart-titre" className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+              <p id="depart-titre" className="text-[13px] text-amber-900 dark:text-amber-200">
+                La demi-journée se termine à {finPrevue}. En signant maintenant, votre départ sera noté comme anticipé. Confirmez-vous ?
+              </p>
+              <button type="button" onClick={() => setConfirmeDepart(false)} className="mt-2 text-[12px] text-amber-800 dark:text-amber-300 underline">
+                Non, je signerai plus tard
+              </button>
+            </div>
+          )}
           {erreur && (
             <p role="alert" className="mt-3 text-[13px] text-red-600 dark:text-red-400">
               {erreur}
@@ -193,9 +212,9 @@ export function SignerForm({
             className="mt-5 w-full bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-3 rounded-md inline-flex items-center justify-center gap-2 disabled:opacity-40"
           >
             {envoi && <Loader2 className="w-4 h-4 animate-spin" />}
-            {envoi ? 'Enregistrement…' : 'Valider ma signature'}
+            {envoi ? 'Enregistrement…' : confirmeDepart ? 'Oui, je pars maintenant' : 'Valider ma signature'}
           </button>
-          {visioPossible && (
+          {aDistance && (
             <button
               type="button"
               disabled={envoi}
@@ -221,12 +240,15 @@ export function SignerForm({
           {unSeulTemps
             ? 'Vous signez la feuille de présence en tant que formateur.'
             : 'Vous signez à l’arrivée, puis à la fin de la demi-journée avec ce même lien.'}{' '}
-          Chaque signature est horodatée et rattachée à votre appareil (preuve pour l’audit Qualiopi).
+          Pour servir de preuve, {context.organizationName} conserve l’heure de chaque signature, l’adresse IP et le navigateur utilisés, pendant
+          la durée d’archivage des formations (5 ans).
         </InfoCallout>
         <label className="flex items-start gap-2 mb-6 cursor-pointer">
           <input type="checkbox" checked={accepte} onChange={(e) => setAccepte(e.target.checked)} className="mt-0.5" />
           <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
-            J’atteste être présent(e) à cette formation et j’accepte de signer électroniquement la feuille de présence.
+            {unSeulTemps
+              ? 'J’atteste avoir assuré cette demi-journée de formation et j’accepte de signer électroniquement la feuille de présence.'
+              : 'J’atteste être présent(e) à cette formation et j’accepte de signer électroniquement la feuille de présence.'}
           </span>
         </label>
         <button
@@ -235,7 +257,7 @@ export function SignerForm({
           onClick={() => setEtat({ nom: 'signature', moment: 'entry' })}
           className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-3 rounded-md disabled:opacity-40"
         >
-          Signer mon entrée
+          {unSeulTemps ? 'Signer la feuille' : 'Signer mon entrée'}
         </button>
       </div>
     </div>

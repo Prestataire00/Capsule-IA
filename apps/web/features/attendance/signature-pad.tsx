@@ -13,6 +13,8 @@ export type SignaturePadHandle = {
   /** PNG de la signature, ou null si rien n'a été tracé. */
   toDataUrl: () => string | null;
   clear: () => void;
+  /** Alternative au tracé : écrit le nom de la personne dans la zone. */
+  writeName: (nom: string) => void;
 };
 
 export const SignaturePad = forwardRef<SignaturePadHandle, { onInk: (hasInk: boolean) => void; height?: number; label?: string }>(
@@ -70,6 +72,24 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { onInk: (hasInk: boo
         ctx.clearRect(0, 0, c.width, c.height);
         ctx.restore();
         setInk(false);
+      },
+      writeName: (nom: string) => {
+        const c = canvas.current;
+        const ctx = c?.getContext('2d');
+        if (!c || !ctx || !nom.trim()) return;
+        const r = c.getBoundingClientRect();
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.restore();
+        ctx.save();
+        ctx.fillStyle = '#18181b';
+        ctx.font = 'italic 30px Georgia, "Times New Roman", serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(nom.trim(), r.width / 2, r.height / 2, r.width - 24);
+        ctx.restore();
+        setInk(true);
       },
     }));
 

@@ -30,7 +30,14 @@ export async function GET(req: NextRequest, { params }: { params: { sheetId: str
   );
   if (!attendu) return NextResponse.json({ error: 'signer_not_expected' }, { status: 404 });
 
-  const r = await issueAttendanceLink({ sheetId: params.sheetId, signerId: participantId, signerKind: kindRaw, baseUrl: env.PUBLIC_APP_URL });
+  const r = await issueAttendanceLink({
+    sheetId: params.sheetId,
+    signerId: participantId,
+    signerKind: kindRaw,
+    baseUrl: env.PUBLIC_APP_URL,
+    channel: 'equipe',
+    issuedBy: acces.userId,
+  });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: 500 });
 
   const png = await renderQrPng(r.link.url, { width: 360 });

@@ -1,5 +1,6 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { headers } from 'next/headers';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { attendanceErrorCode } from './schemas';
@@ -31,16 +32,22 @@ export type StepInput = {
 };
 
 export type StepResult =
-  | { ok: true; signedAt: string; status: string; lateArrival: string | null; earlyDeparture: string | null }
+  | { ok: true; signedAt: string; status: string; lateArrival: string | null; earlyDeparture: string | null; channel: string | null }
   | { ok: false; error: string };
 
+/**
+ * Adresse du signataire. Le proxy de Railway AJOUTE l'adresse réelle en fin de
+ * X-Forwarded-For : les valeurs placées avant viennent du client et se
+ * falsifient, tout comme CF-Connecting-IP en l'absence de Cloudflare. On ne
+ * garde donc que la dernière valeur, validée. Pas de pays : aucune source fiable.
+ */
 function contexteRequete() {
   const h = headers();
-  const ip =
-    h.get('cf-connecting-ip') || h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || '0.0.0.0';
-  const userAgent = h.get('user-agent') ?? 'inconnu';
-  const pays = h.get('cf-ipcountry');
-  return { ip, userAgent, country: pays && pays !== 'XX' && pays.length === 2 ? pays.toUpperCase() : null };
+  const chaine = (h.get('x-forwarded-for') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+  const candidat = chaine[chaine.length - 1] ?? h.get('x-real-ip') ?? '';
+  const ip = isIP(candidat) ? candidat : '0.0.0.0';
+  const userAgent = (h.get('user-agent') ?? 'inconnu').slice(0, 500);
+  return { ip, userAgent, country: null as string | null };
 }
 
 export async function recordAttendanceStep(input: StepInput): Promise<StepResult> {
@@ -86,16 +93,18 @@ export async function recordAttendanceStep(input: StepInput): Promise<StepResult
   if (error) {
     if (chemin) await sb.storage.from('signatures').remove([chemin]);
     const code = attendanceErrorCode(error.message);
+    // Jamais de message brut de la base au client.
     if (code === 'erreur_inconnue') console.error('[émargement] signature refusée', error);
-    return { ok: false, error: code === 'erreur_inconnue' ? error.message : code };
+    return { ok: false, error: code };
   }
 
-  const r = data as { signed_at: string; status: string; late_arrival_time: string | null; early_departure_time: string | null };
+  const r = data as { signed_at: string; status: string; late_arrival_time: string | null; early_departure_time: string | null; channel?: string | null };
   return {
     ok: true,
     signedAt: r.signed_at,
     status: r.status,
     lateArrival: r.late_arrival_time?.slice(0, 5) ?? null,
     earlyDeparture: r.early_departure_time?.slice(0, 5) ?? null,
+    channel: r.channel ?? null,
   };
 }

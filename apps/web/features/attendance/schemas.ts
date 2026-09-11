@@ -13,11 +13,12 @@ export const markSchema = z
   .object({
     sheetId: z.string().uuid(),
     learnerId: z.string().uuid(),
+    signerKind: z.enum(['learner', 'trainer']).default('learner'),
     status: z.enum(MARK_STATUSES),
     lateArrival: heure,
     earlyDeparture: heure,
     reason: z.string().trim().max(1000, 'texte_trop_long').nullish(),
-    captureMode: z.enum(['grille', 'visio']).default('grille'),
+    captureMode: z.enum(['grille', 'visio', 'papier']).default('grille'),
   })
   .superRefine((v, ctx) => {
     const absent = v.status === 'absent' || v.status === 'absent_justified';
@@ -25,6 +26,14 @@ export const markSchema = z
     if (v.status === 'absent_justified' && !v.reason) ctx.addIssue({ code: 'custom', message: 'reason_required' });
   });
 export type MarkInput = z.input<typeof markSchema>;
+
+/** Sortie attestée par l'équipe quand l'apprenant a oublié de signer la sienne. */
+export const attestExitSchema = z.object({
+  sheetId: z.string().uuid(),
+  learnerId: z.string().uuid(),
+  exitTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'heure_invalide'),
+});
+export type AttestExitInput = z.input<typeof attestExitSchema>;
 
 export const deviceSignatureSchema = z.object({
   sheetId: z.string().uuid(),
@@ -44,6 +53,8 @@ const ERREURS: ReadonlyArray<readonly [string, string]> = [
   ['signer_not_expected', 'Cette personne n’est pas attendue sur cette feuille.'],
   ['signature_required', 'La signature est obligatoire.'],
   ['attendance_sheet_finalized', 'La feuille est clôturée.'],
+  ['finalize_in_progress', 'La clôture de cette feuille est déjà en cours.'],
+  ['nothing_to_mark', 'Aucun apprenant sans signature sur cette feuille.'],
   ['attendance_sheet_not_found', 'Feuille introuvable.'],
   ['token_entry_used', 'L’entrée a déjà été signée avec ce lien.'],
   ['token_exit_used', 'La sortie a déjà été signée avec ce lien.'],
@@ -52,6 +63,7 @@ const ERREURS: ReadonlyArray<readonly [string, string]> = [
   ['token_expired', 'Ce lien a expiré.'],
   ['expired_token', 'Ce lien a expiré.'],
   ['token_payload_mismatch', 'Lien invalide.'],
+  ['invalid_payload', 'Lien invalide.'],
   ['token_unknown', 'Lien invalide.'],
   ['invalid_token', 'Lien invalide.'],
   ['reason_required', 'Indiquez le motif de l’absence.'],

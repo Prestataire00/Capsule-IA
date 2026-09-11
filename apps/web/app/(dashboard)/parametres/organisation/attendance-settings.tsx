@@ -2,49 +2,108 @@
 
 import { useState, useTransition } from 'react';
 import { Check, Loader2 } from 'lucide-react';
-import { setAttendanceAutoSend } from './attendance-settings-actions';
+import { setAttendanceAutoSend, setAttendanceLunch } from './attendance-settings-actions';
 
-/** Réglage : envoi automatique des liens d'émargement avant chaque demi-journée. */
-export function AttendanceSettings({ enabled, available }: { enabled: boolean; available: boolean }) {
+const champ =
+  'text-[13px] px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30';
+
+/** Réglages d'émargement : pause déjeuner et envoi automatique des liens. */
+export function AttendanceSettings({
+  enabled,
+  available,
+  lunchStart,
+  lunchEnd,
+}: {
+  enabled: boolean;
+  available: boolean;
+  lunchStart: string;
+  lunchEnd: string;
+}) {
   const [actif, setActif] = useState(enabled);
+  const [debut, setDebut] = useState(lunchStart);
+  const [fin, setFin] = useState(lunchEnd);
   const [pending, start] = useTransition();
   const [etat, setEtat] = useState<{ ok: boolean; texte: string } | null>(null);
 
+  const message = (error: string) =>
+    error === 'forbidden'
+      ? 'Réservé aux administrateurs.'
+      : error === 'pause_incoherente'
+        ? 'La reprise doit suivre le début de la pause.'
+        : 'Le réglage n’a pas été enregistré.';
+
   return (
-    <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-3">
+    <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-4">
       <div>
         <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Émargement</h2>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-          Chaque apprenant reçoit par e-mail son lien personnel, de 30 minutes avant le début de chaque demi-journée à 10 minutes
-          après, s’il n’a pas encore signé. Un seul envoi par personne et par demi-journée.
-        </p>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">Une feuille par demi-journée, signée à l’entrée et à la sortie.</p>
       </div>
       {!available ? (
-        <p className="text-[12px] text-amber-700 dark:text-amber-400">Réglage disponible une fois la migration 0145 appliquée.</p>
+        <p className="text-[12px] text-amber-700 dark:text-amber-400">Réglages disponibles une fois les migrations 0145 à 0147 appliquées.</p>
       ) : (
-        <label className="flex items-center gap-3 cursor-pointer w-fit">
-          <input
-            type="checkbox"
-            checked={actif}
-            disabled={pending}
-            onChange={(e) => {
-              const v = e.target.checked;
-              setActif(v);
-              setEtat(null);
-              start(async () => {
-                const r = await setAttendanceAutoSend(v);
-                if (r.ok) setEtat({ ok: true, texte: v ? 'Envoi automatique activé' : 'Envoi automatique désactivé' });
-                else {
-                  setActif(!v);
-                  setEtat({ ok: false, texte: r.error === 'forbidden' ? 'Réservé aux administrateurs.' : 'Le réglage n’a pas été enregistré.' });
+        <>
+          <div className="space-y-2">
+            <p className="text-[13px] text-zinc-800 dark:text-zinc-200">Pause déjeuner</p>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Elle sépare le matin de l’après-midi : sortir à son début ou revenir à la reprise n’est ni un départ anticipé ni un retard.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-[12px] text-zinc-500 inline-flex items-center gap-1.5">
+                de
+                <input type="time" value={debut} onChange={(e) => setDebut(e.target.value)} className={champ} />
+              </label>
+              <label className="text-[12px] text-zinc-500 inline-flex items-center gap-1.5">
+                à
+                <input type="time" value={fin} onChange={(e) => setFin(e.target.value)} className={champ} />
+              </label>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    setEtat(null);
+                    const r = await setAttendanceLunch(debut.slice(0, 5), fin.slice(0, 5));
+                    setEtat(r.ok ? { ok: true, texte: 'Pause enregistrée — appliquée aux séances à venir' } : { ok: false, texte: message(r.error) });
+                  })
                 }
-              });
-            }}
-            className="w-4 h-4 accent-violet-600"
-          />
-          <span className="text-[13px] text-zinc-800 dark:text-zinc-200">Envoyer automatiquement les liens d’émargement</span>
-          {pending && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />}
-        </label>
+                className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 cursor-pointer w-fit">
+              <input
+                type="checkbox"
+                checked={actif}
+                disabled={pending}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setActif(v);
+                  setEtat(null);
+                  start(async () => {
+                    const r = await setAttendanceAutoSend(v);
+                    if (r.ok) setEtat({ ok: true, texte: v ? 'Envoi automatique activé' : 'Envoi automatique désactivé' });
+                    else {
+                      setActif(!v);
+                      setEtat({ ok: false, texte: message(r.error) });
+                    }
+                  });
+                }}
+                className="w-4 h-4 accent-violet-600"
+              />
+              <span className="text-[13px] text-zinc-800 dark:text-zinc-200">Envoyer automatiquement les liens d’émargement</span>
+              {pending && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />}
+            </label>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              De 30 minutes avant le début de chaque demi-journée à 10 minutes après, à chaque apprenant qui n’a pas encore signé — une
+              seule fois par personne et par demi-journée. L’envoi est lancé par la base toutes les 10 minutes, dès que le secret des
+              tâches programmées est enregistré dans le coffre Supabase.
+            </p>
+          </div>
+        </>
       )}
       {etat && (
         <p role="status" className={`text-[12px] inline-flex items-center gap-1 ${etat.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>

@@ -50,11 +50,12 @@ export default async function ParametresOrganisationPage() {
   const { data: reglage, error: reglageErr } = await sb
     .schema('app')
     .from('organizations')
-    .select('attendance_auto_send' as never)
+    .select('attendance_auto_send, attendance_lunch_start, attendance_lunch_end' as never)
     .is('deleted_at', null)
     .limit(1)
     .maybeSingle();
-  const envoiAuto = Boolean((reglage as { attendance_auto_send?: boolean } | null)?.attendance_auto_send);
+  const r = reglage as { attendance_auto_send?: boolean; attendance_lunch_start?: string; attendance_lunch_end?: string } | null;
+  const envoiAuto = Boolean(r?.attendance_auto_send);
 
   const org = (data as unknown as OrgRow | null) ?? {
     name: '—',
@@ -120,7 +121,12 @@ export default async function ParametresOrganisationPage() {
         </DataList>
       </section>
 
-      <AttendanceSettings enabled={envoiAuto} available={!reglageErr} />
+      <AttendanceSettings
+        enabled={envoiAuto}
+        available={!reglageErr}
+        lunchStart={(r?.attendance_lunch_start ?? '12:30').slice(0, 5)}
+        lunchEnd={(r?.attendance_lunch_end ?? '13:30').slice(0, 5)}
+      />
       <SignatureStampSection
         representativeName={org.representative_name ?? null}
         representativeTitle={org.representative_title ?? null}

@@ -6,25 +6,34 @@ import { generateSignatureToken } from '@/shared/lib/signature-token';
 /**
  * Lien personnel d'émargement d'un participant pour une feuille.
  *
- * Le jeton est ENREGISTRÉ à l'émission (sans quoi la signature le refusait :
- * « token_unknown »). Il sert à l'entrée puis à la sortie, et vaut jusqu'à
- * quatre heures après la fin de la séance — de quoi l'envoyer avant le
- * début, l'imprimer en QR, ou l'afficher dans l'espace apprenant.
+ * Le jeton est ENREGISTRÉ à l'émission, avec son canal et son émetteur :
+ *  · `email`  — envoyé à l'apprenant par Capsule ;
+ *  · `espace` — affiché dans l'espace de l'apprenant ;
+ *  · `equipe` — copié ou imprimé (QR) par l'équipe ou le formateur.
+ * Un lien de l'équipe est tracé comme tel sur la signature, et n'ouvre jamais
+ * l'espace apprenant (audit sécurité : qui détient le lien n'est pas forcément
+ * l'apprenant).
  *
- * Tant qu'un lien valide existe pour le même participant et la même feuille,
- * il est ré-émis à l'identique plutôt que dupliqué : afficher l'espace
- * apprenant ou réimprimer un QR ne crée pas de nouveau jeton.
+ * Il sert à l'entrée puis à la sortie, et vaut jusqu'à quatre heures après la
+ * fin de la séance. Tant qu'un lien valide existe pour le même participant, la
+ * même feuille, le même canal et le même émetteur, il est ré-émis à
+ * l'identique plutôt que dupliqué.
  */
 
 const MARGE_APRES_FIN_MS = 4 * 60 * 60 * 1000;
 const VALIDITE_MIN_MS = 60 * 60 * 1000;
 const REUTILISABLE_SI_RESTE_MS = 15 * 60 * 1000;
 
+export type LinkChannel = 'email' | 'espace' | 'equipe';
+
 export type AttendanceLinkInput = {
   readonly sheetId: string;
   readonly signerId: string;
   readonly signerKind: 'learner' | 'trainer';
   readonly baseUrl: string;
+  readonly channel: LinkChannel;
+  /** Utilisateur qui émet le lien (canal `equipe`). */
+  readonly issuedBy?: string | null;
 };
 
 export type AttendanceLink = { readonly url: string; readonly expiresAt: Date };
@@ -46,19 +55,20 @@ export async function issueAttendanceLink(input: AttendanceLinkInput): Promise<I
 
   const payload = { attendanceSheetId: input.sheetId, signerId: input.signerId, signerKind: input.signerKind };
   const url = (token: string) => `${input.baseUrl.replace(/\/$/, '')}/signer/${token}`;
+  const emetteur = input.channel === 'equipe' ? (input.issuedBy ?? null) : null;
 
-  const { data: existant } = await sb
+  let q = sb
     .schema('app')
     .from('attendance_token_jtis' as never)
     .select('jti, expires_at')
     .eq('attendance_sheet_id' as never, input.sheetId as never)
     .eq('signer_id' as never, input.signerId as never)
     .eq('signer_kind' as never, input.signerKind as never)
+    .eq('issued_channel' as never, input.channel as never)
     .eq('status' as never, 'issued' as never)
-    .gt('expires_at' as never, new Date(Date.now() + REUTILISABLE_SI_RESTE_MS).toISOString() as never)
-    .order('expires_at' as never, { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .gt('expires_at' as never, new Date(Date.now() + REUTILISABLE_SI_RESTE_MS).toISOString() as never);
+  q = emetteur ? q.eq('issued_by' as never, emetteur as never) : q.is('issued_by' as never, null);
+  const { data: existant } = await q.order('expires_at' as never, { ascending: false }).limit(1).maybeSingle();
   const reutilisable = existant as { jti: string; expires_at: string } | null;
   if (reutilisable) {
     const expiresAt = new Date(reutilisable.expires_at);
@@ -78,6 +88,8 @@ export async function issueAttendanceLink(input: AttendanceLinkInput): Promise<I
       signer_id: input.signerId,
       signer_kind: input.signerKind,
       expires_at: expiresAt.toISOString(),
+      issued_channel: input.channel,
+      issued_by: emetteur,
     } as never);
   if (error) {
     console.error('[émargement] jeton non enregistré', error);

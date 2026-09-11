@@ -19,6 +19,7 @@ export type PdfSignatureLine = {
   readonly signatureSignedUrl: string | null;
   readonly exitAt?: string | null;
   readonly exitSignatureUrl?: string | null;
+  readonly exitAttested?: boolean;
   readonly lateArrival?: string | null;
   readonly earlyDeparture?: string | null;
   readonly absenceReason?: string | null;
@@ -68,7 +69,6 @@ const styles = StyleSheet.create({
   cStatus: { width: 58, paddingHorizontal: 5 },
   cSig: { flex: 1, paddingHorizontal: 5, alignItems: 'center' },
   cNotes: { flex: 1.1, paddingHorizontal: 5, fontSize: 7.5, color: '#3f3f46' },
-  cProof: { width: 78, paddingHorizontal: 5, fontFamily: 'Courier', fontSize: 6.5, color: '#71717a' },
   sigImg: { width: 76, height: 24, objectFit: 'contain' },
   time: { fontFamily: 'Courier', fontSize: 7.5 },
   muted: { color: '#a1a1aa' },
@@ -81,6 +81,8 @@ const HALF_DAY: Record<AttendancePdfInput['halfDay'], string> = { morning: 'Mati
 const STATUS: Record<NonNullable<PdfSignatureLine['status']>, string> = { present: 'Présent', absent: 'Absent', late: 'En retard', excused: 'Absent excusé' };
 const MODE: Record<string, string> = {
   lien: 'Lien personnel',
+  lien_equipe: 'Lien remis par l’équipe',
+  papier: 'Feuille papier',
   qr: 'QR code',
   tablette: 'Tablette de l’organisme',
   visio: 'Confirmation visio',
@@ -125,7 +127,7 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
               {input.dossierReference} · {input.formationTitle}
             </Text>
             <Text style={styles.meta}>
-              {dateLongue(input.sessionStartsAt)} → {heure(input.sessionEndsAt.toISOString())}
+              {dateLongue(input.sessionStartsAt)} → {heure(input.sessionEndsAt.toISOString())} (horaires de la demi-journée)
             </Text>
             <Text style={styles.meta}>
               {input.modality}
@@ -145,7 +147,6 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
           <Text style={styles.cSig}>Entrée</Text>
           <Text style={styles.cSig}>Sortie</Text>
           <Text style={styles.cNotes}>Remarques</Text>
-          <Text style={styles.cProof}>Preuve</Text>
         </View>
 
         {input.lines.map((l, i) => {
@@ -153,6 +154,7 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
             l.lateArrival ? `Arrivée ${l.lateArrival}` : null,
             l.earlyDeparture ? `Départ ${l.earlyDeparture}` : null,
             l.absenceReason ? `Motif : ${l.absenceReason}` : null,
+            l.exitAttested ? 'Sortie attestée par l’équipe' : null,
             l.captureMode ? MODE[l.captureMode] ?? l.captureMode : l.signedAt ? SOURCE[l.evidenceSource] : null,
           ].filter(Boolean);
           return (
@@ -165,10 +167,6 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
               <Cellule at={l.signedAt} url={l.signatureSignedUrl} />
               {l.participantKind === 'trainer' ? <View style={styles.cSig} /> : <Cellule at={l.exitAt} url={l.exitSignatureUrl} />}
               <Text style={styles.cNotes}>{remarques.join('\n') || '—'}</Text>
-              <Text style={styles.cProof}>
-                {l.signerIp ?? '—'}
-                {l.signerCountry ? `\n${l.signerCountry}` : ''}
-              </Text>
             </View>
           );
         })}
@@ -179,7 +177,7 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
         </Text>
         <Text style={styles.footer}>
           {input.organizationName} · Feuille clôturée le {dateLongue(new Date())} · Signatures horodatées, rattachées à l’appareil du
-          signataire · Preuve de présence (Qualiopi, indicateur 12)
+          signataire, conservées par l’organisme · Preuve de présence par demi-journée
         </Text>
         <Text style={styles.hash}>Feuille : {input.sheetId}</Text>
       </Page>

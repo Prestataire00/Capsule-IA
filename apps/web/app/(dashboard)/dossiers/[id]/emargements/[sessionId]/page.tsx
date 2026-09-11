@@ -68,7 +68,7 @@ export default async function EmargementSessionPage({
           {hasLegacyFull && (
             <div className="border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 rounded-xl px-4 py-3 space-y-2">
               <p className="text-[12px] text-amber-800 dark:text-amber-300">
-                Feuille unique « journée » (ancien format). Tu peux la convertir en feuilles matin / après-midi
+                Feuille unique « journée » (ancien format). Vous pouvez la convertir en feuilles matin / après-midi
                 (uniquement si aucune signature n&apos;a encore été posée).
               </p>
               <GenerateSheetsButton sessionId={session.id} hasLegacyFull />
@@ -81,7 +81,7 @@ export default async function EmargementSessionPage({
       )}
 
       <p className="text-[11px] text-zinc-400">
-        L&apos;émargement Qualiopi exige une signature par participant et par demi-journée (indicateur I22).
+        Les financeurs exigent une signature par participant et par demi-journée ; la feuille clôturée sert de preuve de présence.
       </p>
     </div>
   );

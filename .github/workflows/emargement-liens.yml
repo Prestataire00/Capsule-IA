@@ -4,9 +4,9 @@ name: Liens d'émargement (toutes les 10 minutes)
 # 10 minutes après (app/api/cron/emargement-liens), pour les organismes qui
 # ont activé l'envoi automatique dans leurs paramètres. Idempotent.
 # Nécessite le secret de dépôt CRON_SECRET (même valeur que côté Railway).
+# Désormais planifiée par la base (pg_cron + pg_net, migration 0147) :
+# déclenchement manuel seulement, pour éviter les doubles passages.
 on:
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
 concurrency:

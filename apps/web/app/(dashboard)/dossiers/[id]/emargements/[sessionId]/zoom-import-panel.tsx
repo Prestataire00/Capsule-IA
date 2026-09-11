@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from 'react';
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { importZoomCsv, type ImportZoomCsvResult } from './actions';
+import { attendanceErrorLabel } from '@/features/attendance/schemas';
 
 export function ZoomImportPanel({ sheetId, sessionId }: { sheetId: string; sessionId: string }) {
   const [result, setResult] = useState<ImportZoomCsvResult | null>(null);
@@ -25,7 +26,7 @@ export function ZoomImportPanel({ sheetId, sessionId }: { sheetId: string; sessi
             csvFilename: file.name,
           });
           if (!r.ok) {
-            setError(r.error);
+            setError(attendanceErrorLabel(r.error));
             setResult(null);
           } else {
             setResult(r);

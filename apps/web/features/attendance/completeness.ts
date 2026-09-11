@@ -20,7 +20,7 @@ export type SignatureFacts = {
   readonly earlyDeparture: string | null;
 };
 
-const MODES_SIGNES = new Set(['lien', 'qr', 'tablette', 'visio']);
+const MODES_SIGNES = new Set(['lien', 'lien_equipe', 'qr', 'tablette', 'visio']);
 const SOURCES_ATTESTANT = new Set(['trainer_override', 'zoom_csv', 'zoom_api']);
 const PRESENT = new Set<AttendanceStatus>(['present', 'late', 'remote']);
 

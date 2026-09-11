@@ -2,14 +2,17 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Mail, Printer } from 'lucide-react';
+import { FileText, Loader2, Mail, Printer, UserX } from 'lucide-react';
 import { attendanceErrorLabel } from '@/features/attendance/schemas';
-import { sendSheetLinksAction } from './actions';
+import { markUnsignedAbsent, sendSheetLinksAction } from './actions';
 
 const bouton =
   'inline-flex items-center gap-1.5 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition disabled:opacity-40';
 
-/** Envoi des liens par e-mail et planche de QR à imprimer, pour une feuille. */
+/**
+ * Actions d'une feuille : liens par e-mail, QR à imprimer, feuille papier de
+ * secours, et marquage groupé des apprenants sans signature avant clôture.
+ */
 export function SheetToolbar({ sheetId, sessionId }: { sheetId: string; sessionId: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -44,6 +47,31 @@ export function SheetToolbar({ sheetId, sessionId }: { sheetId: string; sessionI
         <Printer className="w-3.5 h-3.5" />
         QR à imprimer
       </a>
+      <a href={`/api/attendance/${sheetId}/paper`} target="_blank" rel="noopener" className={bouton}>
+        <FileText className="w-3.5 h-3.5" />
+        Feuille papier de secours
+      </a>
+      <button
+        type="button"
+        className={bouton}
+        disabled={pending}
+        onClick={() => {
+          if (!window.confirm('Marquer absents tous les apprenants qui n’ont rien signé sur cette demi-journée ?')) return;
+          start(async () => {
+            setMessage(null);
+            const r = await markUnsignedAbsent({ sheetId });
+            setMessage(
+              r.ok
+                ? { ok: true, texte: `${r.marked} apprenant${r.marked > 1 ? 's' : ''} marqué${r.marked > 1 ? 's' : ''} absent${r.marked > 1 ? 's' : ''}` }
+                : { ok: false, texte: attendanceErrorLabel(r.error) },
+            );
+            if (r.ok) router.refresh();
+          });
+        }}
+      >
+        <UserX className="w-3.5 h-3.5" />
+        Marquer absents les non-signés
+      </button>
       {message && (
         <span role="status" className={`text-[12px] ${message.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
           {message.texte}

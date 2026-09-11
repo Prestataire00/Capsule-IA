@@ -76,6 +76,7 @@ export async function loadSessionSignatureQRs(token: string): Promise<Map<string
       signerId: learnerId,
       signerKind: 'learner',
       baseUrl: env.PUBLIC_APP_URL,
+      channel: 'espace',
     });
     if (!lien.ok) continue;
     const url = lien.link.url;
