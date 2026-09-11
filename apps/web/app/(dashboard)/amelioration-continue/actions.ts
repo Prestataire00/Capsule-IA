@@ -3,124 +3,165 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
-import { supabaseServer } from '@/shared/lib/supabase/server';
+import { guardAction } from '@/shared/lib/auth/guard-action';
+import {
+  actionSchema,
+  actionStatusSchema,
+  axisSchema,
+  formToObject,
+  incidentSchema,
+  moveAxisSchema,
+  resolveIncidentSchema,
+  veilleSchema,
+} from '@/features/amelioration/schemas';
 
-const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
-type AdminRole = (typeof ADMIN_ROLES)[number];
+/**
+ * Amélioration continue : écritures en service role, donc gardées
+ * explicitement, et bornées à l'organisation du membre — y compris pour les
+ * éléments liés (réclamation, incident, axe), sans quoi un identifiant
+ * suffirait à agir sur un autre organisme.
+ */
 
-const VEILLE_CATEGORIES = ['legale', 'metier', 'pedagogique', 'technologique', 'handicap', 'autre'] as const;
-const ORIGINS = ['reclamation', 'satisfaction', 'audit', 'veille', 'autre'] as const;
-const PRIORITIES = ['low', 'medium', 'high'] as const;
-const STATUSES = ['open', 'in_progress', 'done'] as const;
+const PAGE = '/amelioration-continue';
+type Onglet = 'axes' | 'incidents' | 'actions' | 'veille';
 
-const str = (fd: FormData, k: string) => {
-  const v = fd.get(k);
-  return typeof v === 'string' && v.trim() ? v.trim() : null;
+function retour(onglet: Onglet, erreur?: string): never {
+  revalidatePath(PAGE);
+  redirect(`${PAGE}?onglet=${onglet}${erreur ? `&error=${encodeURIComponent(erreur)}` : ''}`);
+}
+
+async function garde(onglet: Onglet) {
+  const g = await guardAction('qualiopi');
+  if (!g.ok) retour(onglet, g.error);
+  return g.member;
+}
+
+const ongletDe = (fd: FormData, defaut: Onglet): Onglet => {
+  const v = fd.get('retour');
+  return v === 'axes' || v === 'incidents' || v === 'actions' || v === 'veille' ? v : defaut;
 };
-const inSet = <T extends readonly string[]>(set: T, v: string | null): v is T[number] =>
-  v !== null && (set as readonly string[]).includes(v);
 
-async function resolveAdminOrgId(userId: string): Promise<string | null> {
-  const admin = supabaseAdmin();
-  const { data: member } = await (admin as never as {
-    schema: (s: string) => {
-      from: (t: string) => {
-        select: (c: string) => {
-          eq: (k: string, v: string) => {
-            is: (k: string, v: null) => {
-              order: (k: string, o: { ascending: boolean }) => {
-                limit: (n: number) => {
-                  maybeSingle: () => Promise<{ data: { organization_id: string; role: string } | null }>;
-                };
-              };
-            };
-          };
-        };
-      };
-    };
-  })
-    .schema('app')
-    .from('members')
-    .select('organization_id, role')
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .order('is_default_org', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!member?.organization_id) return null;
-  if (!ADMIN_ROLES.includes(member.role as AdminRole)) return null;
-  return member.organization_id;
+const table = (nom: string) => supabaseAdmin().schema('app').from(nom as never);
+
+/** L'élément lié appartient-il à l'organisation ? */
+async function appartient(nom: 'complaints' | 'quality_incidents' | 'improvement_axes', id: string, orgId: string): Promise<boolean> {
+  const { data } = await table(nom).select('id').eq('id' as never, id as never).eq('organization_id' as never, orgId as never).maybeSingle();
+  return data !== null;
 }
 
-async function requireOrg(): Promise<string> {
-  const {
-    data: { user },
-  } = await supabaseServer().auth.getUser();
-  if (!user) redirect('/login');
-  const orgId = await resolveAdminOrgId(user.id);
-  if (!orgId) redirect('/amelioration-continue?error=forbidden');
-  return orgId;
-}
-
-export async function createVeilleEntry(fd: FormData): Promise<void> {
-  const orgId = await requireOrg();
-  const category = str(fd, 'category');
-  const title = str(fd, 'title');
-  if (!inSet(VEILLE_CATEGORIES, category) || !title) {
-    redirect('/amelioration-continue?error=invalid_veille');
-  }
-  const { error } = await supabaseAdmin().schema('app').from('veille_entries').insert({
-    organization_id: orgId,
-    category,
-    title,
-    summary: str(fd, 'summary'),
-    source_url: str(fd, 'source_url'),
-    impact: str(fd, 'impact'),
+// ── Incidents ────────────────────────────────────────────────────────────────
+export async function createIncident(fd: FormData): Promise<void> {
+  const membre = await garde('incidents');
+  const p = incidentSchema.safeParse(formToObject(fd));
+  if (!p.success) retour('incidents', p.error.issues[0]?.message ?? 'saisie_invalide');
+  const v = p.data;
+  const { error } = await table('quality_incidents').insert({
+    organization_id: membre.organizationId,
+    kind: v.kind,
+    title: v.title,
+    description: v.description ?? null,
+    severity: v.severity,
+    ...(v.occurredOn ? { occurred_on: v.occurredOn } : {}),
+    created_by: membre.userId,
   } as never);
-  if (error) redirect(`/amelioration-continue?error=${encodeURIComponent(error.message)}`);
-  revalidatePath('/amelioration-continue');
-  redirect('/amelioration-continue');
+  retour('incidents', error?.message);
 }
 
+export async function resolveIncident(fd: FormData): Promise<void> {
+  const membre = await garde('incidents');
+  const orgId = membre.organizationId;
+  const p = resolveIncidentSchema.safeParse(formToObject(fd));
+  if (!p.success) retour('incidents', p.error.issues[0]?.message ?? 'saisie_invalide');
+  const now = new Date().toISOString();
+  const { error } = await table('quality_incidents')
+    .update({ status: 'traite', resolution: p.data.resolution, resolved_at: now, updated_at: now } as never)
+    .eq('id' as never, p.data.id as never).eq('organization_id', orgId);
+  retour('incidents', error?.message);
+}
+
+// ── Axes d'amélioration ──────────────────────────────────────────────────────
+export async function createAxis(fd: FormData): Promise<void> {
+  const membre = await garde('axes');
+  const p = axisSchema.safeParse(formToObject(fd));
+  if (!p.success) retour('axes', p.error.issues[0]?.message ?? 'saisie_invalide');
+  const { error } = await table('improvement_axes').insert({
+    organization_id: membre.organizationId,
+    title: p.data.title,
+    description: p.data.description ?? null,
+    indicator_number: p.data.indicatorNumber ?? null,
+    created_by: membre.userId,
+  } as never);
+  retour('axes', error?.message);
+}
+
+export async function moveAxis(fd: FormData): Promise<void> {
+  const membre = await garde('axes');
+  const orgId = membre.organizationId;
+  const p = moveAxisSchema.safeParse(formToObject(fd));
+  if (!p.success) retour('axes', p.error.issues[0]?.message ?? 'saisie_invalide');
+  const now = new Date().toISOString();
+  const { error } = await table('improvement_axes')
+    .update({ status: p.data.status, optimised_at: p.data.status === 'optimise' ? now : null, updated_at: now } as never)
+    .eq('id' as never, p.data.id as never).eq('organization_id', orgId);
+  retour('axes', error?.message);
+}
+
+// ── Actions correctives ──────────────────────────────────────────────────────
 export async function createImprovementAction(fd: FormData): Promise<void> {
-  const orgId = await requireOrg();
-  const origin = str(fd, 'origin') ?? 'autre';
-  const title = str(fd, 'title');
-  if (!inSet(ORIGINS, origin) || !title) {
-    redirect('/amelioration-continue?error=invalid_action');
-  }
-  const priority = str(fd, 'priority');
-  const { error } = await supabaseAdmin().schema('app').from('improvement_actions').insert({
+  const onglet = ongletDe(fd, 'actions');
+  const membre = await garde(onglet);
+  const orgId = membre.organizationId;
+  const p = actionSchema.safeParse(formToObject(fd));
+  if (!p.success) retour(onglet, p.error.issues[0]?.message ?? 'saisie_invalide');
+  const v = p.data;
+
+  if (v.complaintId && !(await appartient('complaints', v.complaintId, orgId))) retour(onglet, 'forbidden');
+  if (v.incidentId && !(await appartient('quality_incidents', v.incidentId, orgId))) retour(onglet, 'forbidden');
+  if (v.axisId && !(await appartient('improvement_axes', v.axisId, orgId))) retour(onglet, 'forbidden');
+
+  const { error } = await table('improvement_actions').insert({
     organization_id: orgId,
-    origin,
-    complaint_id: str(fd, 'complaint_id'),
-    title,
-    description: str(fd, 'description'),
-    owner: str(fd, 'owner'),
-    priority: inSet(PRIORITIES, priority) ? priority : 'medium',
-    due_date: str(fd, 'due_date'),
+    origin: v.origin,
+    complaint_id: v.complaintId ?? null,
+    incident_id: v.incidentId ?? null,
+    axis_id: v.axisId ?? null,
+    title: v.title,
+    description: v.description ?? null,
+    owner: v.owner ?? null,
+    priority: v.priority,
+    due_date: v.dueDate ?? null,
+    created_by: membre.userId,
   } as never);
-  if (error) redirect(`/amelioration-continue?error=${encodeURIComponent(error.message)}`);
-  revalidatePath('/amelioration-continue');
-  redirect('/amelioration-continue');
+  retour(onglet, error?.message);
 }
 
 export async function updateImprovementStatus(fd: FormData): Promise<void> {
-  await requireOrg();
-  const id = str(fd, 'id');
-  const status = str(fd, 'status');
-  if (!id || !inSet(STATUSES, status)) redirect('/amelioration-continue?error=invalid_status');
-  const patch: Record<string, unknown> = {
-    status,
-    updated_at: new Date().toISOString(),
-    done_at: status === 'done' ? new Date().toISOString() : null,
-  };
-  const { error } = await supabaseAdmin()
-    .schema('app')
-    .from('improvement_actions')
-    .update(patch as never)
-    .eq('id', id);
-  if (error) redirect(`/amelioration-continue?error=${encodeURIComponent(error.message)}`);
-  revalidatePath('/amelioration-continue');
-  redirect('/amelioration-continue');
+  const onglet = ongletDe(fd, 'actions');
+  const membre = await garde(onglet);
+  const orgId = membre.organizationId;
+  const p = actionStatusSchema.safeParse(formToObject(fd));
+  if (!p.success) retour(onglet, p.error.issues[0]?.message ?? 'saisie_invalide');
+  const now = new Date().toISOString();
+  const { error } = await table('improvement_actions')
+    .update({ status: p.data.status, updated_at: now, done_at: p.data.status === 'done' ? now : null } as never)
+    .eq('id' as never, p.data.id as never).eq('organization_id', orgId);
+  retour(onglet, error?.message);
+}
+
+// ── Veille ───────────────────────────────────────────────────────────────────
+export async function createVeilleEntry(fd: FormData): Promise<void> {
+  const membre = await garde('veille');
+  const brut = formToObject(fd);
+  const p = veilleSchema.safeParse({ ...brut, sourceUrl: brut.source_url });
+  if (!p.success) retour('veille', p.error.issues[0]?.message ?? 'saisie_invalide');
+  const { error } = await table('veille_entries').insert({
+    organization_id: membre.organizationId,
+    category: p.data.category,
+    title: p.data.title,
+    summary: p.data.summary ?? null,
+    source_url: p.data.sourceUrl ?? null,
+    impact: p.data.impact ?? null,
+    created_by: membre.userId,
+  } as never);
+  retour('veille', error?.message);
 }

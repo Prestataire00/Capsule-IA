@@ -39,7 +39,7 @@ export async function loadOrgEvidence(organizationId: string): Promise<EvidenceM
   const sb = supabaseAdmin();
   const org = organizationId;
 
-  const [formations, trainers, veille, complaints, actions, checklists, dossiers, supports] = await Promise.all([
+  const [formations, trainers, veille, complaints, actions, checklists, dossiers, supports, incidents, axes] = await Promise.all([
     lire<{ is_published: boolean | null; rncp_code: string | null; rs_code: string | null; metadata: { catalog?: { referentHandicap?: string } } | null }>(
       'formations',
       sb.schema('app').from('formations').select('is_published, rncp_code, rs_code, metadata').eq('organization_id', org).is('deleted_at', null),
@@ -71,6 +71,14 @@ export async function loadOrgEvidence(organizationId: string): Promise<EvidenceM
     lire<{ id: string }>(
       'supports pédagogiques',
       sb.schema('app').from('module_resources' as never).select('id').eq('organization_id' as never, org as never).is('deleted_at' as never, null),
+    ),
+    lire<{ status: string }>(
+      'incidents',
+      sb.schema('app').from('quality_incidents' as never).select('status').eq('organization_id' as never, org as never).is('deleted_at' as never, null),
+    ),
+    lire<{ status: string }>(
+      'axes d’amélioration',
+      sb.schema('app').from('improvement_axes' as never).select('status').eq('organization_id' as never, org as never).is('deleted_at' as never, null),
     ),
   ]);
 
@@ -206,6 +214,27 @@ export async function loadOrgEvidence(organizationId: string): Promise<EvidenceM
         : `${traitees}/${pluriel(complaints.length, 'réclamation')} traitée${traitees > 1 ? 's' : ''}`,
     ok: complaints.length === 0 || traitees === complaints.length,
     href: '/reclamations',
+  });
+
+  // 31 — incidents (aléas, difficultés, abandons) consignés et traités.
+  if (incidents.length > 0) {
+    const incidentsTraites = incidents.filter((i) => i.status === 'traite').length;
+    ajouter(31, {
+      label: `${incidentsTraites}/${pluriel(incidents.length, 'incident')} traité${incidentsTraites > 1 ? 's' : ''}`,
+      ok: incidentsTraites === incidents.length,
+      href: '/amelioration-continue?onglet=incidents',
+    });
+  }
+
+  // 32 — axes d'amélioration suivis jusqu'à leur optimisation.
+  const optimises = axes.filter((a) => a.status === 'optimise').length;
+  ajouter(32, {
+    label:
+      axes.length === 0
+        ? 'Aucun axe d’amélioration défini'
+        : `${pluriel(axes.length, 'axe')} d’amélioration, dont ${optimises} optimisé${optimises > 1 ? 's' : ''}`,
+    ok: axes.length > 0,
+    href: '/amelioration-continue?onglet=axes',
   });
 
   // 32 — amélioration continue.
