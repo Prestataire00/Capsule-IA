@@ -7,8 +7,10 @@ import { notFound } from 'next/navigation';
 import {
   ArrowLeft, Clock, Video, MapPin, GraduationCap, Eye, EyeOff,
   Users as UsersIcon, Banknote, FileText, ExternalLink, Award, Pencil, FolderOpen,
-  BookOpen, CalendarDays, BarChart3, ShieldCheck, ImageIcon, Link2, Percent,
+  BookOpen, CalendarDays, BarChart3, ShieldCheck, ImageIcon, Link2, Percent, Tag, RefreshCw,
 } from 'lucide-react';
+import { CERTIF_TYPES, FUNDING_TYPES, VALIDITY_UNITS } from '@/features/formations/constants';
+import type { CatalogMeta } from '@/features/formations/mapping';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -59,7 +61,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     .select(
       'id, code, title, summary, description, objectives, prerequisites, target_audience, ' +
         'evaluation_method, pedagogical_method, default_modality, default_duration_hours, ' +
-        'default_price_cents, is_published, rncp_code, rs_code, certificateur, metadata',
+        'default_price_cents, is_published, rncp_code, rs_code, certificateur, metadata, created_at',
     )
     .eq('id', id)
     .is('deleted_at', null)
@@ -224,7 +226,52 @@ export default async function FormationDetailPage({ params }: { params: { id: st
 
   const objectives: string[] = f.objectives ?? [];
   const prerequisites: string[] = f.prerequisites ?? [];
-  const description: string | null = f.description ?? f.summary ?? null;
+  const description: string | null = texte(f.description) ?? f.summary ?? null;
+
+  // Fiche d'identité de la formation : colonnes + metadata.catalog (saisie du
+  // formulaire catalogue). Tout ce qui est renseigné s'affiche, rien d'autre.
+  const cat = (f.metadata?.catalog ?? {}) as Partial<CatalogMeta>;
+  const categories: string[] = cat.categories ?? [];
+  const financements = (cat.fundingTypes ?? []).map(
+    (v) => FUNDING_TYPES.find((t) => t.value === v)?.label ?? v,
+  );
+  const dureeJours = cat.durationDays ? `${cat.durationDays} jour${Number(cat.durationDays) > 1 ? 's' : ''}` : null;
+  const effectif =
+    cat.effectifMin || cat.effectifMax
+      ? `${cat.effectifMin ?? '?'} – ${cat.effectifMax ?? '?'} participants`
+      : null;
+  const validite = cat.validityValue
+    ? `${cat.validityValue} ${VALIDITY_UNITS.find((u) => u.value === cat.validityUnit)?.label ?? cat.validityUnit ?? ''}`.trim()
+    : null;
+  const recyclage = cat.recyclingEnabled
+    ? [validite ? `validité ${validite}` : null, cat.recyclingReminderValue ? `relance ${cat.recyclingReminderValue} ${cat.recyclingReminderUnit ?? ''}`.trim() : null]
+        .filter(Boolean)
+        .join(' · ') || 'oui'
+    : null;
+  const certification = [
+    CERTIF_TYPES.find((c) => c.value === cat.certifType && c.value !== 'sans')?.label ?? null,
+    f.rncp_code ? `RNCP ${f.rncp_code}` : f.rs_code ? `RS ${f.rs_code}` : null,
+    f.certificateur ?? cat.certifNomCertificateur ?? null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const lieu = [cat.defaultLocation, cat.defaultCity, cat.defaultDepartment].filter(Boolean).join(', ');
+  const tarifs = [
+    cat.priceEntrepriseCents ? { label: 'Entreprise', value: formatEuros(cat.priceEntrepriseCents) } : null,
+    cat.priceParticulierCents ? { label: 'Particulier', value: formatEuros(cat.priceParticulierCents) } : null,
+    cat.priceIndependantCents ? { label: 'Indépendant', value: formatEuros(cat.priceIndependantCents) } : null,
+  ].filter((x): x is { label: string; value: string } => x !== null);
+
+  const contenus = [
+    { label: 'Programme détaillé', value: texte(cat.programContent) },
+    { label: 'Méthodes pédagogiques', value: texte(f.pedagogical_method) },
+    { label: 'Modalités d’évaluation', value: texte(f.evaluation_method) },
+    { label: 'Déroulement', value: texte(cat.deroulement) },
+    { label: 'Indicateurs de résultats', value: texte(cat.resultIndicators) },
+    { label: 'Accessibilité (handicap)', value: texte(cat.accessibilityInfo) },
+    { label: 'Délais et modalités d’accès', value: texte(cat.accessDelay) },
+    { label: 'Équipe pédagogique', value: texte(cat.teachingTeam) },
+  ].filter((s): s is { label: string; value: string } => Boolean(s.value));
 
   const m = modalityStyles[f.default_modality as ModalityKey] ?? modalityStyles.presentiel;
   const Icon = m.icon;
@@ -309,47 +356,106 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         counts={{ sessions: sessions.length, dossiers: relatedDossiers.length }}
         overview={
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <Card title="Programme pédagogique" icon={BookOpen} accent="orange" className="lg:col-span-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-            {description && (
-              <Section label="Description" className="sm:col-span-2">
-                <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line line-clamp-4">{description}</p>
-              </Section>
-            )}
-            {objectives.length > 0 && (
-              <Section label="Objectifs pédagogiques">
-                <ul className="space-y-1">
-                  {objectives.map((o, i) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
-                      <span className={`w-5 h-5 rounded-md grid place-items-center text-[11px] font-bold tabular-nums flex-shrink-0 ${ACCENTS.orange.soft}`}>{i + 1}</span> {o}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-            {(f.target_audience || prerequisites.length > 0) && (
-              <Section label="Public visé & prérequis">
-                {f.target_audience && (
-                  <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{f.target_audience}</p>
-                )}
-                {prerequisites.length > 0 && (
-                  <ul className="mt-1.5 space-y-1">
-                    {prerequisites.map((p, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-[7px] flex-shrink-0" /> {p}
-                      </li>
+        <div className="lg:col-span-2 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <Card title="Information générale" icon={FileText} accent="blue">
+              <dl className="divide-y divide-zinc-100 dark:divide-zinc-800/80 -mt-1">
+                <Info label="Catégorie" icon={Tag} value={categories.join(' · ')} />
+                <Info label="Modalité" icon={Icon} value={m.label} />
+                <Info
+                  label="Durée"
+                  icon={Clock}
+                  value={`${Number(f.default_duration_hours)} h${dureeJours ? ` (${dureeJours})` : ''}`}
+                  chiffre
+                />
+                <Info label="Effectif" icon={UsersIcon} value={effectif} chiffre />
+                <Info label="Tarif de base" icon={Banknote} value={`${formatEuros(f.default_price_cents)} HT`} chiffre />
+                {tarifs.map((t) => (
+                  <Info key={t.label} label={`Tarif ${t.label.toLowerCase()}`} icon={Banknote} value={`${t.value} HT`} chiffre />
+                ))}
+                <Info label="Lieu par défaut" icon={MapPin} value={lieu} />
+                <Info label="Certification" icon={Award} value={certification} />
+                <Info label="Recyclage" icon={RefreshCw} value={recyclage} />
+                <Info label="Éligible CPF" icon={GraduationCap} value={cat.eligibleCpf ? 'Oui' : null} />
+                <Info label="Version" icon={FileText} value={cat.version} />
+                <Info
+                  label="Créée le"
+                  icon={CalendarDays}
+                  value={f.created_at ? new Date(f.created_at).toLocaleDateString('fr-FR') : null}
+                  chiffre
+                />
+              </dl>
+              {financements.length > 0 && (
+                <div className="pt-3 mt-1 border-t border-zinc-100 dark:border-zinc-800/80">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500 mb-1.5">Financements</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {financements.map((t) => (
+                      <span key={t} className={`${PILL} ${ACCENTS.emerald.soft}`}>{t}</span>
                     ))}
-                  </ul>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            <Card title="Contenu pédagogique" icon={BookOpen} accent="orange">
+              <div className="space-y-4">
+                {description && (
+                  <Section label="Description">
+                    <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{description}</p>
+                  </Section>
                 )}
-              </Section>
-            )}
-            {!description && objectives.length === 0 && !f.target_audience && prerequisites.length === 0 && (
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:col-span-2">
-                Aucun contenu pédagogique renseigné. <Link href={`/formations/${f.id}/edit`} className={LINK}>Compléter</Link>.
-              </p>
-            )}
+                {objectives.length > 0 && (
+                  <Section label="Objectifs pédagogiques">
+                    <ul className="space-y-1">
+                      {objectives.map((o, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
+                          <span className={`w-5 h-5 rounded-md grid place-items-center text-[11px] font-bold tabular-nums flex-shrink-0 ${ACCENTS.orange.soft}`}>{i + 1}</span> {o}
+                        </li>
+                      ))}
+                    </ul>
+                  </Section>
+                )}
+                {(f.target_audience || prerequisites.length > 0) && (
+                  <Section label="Public visé & prérequis">
+                    {f.target_audience && (
+                      <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{f.target_audience}</p>
+                    )}
+                    {prerequisites.length > 0 && (
+                      <ul className="mt-1.5 space-y-1">
+                        {prerequisites.map((p, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-[7px] flex-shrink-0" /> {p}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Section>
+                )}
+                {!description && objectives.length === 0 && !f.target_audience && prerequisites.length === 0 && (
+                  <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+                    Aucun contenu pédagogique renseigné. <Link href={`/formations/${f.id}/edit`} className={LINK}>Compléter</Link>.
+                  </p>
+                )}
+              </div>
+            </Card>
           </div>
-        </Card>
+
+          {contenus.length > 0 && (
+            <Card title="Programme & modalités" icon={FileText} accent="purple">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                {contenus.map((s) => (
+                  <Section key={s.label} label={s.label} className={s.label === 'Programme détaillé' ? 'sm:col-span-2' : ''}>
+                    <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{s.value}</p>
+                  </Section>
+                ))}
+              </div>
+              <p className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 text-[12px] text-zinc-500 dark:text-zinc-400">
+                Le programme complet (modules, déroulé horaire, mise en page) s’édite et s’imprime depuis{' '}
+                <Link href={`/formations/${f.id}/programme`} className={LINK}>Programme</Link>.
+              </p>
+            </Card>
+          )}
+        </div>
 
         {/* Colonne actions — inscription, dossiers, sessions */}
         <div className="space-y-4">
@@ -586,6 +692,55 @@ function Avatar({ name }: { name: string }) {
     <span className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${AVATAR_PALETTE[hash % AVATAR_PALETTE.length]}`}>
       {initials}
     </span>
+  );
+}
+
+/**
+ * Texte lisible d'un champ riche : le formulaire catalogue enregistre du HTML
+ * (éditeur riche). La fiche n'en affiche que le texte — pas de HTML tiers injecté
+ * dans la page, et une carte qui reste homogène avec les champs simples.
+ */
+function texte(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&(?:quot|#34);/g, '"')
+    .replace(/&(?:#39|apos|rsquo);/g, '’')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return t === '' ? null : t;
+}
+
+/** Ligne « libellé → valeur » de la carte Information générale. Masquée si vide. */
+function Info({
+  label,
+  value,
+  icon: RowIcon,
+  chiffre = false,
+}: {
+  label: string;
+  value: string | null | undefined;
+  icon?: React.ComponentType<{ className?: string }>;
+  chiffre?: boolean;
+}) {
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-2">
+      <dt className="text-[13px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5 shrink-0">
+        {RowIcon && <RowIcon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />}
+        {label}
+      </dt>
+      <dd className={`text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 text-right ${chiffre ? 'tabular-nums' : ''}`}>
+        {value}
+      </dd>
+    </div>
   );
 }
 
