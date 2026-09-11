@@ -156,6 +156,7 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
     email: parsed.data.email,
     firstName: parsed.data.firstName,
     orgName: (org?.name as string | null) ?? 'votre organisme de formation',
+    trainerId,
   });
   // Un échec d'envoi ne perd pas la fiche : elle est créée, l'invitation est
   // renvoyable depuis la fiche formateur.

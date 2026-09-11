@@ -85,6 +85,7 @@ export async function resendTrainerInvite(trainerId: string): Promise<Result> {
     email: trainer.email,
     firstName: trainer.first_name ?? '',
     orgName: ((org as { name?: string } | null)?.name) ?? 'votre organisme de formation',
+    trainerId,
   });
   if (!res.ok) {
     return {

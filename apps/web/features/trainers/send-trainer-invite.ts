@@ -28,6 +28,8 @@ export async function sendTrainerInvite(args: {
   email: string;
   firstName: string;
   orgName: string;
+  /** Fiche à rattacher au compte invité (sinon : rattachement par e-mail à la première visite). */
+  trainerId?: string;
 }): Promise<InviteResult> {
   const admin = supabaseAdmin();
   const baseUrl = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
@@ -40,6 +42,7 @@ export async function sendTrainerInvite(args: {
 
   const invite = await admin.auth.admin.generateLink({ type: 'invite', email: args.email });
   const inviteHash = invite.data?.properties?.hashed_token;
+  let userId = invite.data?.user?.id ?? null;
   if (inviteHash) link = authCallbackLink(baseUrl, inviteHash, 'invite', APRES_MOT_DE_PASSE);
 
   if (!link) {
@@ -50,7 +53,22 @@ export async function sendTrainerInvite(args: {
       console.error('[sendTrainerInvite] generateLink', invite.error?.message, recovery.error?.message);
       return { ok: false, reason: 'link_failed', details: recovery.error?.message ?? invite.error?.message };
     }
+    userId = recovery.data?.user?.id ?? null;
     link = authCallbackLink(baseUrl, recoveryHash, 'recovery', APRES_MOT_DE_PASSE);
+  }
+
+  // La fiche est rattachée au compte qui recevra le lien, dès maintenant : le
+  // rattachement par e-mail à la première visite échouait si la fiche pointait
+  // déjà vers un autre compte (ancien compte, adresse corrigée), et le formateur
+  // était alors refusé de son propre espace.
+  if (args.trainerId && userId) {
+    const { error } = await admin
+      .schema('app')
+      .from('trainers')
+      .update({ user_id: userId } as never)
+      .eq('id', args.trainerId)
+      .is('deleted_at', null);
+    if (error) console.error('[sendTrainerInvite] rattachement de la fiche', error.message);
   }
 
   const tpl = trainerWelcomeEmail({

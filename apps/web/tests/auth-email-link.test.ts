@@ -30,6 +30,12 @@ describe('lien envoyé par e-mail', () => {
     }
   });
 
+  it('l’invitation rattache la fiche au compte invité, depuis la fiche comme à la création', () => {
+    expect(lire('../features/trainers/send-trainer-invite.ts')).toContain(".update({ user_id: userId } as never)");
+    expect(lire('../app/(dashboard)/formateurs/[id]/profile-actions.ts')).toMatch(/sendTrainerInvite\(\{[\s\S]*?trainerId,\s*\}\)/);
+    expect(lire('../app/(dashboard)/formateurs/nouveau/actions.ts')).toMatch(/sendTrainerInvite\(\{[\s\S]*?trainerId,\s*\}\)/);
+  });
+
   it('après le mot de passe, le formateur arrive dans son espace', () => {
     expect(lire('../features/trainers/send-trainer-invite.ts')).toContain("encodeURIComponent('/formateur')");
     expect(lire('../app/auth/reset-password/reset-form.tsx')).toContain('router.replace(next)');
