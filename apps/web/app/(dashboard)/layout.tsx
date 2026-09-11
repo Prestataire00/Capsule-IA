@@ -3,7 +3,6 @@
 
 import { SidebarRailServer } from '@/shared/components/layout/sidebar-rail-server';
 import { Topbar } from '@/shared/components/layout/topbar';
-import { SectionTabs } from '@/shared/components/layout/section-tabs';
 import { AiAssistant } from '@/shared/components/ai/ai-assistant';
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/shared/lib/supabase/server';
@@ -30,7 +29,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <SidebarRailServer />
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar />
-        <SectionTabs role={membre.role} />
         <main className="relative isolate bg-app-canvas flex-1 min-w-0 overflow-x-hidden">{children}</main>
       </div>
       <AiAssistant />
