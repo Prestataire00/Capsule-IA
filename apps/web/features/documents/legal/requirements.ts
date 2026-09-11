@@ -45,12 +45,12 @@ export const ACCESSIBILITY_MENTION =
 // apprenant, une entreprise ou un financeur porte des données personnelles.
 // `{contact}` est remplacé par l'e-mail de l'organisme quand il est connu.
 export const RGPD_MENTION_TEMPLATE =
-  "Données personnelles : les informations recueillies sont traitées par l'organisme de formation pour la gestion de votre dossier de formation et de ses obligations légales (base légale : contrat et obligation légale). Elles sont conservées pendant la durée légale de conservation applicable et ne sont transmises qu'aux destinataires habilités (financeurs, autorités de contrôle). Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL — pour l'exercer, écrivez à {contact}.";
+  "Données personnelles traitées par l'organisme de formation pour la gestion de la formation (base légale : contrat), conservées 3 ans. Droit d'accès, de rectification, d'effacement et d'opposition (RGPD, règlement UE 2016/679) sur simple demande auprès de {contact}.";
 
 /** Mention RGPD prête à imprimer ; `contact` = e-mail de l'organisme (ou libellé de repli). */
 export function rgpdMention(contact?: string | null): string {
   const c = (contact ?? '').trim();
-  return RGPD_MENTION_TEMPLATE.replace('{contact}', c || "l'organisme de formation");
+  return RGPD_MENTION_TEMPLATE.replace('{contact}', c ? `l'organisme (${c})` : "l'organisme");
 }
 
 export const LEGAL_REQUIREMENTS: Record<DocumentKind, LegalRequirement> = {

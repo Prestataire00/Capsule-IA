@@ -105,7 +105,7 @@ async function buildAttestationInput(
   const { data: orgData } = await sb
     .schema('app')
     .from('organizations')
-    .select('name, siret, declaration_activite, address, contact_email')
+    .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
     .eq('id', d.organization_id)
     .maybeSingle();
   const org = orgData as {
@@ -128,6 +128,9 @@ async function buildAttestationInput(
         siret: org?.siret ?? null,
         nda: org?.declaration_activite ?? null,
         address: adresse(org?.address),
+        contactEmail: org?.contact_email ?? null,
+        contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
+        certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
         representativeName: branding.representativeName ?? org?.contact_email ?? null,
       },
       signaturePng: branding.signaturePng,
@@ -192,7 +195,7 @@ async function buildProgrammeBytes(
   const { data: orgData } = await sb
     .schema('app')
     .from('organizations')
-    .select('name, siret, declaration_activite, address')
+    .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
     .eq('id', d.organization_id)
     .maybeSingle();
   const org = orgData as { name: string; siret: string | null; declaration_activite: string | null; address: AddressJson | null } | null;
@@ -236,6 +239,9 @@ async function buildProgrammeBytes(
         siret: org?.siret ?? null,
         nda: org?.declaration_activite ?? null,
         address: adresse(org?.address),
+        contactEmail: (org as { contact_email?: string | null } | null)?.contact_email ?? null,
+        contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
+        certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
       },
       logoPng: branding.logoPng,
       formation: {

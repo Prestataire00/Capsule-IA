@@ -85,7 +85,7 @@ export async function buildConvocationPdf(
   const { data: orgRow } = await sb
     .schema('app')
     .from('organizations')
-    .select('name, siret, declaration_activite, address')
+    .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
     .eq('id', session.organization_id)
     .maybeSingle();
   const org = orgRow as { name: string; siret: string | null; declaration_activite: string | null; address: AddressJson | null } | null;
@@ -138,6 +138,10 @@ export async function buildConvocationPdf(
       name: org?.name ?? 'Organisme de formation',
       nda: org?.declaration_activite ?? null,
       address: adresse(org?.address),
+      siret: org?.siret ?? null,
+      contactEmail: (org as { contact_email?: string | null } | null)?.contact_email ?? null,
+      contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
+      certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
     },
     logoPng: branding.logoPng,
     contentMd: lignes.join('\n'),

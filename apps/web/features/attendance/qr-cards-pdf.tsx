@@ -37,11 +37,20 @@ const styles = StyleSheet.create({
   hint: { color: '#71717a', fontSize: 8, marginTop: 8 },
 });
 
-export async function renderQrCardsPdf(title: string, cards: readonly QrCard[]): Promise<Buffer> {
+export async function renderQrCardsPdf(
+  title: string,
+  cards: readonly QrCard[],
+  organizationLines: readonly string[] = [],
+): Promise<Buffer> {
   const doc = (
     <Document>
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>{title}</Text>
+        {organizationLines.map((l, i) => (
+          <Text key={i} style={styles.hint}>
+            {l}
+          </Text>
+        ))}
         <View style={styles.grid}>
           {cards.map((c, i) => (
             <View key={i} style={styles.card} wrap={false}>

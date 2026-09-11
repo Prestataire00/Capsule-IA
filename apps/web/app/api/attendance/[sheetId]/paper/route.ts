@@ -3,6 +3,8 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { accessibleSheet } from '@/features/attendance/access';
 import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
 import { renderPaperSheet } from '@/features/attendance/paper-sheet-pdf';
+import { loadOrgIdentity } from '@/features/documents/load-org-identity';
+import { orgIdentityLines } from '@/features/documents/legal/org-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,9 +43,13 @@ export async function GET(req: Request, { params }: { params: { sheetId: string 
     companyLearners = new Set(((dossiers ?? []) as Array<{ learner_id: string }>).map((d) => d.learner_id));
   }
 
-  const { data: org } = await sb.schema('app').from('organizations').select('name').eq('id', acces.value.organization_id).maybeSingle();
+  const [{ data: org }, identity] = await Promise.all([
+    sb.schema('app').from('organizations').select('name').eq('id', acces.value.organization_id).maybeSingle(),
+    loadOrgIdentity(sb as never, acces.value.organization_id),
+  ]);
   const pdf = await renderPaperSheet({
     organizationName: (org as { name: string } | null)?.name ?? '',
+    organizationLines: orgIdentityLines(identity).slice(1),
     formationTitle: vue.session.title ?? 'Formation',
     companyName,
     slotLabel: `${jour(feuille.windowStart)} · ${HALF_DAY[feuille.halfDay] ?? 'Journée'} ${heure(feuille.windowStart)}–${heure(feuille.windowEnd)}`,

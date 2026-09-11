@@ -5,6 +5,8 @@ import { accessibleSession } from '@/features/attendance/access';
 import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link';
 import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
 import { renderQrCardsPdf, type QrCard } from '@/features/attendance/qr-cards-pdf';
+import { loadOrgIdentity } from '@/features/documents/load-org-identity';
+import { orgIdentityLines } from '@/features/documents/legal/org-identity';
 import { renderQrPng } from '@/shared/lib/qr';
 
 export const dynamic = 'force-dynamic';
@@ -50,7 +52,12 @@ export async function GET(req: NextRequest, { params }: { params: { sessionId: s
   }
   if (cards.length === 0) return NextResponse.json({ error: 'aucun_qr_a_imprimer' }, { status: 404 });
 
-  const pdf = await renderQrCardsPdf(`Émargement — ${vue.session.title ?? 'Séance'} · ${jour(vue.session.startsAt)}`, cards);
+  const identity = await loadOrgIdentity(supabaseServer() as never, acces.value.organization_id);
+  const pdf = await renderQrCardsPdf(
+    `Émargement — ${vue.session.title ?? 'Séance'} · ${jour(vue.session.startsAt)}`,
+    cards,
+    orgIdentityLines(identity),
+  );
   return new NextResponse(new Uint8Array(pdf), {
     status: 200,
     headers: {

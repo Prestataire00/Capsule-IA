@@ -5,6 +5,7 @@
 // Pur : aucun import next/supabase/react.
 
 import { NDA_DISCLAIMER, ACCESSIBILITY_MENTION, rgpdMention } from '@/features/documents/legal/requirements';
+import { orgIdentityLines } from '@/features/documents/legal/org-identity';
 
 const MARKER = 'data-of-header';
 
@@ -18,21 +19,25 @@ export function wrapGeneratedHtml(bodyHtml: string, variables: Record<string, st
 
   const logo = variables['organisme_logo']?.trim() ?? ''; // balise <img …> déjà prête, ou ''
   const name = variables['organisme_nom']?.trim() ?? '';
-  const siret = variables['organisme_siret']?.trim() ?? '';
   const nda = variables['organisme_nda']?.trim() ?? '';
-  const address = variables['organisme_adresse']?.trim() ?? '';
 
-  const metaParts = [
-    siret ? `SIRET ${siret}` : '',
-    nda ? `Déclaration d'activité n° ${nda}` : '',
-    address,
-  ].filter(Boolean);
+  // Même bloc d'identité que les PDF : adresse, téléphone | e-mail, puis
+  // SIRET - déclaration d'activité - agréments.
+  const [, ...metaParts] = orgIdentityLines({
+    name,
+    address: variables['organisme_adresse'] ?? null,
+    phone: variables['organisme_telephone'] ?? null,
+    email: variables['organisme_email'] ?? null,
+    siret: variables['organisme_siret'] ?? null,
+    nda: nda || null,
+    certifications: variables['organisme_agrements'] ?? null,
+  });
 
   const header = `<header ${MARKER} class="doc-brand-header" style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #ececef;padding-bottom:14px;margin-bottom:22px;">
     ${logo ? `<div class="doc-brand-logo" style="flex:0 0 auto;">${logo}</div>` : ''}
     <div class="doc-brand-id" style="flex:1 1 auto;line-height:1.4;">
       ${name ? `<div style="font-weight:700;font-size:15px;color:#18181b;">${name}</div>` : ''}
-      ${metaParts.length ? `<div style="font-size:11px;color:#71717a;">${metaParts.join('&nbsp;·&nbsp;')}</div>` : ''}
+      ${metaParts.map((l) => `<div style="font-size:11px;color:#71717a;">${l}</div>`).join('')}
     </div>
   </header>`;
 

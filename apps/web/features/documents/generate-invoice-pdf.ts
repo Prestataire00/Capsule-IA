@@ -19,6 +19,7 @@ export type InvoiceInput = {
     address: string | null;
     contactEmail: string | null;
     contactPhone: string | null;
+    certifications?: string | null;
   };
   recipient: {
     name: string;

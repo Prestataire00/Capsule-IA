@@ -15,6 +15,8 @@ export const OrgIdentitySchema = z.object({
     .optional()
     .or(z.literal('')),
   declarationActivite: optionalText,
+  /** Agréments affichés sur les documents (CNAPS, habilitations…). */
+  certifications: z.string().trim().max(300).optional().or(z.literal('')),
   contactEmail: z.string().trim().email('Email invalide').optional().or(z.literal('')),
   contactPhone: optionalText,
   address: z.object({

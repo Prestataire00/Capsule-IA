@@ -58,7 +58,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const { data: orgData } = await sb
     .schema('app')
     .from('organizations')
-    .select('name, siret, declaration_activite, address')
+    .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
     .eq('id', d.organization_id)
     .maybeSingle();
 
@@ -117,6 +117,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       siret: org?.siret ?? null,
       nda: org?.declaration_activite ?? null,
       address: composeAddress(org?.address),
+      contactEmail: (org as { contact_email?: string | null } | null)?.contact_email ?? null,
+      contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
+      certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
     },
     logoPng: branding.logoPng,
     formation: {

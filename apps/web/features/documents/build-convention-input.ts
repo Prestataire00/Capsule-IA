@@ -68,7 +68,7 @@ export async function buildConventionInput(
   const { data: orgData } = await sb
     .schema('app')
     .from('organizations')
-    .select('name, siret, declaration_activite, address, contact_email')
+    .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
     .eq('id', d.organization_id)
     .maybeSingle();
   const org = (orgData as {
@@ -88,6 +88,9 @@ export async function buildConventionInput(
       siret: org?.siret ?? null,
       nda: org?.declaration_activite ?? null,
       address: composeAddress(org?.address),
+      contactEmail: org?.contact_email ?? null,
+      contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
+      certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
       representativeName: branding.representativeName ?? org?.contact_email ?? null,
     },
     signaturePng: branding.signaturePng,

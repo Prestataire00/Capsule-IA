@@ -1,5 +1,6 @@
 import 'server-only';
 import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
+import { rgpdMention } from '@/features/documents/legal/requirements';
 
 /**
  * Feuille d'émargement clôturée, en PDF : une ligne par participant attendu —
@@ -32,6 +33,8 @@ export type AttendancePdfInput = {
   readonly dossierReference: string;
   readonly formationTitle: string;
   readonly organizationName: string;
+  /** Bloc d'identité de l'organisme (adresse, contact, SIRET · NDA · agréments). */
+  readonly organizationLines?: readonly string[];
   readonly organizationLogoUrl: string | null;
   readonly sessionStartsAt: Date;
   readonly sessionEndsAt: Date;
@@ -137,7 +140,14 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
           {input.organizationLogoUrl ? (
             <Image src={input.organizationLogoUrl} style={styles.logo} />
           ) : (
-            <Text style={{ fontSize: 10 }}>{input.organizationName}</Text>
+            <View>
+              <Text style={{ fontSize: 10 }}>{input.organizationName}</Text>
+              {(input.organizationLines ?? []).map((l, i) => (
+                <Text key={i} style={{ fontSize: 6.5, color: '#71717a', textAlign: 'right' }}>
+                  {l}
+                </Text>
+              ))}
+            </View>
           )}
         </View>
 
@@ -179,6 +189,7 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
           {input.organizationName} · Feuille clôturée le {dateLongue(new Date())} · Signatures horodatées, rattachées à l’appareil du
           signataire, conservées par l’organisme · Preuve de présence par demi-journée
         </Text>
+        <Text style={styles.footer}>{rgpdMention(null)}</Text>
         <Text style={styles.hash}>Feuille : {input.sheetId}</Text>
       </Page>
     </Document>

@@ -10,6 +10,7 @@ type IdentityProps = {
   legalName: string;
   siret: string;
   declarationActivite: string;
+  certifications: string;
   contactEmail: string;
   contactPhone: string;
   addressLine1: string;
@@ -30,6 +31,7 @@ const FIELD_LABELS: Record<string, string> = {
   legalName: 'Raison sociale',
   siret: 'SIRET',
   declarationActivite: 'Déclaration d’activité',
+  certifications: 'Agréments',
   contactEmail: 'Email de contact',
   contactPhone: 'Téléphone',
   address: 'Adresse',
@@ -60,6 +62,7 @@ export function IdentitySection(props: { org: IdentityProps }) {
         legalName: form.legalName,
         siret: form.siret,
         declarationActivite: form.declarationActivite,
+        certifications: form.certifications,
         contactEmail: form.contactEmail,
         contactPhone: form.contactPhone,
         address: {
@@ -131,6 +134,19 @@ export function IdentitySection(props: { org: IdentityProps }) {
           />
         </label>
       </div>
+
+      <label className={labelCls}>
+        Agréments et habilitations
+        <input
+          value={form.certifications}
+          onChange={set('certifications')}
+          className={inputCls}
+          placeholder="CNAPS : FOR-000-0000-00-00-00000000000"
+        />
+        <span className="block mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+          Affichés sur tous les documents, à la suite du SIRET et de la déclaration d’activité.
+        </span>
+      </label>
 
       <div className="grid grid-cols-2 gap-3">
         <label className={labelCls}>

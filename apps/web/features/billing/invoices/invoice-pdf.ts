@@ -152,7 +152,7 @@ export async function buildInvoicePdf(
       sb
         .schema('app')
         .from('organizations')
-        .select('name, siret, declaration_activite, address, contact_email, contact_phone')
+        .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
         .eq('id', inv.organization_id)
         .maybeSingle(),
       sb
@@ -194,6 +194,7 @@ export async function buildInvoicePdf(
       address: composeAddress(org?.address),
       contactEmail: org?.contact_email ?? null,
       contactPhone: org?.contact_phone ?? null,
+      certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
     },
     recipient: {
       name: recipient.name,

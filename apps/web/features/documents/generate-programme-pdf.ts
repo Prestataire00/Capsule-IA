@@ -9,6 +9,9 @@ export type ProgrammeInput = {
     siret: string | null;
     nda: string | null;
     address: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    certifications?: string | null;
   };
   logoPng: Uint8Array | null;
   formation: {
@@ -180,6 +183,11 @@ export async function generateProgrammePDF(input: ProgrammeInput): Promise<Uint8
   if (input.organization.siret) c = drawKeyValue(doc, c, font, fontBold, 'SIRET', input.organization.siret);
   if (input.organization.nda) c = drawKeyValue(doc, c, font, fontBold, 'N° déclaration activité', input.organization.nda);
   if (input.organization.address) c = drawKeyValue(doc, c, font, fontBold, 'Adresse', input.organization.address);
+  const orgContact = [input.organization.contactPhone, input.organization.contactEmail].filter(Boolean).join(' | ');
+  if (orgContact) c = drawKeyValue(doc, c, font, fontBold, 'Contact', orgContact);
+  if (input.organization.certifications) {
+    c = drawKeyValue(doc, c, font, fontBold, 'Agréments', input.organization.certifications);
+  }
   c = { ...c, y: c.y - 12 };
 
   // Section 2 — Formation

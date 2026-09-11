@@ -6,6 +6,8 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { parseZoomCsv } from '@/features/attendance/zoom-csv-parser';
 import { renderAttendancePdf, type PdfSignatureLine } from '@/features/attendance/pdf-render';
+import { loadOrgIdentity } from '@/features/documents/load-org-identity';
+import { orgIdentityLines } from '@/features/documents/legal/org-identity';
 import { accessibleSession, accessibleSheet } from '@/features/attendance/access';
 import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link';
 import { markJustifiedAbsence } from '@/features/attendance/justifications';
@@ -344,6 +346,8 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
       dossierReference: ctx?.dossiers?.reference ?? 'Session de groupe',
       formationTitle: ctx?.dossiers?.formations?.title ?? ctx?.sessions?.formation?.title ?? ctx?.sessions?.title ?? '—',
       organizationName: ctx?.organizations?.name ?? '—',
+      // Même bloc d'identité que sur les autres documents (SIRET, NDA, agréments).
+      organizationLines: orgIdentityLines(await loadOrgIdentity(sb as never, ref.organization_id)).slice(1),
       organizationLogoUrl: ctx?.organizations?.logo_url ?? null,
       sessionStartsAt: new Date(feuille.windowStart),
       sessionEndsAt: new Date(feuille.windowEnd),

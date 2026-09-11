@@ -46,6 +46,7 @@ export const updateOrgIdentityAction = authActionClient
         legal_name: orNull(parsedInput.legalName),
         siret: orNull(parsedInput.siret),
         declaration_activite: orNull(parsedInput.declarationActivite),
+        certifications: orNull(parsedInput.certifications),
         contact_email: orNull(parsedInput.contactEmail),
         contact_phone: orNull(parsedInput.contactPhone),
         address: {

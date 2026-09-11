@@ -69,7 +69,7 @@ export async function GET(_req: NextRequest, { params }: { params: { assignmentI
   const [{ data: tData }, { data: rData }, { data: oData }, { data: dData }] = await Promise.all([
     sb.schema('app').from('questionnaire_templates').select('title, schema').eq('id', assignment.template_id).maybeSingle(),
     sb.schema('app').from('questionnaire_responses').select('answers, submitted_at').eq('assignment_id', params.assignmentId).maybeSingle(),
-    sb.schema('app').from('organizations').select('name, siret, declaration_activite').eq('id', orgId).maybeSingle(),
+    sb.schema('app').from('organizations').select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications').eq('id', orgId).maybeSingle(),
     sb.schema('app').from('dossiers').select('reference, formation:formations(title)').eq('id', assignment.dossier_id).maybeSingle(),
   ]);
 
@@ -87,6 +87,9 @@ export async function GET(_req: NextRequest, { params }: { params: { assignmentI
       name: org?.name ?? 'Organisme de formation',
       siret: org?.siret ?? null,
       nda: org?.declaration_activite ?? null,
+      contactEmail: (org as { contact_email?: string | null } | null)?.contact_email ?? null,
+      contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
+      certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
     },
     logoPng: branding.logoPng,
     dossierReference: dossier?.reference ?? '—',

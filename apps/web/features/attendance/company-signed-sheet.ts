@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { loadSessionEmargement } from './queries/load-session-emargement';
 import { renderAttendancePdf, type PdfSignatureLine } from './pdf-render';
+import { loadOrgIdentity } from '@/features/documents/load-org-identity';
+import { orgIdentityLines } from '@/features/documents/legal/org-identity';
 
 /**
  * Feuille d'émargement signée d'UNE entreprise cliente (comme RFC) : ses
@@ -99,6 +101,7 @@ export async function renderCompanyAttendanceSheet(
     dossierReference: `Société : ${companyName}`,
     formationTitle: ctx?.dossiers?.formations?.title ?? ctx?.sessions?.formation?.title ?? ctx?.sessions?.title ?? '—',
     organizationName: ctx?.organizations?.name ?? '—',
+    organizationLines: orgIdentityLines(await loadOrgIdentity(admin, args.organizationId)).slice(1),
     organizationLogoUrl: ctx?.organizations?.logo_url ?? null,
     sessionStartsAt: new Date(feuille.windowStart),
     sessionEndsAt: new Date(feuille.windowEnd),

@@ -33,7 +33,7 @@ export async function resolveOrgVariables(
     sb
       .schema('app')
       .from('organizations')
-      .select('name, siret, declaration_activite, address, contact_email, contact_phone, legal_name, representative_name, representative_title')
+      .select('name, siret, declaration_activite, certifications, address, contact_email, contact_phone, legal_name, representative_name, representative_title')
       .eq('id', organizationId)
       .maybeSingle(),
     loadOrgAssetDataUris(sb, organizationId),
@@ -43,6 +43,7 @@ export async function resolveOrgVariables(
     name: string;
     siret: string | null;
     declaration_activite: string | null;
+    certifications: string | null;
     address: AddressJson | null;
     contact_email: string | null;
     contact_phone: string | null;
@@ -66,6 +67,7 @@ export async function resolveOrgVariables(
     organisme_nom: e(org?.legal_name || org?.name || ''),
     organisme_siret: e(org?.siret ?? ''),
     organisme_nda: e(org?.declaration_activite ?? ''),
+    organisme_agrements: e(org?.certifications ?? ''),
     organisme_adresse: e(composeAddress(org?.address)),
     organisme_representant: e(org?.representative_name || org?.contact_email || ''),
     organisme_representant_qualite: e(org?.representative_title ?? ''),

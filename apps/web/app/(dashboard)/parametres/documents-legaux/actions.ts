@@ -65,7 +65,7 @@ async function orgInfo(
     .schema('app')
     .from('organizations')
     .select(
-      'name, legal_name, siret, declaration_activite, address, representative_name, representative_title, contact_email, contact_phone',
+      'name, legal_name, siret, declaration_activite, certifications, address, representative_name, representative_title, contact_email, contact_phone',
     )
     .eq('id', orgId)
     .maybeSingle();
@@ -85,6 +85,7 @@ async function orgInfo(
     legalName: o.legal_name ?? null,
     siret: o.siret ?? null,
     nda: o.declaration_activite ?? null,
+    certifications: (o as { certifications?: string | null }).certifications ?? null,
     address: composeAddress(o.address),
     representative: o.representative_name ?? null,
     representativeTitle: o.representative_title ?? null,
@@ -159,7 +160,15 @@ export async function validateLegalDoc(orgId: string, kind: LegalKind): Promise<
   const branding = await loadOrgBranding(sb as never, orgId);
   const pdf = await generateLegalDocPDF({
     title: KIND_TITLE[kind],
-    organization: { name: org.legalName || org.name, nda: org.nda ?? null, address: org.address ?? null },
+    organization: {
+      name: org.legalName || org.name,
+      nda: org.nda ?? null,
+      address: org.address ?? null,
+      siret: org.siret ?? null,
+      contactEmail: org.email ?? null,
+      contactPhone: org.phone ?? null,
+      certifications: org.certifications ?? null,
+    },
     logoPng: branding.logoPng,
     contentMd: d.content_md,
   });

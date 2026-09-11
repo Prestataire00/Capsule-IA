@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
 import { drawOrgLogo } from './pdf-logo';
 import { drawRgpdMention } from './pdf-rgpd';
+import { drawOrgIdentity, identityOf } from './pdf-org-header';
 
 export type AttestationInput = {
   organization: {
@@ -11,6 +12,9 @@ export type AttestationInput = {
     nda: string | null;
     address: string | null;
     representativeName: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    certifications?: string | null;
   };
   signaturePng: Uint8Array | null;
   stampPng: Uint8Array | null;
@@ -115,23 +119,8 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
   // Header — barre d'accent + organisme
   c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });
   c = { ...c, y: c.y - 22 };
-  c.page.drawText(input.organization.name.toUpperCase(), {
-    x: MARGIN, y: c.y, size: 11, font: fontBold, color: COLOR_BODY,
-  });
-  c = { ...c, y: c.y - 12 };
-  const orgMeta = [
-    input.organization.siret ? `SIRET ${input.organization.siret}` : null,
-    input.organization.nda ? `Déclaration d'activité n° ${input.organization.nda}` : null,
-  ].filter(Boolean).join('  ·  ');
-  if (orgMeta) {
-    c.page.drawText(orgMeta, { x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED });
-    c = { ...c, y: c.y - 10 };
-  }
-  if (input.organization.address) {
-    c.page.drawText(input.organization.address, { x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED });
-    c = { ...c, y: c.y - 10 };
-  }
-  c = { ...c, y: c.y - 30 };
+  c = { ...c, y: drawOrgIdentity(c.page, { font, fontBold }, identityOf(input.organization), { x: MARGIN, y: c.y }) };
+  c = { ...c, y: c.y - 24 };
 
   // Titre
   const isEntree = input.variant === 'entree';

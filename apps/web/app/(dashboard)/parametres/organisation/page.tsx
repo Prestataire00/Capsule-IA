@@ -40,7 +40,7 @@ export default async function ParametresOrganisationPage() {
     .schema('app')
     .from('organizations')
     .select(
-      'name, legal_name, siret, declaration_activite, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path, logo_path, vat_regime, default_vat_rate',
+      'name, legal_name, siret, declaration_activite, certifications, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path, logo_path, vat_regime, default_vat_rate',
     )
     .is('deleted_at', null)
     .limit(1)
@@ -82,6 +82,7 @@ export default async function ParametresOrganisationPage() {
           legalName: org.legal_name ?? '',
           siret: org.siret ?? '',
           declarationActivite: org.declaration_activite ?? '',
+          certifications: (org as { certifications?: string | null }).certifications ?? '',
           contactEmail: org.contact_email ?? '',
           contactPhone: org.contact_phone ?? '',
           addressLine1: addr(org.address, 'line1'),

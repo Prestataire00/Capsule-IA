@@ -11,6 +11,9 @@ export type ConventionInput = {
     nda: string | null; // numéro de déclaration d'activité
     address: string | null;
     representativeName: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    certifications?: string | null;
   };
   signaturePng: Uint8Array | null;
   stampPng: Uint8Array | null;
@@ -216,6 +219,11 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   if (input.organization.siret) c = drawKeyValue(doc, c, font, fontBold, 'SIRET', input.organization.siret);
   if (input.organization.nda) c = drawKeyValue(doc, c, font, fontBold, 'N° déclaration activité', input.organization.nda);
   if (input.organization.address) c = drawKeyValue(doc, c, font, fontBold, 'Adresse', input.organization.address);
+  const orgContact = [input.organization.contactPhone, input.organization.contactEmail].filter(Boolean).join(' | ');
+  if (orgContact) c = drawKeyValue(doc, c, font, fontBold, 'Contact', orgContact);
+  if (input.organization.certifications) {
+    c = drawKeyValue(doc, c, font, fontBold, 'Agréments', input.organization.certifications);
+  }
   if (input.organization.representativeName) c = drawKeyValue(doc, c, font, fontBold, 'Représenté par', input.organization.representativeName);
   c = { ...c, y: c.y - 12 };
 

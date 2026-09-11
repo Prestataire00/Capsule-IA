@@ -4,6 +4,7 @@
 // régénéré à chaque modification de ses lignes.
 
 import type { QuoteClientKind, QuoteLineInput, QuoteTotals } from '@/features/billing/domain/quote';
+import { orgIdentityLines } from './legal/org-identity';
 
 export type DevisOrg = {
   name: string;
@@ -13,6 +14,8 @@ export type DevisOrg = {
   address: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  /** Agréments et habilitations (CNAPS…). */
+  certifications?: string | null;
 };
 
 export type DevisClient = {
@@ -92,15 +95,17 @@ export function buildDevisHtml(input: QuoteHtmlInput): string {
     .map((l) => `<div>${l}</div>`)
     .join('');
 
-  const orgLines = [
-    input.org.legalName || input.org.name,
-    input.org.address,
-    input.org.siret ? `SIRET ${input.org.siret}` : null,
-    input.org.nda ? `Déclaration d'activité n° ${input.org.nda}` : null,
-    [input.org.contactEmail, input.org.contactPhone].filter(Boolean).join(' · ') || null,
-  ]
-    .filter(Boolean)
-    .map((l) => `<div>${esc(String(l))}</div>`)
+  // Même bloc d'identité que sur les autres documents de l'organisme.
+  const orgLines = orgIdentityLines({
+    name: input.org.legalName || input.org.name,
+    address: input.org.address,
+    phone: input.org.contactPhone,
+    email: input.org.contactEmail,
+    siret: input.org.siret,
+    nda: input.org.nda,
+    certifications: input.org.certifications ?? null,
+  })
+    .map((l) => `<div>${esc(l)}</div>`)
     .join('');
 
   const locations = [...new Set(input.sessions.map((s) => s.location).filter((l): l is string => !!l))];

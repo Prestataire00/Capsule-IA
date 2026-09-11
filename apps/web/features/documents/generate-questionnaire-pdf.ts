@@ -2,9 +2,19 @@ import 'server-only';
 import { drawRgpdMention } from './pdf-rgpd';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawOrgLogo } from './pdf-logo';
+import { orgIdentityLines } from './legal/org-identity';
+import { identityOf } from './pdf-org-header';
 
 export type QuestionnairePdfInput = {
-  organization: { name: string; siret: string | null; nda: string | null };
+  organization: {
+    name: string;
+    siret: string | null;
+    nda: string | null;
+    address?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    certifications?: string | null;
+  };
   logoPng: Uint8Array | null;
   dossierReference: string;
   formationTitle: string;
@@ -66,15 +76,13 @@ export async function generateQuestionnairePDF(input: QuestionnairePdfInput): Pr
     page.drawText(s, { x: MARGIN, y, size, font: f, color });
   };
 
-  // En-tête organisme
-  text(input.organization.name, bold, 14);
+  // En-tête organisme — même bloc d'identité que sur les autres documents.
+  const [orgName, ...orgMeta] = orgIdentityLines(identityOf(input.organization));
+  text(orgName ?? input.organization.name, bold, 14);
   y -= 16;
-  const orgMeta = [input.organization.siret ? `SIRET ${input.organization.siret}` : null, input.organization.nda ? `NDA ${input.organization.nda}` : null]
-    .filter(Boolean)
-    .join('  ·  ');
-  if (orgMeta) {
-    text(orgMeta, font, 9, MUTED);
-    y -= 14;
+  for (const l of orgMeta) {
+    text(l, font, 8, MUTED);
+    y -= 11;
   }
   y -= 6;
   page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + COL, y }, thickness: 1, color: RULE });

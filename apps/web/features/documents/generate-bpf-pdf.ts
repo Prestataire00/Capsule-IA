@@ -25,6 +25,7 @@ export type BpfInput = {
     address: string | null;
     contactEmail: string | null;
     contactPhone: string | null;
+    certifications?: string | null;
   };
   logoPng: Uint8Array | null;
   financial: { lines: BpfFinancialLine[]; totalCents: number };
@@ -180,6 +181,9 @@ export async function generateBpfPDF(input: BpfInput): Promise<Uint8Array> {
   c = drawField(c, font, fontBold, 'N° SIRET', input.organization.siret ?? '—');
   c = drawField(c, font, fontBold, "N° de déclaration d'activité (NDA)", input.organization.nda ?? '—');
   c = drawField(c, font, fontBold, 'Adresse', input.organization.address ?? '—');
+  if (input.organization.certifications) {
+    c = drawField(c, font, fontBold, 'Agréments', input.organization.certifications);
+  }
   const contact = [input.organization.contactEmail, input.organization.contactPhone].filter(Boolean).join('  ·  ');
   if (contact) c = drawField(c, font, fontBold, 'Contact', contact);
   c = { ...c, y: c.y - 10 };

@@ -1,5 +1,6 @@
 import 'server-only';
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
+import { rgpdMention } from '@/features/documents/legal/requirements';
 
 /**
  * Feuille d'émargement papier, de secours (panne de réseau, appareil
@@ -13,6 +14,8 @@ export type PaperSheetInput = {
   readonly formationTitle: string;
   /** Feuille d'une entreprise cliente : son nom en tête, ses salariés seulement. */
   readonly companyName?: string | null;
+  /** Bloc d'identité de l'organisme (adresse, contact, SIRET · NDA · agréments). */
+  readonly organizationLines?: readonly string[];
   readonly slotLabel: string;
   readonly learners: readonly string[];
   readonly trainers: readonly string[];
@@ -61,6 +64,11 @@ export async function renderPaperSheet(input: PaperSheetInput): Promise<Buffer> 
           {input.organizationName} · {input.formationTitle} · {input.slotLabel}
           {input.companyName ? ` · Société : ${input.companyName}` : ''}
         </Text>
+        {(input.organizationLines ?? []).map((l, i) => (
+          <Text key={i} style={styles.small}>
+            {l}
+          </Text>
+        ))}
 
         <View style={styles.head}>
           <Text style={styles.name}>Apprenant</Text>
@@ -85,6 +93,7 @@ export async function renderPaperSheet(input: PaperSheetInput): Promise<Buffer> 
         <Text style={styles.footer}>
           Feuille de secours : reportez les présences dans Capsule (mode « feuille papier ») et conservez l’original signé avec le dossier.
         </Text>
+        <Text style={styles.footer}>{rgpdMention(null)}</Text>
       </Page>
     </Document>
   );

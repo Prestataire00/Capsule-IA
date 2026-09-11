@@ -2,10 +2,20 @@ import 'server-only';
 import { drawRgpdMention } from './pdf-rgpd';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { drawOrgLogo } from './pdf-logo';
+import { orgIdentityLines } from './legal/org-identity';
+import { identityOf } from './pdf-org-header';
 
 export type LegalPdfInput = {
   title: string;
-  organization: { name: string; nda: string | null; address: string | null };
+  organization: {
+    name: string;
+    nda: string | null;
+    address: string | null;
+    siret?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    certifications?: string | null;
+  };
   logoPng: Uint8Array | null;
   contentMd: string;
 };
@@ -33,9 +43,10 @@ export async function generateLegalDocPDF(input: LegalPdfInput): Promise<Uint8Ar
     y -= fs + 4;
   };
 
-  line(input.organization.name, bold, 14);
-  if (input.organization.nda) line(`Déclaration d'activité : ${input.organization.nda}`, font, 9);
-  if (input.organization.address) line(input.organization.address, font, 9);
+  // Même bloc d'identité que sur les autres documents.
+  const [orgName, ...orgMeta] = orgIdentityLines(identityOf(input.organization));
+  line(orgName ?? input.organization.name, bold, 14);
+  for (const l of orgMeta) line(l, font, 9);
   y -= 10;
   line(input.title, bold, 16);
   y -= 6;

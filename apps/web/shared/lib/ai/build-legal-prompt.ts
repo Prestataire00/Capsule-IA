@@ -8,6 +8,8 @@ export type OrgInfo = {
   legalName?: string | null;
   siret?: string | null;
   nda?: string | null;
+  /** Agréments et habilitations (CNAPS…), affichés sur tous les documents. */
+  certifications?: string | null;
   address?: string | null;
   representative?: string | null;
   representativeTitle?: string | null;
@@ -30,6 +32,7 @@ export function buildLegalPrompt(kind: LegalKind, org: OrgInfo, sources: LegalSo
     `Organisme : ${org.legalName || org.name}.`,
     org.siret ? `SIRET : ${org.siret}.` : '',
     org.nda ? `N° de déclaration d'activité : ${org.nda}.` : '',
+    org.certifications ? `Agréments : ${org.certifications}.` : '',
     org.address ? `Adresse : ${org.address}.` : '',
     org.representative
       ? `Représentant légal : ${org.representative}${org.representativeTitle ? `, ${org.representativeTitle}` : ''}.`

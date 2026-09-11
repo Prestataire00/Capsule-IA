@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: { params: { year: strin
   const { data: orgRow } = await sb
     .schema('app')
     .from('organizations')
-    .select('id, name, legal_name, siret, declaration_activite, address, contact_email, contact_phone')
+    .select('id, name, legal_name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
     .is('deleted_at', null)
     .limit(1)
     .maybeSingle();
@@ -64,6 +64,7 @@ export async function GET(_req: NextRequest, { params }: { params: { year: strin
       address: composeAddress(org.address),
       contactEmail: org.contact_email,
       contactPhone: org.contact_phone,
+      certifications: (org as { certifications?: string | null }).certifications ?? null,
     },
     logoPng: branding.logoPng,
     financial: {
