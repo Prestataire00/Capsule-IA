@@ -39,6 +39,45 @@ const timeFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, hour: '2-digit'
 const weekFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, day: 'numeric', month: 'short' });
 const hoursFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
 const fmtH = (h: number) => `${hoursFmt.format(h)} h`;
+const monthFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, month: 'short' });
+const dayFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, day: 'numeric' });
+const clock = (d: Date) => {
+  const [h, m] = timeFmt.format(d).split(':').map(Number);
+  return (h ?? 0) + (m ?? 0) / 60;
+};
+
+// Petit calendrier : le mois sur un bandeau à la couleur de la formation, le jour en gros.
+function CalendarTile({ date, color, muted }: { date: Date; color: string; muted: boolean }) {
+  return (
+    <div className="w-11 shrink-0 rounded-lg border border-zinc-200/80 dark:border-zinc-700 overflow-hidden text-center bg-white dark:bg-zinc-900 shadow-sm">
+      <div className="text-[10px] font-bold uppercase tracking-wider leading-4 text-white" style={{ background: color, opacity: muted ? 0.8 : 1 }}>
+        {monthFmt.format(date).replace('.', '')}
+      </div>
+      <div className="text-[17px] font-extrabold leading-7 tabular-nums text-zinc-900 dark:text-zinc-100">{dayFmt.format(date)}</div>
+    </div>
+  );
+}
+
+// Barre de créneau : place l'horaire de la séance sur une journée de 8 h à 20 h.
+function TimeTrack({ start, end, color }: { start: Date; end: Date; color: string }) {
+  const a = clock(start);
+  const b = clock(end);
+  const left = Math.max(0, Math.min(100, ((a - 8) / 12) * 100));
+  const width = Math.max(0, Math.min(100 - left, ((b - a) / 12) * 100));
+  return (
+    <div
+      className="relative mt-2 h-1.5 w-28 rounded-full"
+      style={{ background: tintColor(color, 20) }}
+      title={`Créneau ${timeFmt.format(start)} – ${timeFmt.format(end)} sur une journée de 8 h à 20 h`}
+    >
+      {width > 0 ? (
+        <span className="absolute inset-y-0 rounded-full" style={{ left: `${left}%`, width: `${width}%`, background: color }} />
+      ) : (
+        <span className="absolute -top-[3px] w-3 h-3 rounded-full ring-2 ring-white dark:ring-zinc-900" style={{ left: `calc(${left}% - 6px)`, background: color }} />
+      )}
+    </div>
+  );
+}
 const fullName = (p: Person | undefined) => (p ? [p.first_name, p.last_name].filter(Boolean).join(' ') : '');
 
 const STATUS: Record<string, { label: string; tone: 'info' | 'success' | 'neutral' | 'danger' }> = {
@@ -49,7 +88,7 @@ const STATUS: Record<string, { label: string; tone: 'info' | 'success' | 'neutra
 };
 const MODALITY_LABEL: Record<string, string> = { presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' };
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,2.3fr)_minmax(0,1.1fr)_112px_minmax(0,1.5fr)_92px_104px_108px] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_214px_minmax(0,1.3fr)_88px_104px_100px] gap-4 px-5';
 
 const ACTIONS: { suffix: string; icon: ComponentType<{ className?: string }>; label: string }[] = [
   { suffix: '', icon: Eye, label: 'Ouvrir la session' },
@@ -107,8 +146,9 @@ function buildSeries(hoursByKey: Map<string, number>, labelOf: (k: string) => st
   return { series, indexOf };
 }
 
-function WeeklyChart({ weeks, series, currentIndex }: { weeks: { start: Date; values: number[] }[]; series: Series[]; currentIndex: number }) {
-  const w = 560;
+function WeeklyChart({ weeks, series, currentIndex, w = 560 }: { weeks: { start: Date; values: number[] }[]; series: Series[]; currentIndex: number; w?: number }) {
+  const narrow = w < 400;
+  const labelEvery = narrow ? 4 : 3;
   const h = 156;
   const padL = 34;
   const padR = 4;
@@ -119,7 +159,7 @@ function WeeklyChart({ weeks, series, currentIndex }: { weeks: { start: Date; va
   const totals = weeks.map((wk) => wk.values.reduce((a, b) => a + b, 0));
   const max = Math.max(2, Math.ceil(Math.max(0, ...totals) / 2) * 2);
   const slot = iw / weeks.length;
-  const bw = Math.min(24, slot - 8);
+  const bw = Math.max(6, Math.min(24, slot - (narrow ? 6 : 8)));
   const base = padT + ih;
   const sy = (v: number) => (v / max) * ih;
 
@@ -170,14 +210,14 @@ function WeeklyChart({ weeks, series, currentIndex }: { weeks: { start: Date; va
                 {fmtH(total)}
               </text>
             )}
-            {(i - currentIndex) % 3 === 0 && (
+            {(i - currentIndex) % labelEvery === 0 && (
               <text
                 x={x + bw / 2}
                 y={h - 6}
                 textAnchor="middle"
                 className={isNow ? 'fill-orange-600 dark:fill-orange-400 text-[10px] font-bold' : 'fill-zinc-400 text-[10px]'}
               >
-                {isNow ? 'Cette semaine' : weekFmt.format(wk.start)}
+                {isNow ? (narrow ? 'Cette sem.' : 'Cette semaine') : weekFmt.format(wk.start)}
               </text>
             )}
           </g>
@@ -354,7 +394,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   ];
 
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-9">
+    <div className="max-w-[1600px] w-full mx-auto px-8 py-9">
       <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <SectionLabel className="mb-2">Planification</SectionLabel>
@@ -374,8 +414,10 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         </ManageOnly>
       </header>
 
+      {/* Graphiques dans une colonne à gauche, le tableau à droite. */}
+      <div className={filtered.length > 0 ? 'grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start' : ''}>
       {filtered.length > 0 && (
-        <section className="mb-6 grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_280px] gap-4" aria-label="Synthèse">
+        <aside className="grid gap-4 xl:sticky xl:top-32" aria-label="Synthèse">
           <div className="rounded-xl p-5 bg-zinc-900 dark:bg-zinc-800/60 text-white">
             <p className="text-[12px] font-semibold text-white/60">Heures planifiées</p>
             <p className="text-[36px] leading-none font-extrabold tabular-nums mt-2 tracking-tight">{fmtH(totalHours)}</p>
@@ -413,7 +455,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
               </ul>
             </div>
             <div className="mt-4">
-              <WeeklyChart weeks={weeks} series={chart.series} currentIndex={WEEKS_BEFORE} />
+              <WeeklyChart weeks={weeks} series={chart.series} currentIndex={WEEKS_BEFORE} w={268} />
             </div>
           </div>
 
@@ -435,9 +477,10 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
               ))}
             </ul>
           </div>
-        </section>
+        </aside>
       )}
 
+      <div className="min-w-0">
       <div className="mb-4 flex items-center gap-2 flex-wrap">
         <form action="/sessions" method="get" className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
@@ -512,7 +555,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         </div>
       ) : (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
-          <div className="min-w-[1080px]">
+          <div className="min-w-[1040px]">
             <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
               <div>Formation</div>
               <div>Formateur</div>
@@ -564,11 +607,21 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
                       )}
                     </div>
 
-                    <div className="text-[13px] tabular-nums leading-tight">
-                      <p className="font-bold text-zinc-900 dark:text-zinc-100">{dateFmt.format(start)}</p>
-                      <p className="text-zinc-500 dark:text-zinc-400 mt-1">
-                        {sameDay ? `${timeFmt.format(start)} – ${timeFmt.format(end)}` : `→ ${dateFmt.format(end)}`}
-                      </p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <CalendarTile date={start} color={s.color} muted={s.isPast} />
+                      <div className="min-w-0 text-[13px] tabular-nums leading-tight">
+                        <p className="font-bold text-zinc-900 dark:text-zinc-100">{dateFmt.format(start)}</p>
+                        {sameDay ? (
+                          <>
+                            <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+                              {timeFmt.format(start)} – {timeFmt.format(end)}
+                            </p>
+                            <TimeTrack start={start} end={end} color={s.color} />
+                          </>
+                        ) : (
+                          <p className="text-zinc-500 dark:text-zinc-400 mt-1">→ {dateFmt.format(end)}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="min-w-0 text-[13px]">
@@ -638,6 +691,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
           </div>
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }
