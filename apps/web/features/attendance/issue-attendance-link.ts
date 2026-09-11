@@ -9,7 +9,8 @@ import { generateSignatureToken } from '@/shared/lib/signature-token';
  * Le jeton est ENREGISTRÉ à l'émission, avec son canal et son émetteur :
  *  · `email`  — envoyé à l'apprenant par Capsule ;
  *  · `espace` — affiché dans l'espace de l'apprenant ;
- *  · `equipe` — copié ou imprimé (QR) par l'équipe ou le formateur.
+ *  · `equipe` — copié ou imprimé (QR) par l'équipe ou le formateur ;
+ *  · `salle`  — remis après le scan du QR projeté, lié au téléphone qui a scanné.
  * Un lien de l'équipe est tracé comme tel sur la signature, et n'ouvre jamais
  * l'espace apprenant (audit sécurité : qui détient le lien n'est pas forcément
  * l'apprenant).
@@ -24,7 +25,7 @@ const MARGE_APRES_FIN_MS = 4 * 60 * 60 * 1000;
 const VALIDITE_MIN_MS = 60 * 60 * 1000;
 const REUTILISABLE_SI_RESTE_MS = 15 * 60 * 1000;
 
-export type LinkChannel = 'email' | 'espace' | 'equipe';
+export type LinkChannel = 'email' | 'espace' | 'equipe' | 'salle';
 
 export type AttendanceLinkInput = {
   readonly sheetId: string;
@@ -34,6 +35,8 @@ export type AttendanceLinkInput = {
   readonly channel: LinkChannel;
   /** Utilisateur qui émet le lien (canal `equipe`). */
   readonly issuedBy?: string | null;
+  /** Téléphone qui a scanné le QR projeté (canal `salle`). */
+  readonly deviceId?: string | null;
 };
 
 export type AttendanceLink = { readonly url: string; readonly expiresAt: Date };
@@ -56,6 +59,8 @@ export async function issueAttendanceLink(input: AttendanceLinkInput): Promise<I
   const payload = { attendanceSheetId: input.sheetId, signerId: input.signerId, signerKind: input.signerKind };
   const url = (token: string) => `${input.baseUrl.replace(/\/$/, '')}/signer/${token}`;
   const emetteur = input.channel === 'equipe' ? (input.issuedBy ?? null) : null;
+  const appareil = input.channel === 'salle' ? (input.deviceId ?? null) : null;
+  if (input.channel === 'salle' && !appareil) return { ok: false, error: 'register_failed' };
 
   let q = sb
     .schema('app')
@@ -68,6 +73,7 @@ export async function issueAttendanceLink(input: AttendanceLinkInput): Promise<I
     .eq('status' as never, 'issued' as never)
     .gt('expires_at' as never, new Date(Date.now() + REUTILISABLE_SI_RESTE_MS).toISOString() as never);
   q = emetteur ? q.eq('issued_by' as never, emetteur as never) : q.is('issued_by' as never, null);
+  q = appareil ? q.eq('device_id' as never, appareil as never) : q.is('device_id' as never, null);
   const { data: existant } = await q.order('expires_at' as never, { ascending: false }).limit(1).maybeSingle();
   const reutilisable = existant as { jti: string; expires_at: string } | null;
   if (reutilisable) {
@@ -90,6 +96,7 @@ export async function issueAttendanceLink(input: AttendanceLinkInput): Promise<I
       expires_at: expiresAt.toISOString(),
       issued_channel: input.channel,
       issued_by: emetteur,
+      device_id: appareil,
     } as never);
   if (error) {
     console.error('[émargement] jeton non enregistré', error);

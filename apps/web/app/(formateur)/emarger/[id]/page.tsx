@@ -7,6 +7,7 @@ import { fr } from 'date-fns/locale';
 import { ArrowLeft } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
+import { LiveRefresh, emargementEnCours } from '@/features/attendance/live-refresh';
 import { ensureSessionSheets } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
 import { HalfDaySheetBlock } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/half-day-sheet-block';
 
@@ -52,6 +53,7 @@ export default async function FormateurEmargerPage({ params }: { params: { id: s
           ))}
         </div>
       )}
+      {emargementEnCours(sheets) && <LiveRefresh />}
     </div>
   );
 }

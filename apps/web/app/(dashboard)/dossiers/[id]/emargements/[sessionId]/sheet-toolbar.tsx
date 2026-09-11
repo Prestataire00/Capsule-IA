@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Loader2, Mail, Printer, UserX } from 'lucide-react';
+import { FileText, Loader2, Mail, MonitorPlay, Printer, UserX } from 'lucide-react';
 import { attendanceErrorLabel } from '@/features/attendance/schemas';
 import { markUnsignedAbsent, sendSheetLinksAction } from './actions';
 
@@ -10,7 +10,8 @@ const bouton =
   'inline-flex items-center gap-1.5 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition disabled:opacity-40';
 
 /**
- * Actions d'une feuille : liens par e-mail, QR à imprimer, feuille papier de
+ * Actions d'une feuille : liens par e-mail, QR projeté en salle (code
+ * tournant), QR personnels à imprimer, feuille papier de
  * secours, et marquage groupé des apprenants sans signature avant clôture.
  */
 export function SheetToolbar({ sheetId, sessionId }: { sheetId: string; sessionId: string }) {
@@ -43,9 +44,13 @@ export function SheetToolbar({ sheetId, sessionId }: { sheetId: string; sessionI
         {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
         Envoyer les liens par e-mail
       </button>
+      <a href={`/projection/${sheetId}`} target="_blank" rel="noopener" className={bouton}>
+        <MonitorPlay className="w-3.5 h-3.5" />
+        Projeter le QR code
+      </a>
       <a href={`/api/attendance/sessions/${sessionId}/qr-cards?sheet=${sheetId}`} target="_blank" rel="noopener" className={bouton}>
         <Printer className="w-3.5 h-3.5" />
-        QR à imprimer
+        QR personnels à imprimer
       </a>
       <a href={`/api/attendance/${sheetId}/paper`} target="_blank" rel="noopener" className={bouton}>
         <FileText className="w-3.5 h-3.5" />

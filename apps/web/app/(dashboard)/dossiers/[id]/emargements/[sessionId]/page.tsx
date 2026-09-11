@@ -7,6 +7,7 @@ import { fr } from 'date-fns/locale';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
+import { LiveRefresh, emargementEnCours } from '@/features/attendance/live-refresh';
 import { ensureSessionSheets } from './actions';
 import { HalfDaySheetBlock } from './half-day-sheet-block';
 import { GenerateSheetsButton } from './generate-sheets-button';
@@ -79,6 +80,8 @@ export default async function EmargementSessionPage({
           ))}
         </div>
       )}
+
+      {emargementEnCours(sheets) && <LiveRefresh />}
 
       <p className="text-[11px] text-zinc-400">
         Les financeurs exigent une signature par participant et par demi-journée ; la feuille clôturée sert de preuve de présence.

@@ -83,7 +83,7 @@ const MODE: Record<string, string> = {
   lien: 'Lien personnel',
   lien_equipe: 'Lien remis par l’équipe',
   papier: 'Feuille papier',
-  qr: 'QR code',
+  qr: 'QR code projeté en salle',
   tablette: 'Tablette de l’organisme',
   visio: 'Confirmation visio',
   grille: 'Attestée par l’équipe',
