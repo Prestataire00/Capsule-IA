@@ -2,11 +2,12 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
-import { env } from '@/env.mjs';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { can } from '@/shared/lib/auth/permissions';
 import {
   buildBillingPlan,
   canBill,
@@ -14,11 +15,27 @@ import {
   type InvoiceInput,
   type Payer,
 } from '@/features/billing/domain/billing-plan';
+import { DEFAULT_PAYMENT_DAYS, PAYMENT_METHODS, settlementStatus } from '@/features/billing/domain/payments';
+import { addDays } from '@/features/billing/domain/quote';
+import {
+  PROVISIONAL_PREFIX,
+  assignFinalInvoiceNumber,
+  isProvisionalReference,
+  nextDocumentNumber,
+} from '@/features/billing/quotes/quote-service';
+import { buildInvoicePdf, loadInvoiceHeader } from '@/features/billing/invoices/invoice-pdf';
 
-const admin = () =>
-  createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+const admin = () => supabaseAdmin() as unknown as SupabaseClient;
+
+const todayParis = (): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+
+// Les Server Actions ne passent pas par le middleware : chaque action vérifie
+// le droit « facturation / gérer » et borne tout à l'organisme du membre.
+async function billingManager(): Promise<{ organizationId: string } | null> {
+  const me = await getCurrentMember();
+  if (!me || can(me.role, 'billing') !== 'manage') return null;
+  return { organizationId: me.organizationId };
+}
 
 const createInvoiceSchema = z.object({
   dossierId: z.string().uuid('Dossier requis'),
@@ -32,13 +49,36 @@ const createInvoiceSchema = z.object({
   issuedNow: z.coerce.boolean().default(false),
 });
 
-function generateInvoiceReference(): string {
-  const year = new Date().getFullYear();
-  const random = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `FAC-${year}-${random}`;
+const provisionalReference = (): string =>
+  `${PROVISIONAL_PREFIX}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+/**
+ * Émet une facture : numéro définitif FAC-AAAA-NNN (continu, attribué à
+ * l'émission et jamais au brouillon), date d'émission et échéance par défaut.
+ */
+async function issue(
+  sb: SupabaseClient,
+  inv: { id: string; issued_at: string | null; due_at: string | null },
+): Promise<boolean> {
+  const reference = await assignFinalInvoiceNumber(sb, inv.id);
+  if (!reference) return false;
+  const issuedAt = inv.issued_at ?? todayParis();
+  const { error } = await sb
+    .schema('app')
+    .from('invoices')
+    .update({
+      issued_at: issuedAt,
+      due_at: inv.due_at ?? addDays(issuedAt, DEFAULT_PAYMENT_DAYS),
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq('id', inv.id);
+  return !error;
 }
 
 export async function createInvoice(formData: FormData): Promise<void> {
+  const me = await billingManager();
+  if (!me) redirect('/factures/nouvelle?error=forbidden');
+
   const parsed = createInvoiceSchema.safeParse({
     dossierId: formData.get('dossierId'),
     funderId: formData.get('funderId') ?? '',
@@ -65,6 +105,7 @@ export async function createInvoice(formData: FormData): Promise<void> {
       .from('dossiers')
       .select('organization_id, company_id, total_amount_cents')
       .eq('id', data.dossierId)
+      .eq('organization_id', me.organizationId)
       .maybeSingle(),
     sb
       .schema('app')
@@ -118,10 +159,11 @@ export async function createInvoice(formData: FormData): Promise<void> {
     redirect(`/factures/nouvelle?error=${guard.error}&dossierId=${data.dossierId}&payer=${data.funderId || 'reste'}`);
   }
 
-  const reference = generateInvoiceReference();
-  const status = data.issuedNow ? 'issued' : 'draft';
+  // Numéro définitif seulement à l'émission : un brouillon porte un numéro provisoire.
+  const reference = data.issuedNow ? await nextDocumentNumber(sb, dossier.organization_id, 'FAC') : provisionalReference();
+  if (!reference) redirect('/factures/nouvelle?error=db');
+  const issuedAt = data.issuedNow ? todayParis() : null;
 
-  // Insert facture
   const { data: invoiceRow, error: insertErr } = await sb
     .schema('app')
     .from('invoices')
@@ -131,14 +173,14 @@ export async function createInvoice(formData: FormData): Promise<void> {
       dossier_id: data.dossierId,
       funder_id: payer,
       company_id: dossier.company_id,
-      status,
-      issued_at: data.issuedNow ? new Date().toISOString().slice(0, 10) : null,
-      due_at: data.dueAt || null,
+      status: data.issuedNow ? 'issued' : 'draft',
+      issued_at: issuedAt,
+      due_at: data.dueAt || (issuedAt ? addDays(issuedAt, DEFAULT_PAYMENT_DAYS) : null),
       subtotal_cents: subtotalCents,
       vat_cents: vatCents,
       total_cents: totalCents,
       currency: 'EUR',
-    })
+    } as never)
     .select('id')
     .single();
 
@@ -149,8 +191,7 @@ export async function createInvoice(formData: FormData): Promise<void> {
 
   const invoiceId = (invoiceRow as { id: string }).id;
 
-  // Insert 1 ligne
-  await sb.schema('app').from('invoice_lines').insert({
+  const { error: lineErr } = await sb.schema('app').from('invoice_lines').insert({
     organization_id: dossier.organization_id,
     invoice_id: invoiceId,
     position: 0,
@@ -158,139 +199,128 @@ export async function createInvoice(formData: FormData): Promise<void> {
     quantity: data.quantity,
     unit_amount_cents: unitAmountCents,
     vat_rate: data.vatRate,
-  });
+  } as never);
+  if (lineErr) console.error('[createInvoice] ligne non créée', invoiceId, lineErr);
 
   revalidatePath('/factures');
   redirect(`/factures?created=${invoiceId}`);
 }
 
-export type SendInvoiceResult =
-  | { ok: true }
-  | { ok: false; error: string };
+export type SendInvoiceResult = { ok: true } | { ok: false; error: string };
 
+const escapeHtml = (s: string): string =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const money = (cents: number, currency: string) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
+
+/**
+ * Envoie la facture au payeur (financeur, responsable de l'entreprise ou
+ * particulier), PDF en pièce jointe. Un brouillon est d'abord émis (numéro
+ * définitif) : on n'adresse jamais un brouillon à un client.
+ */
 export async function sendInvoiceByEmail(invoiceId: string): Promise<SendInvoiceResult> {
+  const me = await billingManager();
+  if (!me) return { ok: false, error: 'forbidden' };
   const sb = admin();
 
-  const { data: invRow } = await sb
-    .schema('app')
-    .from('invoices')
-    .select(`
-      id, reference, status, total_cents, vat_cents, subtotal_cents, currency, issued_at, due_at,
-      dossier:dossiers(reference, learner:learners(first_name, last_name, email)),
-      company:companies(name, contact_email)
-    `)
-    .eq('id', invoiceId)
-    .maybeSingle();
+  const header = await loadInvoiceHeader(sb, invoiceId, me.organizationId);
+  if (!header) return { ok: false, error: 'invoice_not_found' };
+  if (header.status === 'cancelled') return { ok: false, error: 'cancelled' };
+  if (header.status === 'draft') {
+    if (!(await issue(sb, header))) return { ok: false, error: 'numbering_failed' };
+    await sb.schema('app').from('invoices').update({ status: 'issued' } as never).eq('id', invoiceId);
+  }
 
-  if (!invRow) return { ok: false, error: 'invoice_not_found' };
+  const pdf = await buildInvoicePdf(sb, invoiceId, me.organizationId, { persist: true });
+  if (!pdf) return { ok: false, error: 'invoice_not_found' };
+  const inv = pdf.header;
+  if (!pdf.recipient.email) return { ok: false, error: 'no_recipient_email' };
 
-  const inv = invRow as unknown as {
-    id: string;
-    reference: string;
-    status: string;
-    total_cents: number;
-    vat_cents: number;
-    subtotal_cents: number;
-    currency: string;
-    issued_at: string | null;
-    due_at: string | null;
-    dossier: { reference: string; learner: { first_name: string; last_name: string; email: string } | null } | null;
-    company: { name: string; contact_email: string | null } | null;
-  };
-
-  const recipientEmail = inv.company?.contact_email ?? inv.dossier?.learner?.email;
-  if (!recipientEmail) return { ok: false, error: 'no_recipient_email' };
-
-  const recipientName =
-    inv.company?.name ??
-    (inv.dossier?.learner ? `${inv.dossier.learner.first_name} ${inv.dossier.learner.last_name}` : 'Destinataire');
-
-  const fmt = (cents: number) =>
-    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: inv.currency }).format(cents / 100);
-
-  const subject = `Facture ${inv.reference} — ${fmt(inv.total_cents)}`;
-  const pdfUrl = env.PUBLIC_APP_URL
-    ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/invoices/${inv.id}/facture.pdf`
-    : null;
-
+  const greeting = pdf.recipient.attention ?? pdf.recipient.name;
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;color:#18181b;line-height:1.55;background:#fafafa;margin:0;padding:24px;">
   <div style="max-width:580px;margin:0 auto;">
     <div style="background:white;border:1px solid #e4e4e7;border-radius:12px;padding:32px;">
-      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;font-weight:600;margin:0 0 8px;">Facture émise</p>
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#f97316;font-weight:600;margin:0 0 8px;">Facture</p>
       <h1 style="font-size:20px;font-weight:600;margin:0 0 16px;">${escapeHtml(inv.reference)}</h1>
       <p style="font-size:13px;color:#52525b;margin:0 0 20px;">
-        Bonjour ${escapeHtml(recipientName)},<br>
-        Vous trouverez ci-dessous le récapitulatif de la facture associée au dossier <strong>${escapeHtml(inv.dossier?.reference ?? '')}</strong>.
+        Bonjour ${escapeHtml(greeting)},<br>
+        Veuillez trouver ci-jointe la facture ${escapeHtml(inv.reference)}${pdf.recipient.attention ? ` adressée à ${escapeHtml(pdf.recipient.name)}` : ''}.
       </p>
       <table style="width:100%;border-collapse:collapse;border-top:1px solid #f4f4f5;">
-        <tr><td style="padding:8px 0;font-size:12px;color:#71717a;">Sous-total HT</td><td style="padding:8px 0;font-size:13px;text-align:right;">${fmt(inv.subtotal_cents)}</td></tr>
-        <tr><td style="padding:8px 0;font-size:12px;color:#71717a;">TVA</td><td style="padding:8px 0;font-size:13px;text-align:right;">${fmt(inv.vat_cents)}</td></tr>
-        <tr style="border-top:1px solid #f4f4f5;"><td style="padding:12px 0 0;font-size:13px;font-weight:600;">Total TTC</td><td style="padding:12px 0 0;font-size:15px;font-weight:600;text-align:right;color:#7c3aed;">${fmt(inv.total_cents)}</td></tr>
+        <tr><td style="padding:8px 0;font-size:12px;color:#71717a;">Total HT</td><td style="padding:8px 0;font-size:13px;text-align:right;">${money(inv.subtotal_cents, inv.currency)}</td></tr>
+        <tr><td style="padding:8px 0;font-size:12px;color:#71717a;">TVA</td><td style="padding:8px 0;font-size:13px;text-align:right;">${money(inv.vat_cents, inv.currency)}</td></tr>
+        <tr style="border-top:1px solid #f4f4f5;"><td style="padding:12px 0 0;font-size:13px;font-weight:600;">Total à régler</td><td style="padding:12px 0 0;font-size:15px;font-weight:600;text-align:right;">${money(inv.total_cents, inv.currency)}</td></tr>
       </table>
-      ${inv.due_at ? `<p style="font-size:12px;color:#71717a;margin:20px 0 0;">Échéance de paiement : <strong style="color:#18181b;">${new Date(inv.due_at).toLocaleDateString('fr-FR')}</strong></p>` : ''}
-      ${pdfUrl ? `<div style="margin-top:24px;text-align:center;"><a href="${pdfUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-size:13px;font-weight:500;">📎 Télécharger la facture PDF</a></div>` : ''}
+      ${inv.due_at ? `<p style="font-size:12px;color:#71717a;margin:20px 0 0;">À régler avant le <strong style="color:#18181b;">${new Date(`${inv.due_at}T12:00:00Z`).toLocaleDateString('fr-FR')}</strong>.</p>` : ''}
     </div>
   </div>
 </body></html>`;
 
-  const result = await sendEmail({ to: recipientEmail, subject, html });
-  if (!result.ok) {
-    return { ok: false, error: result.reason };
-  }
+  const result = await sendEmail({
+    to: pdf.recipient.email,
+    subject: `Facture ${inv.reference} — ${money(inv.total_cents, inv.currency)}`,
+    html,
+    attachments: [{ filename: `facture-${inv.reference}.pdf`, content: Buffer.from(pdf.bytes).toString('base64') }],
+    organizationId: me.organizationId,
+    dossierId: inv.dossier_id ?? undefined,
+    kind: 'invoice_sent',
+    metadata: { invoice_id: inv.id },
+  });
+  if (!result.ok) return { ok: false, error: result.reason };
+
+  revalidatePath('/factures');
   return { ok: true };
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 // ── Statut & relance ────────────────────────────────────────────────────────
-// Rôles autorisés à gérer la facturation (aligné sur la RLS invoices).
-const BILLING_ROLES = ['owner', 'admin', 'comptable'];
 
-export type InvoiceStatusValue =
-  | 'draft'
-  | 'issued'
-  | 'paid'
-  | 'partially_paid'
-  | 'overdue'
-  | 'cancelled';
+export type InvoiceStatusValue = 'draft' | 'issued' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
 
 export type InvoiceMutationResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Change le statut d'une facture (payée / non payée / en retard / annulée…).
- * Service_role => on scope explicitement à l'org du membre connecté et on
- * contrôle le rôle (owner/admin/comptable). Synchronise `paid_at` avec le statut.
+ * Change le statut d'une facture. Toute sortie du brouillon (hors annulation)
+ * l'émet : numéro définitif, date d'émission, échéance. Une facture émise ne
+ * redevient jamais brouillon (numérotation continue) — on l'annule.
  */
-export async function setInvoiceStatus(
-  invoiceId: string,
-  status: InvoiceStatusValue,
-): Promise<InvoiceMutationResult> {
-  const me = await getCurrentMember();
-  if (!me || !BILLING_ROLES.includes(me.role)) return { ok: false, error: 'forbidden' };
+export async function setInvoiceStatus(invoiceId: string, status: InvoiceStatusValue): Promise<InvoiceMutationResult> {
+  const me = await billingManager();
+  if (!me) return { ok: false, error: 'forbidden' };
 
   const sb = admin();
   const { data: row } = await sb
     .schema('app')
     .from('invoices')
-    .select('id, organization_id, paid_at')
+    .select('id, reference, status, paid_at, issued_at, due_at')
     .eq('id', invoiceId)
     .eq('organization_id', me.organizationId)
     .is('deleted_at', null)
     .maybeSingle();
-  if (!row) return { ok: false, error: 'not_found' };
+  const inv = row as {
+    id: string;
+    reference: string;
+    status: string;
+    paid_at: string | null;
+    issued_at: string | null;
+    due_at: string | null;
+  } | null;
+  if (!inv) return { ok: false, error: 'not_found' };
+
+  if (status === 'draft' && !isProvisionalReference(inv.reference)) return { ok: false, error: 'already_issued' };
+  if (status !== 'draft' && status !== 'cancelled' && isProvisionalReference(inv.reference)) {
+    if (!(await issue(sb, inv))) return { ok: false, error: 'numbering_failed' };
+  }
 
   const nowIso = new Date().toISOString();
-  const patch: Record<string, unknown> = { status, updated_at: nowIso };
-  // paid_at cohérent : renseigné si payée, effacé sinon.
-  patch.paid_at =
-    status === 'paid' ? (row as { paid_at: string | null }).paid_at ?? nowIso : null;
-
   const { error } = await sb
     .schema('app')
     .from('invoices')
-    .update(patch as never)
+    .update({
+      status,
+      updated_at: nowIso,
+      paid_at: status === 'paid' ? (inv.paid_at ?? nowIso) : null,
+    } as never)
     .eq('id', invoiceId)
     .eq('organization_id', me.organizationId);
   if (error) return { ok: false, error: error.message };
@@ -299,57 +329,82 @@ export async function setInvoiceStatus(
   return { ok: true };
 }
 
+const paymentSchema = z.object({
+  invoiceId: z.string().uuid(),
+  amountCents: z.number().int().positive().max(100_000_000),
+  paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  method: z.enum(PAYMENT_METHODS),
+  reference: z.string().trim().max(120).optional(),
+});
+export type RecordPaymentInput = z.infer<typeof paymentSchema>;
+
 /**
- * Émet une relance de paiement par email (ton « relance ») et trace la relance
- * dans metadata (last_reminder_at + reminder_count).
+ * Enregistre un règlement (acompte, solde, paiement OPCO…). Le statut suit la
+ * somme encaissée : partielle, puis payée quand le total est atteint.
  */
-export async function sendPaymentReminder(invoiceId: string): Promise<SendInvoiceResult> {
-  const me = await getCurrentMember();
-  if (!me || !BILLING_ROLES.includes(me.role)) return { ok: false, error: 'forbidden' };
+export async function recordPayment(input: RecordPaymentInput): Promise<InvoiceMutationResult> {
+  const me = await billingManager();
+  if (!me) return { ok: false, error: 'forbidden' };
+  const parsed = paymentSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'invalid' };
 
   const sb = admin();
-  const { data: invRow } = await sb
+  const header = await loadInvoiceHeader(sb, parsed.data.invoiceId, me.organizationId);
+  if (!header) return { ok: false, error: 'not_found' };
+  if (header.status === 'draft') return { ok: false, error: 'not_issued' };
+  if (header.status === 'cancelled') return { ok: false, error: 'cancelled' };
+
+  const { error: insErr } = await sb
+    .schema('app')
+    .from('payments')
+    .insert({
+      organization_id: me.organizationId,
+      invoice_id: header.id,
+      amount_cents: parsed.data.amountCents,
+      paid_at: `${parsed.data.paidAt}T12:00:00Z`,
+      method: parsed.data.method,
+      reference: parsed.data.reference || null,
+    } as never);
+  if (insErr) return { ok: false, error: insErr.message };
+
+  const { data: paidRows } = await sb.schema('app').from('payments').select('amount_cents, paid_at').eq('invoice_id', header.id);
+  const payments = (paidRows ?? []) as Array<{ amount_cents: number; paid_at: string }>;
+  const paid = payments.reduce((s, p) => s + Number(p.amount_cents), 0);
+  const settled = settlementStatus(header.total_cents, paid);
+  const lastPaidAt = payments.map((p) => p.paid_at).sort().at(-1) ?? null;
+  // Une facture échue partiellement réglée reste en retard tant qu'elle n'est pas soldée.
+  const status = settled === 'paid' ? 'paid' : header.status === 'overdue' ? 'overdue' : settled;
+
+  const { error } = await sb
     .schema('app')
     .from('invoices')
-    .select(`
-      id, reference, status, total_cents, currency, issued_at, due_at, metadata,
-      dossier:dossiers(reference, learner:learners(first_name, last_name, email)),
-      company:companies(name, contact_email)
-    `)
-    .eq('id', invoiceId)
-    .eq('organization_id', me.organizationId)
-    .maybeSingle();
-  if (!invRow) return { ok: false, error: 'invoice_not_found' };
+    .update({ status, paid_at: settled === 'paid' ? lastPaidAt : null, updated_at: new Date().toISOString() } as never)
+    .eq('id', header.id);
+  if (error) return { ok: false, error: error.message };
 
-  const inv = invRow as unknown as {
-    id: string;
-    reference: string;
-    status: string;
-    total_cents: number;
-    currency: string;
-    issued_at: string | null;
-    due_at: string | null;
-    metadata: Record<string, unknown> | null;
-    dossier: { reference: string; learner: { first_name: string; last_name: string; email: string } | null } | null;
-    company: { name: string; contact_email: string | null } | null;
-  };
+  revalidatePath('/factures');
+  return { ok: true };
+}
 
-  const recipientEmail = inv.company?.contact_email ?? inv.dossier?.learner?.email;
-  if (!recipientEmail) return { ok: false, error: 'no_recipient_email' };
+/**
+ * Relance de paiement par e-mail (PDF joint) au payeur, tracée dans metadata
+ * (last_reminder_at + reminder_count).
+ */
+export async function sendPaymentReminder(invoiceId: string): Promise<SendInvoiceResult> {
+  const me = await billingManager();
+  if (!me) return { ok: false, error: 'forbidden' };
+  const sb = admin();
 
-  const recipientName =
-    inv.company?.name ??
-    (inv.dossier?.learner ? `${inv.dossier.learner.first_name} ${inv.dossier.learner.last_name}` : 'Destinataire');
+  const pdf = await buildInvoicePdf(sb, invoiceId, me.organizationId);
+  if (!pdf) return { ok: false, error: 'invoice_not_found' };
+  const inv = pdf.header;
+  if (!pdf.recipient.email) return { ok: false, error: 'no_recipient_email' };
 
-  const fmt = (cents: number) =>
-    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: inv.currency }).format(cents / 100);
-  const dueLabel = inv.due_at ? new Date(inv.due_at).toLocaleDateString('fr-FR') : null;
-  const overdue = inv.due_at ? new Date(inv.due_at) < new Date() : false;
-
-  const subject = `Relance — facture ${inv.reference} (${fmt(inv.total_cents)})`;
-  const pdfUrl = env.PUBLIC_APP_URL
-    ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/invoices/${inv.id}/facture.pdf`
-    : null;
+  const { data: paidRows } = await sb.schema('app').from('payments').select('amount_cents').eq('invoice_id', inv.id);
+  const paid = ((paidRows ?? []) as Array<{ amount_cents: number }>).reduce((s, p) => s + Number(p.amount_cents), 0);
+  const due = Math.max(0, inv.total_cents - paid);
+  const dueLabel = inv.due_at ? new Date(`${inv.due_at}T12:00:00Z`).toLocaleDateString('fr-FR') : null;
+  const overdue = inv.due_at ? inv.due_at < todayParis() : false;
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;color:#18181b;line-height:1.55;background:#fafafa;margin:0;padding:24px;">
   <div style="max-width:580px;margin:0 auto;">
@@ -357,22 +412,29 @@ export async function sendPaymentReminder(invoiceId: string): Promise<SendInvoic
       <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#d97706;font-weight:600;margin:0 0 8px;">Relance de paiement</p>
       <h1 style="font-size:20px;font-weight:600;margin:0 0 16px;">Facture ${escapeHtml(inv.reference)}</h1>
       <p style="font-size:13px;color:#52525b;margin:0 0 20px;">
-        Bonjour ${escapeHtml(recipientName)},<br>
-        Sauf erreur de notre part, la facture <strong>${escapeHtml(inv.reference)}</strong> d'un montant de
-        <strong>${fmt(inv.total_cents)}</strong> demeure impayée à ce jour.
+        Bonjour ${escapeHtml(pdf.recipient.attention ?? pdf.recipient.name)},<br>
+        Sauf erreur de notre part, la facture <strong>${escapeHtml(inv.reference)}</strong> présente un solde de
+        <strong>${money(due, inv.currency)}</strong> à ce jour.
         ${dueLabel ? `Son échéance ${overdue ? 'était fixée' : 'est fixée'} au <strong>${dueLabel}</strong>.` : ''}
-        Nous vous remercions de bien vouloir procéder à son règlement dans les meilleurs délais.
+        Nous vous remercions de bien vouloir procéder à son règlement dans les meilleurs délais. La facture est jointe à ce message.
       </p>
-      ${pdfUrl ? `<div style="margin-top:8px;text-align:center;"><a href="${pdfUrl}" style="display:inline-block;padding:12px 24px;background:#d97706;color:white;text-decoration:none;border-radius:8px;font-size:13px;font-weight:500;">📎 Revoir la facture</a></div>` : ''}
       <p style="font-size:12px;color:#a1a1aa;margin:24px 0 0;">Si le règlement a déjà été effectué, merci de ne pas tenir compte de ce message.</p>
     </div>
   </div>
 </body></html>`;
 
-  const result = await sendEmail({ to: recipientEmail, subject, html });
+  const result = await sendEmail({
+    to: pdf.recipient.email,
+    subject: `Relance — facture ${inv.reference} (${money(due, inv.currency)})`,
+    html,
+    attachments: [{ filename: `facture-${inv.reference}.pdf`, content: Buffer.from(pdf.bytes).toString('base64') }],
+    organizationId: me.organizationId,
+    dossierId: inv.dossier_id ?? undefined,
+    kind: 'invoice_reminder',
+    metadata: { invoice_id: inv.id },
+  });
   if (!result.ok) return { ok: false, error: result.reason };
 
-  // Trace la relance (date + compteur) dans metadata.
   const meta = (inv.metadata ?? {}) as Record<string, unknown>;
   const count = typeof meta.reminder_count === 'number' ? meta.reminder_count : 0;
   const nowIso = new Date().toISOString();

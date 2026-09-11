@@ -62,6 +62,8 @@ type InvoiceRow = {
   dossier: { reference: string } | null;
   funder: { name: string } | null;
   company: { name: string } | null;
+  /** Somme des règlements enregistrés. */
+  paid_cents: number;
 };
 
 const STATUSES: InvoiceStatus[] = ['draft', 'issued', 'paid', 'partially_paid', 'overdue', 'cancelled'];
@@ -93,7 +95,16 @@ async function loadInvoices(status: InvoiceStatus | null): Promise<InvoiceRow[]>
     console.error('[factures] load failed', error);
     return [];
   }
-  return (data ?? []) as unknown as InvoiceRow[];
+  const rows = (data ?? []) as unknown as Omit<InvoiceRow, 'paid_cents'>[];
+  const ids = rows.map((r) => r.id);
+  const { data: payRows } = ids.length
+    ? await sb.schema('app').from('payments').select('invoice_id, amount_cents').in('invoice_id', ids)
+    : { data: [] };
+  const paid = new Map<string, number>();
+  for (const p of (payRows ?? []) as Array<{ invoice_id: string; amount_cents: number }>) {
+    paid.set(p.invoice_id, (paid.get(p.invoice_id) ?? 0) + Number(p.amount_cents));
+  }
+  return rows.map((r) => ({ ...r, paid_cents: paid.get(r.id) ?? 0 }));
 }
 
 export default async function FacturesPage({
@@ -199,7 +210,9 @@ export default async function FacturesPage({
               key={inv.id}
               className={`grid grid-cols-[140px_140px_150px_1fr_120px_120px_100px] gap-3 py-3 px-2 items-center text-[13px] ${rowTint(inv.status)}`}
             >
-              <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">{inv.reference}</span>
+              <span className="tabular-nums text-[11px] text-zinc-700 dark:text-zinc-300">
+                {inv.reference.startsWith('PROV-') ? 'Brouillon' : inv.reference}
+              </span>
               {inv.dossier ? (
                 <IdPill>{inv.dossier.reference}</IdPill>
               ) : (
@@ -225,6 +238,7 @@ export default async function FacturesPage({
                 invoiceId={inv.id}
                 status={inv.status}
                 pdfUrl={`/api/invoices/${inv.id}/facture.pdf`}
+                remainingCents={Math.max(0, inv.total_cents - inv.paid_cents)}
               />
             </li>
           ))}

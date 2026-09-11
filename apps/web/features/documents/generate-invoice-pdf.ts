@@ -24,6 +24,8 @@ export type InvoiceInput = {
     name: string;
     siret: string | null;
     address: string | null;
+    /** Responsable de l'entreprise cliente à l'attention de qui la facture est adressée. */
+    attention?: string | null;
   };
   signaturePng: Uint8Array | null;
   stampPng: Uint8Array | null;
@@ -182,6 +184,10 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
   let recipY = blockY - 30;
   if (input.recipient.siret) {
     c.page.drawText(`SIRET ${input.recipient.siret}`, { x: rightX, y: recipY, size: 9, font, color: COLOR_MUTED });
+    recipY -= 12;
+  }
+  if (input.recipient.attention) {
+    c.page.drawText(`À l'attention de ${input.recipient.attention}`, { x: rightX, y: recipY, size: 9, font, color: COLOR_MUTED });
     recipY -= 12;
   }
   if (input.recipient.address) {

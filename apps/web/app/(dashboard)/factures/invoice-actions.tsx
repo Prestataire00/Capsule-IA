@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Mail, Check, Loader2, AlertCircle, FileText, BellRing } from 'lucide-react';
 import { sendInvoiceByEmail, sendPaymentReminder } from './actions';
+import { PaymentButton } from './payment-button.client';
 
 type SendState =
   | { status: 'idle' }
@@ -19,11 +20,14 @@ export function InvoiceActions({
   pdfUrl,
   showPdfLink = true,
   status,
+  remainingCents,
 }: {
   invoiceId: string;
   pdfUrl?: string;
   showPdfLink?: boolean;
   status?: string;
+  /** Reste à encaisser : affiche le bouton de règlement sur une facture émise. */
+  remainingCents?: number;
 }) {
   const [send, setSend] = useState<SendState>({ status: 'idle' });
   const [remind, setRemind] = useState<SendState>({ status: 'idle' });
@@ -31,7 +35,9 @@ export function InvoiceActions({
 
   const errLabel = (error: string) =>
     error === 'no_recipient_email'
-      ? 'Aucun email destinataire (entreprise ni apprenant).'
+      ? 'Aucun e-mail pour le payeur (responsable entreprise, financeur ou stagiaire).'
+      : error === 'numbering_failed'
+      ? 'Numéro de facture non attribué, réessayez.'
       : error === 'invoice_not_found'
       ? 'Facture introuvable en base.'
       : error === 'no_api_key'
@@ -78,6 +84,10 @@ export function InvoiceActions({
         >
           <FileText className="w-3 h-3" />
         </Link>
+      )}
+
+      {status && REMINDABLE.has(status) && remainingCents != null && remainingCents > 0 && (
+        <PaymentButton invoiceId={invoiceId} remainingCents={remainingCents} />
       )}
 
       {/* Relance de paiement — visible uniquement pour les factures impayées émises. */}
