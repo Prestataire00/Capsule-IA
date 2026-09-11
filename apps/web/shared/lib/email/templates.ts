@@ -586,3 +586,38 @@ export function convocationsRecapEmail(data: ConvocationsRecapData): { subject: 
 
   return { subject, html };
 }
+
+
+// ────────────────────────────────────────────────────────────────
+// Émargement — lien personnel d'une demi-journée (entrée puis sortie)
+// ────────────────────────────────────────────────────────────────
+
+export type EmargementLinkData = {
+  firstName: string;
+  formationTitle: string;
+  dateLabel: string;
+  halfDayLabel: string;
+  start: string;
+  end: string;
+  url: string;
+};
+
+export function emargementLinkEmail(data: EmargementLinkData): { subject: string; html: string } {
+  const subject = `Émargement — ${data.formationTitle}, ${data.halfDayLabel.toLowerCase()} du ${data.dateLabel}`;
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Feuille de présence</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">${escapeHtml(data.halfDayLabel)} du ${escapeHtml(data.dateLabel)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
+        Bonjour ${escapeHtml(data.firstName)}, signez votre présence à <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> :
+        à votre arrivée, puis à la fin de la demi-journée, avec ce même lien.
+      </p>
+      <table style="width:100%; border-collapse:collapse; border-top:1px solid #f4f4f5;">
+        ${dataRow('Horaire', `${escapeHtml(data.start)} – ${escapeHtml(data.end)}`)}
+      </table>
+      <div style="margin-top:24px;">${button(data.url, 'Émarger')}</div>
+      <p style="font-size:12px; color:#a1a1aa; margin:16px 0 0;">Lien personnel : ne le transférez pas.</p>
+    `)}
+  `);
+  return { subject, html };
+}

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Copy, GraduationCap, Link2, Loader2, PenLine, SlidersHorizontal, User as UserIcon, X } from 'lucide-react';
+import { Check, Copy, GraduationCap, Link2, Loader2, MonitorCheck, PenLine, SlidersHorizontal, User as UserIcon, X } from 'lucide-react';
 import { SignaturePad, type SignaturePadHandle } from '@/features/attendance/signature-pad';
 import { STATE_LABELS, STATUS_LABELS, type AttendanceStatus, type ParticipantState } from '@/features/attendance/completeness';
 import { MARK_STATUSES, attendanceErrorLabel } from '@/features/attendance/schemas';
@@ -32,7 +32,7 @@ type Tablette = { participant: ParticipantRow; moment: 'entry' | 'exit' } | null
  * lien personnel, signature sur l'appareil (mode tablette), marquage par
  * l'équipe (présent, retard, absent, excusé, départ anticipé).
  */
-export function SheetGrid({ sheet }: { sheet: SheetView }) {
+export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: string }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [liens, setLiens] = useState<Record<string, string>>({});
@@ -41,6 +41,16 @@ export function SheetGrid({ sheet }: { sheet: SheetView }) {
   const [tablette, setTablette] = useState<Tablette>(null);
   const [pending, start] = useTransition();
   const verrou = sheet.finalized;
+  const aDistance = modality === 'distanciel' || modality === 'hybride';
+
+  const presentVisio = (p: ParticipantRow) => {
+    setErreur(null);
+    start(async () => {
+      const r = await markAttendance({ sheetId: sheet.id, learnerId: p.id, status: 'present', captureMode: 'visio' });
+      if (r.ok) router.refresh();
+      else setErreur(attendanceErrorLabel(r.error));
+    });
+  };
 
   const lien = (p: ParticipantRow) => {
     setErreur(null);
@@ -107,6 +117,12 @@ export function SheetGrid({ sheet }: { sheet: SheetView }) {
                       <button type="button" className={bouton} onClick={() => setTablette({ participant: p, moment: momentTablette })}>
                         <PenLine className="w-3.5 h-3.5" />
                         {momentTablette === 'entry' ? 'Signer l’entrée' : 'Signer la sortie'}
+                      </button>
+                    )}
+                    {aDistance && p.kind === 'learner' && p.state === 'a_signer' && (
+                      <button type="button" className={bouton} disabled={pending} onClick={() => presentVisio(p)} title="Présence constatée en visio">
+                        <MonitorCheck className="w-3.5 h-3.5" />
+                        Présent en visio
                       </button>
                     )}
                     {(aSigner || p.state === 'entree_seule') && (

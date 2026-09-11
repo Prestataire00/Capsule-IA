@@ -17,6 +17,7 @@ export const markSchema = z
     lateArrival: heure,
     earlyDeparture: heure,
     reason: z.string().trim().max(1000, 'texte_trop_long').nullish(),
+    captureMode: z.enum(['grille', 'visio']).default('grille'),
   })
   .superRefine((v, ctx) => {
     const absent = v.status === 'absent' || v.status === 'absent_justified';

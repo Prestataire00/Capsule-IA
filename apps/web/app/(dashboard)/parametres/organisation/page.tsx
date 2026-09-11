@@ -5,6 +5,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { DataList, DataRow } from '@/shared/ui/data-row';
 import { SignatureStampSection } from './signature-stamp-section';
 import { IdentitySection } from './identity-section';
+import { AttendanceSettings } from './attendance-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,17 @@ export default async function ParametresOrganisationPage() {
     .is('deleted_at', null)
     .limit(1)
     .maybeSingle();
+  // Réglage lu à part : tant que la migration 0145 n'est pas appliquée, la
+  // colonne manque et la requête principale ne doit pas en pâtir.
+  const { data: reglage, error: reglageErr } = await sb
+    .schema('app')
+    .from('organizations')
+    .select('attendance_auto_send' as never)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle();
+  const envoiAuto = Boolean((reglage as { attendance_auto_send?: boolean } | null)?.attendance_auto_send);
+
   const org = (data as unknown as OrgRow | null) ?? {
     name: '—',
     legal_name: null,
@@ -108,6 +120,7 @@ export default async function ParametresOrganisationPage() {
         </DataList>
       </section>
 
+      <AttendanceSettings enabled={envoiAuto} available={!reglageErr} />
       <SignatureStampSection
         representativeName={org.representative_name ?? null}
         representativeTitle={org.representative_title ?? null}

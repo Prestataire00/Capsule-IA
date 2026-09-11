@@ -59,6 +59,8 @@ export type SendEmailInput = {
   organizationId?: string;
   dossierId?: string;
   kind?: string;
+  /** Contexte d'envoi journalisé (ex. feuille d'émargement), utilisé pour ne pas renvoyer deux fois. */
+  metadata?: Record<string, unknown>;
 };
 
 export type SendEmailResult =
@@ -148,6 +150,7 @@ async function logEmailSend(input: SendEmailInput, result: SendEmailResult): Pro
         status: result.ok ? 'sent' : 'failed',
         provider_id: result.ok ? result.id : null,
         error,
+        metadata: input.metadata ?? {},
       } as never);
     if (insertError) console.error('[email_log] insert failed', insertError);
   } catch (err) {

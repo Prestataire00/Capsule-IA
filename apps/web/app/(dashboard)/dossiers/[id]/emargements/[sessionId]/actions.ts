@@ -9,6 +9,7 @@ import { renderAttendancePdf, type PdfSignatureLine } from '@/features/attendanc
 import { accessibleSession, accessibleSheet } from '@/features/attendance/access';
 import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link';
 import { recordAttendanceStep } from '@/features/attendance/record-step';
+import { sendSheetLinks, type SendLinksResult } from '@/features/attendance/send-links';
 import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
 import { attendanceErrorCode, deviceSignatureSchema, markSchema, type DeviceSignatureInput, type MarkInput } from '@/features/attendance/schemas';
 
@@ -70,7 +71,7 @@ export async function markAttendance(input: MarkInput): Promise<Result> {
     p_late_arrival: p.data.lateArrival ?? null,
     p_early_departure: p.data.earlyDeparture ?? null,
     p_reason: p.data.reason ?? null,
-    p_capture_mode: 'grille',
+    p_capture_mode: p.data.captureMode,
     p_actor: acces.userId,
   } as never);
   if (error) {
@@ -79,6 +80,16 @@ export async function markAttendance(input: MarkInput): Promise<Result> {
     return { ok: false, error: code === 'erreur_inconnue' ? error.message : code };
   }
   return { ok: true };
+}
+
+// ── Envoi des liens par e-mail (bouton de l'équipe) ────────────────────────
+export async function sendSheetLinksAction(input: { sheetId: string }): Promise<Result<SendLinksResult>> {
+  const acces = await accessibleSheet(input.sheetId);
+  if (!acces.ok) return { ok: false, error: acces.error };
+  if (!env.PUBLIC_APP_URL) return { ok: false, error: 'public_app_url_missing' };
+  if (acces.value.status === 'finalized') return { ok: false, error: 'attendance_sheet_finalized' };
+  const r = await sendSheetLinks(input.sheetId, 'manuel', env.PUBLIC_APP_URL);
+  return { ok: true, ...r };
 }
 
 // ── Tablette : la personne signe sur l'appareil de l'organisme ─────────────

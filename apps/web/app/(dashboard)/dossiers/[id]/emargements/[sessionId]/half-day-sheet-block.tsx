@@ -1,5 +1,6 @@
 // apps/web/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/half-day-sheet-block.tsx
 import { SheetGrid } from './sheet-grid';
+import { SheetToolbar } from './sheet-toolbar';
 import { ZoomImportPanel } from './zoom-import-panel';
 import { FinalizeButton } from './finalize-button';
 import { panelsForModality } from '@/features/attendance/domain/panels-for-modality';
@@ -43,7 +44,8 @@ export function HalfDaySheetBlock({
         </span>
       </header>
 
-      <SheetGrid sheet={sheet} />
+      {!sheet.finalized && <SheetToolbar sheetId={sheet.id} sessionId={sessionId} />}
+      <SheetGrid sheet={sheet} modality={modality} />
       {panels.zoom && !sheet.finalized && <ZoomImportPanel sheetId={sheet.id} sessionId={sessionId} />}
 
       <FinalizeButton sheetId={sheet.id} initialFinalized={sheet.finalized} initialDocumentId={sheet.documentId} ready={sheet.ready} remaining={restants} />

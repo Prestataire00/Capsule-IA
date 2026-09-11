@@ -1,33 +1,23 @@
+// ARCHETYPE: command
+// Justification: émargement d'une séance — une grille par demi-journée (entrée, sortie, statut),
+// liens, QR, tablette, marquage et clôture. Seul accès pour les sessions de groupe (sans dossier).
 import { notFound } from 'next/navigation';
-import { ClipboardCheck, CheckCircle2 } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import { loadSession } from '@/features/sessions/load-session';
 import { EmptyState } from '@/shared/ui/empty-state';
-import { StatusPill } from '@/shared/ui/status-pill';
+import { loadSessionEmargement } from '@/features/attendance/queries/load-session-emargement';
+import { ensureSessionSheets } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
+import { HalfDaySheetBlock } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/half-day-sheet-block';
 
 export const dynamic = 'force-dynamic';
 
-const HALF_DAY: Record<string, string> = { morning: 'Matin', afternoon: 'Après-midi', full: 'Journée', evening: 'Soir' };
-const SHEET_TONE: Record<string, 'info' | 'success' | 'neutral' | 'danger'> = {
-  open: 'info',
-  partial: 'info',
-  completed: 'success',
-  finalized: 'success',
-};
-const SHEET_LABEL: Record<string, string> = {
-  open: 'Ouverte',
-  partial: 'Partielle',
-  completed: 'Complète',
-  finalized: 'Finalisée',
-};
-
 export default async function SessionAttendanceTab({ params }: { params: { id: string } }) {
-  const sb = supabaseServer();
-  const loaded = await loadSession(sb, params.id);
-  if (!loaded) notFound();
-  const { sheets } = loaded;
+  // Idempotent : garantit les feuilles matin / après-midi de la séance.
+  await ensureSessionSheets(params.id);
+  const view = await loadSessionEmargement(supabaseServer(), params.id);
+  if (!view) notFound();
 
-  if (sheets.length === 0) {
+  if (view.sheets.length === 0) {
     return (
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg">
         <EmptyState
@@ -40,27 +30,14 @@ export default async function SessionAttendanceTab({ params }: { params: { id: s
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-        Une journée = une session, mais deux feuilles d'émargement (matin et après-midi). Une pause déjeuner ne crée pas de nouvelle session.
+        Chaque apprenant signe à l’arrivée puis à la fin de chaque demi-journée, avec son lien personnel (e-mail, QR imprimé) ou sur
+        la tablette de l’organisme. Marquez ici les absences, retards et départs anticipés.
       </p>
-      <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800">
-        {sheets.map((s) => (
-          <li key={s.id} className="flex items-center justify-between px-4 py-3 text-[13px]">
-            <div className="flex items-center gap-2">
-              <ClipboardCheck className="w-4 h-4 text-zinc-400" />
-              <span className="text-zinc-900 dark:text-zinc-100 font-medium">{HALF_DAY[s.half_day] ?? s.half_day}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                {s.signed}/{s.total} signés
-              </span>
-              {s.finalized_at && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
-              <StatusPill tone={SHEET_TONE[s.status] ?? 'neutral'}>{SHEET_LABEL[s.status] ?? s.status}</StatusPill>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {view.sheets.map((sheet) => (
+        <HalfDaySheetBlock key={sheet.id} sheet={sheet} sessionId={view.session.id} modality={view.session.modality} />
+      ))}
     </div>
   );
 }
