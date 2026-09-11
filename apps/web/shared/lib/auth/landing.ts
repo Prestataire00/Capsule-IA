@@ -15,7 +15,7 @@ import { getCurrentMember } from './current-member';
  */
 export type Landing = '/' | '/formateur';
 
-export async function isTrainer(userId: string): Promise<boolean> {
+async function ficheRattachee(userId: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin()
     .schema('app')
     .from('trainers')
@@ -29,6 +29,34 @@ export async function isTrainer(userId: string): Promise<boolean> {
     return false;
   }
   return data !== null;
+}
+
+/**
+ * Formateur = une fiche rattachée au compte. Faute de rattachement, on relie
+ * les fiches libres portant exactement l'e-mail du compte — la règle de
+ * `link_my_trainer_rows`, qui ne jouait jusqu'ici qu'à l'entrée de l'espace
+ * formateur : un formateur qui se connectait par la page de connexion était
+ * refusé avant d'y arriver.
+ */
+export async function isTrainer(userId: string): Promise<boolean> {
+  if (await ficheRattachee(userId)) return true;
+  const admin = supabaseAdmin();
+  const { data: compte } = await admin.auth.admin.getUserById(userId);
+  const email = compte?.user?.email?.trim().toLowerCase();
+  if (!email) return false;
+  const { data: reliees, error } = await admin
+    .schema('app')
+    .from('trainers')
+    .update({ user_id: userId } as never)
+    .eq('email', email)
+    .is('user_id', null)
+    .is('deleted_at', null)
+    .select('id');
+  if (error) {
+    console.error('[landing] rattachement par e-mail échoué', error.message);
+    return false;
+  }
+  return (reliees ?? []).length > 0;
 }
 
 /**

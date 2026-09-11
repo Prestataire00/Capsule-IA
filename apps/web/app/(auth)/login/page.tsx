@@ -2,13 +2,28 @@
 // Justification: connexion — 1 seule chose à faire, pas de nav.
 
 import { Logo } from '@/shared/ui/logo';
+import { supabaseServer } from '@/shared/lib/supabase/server';
 import { LoginForm } from './login-form';
 
-export default function LoginPage({
+export const dynamic = 'force-dynamic';
+
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { redirectedFrom?: string };
+  searchParams: { redirectedFrom?: string; motif?: string };
 }) {
+  // Connexion réussie mais compte sans espace : sans message, la page semblait
+  // ne pas réagir au clic. On dit avec quel compte on est connecté.
+  let refus: string | null = null;
+  if (searchParams.motif === 'aucun-acces') {
+    const {
+      data: { user },
+    } = await supabaseServer().auth.getUser();
+    refus = user?.email
+      ? `Vous êtes connecté(e) avec ${user.email}, mais ce compte n'ouvre aucun espace : il n'est membre d'aucun organisme et n'est relié à aucune fiche formateur. Vérifiez l'adresse utilisée, ou demandez à l'organisme de vous renvoyer l'invitation.`
+      : "Ce compte n'ouvre aucun espace. Vérifiez l'adresse utilisée, ou demandez à l'organisme de vous renvoyer l'invitation.";
+  }
+
   return (
     <div className="w-full max-w-[420px]">
       <div className="rounded-2xl border border-white/70 dark:border-zinc-800 bg-white/85 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg p-8">
@@ -21,6 +36,12 @@ export default function LoginPage({
             Accédez à votre espace organisme de formation.
           </p>
         </div>
+
+        {refus && (
+          <p role="alert" className="mb-5 text-[12px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/40 rounded-lg px-3 py-2.5">
+            {refus}
+          </p>
+        )}
 
         <LoginForm redirectedFrom={searchParams.redirectedFrom} />
       </div>

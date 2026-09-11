@@ -8,14 +8,25 @@ import { login } from './actions';
 const inputClass =
   'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-200/50 dark:focus:border-orange-500/60 dark:focus:ring-orange-500/20 transition placeholder:text-zinc-400';
 
+/**
+ * Les valeurs sont lues dans le formulaire à l'envoi : le remplissage
+ * automatique (trousseau Safari, gestionnaires de mots de passe) ne prévient
+ * pas toujours React, et un bouton désactivé « tant que vide » ne réagissait
+ * alors plus au clic.
+ */
 export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get('email') ?? '').trim();
+    const password = String(form.get('password') ?? '');
+    if (!email || !password) {
+      setError('Renseignez votre e-mail et votre mot de passe.');
+      return;
+    }
     setError(null);
     startTransition(async () => {
       // En cas de succès, l'action redirige (ne renvoie pas) ; sinon on affiche l'erreur.
@@ -36,8 +47,6 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
           type="email"
           autoComplete="email"
           required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           placeholder="vous@votre-of.fr"
           className={inputClass}
         />
@@ -53,8 +62,6 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
           type="password"
           autoComplete="current-password"
           required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           className={inputClass}
         />
@@ -77,7 +84,7 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
 
       <button
         type="submit"
-        disabled={pending || email.length === 0 || password.length === 0}
+        disabled={pending}
         className="w-full bg-orange-500 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm hover:bg-orange-600 hover:shadow-md transition inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-orange-500"
       >
         {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
