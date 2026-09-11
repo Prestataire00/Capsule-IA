@@ -2,6 +2,7 @@
 // Justification: amélioration continue façon Digiforma — axes d'amélioration suivis en trois
 // temps, incidents (aléas, difficultés, abandons), actions correctives, registre de veille.
 import Link from 'next/link';
+import type { ComponentType } from 'react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -17,7 +18,6 @@ import {
   Info,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import { StatCard } from '@/shared/ui/stat-card';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { FormField, inputClass } from '@/shared/ui/form-field';
@@ -143,11 +143,11 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
   ];
 
   return (
-    <div className="max-w-6xl w-full mx-auto px-8 py-8 space-y-8">
+    <div className="max-w-6xl w-full mx-auto px-8 py-9 space-y-7">
       <header>
-        <SectionLabel className="mb-1">Qualité · Critères 6 et 7</SectionLabel>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Amélioration continue</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
+        <SectionLabel className="mb-2">Qualité · Critères 6 et 7</SectionLabel>
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Amélioration continue</h1>
+        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-3xl">
           Incidents et réclamations donnent lieu à des actions correctives, rattachées à des axes d&apos;amélioration
           suivis jusqu&apos;à ce qu&apos;ils soient optimisés. Indicateurs 23 à 25, 31 et 32.
         </p>
@@ -167,21 +167,22 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label="Axes en cours" value={axes.filter((a) => a.status === 'en_cours').length} icon={Target} accent="violet" />
-        <StatCard label="Incidents ouverts" value={incidentsOuverts.length} icon={TriangleAlert} accent="amber" />
-        <StatCard label="Réclamations ouvertes" value={complaints.length} icon={MessageSquareWarning} accent="rose" href="/reclamations" />
-        <StatCard label="Actions ouvertes" value={actions.filter((a) => a.status !== 'done').length} icon={ClipboardCheck} accent="blue" />
+        <Kpi label="Axes en cours" value={axes.filter((a) => a.status === 'en_cours').length} icon={Target} />
+        <Kpi label="Incidents ouverts" value={incidentsOuverts.length} icon={TriangleAlert} />
+        <Kpi label="Réclamations ouvertes" value={complaints.length} icon={MessageSquareWarning} href="/reclamations" />
+        <Kpi label="Actions ouvertes" value={actions.filter((a) => a.status !== 'done').length} icon={ClipboardCheck} />
       </div>
 
-      <nav className="flex items-center gap-1 border-b border-zinc-200/60 dark:border-zinc-800 overflow-x-auto">
+      <nav className="flex items-center gap-1 border-b border-zinc-200/70 dark:border-zinc-800 overflow-x-auto">
         {onglets.map((o) => (
           <Link
             key={o.id}
             href={`/amelioration-continue?onglet=${o.id}`}
-            className={`text-[13px] px-3 py-2 -mb-px border-b-2 whitespace-nowrap transition ${
+            aria-current={onglet === o.id ? 'page' : undefined}
+            className={`text-[13px] px-3 py-2 -mb-px border-b-2 whitespace-nowrap transition tabular-nums ${
               onglet === o.id
-                ? 'border-orange-500 text-zinc-900 dark:text-zinc-100 font-medium'
-                : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
+                ? 'border-orange-500 text-zinc-900 dark:text-zinc-100 font-bold'
+                : 'border-transparent text-zinc-500 dark:text-zinc-400 font-medium hover:text-zinc-900 dark:hover:text-zinc-100'
             }`}
           >
             {o.label}
@@ -201,10 +202,10 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
             {AXIS_STATUSES.map((statut, i) => {
               const duStatut = axes.filter((a) => a.status === statut);
               return (
-                <div key={statut} className="bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-3">
+                <div key={statut} className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-3">
                   <div className="flex items-baseline justify-between mb-3 px-1">
-                    <h2 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{AXIS_STATUS_LABELS[statut]}</h2>
-                    <span className="text-[11px] tabular-nums text-zinc-500">{duStatut.length}</span>
+                    <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{AXIS_STATUS_LABELS[statut]}</h2>
+                    <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">{duStatut.length}</span>
                   </div>
                   {duStatut.length === 0 ? (
                     <p className="text-[12px] text-zinc-400 px-1 py-2">Aucun axe.</p>
@@ -214,9 +215,9 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                         const siennes = actions.filter((a) => a.axis_id === axe.id);
                         const faites = siennes.filter((a) => a.status === 'done').length;
                         return (
-                          <li key={axe.id} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md shadow-sm p-3 space-y-2">
+                          <li key={axe.id} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg shadow-sm p-3 space-y-2">
                             <div className="flex items-start gap-2">
-                              <p className="flex-1 text-[13px] text-zinc-900 dark:text-zinc-100">{axe.title}</p>
+                              <p className="flex-1 text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{axe.title}</p>
                               {axe.indicator_number && (
                                 <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
                                   I{axe.indicator_number}
@@ -224,7 +225,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                               )}
                             </div>
                             {axe.description && <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{axe.description}</p>}
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                               {siennes.length === 0 ? 'Aucune action' : `${faites}/${siennes.length} action${siennes.length > 1 ? 's' : ''} terminée${faites > 1 ? 's' : ''}`}
                             </p>
                             <form action={createImprovementAction} className="flex gap-1.5">
@@ -232,8 +233,8 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                               <input type="hidden" name="axisId" value={axe.id} />
                               <input type="hidden" name="origin" value="audit" />
                               <input name="title" required placeholder="Nouvelle action" aria-label="Nouvelle action" className={`${inputClass} !text-[12px] !py-1`} />
-                              <button type="submit" aria-label="Ajouter l'action" className="text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-md px-1.5">
-                                <Plus className="w-3.5 h-3.5" />
+                              <button type="submit" aria-label="Ajouter l'action" className="w-8 h-8 flex-shrink-0 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition">
+                                <Plus className="w-4 h-4" />
                               </button>
                             </form>
                             <div className="flex justify-between">
@@ -259,12 +260,12 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
             {reclamationsSansAction.length === 0 && incidentsSansAction.length === 0 ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune réclamation ni aucun incident ouvert sans action corrective.</p>
             ) : (
-              <ul className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+              <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
                 {reclamationsSansAction.map((c) => (
-                  <li key={c.id} className="flex items-center gap-3 px-4 py-3 text-[13px]">
-                    <MessageSquareWarning className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                  <li key={c.id} className="flex items-center gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
+                    <MessageSquareWarning className="w-4 h-4 text-zinc-400 flex-shrink-0" />
                     <Link href={`/reclamations/${c.id}`} className="font-mono text-[11px] text-zinc-500 hover:underline">{c.reference}</Link>
-                    <span className="flex-1 text-zinc-800 dark:text-zinc-200 truncate">{c.subject}</span>
+                    <span className="flex-1 font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</span>
                     <ActionCorrective
                       origin="reclamation"
                       lien={{ complaintId: c.id }}
@@ -274,10 +275,10 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                   </li>
                 ))}
                 {incidentsSansAction.map((i) => (
-                  <li key={i.id} className="flex items-center gap-3 px-4 py-3 text-[13px]">
-                    <TriangleAlert className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                    <span className="text-[11px] text-zinc-500">{INCIDENT_KIND_LABELS[i.kind]}</span>
-                    <span className="flex-1 text-zinc-800 dark:text-zinc-200 truncate">{i.title}</span>
+                  <li key={i.id} className="flex items-center gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
+                    <TriangleAlert className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400">{INCIDENT_KIND_LABELS[i.kind]}</span>
+                    <span className="flex-1 font-bold text-zinc-900 dark:text-zinc-100 truncate">{i.title}</span>
                     <ActionCorrective origin="incident" lien={{ incidentId: i.id }} titre={`Suite à l’incident — ${i.title}`} priorite={i.severity === 'elevee' ? 'high' : 'medium'} />
                   </li>
                 ))}
@@ -295,14 +296,14 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                 Aucun incident déclaré. Consignez ici les aléas, difficultés, abandons et insatisfactions survenus en cours de formation.
               </p>
             ) : (
-              <ul className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+              <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
                 {incidents.map((i) => (
-                  <li key={i.id} className="px-4 py-3 text-[13px] space-y-2">
+                  <li key={i.id} className="px-5 py-3.5 text-[13px] space-y-2 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-medium">{INCIDENT_KIND_LABELS[i.kind]}</span>
-                      <span className="flex-1 text-zinc-900 dark:text-zinc-100 min-w-0">{i.title}</span>
-                      <span className="text-[11px] text-zinc-400">{format(parseISO(i.occurred_on), 'dd MMM yyyy', { locale: fr })}</span>
-                      <span className="text-[11px] text-zinc-500">Gravité {SEVERITY_LABELS[i.severity].toLowerCase()}</span>
+                      <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{INCIDENT_KIND_LABELS[i.kind]}</span>
+                      <span className="flex-1 text-[14px] font-bold text-zinc-900 dark:text-zinc-100 min-w-0">{i.title}</span>
+                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{format(parseISO(i.occurred_on), 'dd MMM yyyy', { locale: fr })}</span>
+                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Gravité {SEVERITY_LABELS[i.severity].toLowerCase()}</span>
                       <StatusPill tone={i.status === 'traite' ? 'success' : 'warning'}>{i.status === 'traite' ? 'traité' : 'ouvert'}</StatusPill>
                     </div>
                     {i.description && <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{i.description}</p>}
@@ -312,7 +313,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                       <form action={resolveIncident} className="flex gap-2 items-start">
                         <input type="hidden" name="id" value={i.id} />
                         <input name="resolution" required placeholder="Comment l’incident a-t-il été traité ?" aria-label="Traitement de l'incident" className={`${inputClass} !text-[12px]`} />
-                        <button type="submit" className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 whitespace-nowrap">
+                        <button type="submit" className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 h-9 rounded-lg text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 whitespace-nowrap">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Marquer traité
                         </button>
                       </form>
@@ -334,15 +335,15 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
           {actions.length === 0 ? (
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune action pour le moment.</p>
           ) : (
-            <ul className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+            <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
               {actions.map((a) => {
                 const st = ACTION_STATUS[a.status] ?? ACTION_STATUS.open!;
                 const axe = a.axis_id ? axeDe.get(a.axis_id) : undefined;
                 return (
-                  <li key={a.id} className="grid grid-cols-1 sm:grid-cols-[1fr_110px_110px_150px] gap-2 sm:gap-3 px-4 py-3 items-center text-[13px]">
+                  <li key={a.id} className="grid grid-cols-1 sm:grid-cols-[1fr_110px_110px_170px] gap-2 sm:gap-4 px-5 py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                     <span className="min-w-0">
-                      <span className="text-zinc-900 dark:text-zinc-100">{a.title}</span>
-                      <span className="block text-[11px] text-zinc-400 dark:text-zinc-500">
+                      <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{a.title}</span>
+                      <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                         {ACTION_ORIGIN_LABELS[a.origin] ?? a.origin}
                         {a.complaint_id && (
                           <>
@@ -356,7 +357,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                       </span>
                     </span>
                     <StatusPill tone={st.tone}>{st.label}</StatusPill>
-                    <span className="text-[11px] text-zinc-400">{format(parseISO(a.created_at), 'dd MMM yyyy', { locale: fr })}</span>
+                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{format(parseISO(a.created_at), 'dd MMM yyyy', { locale: fr })}</span>
                     <span className="flex items-center gap-1.5 sm:justify-end">
                       {a.status === 'open' && <StatusButton id={a.id} status="in_progress" label="Démarrer" />}
                       {a.status !== 'done' && <StatusButton id={a.id} status="done" label="Terminer" done />}
@@ -378,20 +379,20 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
           {veille.length === 0 ? (
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune entrée de veille.</p>
           ) : (
-            <ul className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+            <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
               {veille.map((v) => (
-                <li key={v.id} className="px-4 py-3 text-[13px]">
+                <li key={v.id} className="px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                   <div className="flex items-center gap-2">
-                    <Telescope className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
-                    <span className="text-[10px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-medium">
+                    <Telescope className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                    <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 whitespace-nowrap">
                       {VEILLE_CAT_LABELS[v.category] ?? v.category}
                     </span>
-                    <span className="text-zinc-900 dark:text-zinc-100 flex-1 truncate">{v.title}</span>
-                    <span className="text-[11px] text-zinc-400">{format(parseISO(v.created_at), 'dd MMM yyyy', { locale: fr })}</span>
+                    <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex-1 truncate">{v.title}</span>
+                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{format(parseISO(v.created_at), 'dd MMM yyyy', { locale: fr })}</span>
                   </div>
                   {v.summary && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">{v.summary}</p>}
                   {v.source_url && (
-                    <a href={v.source_url} target="_blank" rel="noreferrer" className="text-[11px] text-violet-600 hover:underline">
+                    <a href={v.source_url} target="_blank" rel="noreferrer" className="text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:underline">
                       Source
                     </a>
                   )}
@@ -441,7 +442,7 @@ function ActionCorrective({
       {lien.incidentId && <input type="hidden" name="incidentId" value={lien.incidentId} />}
       <input type="hidden" name="title" value={titre.slice(0, 200)} />
       <input type="hidden" name="priority" value={priorite} />
-      <button type="submit" className="inline-flex items-center gap-1 text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 font-medium whitespace-nowrap">
+      <button type="submit" className="inline-flex items-center gap-1 text-[12px] text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 font-semibold whitespace-nowrap">
         Créer une action corrective <ArrowRight className="w-3.5 h-3.5" />
       </button>
     </form>
@@ -456,7 +457,7 @@ function StatusButton({ id, status, label, done }: { id: string; status: string;
       <input type="hidden" name="status" value={status} />
       <button
         type="submit"
-        className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md transition ${
+        className={`inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 h-8 rounded-lg transition ${
           done
             ? 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
             : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
@@ -470,9 +471,11 @@ function StatusButton({ id, status, label, done }: { id: string; status: string;
 }
 
 const panneau =
-  'absolute right-0 z-10 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-md p-4 space-y-3';
-const declencheur = 'list-none cursor-pointer text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1';
-const valider = 'w-full bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-3 py-2 rounded-lg';
+  'absolute right-0 z-10 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-lg p-4 space-y-3';
+const declencheur =
+  'list-none cursor-pointer text-[13px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 h-9 inline-flex items-center gap-1.5 transition';
+const valider =
+  'w-full bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-3 h-9 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10';
 
 function NewAxisForm() {
   return (
@@ -634,5 +637,46 @@ function NewVeilleForm() {
         </button>
       </form>
     </details>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  hint,
+  hintTone = 'neutral',
+  icon: Icon,
+  href,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
+  icon?: ComponentType<{ className?: string }>;
+  href?: string;
+}) {
+  const hintCls = {
+    neutral: 'text-zinc-500 dark:text-zinc-400',
+    success: 'text-emerald-700 dark:text-emerald-400',
+    warning: 'text-amber-700 dark:text-amber-400',
+    danger: 'text-red-700 dark:text-red-400',
+  }[hintTone];
+  const body = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
+        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
+      </div>
+      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
+      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
+    </>
+  );
+  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
+  return href ? (
+    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }

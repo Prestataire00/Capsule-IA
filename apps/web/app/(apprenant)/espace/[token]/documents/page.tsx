@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { FileText, Download, BookOpen, Award, PenLine } from 'lucide-react';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { resolveApprenantContext } from '../_lib';
 import { resolveApprenantResources, logResourceAccess } from '../resources';
 
@@ -53,21 +54,19 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-      <header className="flex items-center gap-3">
-        <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-950/60 dark:to-blue-950/30 text-blue-700 dark:text-blue-300 flex items-center justify-center shadow-sm">
-          <FileText className="w-5 h-5" />
-        </span>
+      <header className="mb-1">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Documents</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+          <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Documents</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
             Conventions, attestations, supports pédagogiques.
           </p>
         </div>
       </header>
 
       {/* Documents administratifs */}
-      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-        <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold mb-4">
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-4">
           Documents administratifs
         </p>
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 -my-1">
@@ -78,11 +77,11 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
             const Icon = doc.icon;
 
             const right = canSign ? (
-              <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40 px-2.5 py-1 rounded-md inline-flex items-center gap-1 flex-shrink-0">
+              <span className="text-[12px] font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 h-7 px-2.5 rounded-md inline-flex items-center gap-1 flex-shrink-0">
                 <PenLine className="w-3 h-3" /> Signer
               </span>
             ) : isPending ? (
-              <span className="text-[10px] text-zinc-400 flex-shrink-0">en attente</span>
+              <span className="text-[11px] text-zinc-400 flex-shrink-0">en attente</span>
             ) : (
               <Download className="w-4 h-4 text-zinc-400 flex-shrink-0" />
             );
@@ -91,19 +90,19 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
               <>
                 <div className="flex items-center gap-3 min-w-0">
                   <span
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    className={`w-5 flex items-center justify-center flex-shrink-0 ${
                       doc.status === 'signed'
-                        ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                        ? 'text-emerald-600 dark:text-emerald-400'
                         : isPending
-                        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-                        : 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
+                        ? 'text-zinc-300 dark:text-zinc-600'
+                        : 'text-zinc-400'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{doc.title}</p>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{doc.title}</p>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
                       {doc.type} · {doc.date}
                     </p>
                   </div>
@@ -117,7 +116,7 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
             return (
               <li key={doc.id}>
                 {canSign && doc.signHref ? (
-                  <Link href={doc.signHref} className={`${rowClass} hover:bg-violet-50/60 dark:hover:bg-violet-950/20`}>
+                  <Link href={doc.signHref} className={`${rowClass} hover:bg-orange-50/60 dark:hover:bg-orange-950/20`}>
                     {inner}
                   </Link>
                 ) : isClickable && doc.href ? (
@@ -125,7 +124,7 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
                     href={doc.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`${rowClass} hover:bg-zinc-50 dark:hover:bg-zinc-950`}
+                    className={`${rowClass} hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30`}
                   >
                     {inner}
                   </a>
@@ -139,10 +138,10 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
       </section>
 
       {/* Supports pédagogiques */}
-      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="w-3.5 h-3.5 text-violet-500" />
-          <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
+          <BookOpen className="w-3.5 h-3.5 text-zinc-400" />
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
             Supports & ressources par module
           </p>
         </div>
@@ -156,10 +155,10 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
             {(resources?.supports ?? []).map((mod) => (
               <div key={mod.moduleId}>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-md bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 flex items-center justify-center text-[11px] font-medium">
+                  <span className="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center text-[11px] font-bold tabular-nums">
                     {mod.modulePosition + 1}
                   </span>
-                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{mod.moduleTitle}</p>
+                  <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">{mod.moduleTitle}</p>
                 </div>
                 {mod.resources.length === 0 ? (
                   <p className="text-[11px] text-zinc-400 ml-8">Aucun support disponible pour le moment.</p>
@@ -169,13 +168,13 @@ export default async function EspaceDocumentsPage({ params }: { params: { token:
                       <li key={s.id}>
                         <a
                           href={`/api/espace/${params.token}/resource/${s.id}`}
-                          className="flex items-center justify-between gap-3 px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                          className="flex items-center justify-between gap-3 px-3 py-2 -mx-3 rounded-lg hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <FileText className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
                             <span className="text-[12px] text-zinc-900 dark:text-zinc-100 truncate">{s.title}</span>
                             {s.fileSizeBytes && (
-                              <span className="text-[10px] text-zinc-400 tabular-nums">
+                              <span className="text-[11px] text-zinc-400 tabular-nums">
                                 {Math.round(s.fileSizeBytes / 1024)} Ko
                               </span>
                             )}

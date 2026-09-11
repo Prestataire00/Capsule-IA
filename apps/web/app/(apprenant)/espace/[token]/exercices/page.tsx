@@ -4,6 +4,7 @@ import { PenLine, CheckCircle2, CircleDashed, Award, Clock, FileText } from 'luc
 import { resolveApprenantContext } from '../_lib';
 import { resolveApprenantExercises } from '../exercises';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { SectionLabel } from '@/shared/ui/section-label';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,13 +18,11 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      <header className="mb-6 flex items-center gap-3">
-        <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/60 dark:to-amber-950/30 text-amber-700 dark:text-amber-300 flex items-center justify-center shadow-sm">
-          <PenLine className="w-5 h-5" />
-        </span>
+      <header className="mb-7">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Exercices & devoirs</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+          <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Exercices & devoirs</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
             {submitted}/{total} rendu{submitted > 1 ? 's' : ''} sur l&apos;ensemble du parcours.
           </p>
         </div>
@@ -46,28 +45,28 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
 
             const Icon = isGraded ? Award : isSubmitted ? CheckCircle2 : CircleDashed;
             const iconTone = isGraded
-              ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+              ? 'text-emerald-600 dark:text-emerald-400'
               : isSubmitted
-              ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
-              : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300';
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-amber-600 dark:text-amber-400';
 
             return (
               <article
                 key={ex.id}
-                className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5"
+                className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5"
               >
                 {/* Header exercice */}
                 <div className="flex items-start gap-3 mb-3">
-                  <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm ${iconTone}`}>
+                  <span className={`w-9 h-6 flex items-center justify-center flex-shrink-0 ${iconTone}`}>
                     <Icon className="w-4 h-4" />
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">{ex.title}</p>
+                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{ex.title}</p>
                       <StatusPill tone={pillTone}>{pillLabel}</StatusPill>
                     </div>
                     {ex.dueAt && (
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1">
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1 tabular-nums">
                         <Clock className="w-3 h-3" />
                         À rendre avant le {new Date(ex.dueAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
@@ -89,7 +88,7 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
                       href={`/api/espace/${params.token}/exercise/${ex.id}/attachment`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[12px] text-blue-600 dark:text-blue-400 hover:underline"
+                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:underline"
                     >
                       <FileText className="w-3.5 h-3.5" />
                       Télécharger l&apos;énoncé
@@ -102,12 +101,12 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
                   <div className="mb-3 pl-12 space-y-1.5">
                     {ex.submission.grade !== null && (
                       <p className="text-[13px] text-zinc-900 dark:text-zinc-100">
-                        Note : <span className="font-medium text-emerald-700 dark:text-emerald-400">{ex.submission.grade}</span>
+                        Note : <span className="font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">{ex.submission.grade}</span>
                       </p>
                     )}
                     {ex.submission.feedback && (
                       <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-lg px-3 py-2">
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Retour du formateur</p>
+                        <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.06em] mb-1">Retour du formateur</p>
                         <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-line">{ex.submission.feedback}</p>
                       </div>
                     )}
@@ -127,7 +126,7 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
                         name="content"
                         placeholder={isSubmitted ? 'Modifier votre réponse écrite (optionnel)…' : 'Réponse écrite (optionnel)…'}
                         rows={3}
-                        className="w-full text-[13px] px-3 py-2 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400 shadow-sm resize-none"
+                        className="w-full text-[13px] px-3 py-2 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition resize-none"
                       />
                       <div className="flex items-center gap-3 flex-wrap">
                         <input
@@ -138,7 +137,7 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
                         />
                         <button
                           type="submit"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium shadow-sm transition"
+                          className="inline-flex items-center gap-1.5 px-3.5 h-9 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           {isSubmitted ? 'Resoumettre' : 'Remettre'}

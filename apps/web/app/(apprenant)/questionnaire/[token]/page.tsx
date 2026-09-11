@@ -20,10 +20,8 @@ export default function QuestionnairePage() {
     return (
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="max-w-[400px] text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Merci pour vos réponses.</h1>
+          <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
+          <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Merci pour vos réponses.</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             Votre formateur les consultera avant le démarrage de la formation pour adapter le parcours.
           </p>
@@ -36,10 +34,10 @@ export default function QuestionnairePage() {
     <div className="flex-1 flex flex-col items-center px-4 py-12">
       <div className="w-full max-w-[480px]">
         <div className="text-center mb-7">
-          <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">
+          <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-orange-600 dark:text-orange-400 mb-2">
             Questionnaire de positionnement
           </p>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Avant de commencer la formation</h1>
+          <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Avant de commencer la formation</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             5 minutes maximum · vos réponses servent à personnaliser le parcours.
           </p>
@@ -54,7 +52,7 @@ export default function QuestionnairePage() {
         >
           {questions.map((q, i) => (
             <fieldset key={q.id}>
-              <legend className="text-[15px] font-medium mb-3">
+              <legend className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
                 <span className="tabular-nums text-[11px] text-zinc-400 mr-2">{i + 1}.</span>
                 {q.label}
               </legend>
@@ -66,8 +64,8 @@ export default function QuestionnairePage() {
                       key={s}
                       className={
                         idx === 1
-                          ? 'border border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md px-2 py-2 text-[11px] text-center cursor-pointer'
-                          : 'border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md px-2 py-2 text-[11px] text-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                          ? 'border border-orange-500 bg-orange-500 text-white rounded-lg px-2 py-2 text-[11px] font-semibold text-center cursor-pointer'
+                          : 'border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg px-2 py-2 text-[11px] font-medium text-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900'
                       }
                     >
                       <input type="radio" name={q.id} value={s} className="sr-only" defaultChecked={idx === 1} />
@@ -80,7 +78,7 @@ export default function QuestionnairePage() {
               {q.type === 'textarea' && (
                 <textarea
                   rows={3}
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400 transition"
                   placeholder="Votre réponse…"
                 />
               )}
@@ -92,7 +90,7 @@ export default function QuestionnairePage() {
                       key={c}
                       className="bg-zinc-50 dark:bg-zinc-900 rounded-lg px-3 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
                     >
-                      <input type="radio" name={q.id} value={c} defaultChecked={idx === 0} />
+                      <input type="radio" name={q.id} value={c} defaultChecked={idx === 0} className="accent-orange-500" />
                       <span className="text-[13px]">{c}</span>
                     </label>
                   ))}
@@ -104,7 +102,7 @@ export default function QuestionnairePage() {
           <div className="flex justify-end pt-4">
             <button
               type="submit"
-              className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
             >
               Envoyer mes réponses
               <ArrowRight className="w-3.5 h-3.5" />

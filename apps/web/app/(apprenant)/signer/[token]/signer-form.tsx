@@ -81,12 +81,12 @@ export function SignerForm({
   };
 
   const entete = (
-    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg px-4 py-4 mb-5">
+    <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl px-4 py-4 mb-5">
       <div className="flex items-center gap-3">
-        <FileText className="w-5 h-5 text-zinc-500" aria-hidden />
+        <FileText className="w-5 h-5 text-zinc-400" aria-hidden />
         <div className="flex-1 min-w-0">
-          <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{context.formationTitle}</p>
-          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 capitalize">
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{context.formationTitle}</p>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 capitalize tabular-nums">
             {jour(context.windowStart)} · {context.halfDayLabel} · {heure(context.windowStart)}–{finPrevue}
           </p>
         </div>
@@ -100,11 +100,11 @@ export function SignerForm({
               <li
                 key={m}
                 aria-current={encours ? 'step' : undefined}
-                className={`rounded-md px-2.5 py-1.5 border ${
+                className={`rounded-lg px-2.5 py-1.5 border font-semibold ${
                   fait
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400'
                     : encours
-                      ? 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-300'
+                      ? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-300'
                       : 'border-zinc-200 text-zinc-500 dark:border-zinc-800'
                 }`}
               >
@@ -122,17 +122,15 @@ export function SignerForm({
     return (
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="max-w-[420px] text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Merci, c’est signé.</h1>
+          <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
+          <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Merci, c’est signé.</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             {unSeulTemps ? 'Votre signature est enregistrée.' : 'Votre entrée et votre sortie sont enregistrées.'} Signatures horodatées par{' '}
             {context.organizationName}.
           </p>
           {etat.depart && <p className="text-[12px] text-amber-600 mt-2">Départ anticipé noté à {etat.depart}.</p>}
           {etat.espaceUrl && (
-            <a href={etat.espaceUrl} className="mt-6 inline-flex bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-2.5 rounded-md">
+            <a href={etat.espaceUrl} className="mt-6 inline-flex items-center h-10 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-semibold px-4 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition">
               Accéder à mon espace de formation
             </a>
           )}
@@ -154,7 +152,7 @@ export function SignerForm({
           <button
             type="button"
             onClick={() => setEtat({ nom: 'signature', moment: 'exit' })}
-            className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-3 rounded-md"
+            className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
           >
             Signer ma sortie
           </button>
@@ -169,22 +167,22 @@ export function SignerForm({
       <div className="flex-1 flex flex-col items-center px-4 py-10">
         <div className="w-full max-w-[480px]">
           {entete}
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+          <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
             {moment === 'entry' ? 'Signature d’entrée' : 'Signature de sortie'}
           </h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 mb-4">Signez avec votre doigt ou un stylet dans le cadre.</p>
-          <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+          <div className="border border-zinc-200/80 dark:border-zinc-800 rounded-xl overflow-hidden">
             <SignaturePad ref={pad} onInk={setEncre} height={200} label={`Signature de ${context.signerFullName}`} />
           </div>
           <div className="flex items-center justify-between mt-2">
-            <button type="button" onClick={() => pad.current?.clear()} disabled={envoi} className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+            <button type="button" onClick={() => pad.current?.clear()} disabled={envoi} className="text-[12px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
               Effacer
             </button>
             <button
               type="button"
               onClick={() => pad.current?.writeName(context.signerFullName)}
               disabled={envoi}
-              className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1"
+              className="text-[12px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1"
             >
               <Type className="w-3.5 h-3.5" aria-hidden />
               Je ne peux pas signer au doigt : signer avec mon nom
@@ -209,7 +207,7 @@ export function SignerForm({
             type="button"
             disabled={!encre || envoi}
             onClick={() => void envoyer(moment, true)}
-            className="mt-5 w-full bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-3 rounded-md inline-flex items-center justify-center gap-2 disabled:opacity-40"
+            className="mt-5 w-full h-11 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition inline-flex items-center justify-center gap-2 disabled:opacity-40"
           >
             {envoi && <Loader2 className="w-4 h-4 animate-spin" />}
             {envoi ? 'Enregistrement…' : confirmeDepart ? 'Oui, je pars maintenant' : 'Valider ma signature'}
@@ -219,7 +217,7 @@ export function SignerForm({
               type="button"
               disabled={envoi}
               onClick={() => void envoyer(moment, false)}
-              className="mt-3 w-full border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-4 py-2.5 rounded-md inline-flex items-center justify-center gap-2 disabled:opacity-40"
+              className="mt-3 w-full h-10 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition inline-flex items-center justify-center gap-2 disabled:opacity-40"
             >
               <MonitorCheck className="w-4 h-4" />
               Je suis à distance : confirmer {moment === 'entry' ? 'mon arrivée' : 'mon départ'} sans signer
@@ -233,8 +231,8 @@ export function SignerForm({
   return (
     <div className="flex-1 flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-[480px]">
-        <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1 text-center">Bonjour {context.signerFullName}</p>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight text-center mb-5">Émargement</h1>
+        <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-orange-600 dark:text-orange-400 mb-2 text-center">Bonjour {context.signerFullName}</p>
+        <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 text-center mb-5">Émargement</h1>
         {entete}
         <InfoCallout tone="info" className="mb-5">
           {unSeulTemps
@@ -244,7 +242,7 @@ export function SignerForm({
           la durée d’archivage des formations (5 ans).
         </InfoCallout>
         <label className="flex items-start gap-2 mb-6 cursor-pointer">
-          <input type="checkbox" checked={accepte} onChange={(e) => setAccepte(e.target.checked)} className="mt-0.5" />
+          <input type="checkbox" checked={accepte} onChange={(e) => setAccepte(e.target.checked)} className="mt-0.5 w-4 h-4 accent-orange-500" />
           <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
             {unSeulTemps
               ? 'J’atteste avoir assuré cette demi-journée de formation et j’accepte de signer électroniquement la feuille de présence.'
@@ -255,7 +253,7 @@ export function SignerForm({
           type="button"
           disabled={!accepte}
           onClick={() => setEtat({ nom: 'signature', moment: 'entry' })}
-          className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-medium px-4 py-3 rounded-md disabled:opacity-40"
+          className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition disabled:opacity-40"
         >
           {unSeulTemps ? 'Signer la feuille' : 'Signer mon entrée'}
         </button>

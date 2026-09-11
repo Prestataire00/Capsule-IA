@@ -43,15 +43,15 @@ function FullScreenMessage({
   children?: React.ReactNode;
 }) {
   const toneClasses = {
-    error: 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
-    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400',
-    success: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
+    error: 'text-red-600 dark:text-red-400',
+    warning: 'text-amber-500 dark:text-amber-400',
+    success: 'text-emerald-600 dark:text-emerald-400',
   }[tone];
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="max-w-[400px] text-center">
-        <div className={`w-16 h-16 rounded-full ${toneClasses} flex items-center justify-center mx-auto mb-4`}>{icon}</div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{title}</h1>
+        <div className={`${toneClasses} flex justify-center mb-4`}>{icon}</div>
+        <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">{title}</h1>
         <div className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">{description}</div>
         {children && <div className="mt-6">{children}</div>}
       </div>

@@ -77,16 +77,14 @@ export function DocumentSignerForm({
 
   if (step.name === 'done') {
     return (
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
-        <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
-          <Check className="w-7 h-7" />
-        </div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Merci, c&apos;est signé.</h1>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
+        <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
+        <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Merci, c&apos;est signé.</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-6">Votre signature a été horodatée et enregistrée.</p>
         <button
           type="button"
           onClick={() => router.push(backHref)}
-          className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm"
+          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
         >
           Retour aux documents
         </button>
@@ -97,11 +95,11 @@ export function DocumentSignerForm({
   const isSubmitting = step.name === 'submitting';
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">
       <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4 text-center">
         Signez dans le cadre avec votre doigt ou votre stylet.
       </p>
-      <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-zinc-900 max-w-[480px] mx-auto">
+      <div className="border border-zinc-200/70 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-zinc-900 max-w-[480px] mx-auto">
         <canvas
           ref={canvasRef}
           width={464}
@@ -141,7 +139,7 @@ export function DocumentSignerForm({
             type="button"
             disabled={!hasDrawn || isSubmitting}
             onClick={submit}
-            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-2"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-2"
           >
             {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {isSubmitting ? 'Enregistrement…' : 'Valider ma signature'}

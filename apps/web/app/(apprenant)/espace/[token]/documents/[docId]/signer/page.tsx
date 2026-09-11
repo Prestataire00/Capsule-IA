@@ -57,16 +57,14 @@ export default async function SignDocumentPage({ params }: { params: { token: st
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      <Link href={back} className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6">
+      <Link href={back} className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1.5 transition mb-6">
         <ArrowLeft className="w-3.5 h-3.5" /> Mes documents
       </Link>
 
       <header className="mb-6 flex items-center gap-3">
-        <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-950/60 dark:to-blue-950/30 text-blue-700 dark:text-blue-300 flex items-center justify-center shadow-sm">
-          <FileText className="w-5 h-5" />
-        </span>
+        <FileText className="w-5 h-5 text-zinc-400 flex-shrink-0" />
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{title}</h1>
+          <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">{title}</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">Signature électronique depuis votre espace.</p>
         </div>
       </header>
@@ -76,18 +74,16 @@ export default async function SignDocumentPage({ params }: { params: { token: st
           href={readHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-[13px] text-violet-600 dark:text-violet-400 hover:text-violet-700 font-medium mb-4"
+          className="inline-flex items-center gap-1.5 text-[13px] text-orange-600 dark:text-orange-400 hover:text-orange-700 font-semibold mb-4"
         >
           <ExternalLink className="w-3.5 h-3.5" /> Lire le document avant de signer
         </a>
       )}
 
       {alreadySigned ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
-          <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
-            <Check className="w-7 h-7" />
-          </div>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Document déjà signé</h2>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
+          <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
+          <h2 className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100 mb-2">Document déjà signé</h2>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Vous avez déjà signé ce document. Merci !</p>
         </div>
       ) : (

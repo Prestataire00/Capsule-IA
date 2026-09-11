@@ -63,11 +63,9 @@ export function SignForm({ token }: { token: string }) {
 
   if (step.name === 'done') {
     return (
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
-        <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
-          <Check className="w-7 h-7" />
-        </div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Merci, c&apos;est signé.</h1>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
+        <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
+        <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Merci, c&apos;est signé.</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Votre signature a été horodatée et enregistrée.</p>
       </div>
     );
@@ -76,11 +74,11 @@ export function SignForm({ token }: { token: string }) {
   const isSubmitting = step.name === 'submitting';
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">
       <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4 text-center">
         Signez dans le cadre avec votre doigt ou votre souris.
       </p>
-      <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg overflow-hidden bg-white max-w-[480px] mx-auto">
+      <div className="border border-zinc-200/70 dark:border-zinc-800 rounded-lg overflow-hidden bg-white max-w-[480px] mx-auto">
         <canvas
           ref={canvasRef}
           width={464}
@@ -97,7 +95,7 @@ export function SignForm({ token }: { token: string }) {
           type="button"
           onClick={clear}
           disabled={isSubmitting}
-          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 disabled:opacity-40"
+          className="text-[13px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 disabled:opacity-40"
         >
           <Eraser className="w-3.5 h-3.5" />
           Effacer
@@ -106,7 +104,7 @@ export function SignForm({ token }: { token: string }) {
           type="button"
           onClick={submit}
           disabled={!hasDrawn || isSubmitting}
-          className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-2 rounded-lg shadow-sm inline-flex items-center gap-2"
+          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 disabled:opacity-40 inline-flex items-center gap-2"
         >
           {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           Signer

@@ -49,11 +49,9 @@ export function RoomIdentifyForm({
         }}
       >
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center mx-auto">
-            <QrCode className="w-7 h-7" aria-hidden />
-          </div>
-          <p className="text-[12px] uppercase tracking-wider text-zinc-500">{organizationName}</p>
-          <h1 className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{formationTitle}</h1>
+          <QrCode className="w-8 h-8 text-orange-500 dark:text-orange-400 mx-auto" aria-hidden />
+          <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-orange-600 dark:text-orange-400">{organizationName}</p>
+          <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">{formationTitle}</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Émargement · {halfDayLabel}</p>
         </div>
 
@@ -64,7 +62,7 @@ export function RoomIdentifyForm({
         )}
 
         <label className="block space-y-1.5">
-          <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">Votre adresse e-mail</span>
+          <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">Votre adresse e-mail</span>
           <input
             type="email"
             inputMode="email"
@@ -73,7 +71,7 @@ export function RoomIdentifyForm({
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full text-[16px] px-3 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+            className="w-full text-[16px] px-3 h-12 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition"
             placeholder="prenom.nom@exemple.fr"
           />
           <span className="block text-[12px] text-zinc-500">Celle que vous avez donnée à l’inscription. Ce téléphone s’en souviendra.</span>
@@ -88,7 +86,7 @@ export function RoomIdentifyForm({
         <button
           type="submit"
           disabled={pending || email.trim().length === 0}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-[15px] font-medium py-3 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-40 shadow-sm"
+          className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white text-[15px] font-semibold rounded-lg inline-flex items-center justify-center gap-2 disabled:opacity-40 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
         >
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
           Continuer vers la signature

@@ -16,10 +16,10 @@ function Message({ icon, title, children }: { icon: React.ReactNode; title: stri
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="max-w-[380px] text-center">
-        <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+        <div className="text-amber-500 dark:text-amber-400 flex justify-center mb-4">
           {icon}
         </div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{title}</h1>
+        <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">{title}</h1>
         <div className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">{children}</div>
       </div>
     </div>

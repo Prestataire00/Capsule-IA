@@ -23,7 +23,7 @@ function ProgressBar({ pct }: { pct: number }) {
   return (
     <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
       <div
-        className="h-full rounded-full bg-violet-500 transition-all"
+        className="h-full rounded-full bg-orange-500 transition-all"
         style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
       />
     </div>
@@ -64,28 +64,26 @@ export default async function ParcoursPage({ params }: { params: { token: string
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* En-tête : progression globale */}
-      <section className="bg-gradient-to-br from-violet-50 via-white to-zinc-50 dark:from-violet-950/30 dark:via-zinc-900 dark:to-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm p-6 space-y-4">
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <span className="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-300 flex items-center justify-center shadow-sm">
-            <Route className="w-5 h-5" />
-          </span>
+          <Route className="w-5 h-5 text-zinc-400 flex-shrink-0" />
           <div>
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Mon parcours</h1>
+            <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Mon parcours</h1>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
               {ctx.formation?.title ?? 'Votre formation'}
             </p>
           </div>
           <span className="ml-auto text-right">
-            <span className="block text-[24px] font-semibold text-violet-600 dark:text-violet-300 leading-none">
+            <span className="block text-[26px] font-extrabold text-orange-600 dark:text-orange-400 leading-none tabular-nums">
               {parcours.overall.pct}%
             </span>
-            <span className="block text-[11px] text-zinc-400 mt-1">
+            <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-1 tabular-nums">
               {parcours.overall.done}/{parcours.overall.total} activités
             </span>
           </span>
         </div>
         <ProgressBar pct={parcours.overall.pct} />
-        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
           {completedModules}/{parcours.modules.length} module{parcours.modules.length > 1 ? 's' : ''} terminé
           {completedModules > 1 ? 's' : ''} · {heuresSignees} h émargées
         </p>
@@ -102,7 +100,7 @@ export default async function ParcoursPage({ params }: { params: { token: string
             <AccordionSection
               key={m.id}
               defaultOpen={i === 0}
-              icon={m.completed ? <Check className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
+              icon={m.completed ? <Check className="w-4 h-4 text-emerald-500" /> : <BookOpen className="w-4 h-4" />}
               title={`Module ${m.position} · ${m.title}`}
               description={
                 m.pct === null
@@ -120,7 +118,7 @@ export default async function ParcoursPage({ params }: { params: { token: string
                       href={`/api/espace/${params.token}/resource/${r.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300 hover:text-violet-600 dark:hover:text-violet-400"
+                      className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300 hover:text-orange-600 dark:hover:text-orange-400"
                     >
                       {r.consulted ? (
                         <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -140,11 +138,11 @@ export default async function ParcoursPage({ params }: { params: { token: string
                     <Link
                       key={e.id}
                       href={`/espace/${params.token}/exercices`}
-                      className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300 hover:text-violet-600"
+                      className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300 hover:text-orange-600 dark:hover:text-orange-400"
                     >
                       <PenLine className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                       <span className="truncate">{e.title}</span>
-                      <span className={`ml-auto text-[11px] ${EX_STATUS[e.status]!.cls}`}>
+                      <span className={`ml-auto text-[12px] font-semibold ${EX_STATUS[e.status]!.cls}`}>
                         {EX_STATUS[e.status]!.label}
                       </span>
                     </Link>
@@ -164,21 +162,21 @@ export default async function ParcoursPage({ params }: { params: { token: string
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Link
           href={`/espace/${params.token}/questionnaires`}
-          className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-3 hover:border-violet-300 dark:hover:border-violet-800 transition"
+          className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-3 hover:border-orange-300 dark:hover:border-orange-800 transition"
         >
-          <ClipboardList className="w-4 h-4 text-violet-500" />
-          <span className="text-[13px] text-zinc-900 dark:text-zinc-100 flex-1">Questionnaires</span>
-          <span className="text-[11px] text-zinc-400">
+          <ClipboardList className="w-4 h-4 text-zinc-400" />
+          <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex-1">Questionnaires</span>
+          <span className="text-[12px] font-semibold text-zinc-500 tabular-nums">
             {questionnaires.filter((q) => q.status === 'completed').length}/{questionnaires.length}
           </span>
         </Link>
         <Link
           href={`/espace/${params.token}/sessions`}
-          className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-3 hover:border-violet-300 dark:hover:border-violet-800 transition"
+          className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-3 hover:border-orange-300 dark:hover:border-orange-800 transition"
         >
-          <Video className="w-4 h-4 text-blue-500" />
-          <span className="text-[13px] text-zinc-900 dark:text-zinc-100 flex-1">Sessions & replays</span>
-          <span className="text-[11px] text-zinc-400">
+          <Video className="w-4 h-4 text-zinc-400" />
+          <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex-1">Sessions & replays</span>
+          <span className="text-[12px] font-semibold text-zinc-500 tabular-nums">
             {ctx.sessions.filter((s) => s.status === 'done').length}/{ctx.sessions.length}
           </span>
         </Link>

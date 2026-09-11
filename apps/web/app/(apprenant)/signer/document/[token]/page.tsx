@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 function Screen({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 py-8 px-4">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4">
       <div className="max-w-[760px] mx-auto space-y-5">{children}</div>
     </div>
   );
@@ -16,11 +16,9 @@ function Screen({ children }: { children: React.ReactNode }) {
 function ErrorScreen({ title, message }: { title: string; message: string }) {
   return (
     <Screen>
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
-        <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-4">
-          <AlertCircle className="w-7 h-7" />
-        </div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">{title}</h1>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
+        <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400 mx-auto mb-4" />
+        <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">{title}</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{message}</p>
       </div>
     </Screen>
@@ -68,11 +66,9 @@ export default async function SignDocumentPage({ params }: { params: { token: st
   if (sig.status === 'signed') {
     return (
       <Screen>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
-          <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
-            <Check className="w-7 h-7" />
-          </div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Document déjà signé</h1>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
+          <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
+          <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Document déjà signé</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Merci, votre signature a bien été enregistrée.</p>
         </div>
       </Screen>
@@ -86,7 +82,7 @@ export default async function SignDocumentPage({ params }: { params: { token: st
   return (
     <Screen>
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{doc.title}</h1>
+        <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">{doc.title}</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           {sig.signer_name ? `${sig.signer_name}, veuillez` : 'Veuillez'} relire puis signer ce document.
         </p>
@@ -99,7 +95,7 @@ export default async function SignDocumentPage({ params }: { params: { token: st
         .doc-sheet ul { margin: 6px 0 6px 18px; list-style: disc; }
         .doc-sheet .doc-header { font-size: 12px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 16px; }
       `}</style>
-      <article className="doc-sheet bg-white text-zinc-900 rounded-sm shadow-sm px-10 py-10 max-h-[55vh] overflow-y-auto">
+      <article className="doc-sheet bg-white text-zinc-900 rounded-lg border border-zinc-200/70 dark:border-zinc-800 shadow-sm px-10 py-10 max-h-[55vh] overflow-y-auto">
         {doc.content_html ? (
           // eslint-disable-next-line react/no-danger
           <div dangerouslySetInnerHTML={{ __html: doc.content_html }} />

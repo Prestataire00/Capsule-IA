@@ -32,10 +32,10 @@ export function CopyPublicLink({
       type="button"
       onClick={onCopy}
       title={label}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition ${
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 h-8 text-[12px] font-semibold transition ${
         copied
           ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-300'
-          : 'border-zinc-200/60 bg-white text-zinc-700 hover:border-violet-200 hover:text-violet-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300'
+          : 'border-zinc-200/80 bg-white text-zinc-700 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-orange-900/60 dark:hover:bg-orange-950/40 dark:hover:text-orange-300'
       } ${className}`}
     >
       {copied ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}

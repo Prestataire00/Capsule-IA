@@ -4,15 +4,16 @@
 // et l'auto-évaluation ; plus le suivi de conformité des dossiers.
 
 import Link from 'next/link';
-import { ShieldCheck, ShieldAlert, Check, Circle, FileText, ArrowUpRight, Info, Download } from 'lucide-react';
+import type { ComponentType } from 'react';
+import { ShieldCheck, ShieldAlert, Check, Circle, FileText, ArrowUpRight, Info, Download, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
-import { StatCard } from '@/shared/ui/stat-card';
-import { dossierStatusLabel } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
+import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import { loadOrgEvidence, type Evidence } from '@/features/qualiopi/evidence';
 import { ORG_STATUS_LABELS, type OrgStatus } from '@/features/qualiopi/status';
 import { jourParis, versions, VERSION_LABELS } from '@/features/qualiopi/referentiel';
@@ -85,12 +86,14 @@ type Indicateur = {
 
 type Preuve = { id: string; indicator_id: string; title: string; valid_until: string | null; created_at: string };
 
-const TON_STATUT: Record<OrgStatus, string> = {
-  conforme: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
-  en_cours: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
-  a_traiter: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-  non_applicable: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
+const TON_STATUT: Record<OrgStatus, 'success' | 'info' | 'warning' | 'neutral'> = {
+  conforme: 'success',
+  en_cours: 'info',
+  a_traiter: 'warning',
+  non_applicable: 'neutral',
 };
+
+const DOSSIER_GRID = 'grid grid-cols-[120px_minmax(0,1.3fr)_minmax(0,1.4fr)_110px_minmax(0,1fr)_130px_56px] gap-4 px-5';
 
 const CATEGORIES: ReadonlyArray<readonly [string, string]> = [
   ['Formation', 'action_formation'],
@@ -114,7 +117,7 @@ function dateLongue(iso: string): string {
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[11px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+    <span className="text-[11px] font-semibold h-5 inline-flex items-center px-1.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
       {children}
     </span>
   );
@@ -252,12 +255,12 @@ export default async function QualiopiPage({
   ];
 
   return (
-    <div className="max-w-6xl w-full mx-auto px-6 py-8">
-      <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div className="max-w-6xl w-full mx-auto px-8 py-9">
+      <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
         <div>
-        <SectionLabel className="mb-1">Conformité</SectionLabel>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Qualiopi</h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+        <SectionLabel className="mb-2">Conformité</SectionLabel>
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Qualiopi</h1>
+        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           Référentiel national qualité — 7 critères, {indicateurs.length} indicateurs
           {version ? ` (${VERSION_LABELS[version] ?? version})` : ''}.
         </p>
@@ -265,9 +268,9 @@ export default async function QualiopiPage({
         {!referentielIndisponible && (
           <a
             href="/api/qualiopi/export"
-            className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-1.5 shadow-sm"
+            className="border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition inline-flex items-center gap-2"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-4 h-4" />
             Exporter le dossier d&apos;audit
           </a>
         )}
@@ -306,36 +309,37 @@ export default async function QualiopiPage({
           </p>
         </div>
       ) : (
-        <section className="mb-6 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+        <section className="mb-6 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
           <div className="flex items-end justify-between gap-4 flex-wrap mb-3">
             <div>
-              <p className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Préparation de l&apos;audit</p>
-              <p className="text-[24px] text-zinc-900 dark:text-zinc-100 tabular-nums">
+              <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Préparation de l&apos;audit</p>
+              <p className="text-[26px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums mt-3">
                 {conformes}/{applicables.length}
-                <span className="text-[13px] text-zinc-500 ml-2">indicateurs conformes</span>
+                <span className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 ml-2">indicateurs conformes · {pct} %</span>
               </p>
             </div>
-            <div className="flex items-center gap-4 text-[12px] text-zinc-600 dark:text-zinc-400">
+            <div className="flex items-center gap-4 text-[12px] text-zinc-600 dark:text-zinc-400 tabular-nums">
               <span>{enCours} en cours</span>
               <span>{aTraiter} à traiter</span>
               <span>{evalues.length - applicables.length} non applicables</span>
             </div>
           </div>
-          <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+          <div className="h-2 rounded-full bg-purple-100 dark:bg-purple-950/50 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
             <div className="h-full rounded-full bg-purple-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
         </section>
       )}
 
-      <nav className="flex items-center gap-1 mb-6 border-b border-zinc-200/60 dark:border-zinc-800">
+      <nav className="flex items-center gap-1 mb-6 border-b border-zinc-200/70 dark:border-zinc-800">
         {onglets.map((o) => (
           <Link
             key={o.id}
             href={o.href}
-            className={`text-[13px] px-3 py-2 -mb-px border-b-2 transition ${
+            aria-current={onglet === o.id ? 'page' : undefined}
+            className={`text-[13px] px-3 py-2 -mb-px border-b-2 transition tabular-nums ${
               onglet === o.id
-                ? 'border-orange-500 text-zinc-900 dark:text-zinc-100 font-medium'
-                : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
+                ? 'border-orange-500 text-zinc-900 dark:text-zinc-100 font-bold'
+                : 'border-transparent text-zinc-500 dark:text-zinc-400 font-medium hover:text-zinc-900 dark:hover:text-zinc-100'
             }`}
           >
             {o.label}
@@ -350,17 +354,23 @@ export default async function QualiopiPage({
               <Link
                 key={c.n}
                 href={`/qualiopi?critere=${c.n}${suffixeVersion}`}
-                className={`flex-shrink-0 rounded-lg border px-3 py-2 transition ${
+                aria-current={c.n === critere ? 'page' : undefined}
+                className={`flex-shrink-0 w-[168px] rounded-xl border px-3 py-2.5 transition ${
                   c.n === critere
                     ? 'border-purple-300 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/40'
-                    : 'border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                    : 'border-zinc-200/70 bg-white dark:border-zinc-800 dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
                 }`}
               >
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Critère {c.n}</p>
-                <p className="text-[12px] text-zinc-900 dark:text-zinc-100 max-w-[180px] truncate">{c.label}</p>
-                <p className="text-[11px] tabular-nums text-zinc-500 mt-0.5">
-                  {c.ok}/{c.total}
-                </p>
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">Critère {c.n}</p>
+                  <p className="text-[12px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
+                    {c.ok}/{c.total}
+                  </p>
+                </div>
+                <p className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 truncate mt-0.5">{c.label}</p>
+                <div className="mt-2 h-1.5 rounded-full bg-purple-100 dark:bg-purple-950/50" aria-hidden>
+                  <div className="h-full rounded-full bg-purple-500" style={{ width: `${c.total > 0 ? (c.ok / c.total) * 100 : 0}%` }} />
+                </div>
               </Link>
             ))}
           </div>
@@ -368,13 +378,13 @@ export default async function QualiopiPage({
           <ul className="space-y-3">
             {duCritere.map(({ ind, preuvesAuto, preuvesDeposees, note, saisi, status, auto }) => (
               <li key={ind.id}>
-                <details className="group bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg shadow-sm">
+                <details className="group bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm">
                   <summary className="flex items-start gap-3 px-5 py-4 cursor-pointer list-none">
-                    <span className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1.5 py-0.5 rounded mt-0.5">
+                    <span className="font-mono text-[11px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded mt-0.5">
                       I{ind.number}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] text-zinc-900 dark:text-zinc-100">{ind.title}</p>
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{ind.title}</p>
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
                         <Badge>{ind.scope === 'dossier' ? 'Par dossier' : 'Organisme'}</Badge>
                         {ind.new_entrant && <Badge>Nouvel entrant</Badge>}
@@ -394,23 +404,23 @@ export default async function QualiopiPage({
                         <Badge>{ind.minor_nc_possible ? 'Écart mineur possible' : 'Écart majeur'}</Badge>
                       </div>
                     </div>
-                    <span className={`flex-shrink-0 text-[11px] px-2 py-0.5 rounded-full ${TON_STATUT[status]}`}>
+                    <StatusPill tone={TON_STATUT[status]} className="flex-shrink-0">
                       {ORG_STATUS_LABELS[status]}
                       {auto && status !== 'a_traiter' ? ' · constaté' : ''}
-                    </span>
+                    </StatusPill>
                   </summary>
 
-                  <div className="px-5 pb-5 pt-1 grid grid-cols-1 lg:grid-cols-2 gap-5 border-t border-zinc-200/60 dark:border-zinc-800">
+                  <div className="px-5 pb-5 pt-1 grid grid-cols-1 lg:grid-cols-2 gap-5 border-t border-zinc-100 dark:border-zinc-800/80">
                     <div className="space-y-4 pt-4">
                       <div>
-                        <p className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Exigence</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-1">Exigence</p>
                         <p className="text-[13px] text-zinc-700 dark:text-zinc-300">
                           {ind.requirement ?? 'Le texte officiel de l’indicateur sera affiché ici.'}
                         </p>
                       </div>
                       {(ind.expected_proofs?.length ?? 0) > 0 && (
                         <div>
-                          <p className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-1">
                             Éléments de preuve attendus
                           </p>
                           <ul className="text-[13px] text-zinc-700 dark:text-zinc-300 list-disc pl-4 space-y-0.5">
@@ -421,7 +431,7 @@ export default async function QualiopiPage({
                         </div>
                       )}
                       <div>
-                        <p className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Ce que Capsule produit</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-1">Ce que Capsule produit</p>
                         {preuvesAuto.length === 0 ? (
                           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
                             Rien d&apos;automatique pour cet indicateur : déposez vos preuves ci-contre.
@@ -438,7 +448,7 @@ export default async function QualiopiPage({
                                 <span className="text-zinc-700 dark:text-zinc-300">
                                   {p.label}
                                   {p.href && (
-                                    <Link href={p.href} className="ml-1.5 inline-flex items-center text-purple-600 dark:text-purple-400 hover:underline">
+                                    <Link href={p.href} className="ml-1.5 inline-flex items-center font-semibold text-purple-600 dark:text-purple-400 hover:underline">
                                       voir <ArrowUpRight className="w-3 h-3" />
                                     </Link>
                                   )}
@@ -453,11 +463,11 @@ export default async function QualiopiPage({
                     <div className="space-y-4 pt-4">
                       <IndicatorStatus indicatorId={ind.id} status={saisi} note={note} />
                       <div>
-                        <p className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-1.5">
                           Preuves déposées ({preuvesDeposees.length})
                         </p>
                         {preuvesDeposees.length > 0 && (
-                          <ul className="mb-3 divide-y divide-zinc-200/60 dark:divide-zinc-800 border-y border-zinc-200/60 dark:border-zinc-800">
+                          <ul className="mb-3 divide-y divide-zinc-100 dark:divide-zinc-800/80 border-y border-zinc-200/70 dark:border-zinc-800">
                             {preuvesDeposees.map((p) => {
                               const expiree = p.valid_until !== null && p.valid_until < new Date().toISOString().slice(0, 10);
                               return (
@@ -467,7 +477,7 @@ export default async function QualiopiPage({
                                     {p.title}
                                   </a>
                                   {p.valid_until && (
-                                    <span className={`text-[11px] ${expiree ? 'text-red-600 dark:text-red-400' : 'text-zinc-500'}`}>
+                                    <span className={`text-[12px] tabular-nums ${expiree ? 'text-red-600 dark:text-red-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
                                       {expiree ? 'expirée le' : "jusqu'au"} {new Date(`${p.valid_until}T12:00:00`).toLocaleDateString('fr-FR')}
                                     </span>
                                   )}
@@ -490,10 +500,10 @@ export default async function QualiopiPage({
 
       {onglet === 'dossiers' && (
         <>
-          <section className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-            <StatCard label="Dossiers prêts" value={`${pretsDossiers}/${dossiers.length}`} hint={dossiers.length > 0 && pretsDossiers === dossiers.length ? 'tous prêts' : '—'} href="/qualiopi?filter=ready" />
-            <StatCard label="Dossiers bloquants" value={bloquantsDossiers} hint={bloquantsDossiers > 0 ? 'à traiter' : 'aucun'} href="/qualiopi?filter=blocking" />
-            <StatCard label="Indicateurs de dossier satisfaits" value={`${dossiers.reduce((n, d) => n + d.satisfied, 0)}`} hint={`/ ${dossiers.reduce((n, d) => n + d.total, 0)}`} />
+          <section className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            <Kpi label="Dossiers prêts" value={`${pretsDossiers}/${dossiers.length}`} icon={ShieldCheck} hint={dossiers.length > 0 && pretsDossiers === dossiers.length ? 'tous prêts' : '—'} href="/qualiopi?filter=ready" />
+            <Kpi label="Dossiers bloquants" value={bloquantsDossiers} icon={ShieldAlert} hint={bloquantsDossiers > 0 ? 'à traiter' : 'aucun'} hintTone={bloquantsDossiers > 0 ? 'warning' : 'neutral'} href="/qualiopi?filter=blocking" />
+            <Kpi label="Indicateurs de dossier satisfaits" value={`${dossiers.reduce((n, d) => n + d.satisfied, 0)}`} hint={`/ ${dossiers.reduce((n, d) => n + d.total, 0)}`} />
           </section>
 
           {filtre && (
@@ -503,45 +513,115 @@ export default async function QualiopiPage({
                 {filtre === 'blocking' ? 'dossiers bloquants' : 'dossiers conformes'}
               </span>{' '}
               —{' '}
-              <Link href="/qualiopi?onglet=dossiers" className="text-orange-600 hover:underline">
+              <Link href="/qualiopi?onglet=dossiers" className="font-semibold text-orange-600 dark:text-orange-400 hover:underline">
                 tout afficher
               </Link>
             </p>
           )}
 
           {dossiersAffiches.length === 0 ? (
-            <p className="text-[13px] text-zinc-400 text-center py-12">Aucun dossier en cours à suivre.</p>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
+              <EmptyState icon={ShieldCheck} title="Aucun dossier en cours à suivre." />
+            </div>
           ) : (
-            <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-              {dossiersAffiches.map((d) => (
-                <li key={d.id}>
-                  <Link
-                    href={`/dossiers/${d.id}/qualiopi`}
-                    className="grid grid-cols-[110px_1fr_1fr_120px_120px_140px] gap-3 py-3 px-1 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
-                  >
-                    <IdPill>{d.reference}</IdPill>
-                    <span className="text-zinc-900 dark:text-zinc-100">{d.learnerName}</span>
-                    <span className="text-zinc-500 dark:text-zinc-400 truncate">{d.formationTitle}</span>
-                    <span className="text-zinc-500 dark:text-zinc-400">{dossierStatusLabel(d.status)}</span>
-                    <span className="tabular-nums text-[11px] text-zinc-700 dark:text-zinc-300">
-                      {d.satisfied}/{d.total}
-                    </span>
-                    {d.ready ? (
-                      <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-500">
-                        <ShieldCheck className="w-3.5 h-3.5" /> prêt
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-500">
-                        <ShieldAlert className="w-3.5 h-3.5" /> {d.blocking} bloquant{d.blocking > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+              <div className="min-w-[920px]">
+                <div className={`${DOSSIER_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+                  <div>Dossier</div>
+                  <div>Apprenant</div>
+                  <div>Formation</div>
+                  <div>Statut</div>
+                  <div>Indicateurs</div>
+                  <div>Conformité</div>
+                  <div className="text-right">Actions</div>
+                </div>
+                <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+                  {dossiersAffiches.map((d) => (
+                    <li key={d.id}>
+                      <Link href={`/dossiers/${d.id}/qualiopi`} className={`${DOSSIER_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group`}>
+                        <div>
+                          <IdPill>{d.reference}</IdPill>
+                        </div>
+                        <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.learnerName}</span>
+                        <span className="text-zinc-600 dark:text-zinc-400 truncate">{d.formationTitle}</span>
+                        <div>
+                          <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
+                        </div>
+                        <div className="flex items-center gap-2.5" title={`${d.satisfied}/${d.total} indicateurs satisfaits`}>
+                          <div className="flex-1 h-1.5 rounded-full bg-purple-100 dark:bg-purple-950/50">
+                            <div className="h-full rounded-full bg-purple-500" style={{ width: `${d.total > 0 ? (d.satisfied / d.total) * 100 : 0}%` }} />
+                          </div>
+                          <span className="tabular-nums text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
+                            {d.satisfied}/{d.total}
+                          </span>
+                        </div>
+                        <div>
+                          {d.ready ? (
+                            <StatusPill tone="success">prêt</StatusPill>
+                          ) : (
+                            <StatusPill tone="warning">
+                              {d.blocking} bloquant{d.blocking > 1 ? 's' : ''}
+                            </StatusPill>
+                          )}
+                        </div>
+                        <div className="flex justify-end">
+                          <span
+                            aria-hidden
+                            className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 group-hover:bg-orange-50 group-hover:text-orange-600 dark:group-hover:bg-orange-950/40 dark:group-hover:text-orange-300 transition"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  hint,
+  hintTone = 'neutral',
+  icon: Icon,
+  href,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
+  icon?: ComponentType<{ className?: string }>;
+  href?: string;
+}) {
+  const hintCls = {
+    neutral: 'text-zinc-500 dark:text-zinc-400',
+    success: 'text-emerald-700 dark:text-emerald-400',
+    warning: 'text-amber-700 dark:text-amber-400',
+    danger: 'text-red-700 dark:text-red-400',
+  }[hintTone];
+  const body = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
+        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
+      </div>
+      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
+      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
+    </>
+  );
+  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
+  return href ? (
+    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }
