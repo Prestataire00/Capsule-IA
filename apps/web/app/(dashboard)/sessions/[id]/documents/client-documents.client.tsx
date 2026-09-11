@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, FileSignature, Loader2, Mail, Printer, User } from 'lucide-react';
-import { generateGroupConventions, sendSessionConvocationsRecap } from '../session-actions';
+import { Building2, FileCheck2, FileSignature, Loader2, Mail, Printer, User } from 'lucide-react';
+import { generateGroupConventions, sendCompanyAttendanceSheets, sendSessionConvocationsRecap } from '../session-actions';
 
 export type ClientRow = {
   key: string;
@@ -75,6 +75,29 @@ export function ClientDocuments({
     });
   };
 
+  const sendSheets = (companyId: string, label: string) => {
+    if (!window.confirm(`Envoyer à ${label} ses feuilles d’émargement signées de la séance ?`)) return;
+    setMessage(null);
+    start(async () => {
+      const res = await sendCompanyAttendanceSheets({ sessionId, companyId });
+      const out = res?.data;
+      if (!out?.ok) {
+        const reason = out && !out.ok ? out.error : 'erreur';
+        setMessage({
+          tone: 'err',
+          text:
+            reason === 'no_contact_email'
+              ? `${label} : aucun e-mail de responsable (fiche entreprise ou devis).`
+              : reason === 'no_sheet'
+                ? 'Aucune feuille d’émargement sur cette séance.'
+                : 'L’envoi a échoué.',
+        });
+        return;
+      }
+      setMessage({ tone: 'ok', text: `${out.sheets} feuille(s) envoyée(s) à ${out.email}.` });
+    });
+  };
+
   const btn =
     'inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/70 dark:border-zinc-700 px-3 py-1.5 text-[13px] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition';
 
@@ -99,19 +122,39 @@ export function ClientDocuments({
               {c.companyId ? `${c.learners.length} salarié(s) : ${c.learners.join(', ')}` : 'particulier — contrat individuel'}
             </span>
             {c.companyId && sheets.length > 0 && (
-              <span className="ml-auto flex flex-wrap gap-1.5">
+              <span className="ml-auto flex flex-wrap items-center gap-x-2.5 gap-y-1">
                 {sheets.map((s) => (
-                  <a
-                    key={s.id}
-                    href={`/api/attendance/${s.id}/paper?companyId=${c.companyId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-orange-600"
-                    title="Feuille d'émargement de l'entreprise"
-                  >
-                    <Printer className="w-3 h-3" /> {s.label}
-                  </a>
+                  <span key={s.id} className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
+                    {s.label} :
+                    <a
+                      href={`/api/attendance/${s.id}/entreprise?companyId=${c.companyId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 hover:text-orange-600"
+                      title="Feuille signée de l'entreprise (ses salariés)"
+                    >
+                      <FileCheck2 className="w-3 h-3" /> signée
+                    </a>
+                    <a
+                      href={`/api/attendance/${s.id}/paper?companyId=${c.companyId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 hover:text-orange-600"
+                      title="Feuille papier de secours de l'entreprise"
+                    >
+                      <Printer className="w-3 h-3" /> papier
+                    </a>
+                  </span>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => sendSheets(c.companyId as string, c.label)}
+                  disabled={pending}
+                  className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-orange-600 disabled:opacity-50"
+                  title="Envoyer ses feuilles signées au responsable de l'entreprise"
+                >
+                  <Mail className="w-3 h-3" /> envoyer
+                </button>
               </span>
             )}
           </li>

@@ -25,6 +25,8 @@ import {
 import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { expireOverdueQuotes, sweepMissingQuotes } from '@/features/billing/quotes/quote-service';
+import { runAutomaticReminders } from '@/features/billing/invoices/reminders';
+import { sendCertificatToCompany } from '@/features/documents/send-certificat-to-company';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -396,6 +398,17 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
       else if (r.reason !== 'no_api_key') errors.push(`certificate ${d.id}: send_failed`);
     } catch (e) {
       errors.push(`certificate ${d.id}: ${(e as Error).message}`);
+    }
+
+    // Client entreprise : son responsable reçoit aussi le certificat (PDF joint).
+    try {
+      const c = await sendCertificatToCompany(sb as unknown as SupabaseClient, d.id);
+      if (c.ok) certificateSent++;
+      else if (c.reason === 'send_failed' || c.reason === 'no_contact_email') {
+        errors.push(`certificat entreprise ${d.id}: ${c.reason}`);
+      }
+    } catch (e) {
+      errors.push(`certificat entreprise ${d.id}: ${(e as Error).message}`);
     }
   }
 
@@ -1170,6 +1183,8 @@ async function runBillingMaintenance(): Promise<{
   created: number;
   expired: number;
   invoicesOverdue: number;
+  remindersSent: number;
+  quoteReminders: number;
   errors: string[];
 }> {
   const sb = admin() as unknown as SupabaseClient;
@@ -1185,10 +1200,25 @@ async function runBillingMaintenance(): Promise<{
       .lt('due_at', today)
       .is('deleted_at', null)
       .select('id');
-    const errors = [...sweep.errors, ...(error ? [`factures en retard: ${error.message}`] : [])];
-    return { created: sweep.created, expired, invoicesOverdue: (late ?? []).length, errors };
+    const reminders = await runAutomaticReminders(sb);
+    const errors = [...sweep.errors, ...reminders.errors, ...(error ? [`factures en retard: ${error.message}`] : [])];
+    return {
+      created: sweep.created,
+      expired,
+      invoicesOverdue: (late ?? []).length,
+      remindersSent: reminders.invoices,
+      quoteReminders: reminders.quotes,
+      errors,
+    };
   } catch (e) {
-    return { created: 0, expired: 0, invoicesOverdue: 0, errors: [`facturation: ${e instanceof Error ? e.message : 'échec'}`] };
+    return {
+      created: 0,
+      expired: 0,
+      invoicesOverdue: 0,
+      remindersSent: 0,
+      quoteReminders: 0,
+      errors: [`facturation: ${e instanceof Error ? e.message : 'échec'}`],
+    };
   }
 }
 
