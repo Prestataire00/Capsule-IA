@@ -17,7 +17,7 @@ import { can, sectionForPath } from '@/shared/lib/auth/permissions';
 
 type Tone = 'violet' | 'amber' | 'rose' | 'emerald' | 'orange';
 
-type Item = {
+export type Item = {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -31,7 +31,7 @@ export type SidebarCounts = {
   demandesPending?: number;
 };
 
-type Group = {
+export type Group = {
   key: string;
   label: string;
   short?: string;
@@ -42,7 +42,7 @@ type Group = {
   countKeys?: (keyof SidebarCounts)[];
 };
 
-const GROUPS: Group[] = [
+export const GROUPS: Group[] = [
   {
     key: 'tableau-de-bord',
     label: 'Tableau de bord',
@@ -258,7 +258,7 @@ export function SidebarRail({
                   className={cn(
                     'relative flex flex-col items-center gap-0.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
                     active
-                      ? 'bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-md shadow-orange-600/30 ring-1 ring-inset ring-white/20'
+                      ? 'bg-orange-500 text-white shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/15'
                       : isHover
                       ? 'bg-orange-100/70 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
                       : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
@@ -304,7 +304,7 @@ export function SidebarRail({
               className={cn(
                 'flex flex-col items-center gap-0.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
                 isActive('/parametres')
-                  ? 'bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-md shadow-orange-600/30 ring-1 ring-inset ring-white/20'
+                  ? 'bg-orange-500 text-white shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/15'
                   : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
               )}
               onMouseEnter={() => setHovered(null)}
@@ -371,7 +371,7 @@ export function SidebarRail({
                         className={cn(
                           'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition',
                           active
-                            ? 'bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-md shadow-orange-600/30 ring-1 ring-inset ring-white/20'
+                            ? 'bg-orange-500 text-white shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/15'
                             : 'bg-orange-100/70 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400 group-hover:scale-105',
                         )}
                       >

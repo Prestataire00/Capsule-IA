@@ -67,7 +67,16 @@ Focus extrême, 1 chose par écran, beaucoup de blanc, stepper, max 480px centr�
 
 ## Typographie
 
-- **v3.1 (sept. 2026) — « tech & moderne », même DA** : famille principale **Geist Sans** (paquet `geist`, via `app/layout.tsx`), titres h1/h2 serrés (`letter-spacing: -0.025em`, posé en global)
+- **v4 « Horizon couleur » (sept. 2026, validée par l'utilisateur — prime sur tout ce qui suit)** :
+  - Police **Manrope** (`next/font/google`, variable `--font-sans`) ; titres de page `text-[30px] font-extrabold`, `font-bold` autorisé sur titres, noms et chiffres clés
+  - Neutres : `zinc` est **remappé** en gris bleu nuit dans `tailwind.config.ts` (encre #111A2E, toile #F5F7FA) ; `violet` est **remappé en orange** — l'orange Capsule `#F97316` (orange-500) est la couleur d'identité et d'action
+  - Barre latérale : dégradé orange/pêche d'origine, entrée active `bg-orange-500` ; onglets de section sous la barre du haut (`shared/components/layout/section-tabs.tsx`)
+  - **Noms de session en orange** : `text-[color:var(--sess)]` (#C2410C clair / #FB923C sombre, lisible)
+  - **Couleur d'identité par formation** : `formationColorMap()` de `shared/lib/formation-color.ts` (sarcelle, indigo, framboise, bleu ciel — validée daltonisme ; jamais d'orange). Titre de formation en `font-extrabold` avec `deepColor(color)`, pastille carrée de la couleur à côté
+  - Tableaux : une ligne par objet, en-tête `text-[11px] font-bold uppercase tracking-[0.06em]`, colonnes métier explicites (ex. Sessions : Formation · Formateur · Dates · Lieu · Participants · Statut · Actions)
+  - Pastilles pleines : statut (`StatusPill`, `h-6 font-semibold`), modalité neutre, « Rejoindre » orange clair
+  - Graphiques plutôt que tuiles : barres empilées par formation, répartition, carte chiffre clé bleu nuit (`bg-zinc-900`)
+  - **Aucun emoji**, pas de pastilles d'icônes décoratives
 - 1 famille mono : **Geist Mono** — **réservée aux identifiants, codes, SIRET, URL, raccourcis clavier**
 - **Dates, heures, montants, compteurs, pourcentages : JAMAIS en mono** → sans + `tabular-nums` (chiffres alignés). Le mono sur des dates donne un effet « terminal / prompt » à proscrire.
 - Dates dans les listes : préférer la **pastille calendrier** (mois en bandeau, jour en `text-[17px] tabular-nums`) — cf. `app/(dashboard)/sessions/page.tsx`

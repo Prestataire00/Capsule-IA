@@ -1,11 +1,11 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
+import { Manrope } from 'next/font/google';
 import { GeistMono } from 'geist/font/mono';
 import { cookies } from 'next/headers';
 
-// Geist : sans géométrique « produit tech » ; le mono est réservé aux identifiants et codes.
-const sans = GeistSans;
+// Manrope porte l'identité (charte v4) ; le mono Geist est réservé aux identifiants et codes.
+const sans = Manrope({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 const mono = GeistMono;
 
 const COOKIE_KEY = 'i-a-infinity-theme';
