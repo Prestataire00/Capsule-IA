@@ -1,7 +1,8 @@
 // ARCHETYPE: workflow
 import Link from 'next/link';
-import { ArrowLeft, Check, Wallet, Mail, Hash } from 'lucide-react';
+import { ArrowLeft, Check, Mail, Hash } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { createFunder } from './actions';
 
@@ -30,7 +31,7 @@ export default async function NouveauFinanceurPage({
       <div className="max-w-2xl w-full mx-auto px-8 py-10">
         <Link
           href="/financeurs"
-          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+          className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition mb-4"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Retour aux financeurs
@@ -42,23 +43,15 @@ export default async function NouveauFinanceurPage({
           </div>
         )}
 
-        <header className="mb-8 flex items-center gap-3">
-          <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/60 dark:to-emerald-950/30 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shadow-sm">
-            <Wallet className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Nouveau financeur
-            </h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Ajoutez un financeur pour le rattacher à vos dossiers.
-            </p>
-          </div>
+        <header className="mb-8">
+          <SectionLabel className="mb-2">Financeurs</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouveau financeur</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Ajoutez un financeur pour le rattacher à vos dossiers.</p>
         </header>
 
-        <form action={createFunder} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
+        <form action={createFunder} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Identité</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Identité</p>
             <FormField label="Nom" required>
               <input type="text" name="name" required placeholder="OPCO Atlas" className={inputClass} />
             </FormField>
@@ -82,20 +75,20 @@ export default async function NouveauFinanceurPage({
           </section>
 
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Type de financeur</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Type de financeur</p>
             <FormField label="Catégorie(s)" required hint="Plusieurs types possibles pour un même financeur.">
               <div className="grid grid-cols-2 gap-2">
                 {KINDS.map((k, i) => (
                   <label
                     key={k.value}
-                    className="flex items-start gap-2.5 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/40 has-[:checked]:border-violet-300 dark:has-[:checked]:border-violet-800 transition"
+                    className="flex items-start gap-2.5 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 has-[:checked]:bg-orange-50 dark:has-[:checked]:bg-orange-950/40 has-[:checked]:border-orange-300 dark:has-[:checked]:border-orange-800 transition"
                   >
                     <input
                       type="checkbox"
                       name="kind"
                       value={k.value}
                       defaultChecked={i === 0}
-                      className="mt-0.5 accent-violet-600"
+                      className="mt-0.5 accent-orange-500"
                     />
                     <span className="min-w-0">
                       <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block">{k.label}</span>
@@ -111,7 +104,7 @@ export default async function NouveauFinanceurPage({
             <Link href="/financeurs" className="text-[13px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition">
               Annuler
             </Link>
-            <button type="submit" className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2">
+            <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2">
               <Check className="w-3.5 h-3.5" />
               Créer le financeur
             </button>

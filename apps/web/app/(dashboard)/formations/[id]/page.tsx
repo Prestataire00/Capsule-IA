@@ -6,31 +6,29 @@ import { GroupSessionForm } from './group-session-form.client';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft, Clock, Video, MapPin, GraduationCap, Eye, EyeOff,
-  Users as UsersIcon, Banknote, FileText, Sparkles, ExternalLink, Award, Pencil, FolderOpen,
+  Users as UsersIcon, Banknote, FileText, ExternalLink, Award, Pencil, FolderOpen,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { StatusPill, dossierStatusTone } from '@/shared/ui/status-pill';
+import { formationColorMap, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
 import { FormationCover } from './cover-upload.client';
 import { FormationTabs } from './formation-tabs.client';
 import { env } from '@/env.mjs';
 
 const modalityStyles = {
-  presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
-  distanciel: { bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', icon: Video, label: 'Distanciel' },
-  hybride: { bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', icon: GraduationCap, label: 'Hybride' },
+  presentiel: { icon: MapPin, label: 'Présentiel' },
+  distanciel: { icon: Video, label: 'Distanciel' },
+  hybride: { icon: GraduationCap, label: 'Hybride' },
 };
 type ModalityKey = keyof typeof modalityStyles;
 
-const statusStyles: Record<string, string> = {
-  active: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
-  scheduled: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
-  completed: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-  closed: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-  draft: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-  pending_validation: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-  archived: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-500',
-  cancelled: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400',
-};
+const PILL = 'text-[12px] font-semibold h-6 px-2 rounded-md inline-flex items-center gap-1.5';
+const NEUTRAL_PILL = `${PILL} bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300`;
+const SECONDARY_BTN =
+  'text-[13px] font-semibold px-3 h-9 rounded-lg border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition inline-flex items-center gap-1.5';
+const LINK = 'text-orange-600 dark:text-orange-400 hover:underline';
 
 const statusLabel: Record<string, string> = {
   active: 'En cours', scheduled: 'Planifié', completed: 'Terminé', closed: 'Clos',
@@ -68,6 +66,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const f = data as any;
   if (!f) return notFound();
+
+  // Couleur d'identité : attribuée dans l'ordre de création de tout le catalogue.
+  const { data: formationRows } = await sb.schema('app').from('formations').select('id, created_at').is('deleted_at', null);
+  const color = formationColorMap((formationRows as { id: string; created_at: string | null }[] | null) ?? []).get(f.id) ?? NEUTRAL_COLOR;
 
   const coverPath: string | null = f.metadata?.catalog?.coverPath ?? null;
 
@@ -228,81 +230,70 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   const isCertifiante = !!(f.rncp_code || f.rs_code);
 
   return (
-    <div className="max-w-7xl w-full mx-auto px-6 py-5">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
       <Link
         href="/formations"
-        className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-3"
+        className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         Retour au catalogue
       </Link>
 
-      {/* En-tête compact : identité + badges + KPIs + actions, sur une seule bande */}
-      <header className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4 mb-4">
+      {/* En-tête : identité + badges + KPIs + actions */}
+      <header className="mb-7">
         <div className="flex items-start justify-between gap-6 flex-wrap">
-          <div className="flex items-start gap-3.5 min-w-0">
-            <span className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${m.bg}`}>
-              <Icon className={`w-5 h-5 ${m.text}`} />
-            </span>
-            <div className="min-w-0">
-              <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
-              <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">{f.title}</h1>
-              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${m.bg} ${m.text}`}>
-                  <Icon className="w-2.5 h-2.5" /> {m.label}
+          <div className="min-w-0">
+            <SectionLabel className="mb-2">
+              Formation · <span className="font-mono normal-case tracking-normal">{f.code}</span>
+            </SectionLabel>
+            <h1 className="flex items-center gap-3 text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
+              <span className="w-3.5 h-3.5 rounded-[4px] shrink-0" style={{ background: color }} aria-hidden />
+              <span className="min-w-0">{f.title}</span>
+            </h1>
+            <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+              <span className={NEUTRAL_PILL}>
+                <Icon className="w-3.5 h-3.5" /> {m.label}
+              </span>
+              <span className={`${NEUTRAL_PILL} tabular-nums`}>
+                <Clock className="w-3.5 h-3.5" /> {Number(f.default_duration_hours)} h
+              </span>
+              {f.default_price_cents > 0 && (
+                <span className={`${NEUTRAL_PILL} tabular-nums`}>
+                  <Banknote className="w-3.5 h-3.5" /> {formatEuros(f.default_price_cents)} HT
                 </span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                  <Clock className="w-2.5 h-2.5" /> {Number(f.default_duration_hours)} h
+              )}
+              {isCertifiante && (
+                <span className={`${PILL} bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300`}>
+                  <Award className="w-3.5 h-3.5" /> {f.rncp_code ? `RNCP ${f.rncp_code}` : `RS ${f.rs_code}`}
                 </span>
-                {f.default_price_cents > 0 && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                    <Banknote className="w-2.5 h-2.5" /> {formatEuros(f.default_price_cents)} HT
-                  </span>
-                )}
-                {isCertifiante && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
-                    <Award className="w-2.5 h-2.5" /> {f.rncp_code ? `RNCP ${f.rncp_code}` : `RS ${f.rs_code}`}
-                  </span>
-                )}
-                <span className={
-                  f.is_published
-                    ? 'text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 inline-flex items-center gap-1'
-                    : 'text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 inline-flex items-center gap-1'
-                }>
-                  {f.is_published ? (<><Eye className="w-2.5 h-2.5" /> publiée</>) : (<><EyeOff className="w-2.5 h-2.5" /> brouillon</>)}
-                </span>
-              </div>
+              )}
+              <StatusPill tone={f.is_published ? 'success' : 'warning'}>
+                {f.is_published ? (<><Eye className="w-3 h-3" /> publiée</>) : (<><EyeOff className="w-3 h-3" /> brouillon</>)}
+              </StatusPill>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-2.5">
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/formations/${f.id}/programme`}
-                className="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition inline-flex items-center gap-1.5"
-              >
-                <FileText className="w-3.5 h-3.5" /> Programme
-              </Link>
-              <Link
-                href={`/formations/${f.id}/supports`}
-                className="text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
-              >
-                <FolderOpen className="w-3.5 h-3.5" /> Supports
-              </Link>
-              <Link
-                href={`/formations/${f.id}/edit`}
-                className="text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
-              >
-                <Pencil className="w-3.5 h-3.5" /> Modifier
-              </Link>
-              <CopyInscriptionLink formationId={f.id} variant="full" />
-            </div>
-            <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href={`/formations/${f.id}/programme`}
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" /> Programme
+            </Link>
+            <Link href={`/formations/${f.id}/supports`} className={SECONDARY_BTN}>
+              <FolderOpen className="w-3.5 h-3.5" /> Supports
+            </Link>
+            <Link href={`/formations/${f.id}/edit`} className={SECONDARY_BTN}>
+              <Pencil className="w-3.5 h-3.5" /> Modifier
+            </Link>
+            <CopyInscriptionLink formationId={f.id} variant="full" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
               <Stat icon={UsersIcon} label="Apprenants actifs" value={activeCount} />
               <Stat icon={Banknote} label="CA généré" value={formatEuros(totalRevenue)} />
               <Stat icon={FileText} label="Dossiers" value={relatedDossiers.length} />
-            </div>
-          </div>
         </div>
       </header>
 
@@ -322,7 +313,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                 <ul className="space-y-1">
                   {objectives.map((o, i) => (
                     <li key={i} className="flex items-start gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
-                      <span className="text-violet-500 mt-0.5 flex-shrink-0">{i + 1}.</span> {o}
+                      <span className="text-zinc-400 font-bold tabular-nums flex-shrink-0">{i + 1}.</span> {o}
                     </li>
                   ))}
                 </ul>
@@ -346,7 +337,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             )}
             {!description && objectives.length === 0 && !f.target_audience && prerequisites.length === 0 && (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:col-span-2">
-                Aucun contenu pédagogique renseigné. <Link href={`/formations/${f.id}/edit`} className="text-violet-600 hover:underline">Compléter</Link>.
+                Aucun contenu pédagogique renseigné. <Link href={`/formations/${f.id}/edit`} className={LINK}>Compléter</Link>.
               </p>
             )}
           </div>
@@ -369,7 +360,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                   <div className="min-w-0">
                     <Link
                       href={`/formateurs/${trainer.id}`}
-                      className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 hover:text-violet-600 transition"
+                      className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 hover:text-orange-600 dark:hover:text-orange-300 transition"
                     >
                       {`${trainer.first_name ?? ''} ${trainer.last_name ?? ''}`.trim() || 'Formateur'}
                     </Link>
@@ -388,10 +379,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               )}
               {referents.map((r) => (
                 <div key={r.role} className="text-[12px] py-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
                     {r.role}
                   </p>
-                  <p className="text-zinc-800 dark:text-zinc-200">{r.name || '—'}</p>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">{r.name || '—'}</p>
                   <p className="text-zinc-500 dark:text-zinc-400">
                     {[r.email, r.phone].filter(Boolean).join(' · ')}
                   </p>
@@ -405,9 +396,9 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           </Card>
 
           <Card title="Lien d'inscription">
-            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 mb-2">
-              <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400 truncate flex-1">/inscription?formation={f.id}</span>
-              <Link href={`/inscription?formation=${f.id}`} target="_blank" title="Ouvrir" className="text-zinc-400 hover:text-violet-600 flex-shrink-0">
+            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-2.5 h-9 mb-2">
+              <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400 truncate flex-1">/inscription?formation={f.id}</span>
+              <Link href={`/inscription?formation=${f.id}`} target="_blank" title="Ouvrir" className="text-zinc-400 hover:text-orange-600 dark:hover:text-orange-300 flex-shrink-0">
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -421,22 +412,22 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             {relatedDossiers.length === 0 ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun dossier rattaché.</p>
             ) : (
-              <ul className="-my-1">
+              <ul className="-mx-4 -mb-4 border-t border-zinc-100 dark:border-zinc-800/80 divide-y divide-zinc-100 dark:divide-zinc-800/80">
                 {relatedDossiers.slice(0, 5).map((d) => {
                   const learner = d.learner ? `${d.learner.first_name} ${d.learner.last_name}` : null;
                   return (
                     <li key={d.id}>
-                      <Link href={`/dossiers/${d.id}`} className="flex items-center justify-between gap-2 px-2.5 py-1.5 -mx-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
-                        <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">{learner ?? d.reference}</span>
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${statusStyles[d.status] ?? statusStyles.draft}`}>
+                      <Link href={`/dossiers/${d.id}`} className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
+                        <span className={`text-[13px] text-zinc-900 dark:text-zinc-100 truncate ${learner ? 'font-bold' : 'font-mono'}`}>{learner ?? d.reference}</span>
+                        <StatusPill tone={dossierStatusTone(d.status)} className="flex-shrink-0">
                           {statusLabel[d.status] ?? d.status}
-                        </span>
+                        </StatusPill>
                       </Link>
                     </li>
                   );
                 })}
                 {relatedDossiers.length > 5 && (
-                  <li className="px-2.5 pt-1 text-[11px] text-zinc-400">+{relatedDossiers.length - 5} autre(s)</li>
+                  <li className="px-4 py-3 text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">+{relatedDossiers.length - 5} autre(s)</li>
                 )}
               </ul>
             )}
@@ -446,7 +437,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           <Card title="Budget & charges">
             <div className="flex items-baseline justify-between mb-3">
               <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Total des charges</span>
-              <span className="text-[16px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{formatEuros(totalExpenses)}</span>
+              <span className="text-[26px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">{formatEuros(totalExpenses)}</span>
             </div>
             {Object.keys(expenseByKind).length > 0 ? (
               <ul className="space-y-1 mb-3">
@@ -464,7 +455,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             )}
             <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/60 text-[12px]">
               <span className="text-zinc-500 dark:text-zinc-400">Marge estimée (CA − charges)</span>
-              <span className={`font-medium tabular-nums ${totalRevenue - totalExpenses >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              <span className={`font-bold tabular-nums ${totalRevenue - totalExpenses >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {formatEuros(totalRevenue - totalExpenses)}
               </span>
             </div>
@@ -492,7 +483,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               <div className="flex items-baseline justify-between">
                 <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Dossiers conformes</span>
                 <span
-                  className={`text-[16px] font-semibold tabular-nums ${
+                  className={`text-[26px] leading-none font-extrabold tabular-nums ${
                     conformes === checklists.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                   }`}
                 >
@@ -504,22 +495,24 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         }
         sessions={
           <Card title={`Sessions (${sessions.length})`}>
-            <div className="mb-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+            <div className="mb-3 pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
               <GroupSessionForm formationId={id} defaultPriceCents={f.default_price_cents} />
             </div>
             {sessions.length === 0 ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune session. Créez-en une ci-dessus.</p>
             ) : (
-              <ul className="-my-1">
+              <ul className="-mx-4 -mb-4 divide-y divide-zinc-100 dark:divide-zinc-800/80">
                 {sessions.slice(0, 5).map((s) => {
                   const isGroup = !s.dossier_id;
                   const row = (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">
-                        {s.title || 'Session'}
-                        {isGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">groupe</span>}
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 flex items-center gap-2">
+                        <span className="truncate text-[13px] font-semibold text-[color:var(--sess)]">{s.title || 'Session'}</span>
+                        {isGroup && (
+                          <span className="shrink-0 inline-flex items-center h-5 px-1.5 rounded-md text-[11px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">groupe</span>
+                        )}
                       </span>
-                      <span className="tabular-nums text-[10px] text-zinc-400 shrink-0">
+                      <span className="tabular-nums text-[12px] text-zinc-500 dark:text-zinc-400 shrink-0">
                         {new Date(s.starts_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </span>
                     </div>
@@ -528,15 +521,15 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                     <li key={s.id}>
                       <Link
                         href={`/sessions/${s.id}`}
-                        className="block px-2.5 py-1.5 -mx-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                        className="block px-4 py-3.5 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors"
                       >
                         {row}
                       </Link>
                     </li>
                   );
                 })}
-                <li className="px-2.5 pt-1">
-                  <Link href={`/sessions?formation=${id}`} className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline">
+                <li className="px-4 py-3">
+                  <Link href={`/sessions?formation=${id}`} className={`text-[12px] font-semibold ${LINK}`}>
                     Voir toutes les sessions →
                   </Link>
                 </li>
@@ -549,7 +542,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   );
 }
 
-// KPI inline compact (dans l'en-tête).
+// Chiffre clé de l'en-tête.
 function Stat({
   icon: Icon, label, value,
 }: {
@@ -558,11 +551,11 @@ function Stat({
   value: string | number;
 }) {
   return (
-    <div className="text-right">
-      <p className="text-[18px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none inline-flex items-center gap-1.5">
-        <Icon className="w-3.5 h-3.5 text-zinc-400" /> {value}
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+      <p className="flex items-center gap-2 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+        <Icon className="w-4 h-4 text-zinc-400" /> {label}
       </p>
-      <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mt-1">{label}</p>
+      <p className="text-[26px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums mt-3">{value}</p>
     </div>
   );
 }
@@ -570,9 +563,9 @@ function Stat({
 // Petit KPI dans une carte (statistiques formation).
 function MiniKpi({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-zinc-50 dark:bg-zinc-950/50 rounded-lg px-3 py-2">
-      <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none">{value}</p>
-      <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mt-1">{label}</p>
+    <div className="bg-zinc-50 dark:bg-zinc-950/40 rounded-lg px-4 py-3">
+      <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className="text-[26px] font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none mt-2">{value}</p>
     </div>
   );
 }
@@ -581,7 +574,7 @@ function MiniKpi({ label, value }: { label: string; value: string | number }) {
 function Section({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-medium mb-1.5">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500 mb-1.5">{label}</p>
       {children}
     </div>
   );
@@ -589,11 +582,8 @@ function Section({ label, children, className = '' }: { label: string; children:
 
 function Card({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-4 shadow-sm ${className}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="w-3 h-3 text-violet-500" />
-        <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">{title}</p>
-      </div>
+    <div className={`bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-4 shadow-sm overflow-hidden ${className}`}>
+      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-3">{title}</p>
       {children}
     </div>
   );

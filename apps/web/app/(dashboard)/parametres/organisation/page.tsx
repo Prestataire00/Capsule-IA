@@ -96,7 +96,7 @@ export default async function ParametresOrganisationPage() {
 
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <Award className="w-3.5 h-3.5 text-violet-500" />
+          <Award className="w-3.5 h-3.5 text-zinc-400" />
           <SectionLabel>Certification Qualiopi</SectionLabel>
         </div>
         <DataList>

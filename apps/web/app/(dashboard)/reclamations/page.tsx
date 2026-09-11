@@ -1,7 +1,6 @@
 // ARCHETYPE: command
 import Link from 'next/link';
-import { Plus, Inbox, CheckCircle2, Clock, AlertCircle, Archive } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { Plus, Inbox, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createClient } from '@supabase/supabase-js';
@@ -9,6 +8,7 @@ import { env } from '@/env.mjs';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
 import { notFound } from 'next/navigation';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
@@ -36,40 +36,14 @@ const sevTone = { low: 'success', medium: 'warning', high: 'danger', critical: '
 const sevLabel = { low: 'mineure', medium: 'moyenne', high: 'élevée', critical: 'critique' };
 const stateLabel = { open: 'ouverte', in_progress: 'en cours', resolved: 'résolue', closed: 'clôturée' };
 
-// Visuel par statut : fond de ligne, ton de la pastille, icône — pour repérer
-// d'un coup d'œil (résolue = ligne verte + ✓).
-type StatusVis = {
-  row: string;
-  pill: 'success' | 'warning' | 'danger' | 'neutral';
-  icon: ComponentType<{ className?: string }>;
-  iconCls: string;
+const statusTone: Record<ComplaintRow['status'], 'success' | 'warning' | 'danger' | 'neutral'> = {
+  open: 'danger',
+  in_progress: 'warning',
+  resolved: 'success',
+  closed: 'neutral',
 };
-const STATUS_VIS: Record<ComplaintRow['status'], StatusVis> = {
-  open: {
-    row: 'bg-rose-50/50 dark:bg-rose-950/15 hover:bg-rose-50 dark:hover:bg-rose-950/25',
-    pill: 'danger',
-    icon: AlertCircle,
-    iconCls: 'text-rose-500 dark:text-rose-400',
-  },
-  in_progress: {
-    row: 'bg-amber-50/50 dark:bg-amber-950/15 hover:bg-amber-50 dark:hover:bg-amber-950/25',
-    pill: 'warning',
-    icon: Clock,
-    iconCls: 'text-amber-500 dark:text-amber-400',
-  },
-  resolved: {
-    row: 'bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
-    pill: 'success',
-    icon: CheckCircle2,
-    iconCls: 'text-emerald-600 dark:text-emerald-400',
-  },
-  closed: {
-    row: 'bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-900',
-    pill: 'neutral',
-    icon: Archive,
-    iconCls: 'text-zinc-400 dark:text-zinc-500',
-  },
-};
+
+const ROW_GRID = 'grid grid-cols-[130px_minmax(0,2fr)_minmax(0,1fr)_110px_100px_110px_56px] gap-4 px-5';
 
 export default async function ReclamationsPage() {
   await requireAccess('qualiopi');
@@ -92,71 +66,80 @@ export default async function ReclamationsPage() {
   const open = complaints.filter((c) => c.status === 'open' || c.status === 'in_progress');
 
   return (
-    <div className="max-w-6xl w-full mx-auto px-6 py-8">
-      <header className="flex items-end justify-between mb-6 flex-wrap gap-3">
+    <div className="max-w-6xl w-full mx-auto px-8 py-9">
+      <header className="mb-7 flex items-end justify-between flex-wrap gap-4">
         <div>
-          <SectionLabel className="mb-1">Qualité</SectionLabel>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Réclamations</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+          <SectionLabel className="mb-2">Qualité</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Réclamations</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
             {open.length} ouverte{open.length > 1 ? 's' : ''} · {complaints.length} au total · indicateur Qualiopi I31
           </p>
         </div>
         <Link
           href="/reclamations/nouvelle"
-          className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2"
+          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
           Saisie manuelle
         </Link>
       </header>
 
       {complaints.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl p-12 text-center shadow-sm">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center mb-4">
-            <Inbox className="w-6 h-6 text-zinc-400" />
-          </div>
-          <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Pas de réclamation enregistrée</p>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-            Les réclamations soumises depuis l&apos;espace apprenant apparaîtront ici.
-          </p>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm">
+          <EmptyState
+            icon={Inbox}
+            title="Pas de réclamation enregistrée"
+            description="Les réclamations soumises depuis l'espace apprenant apparaîtront ici."
+          />
         </div>
       ) : (
-        <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-          {complaints.map((c) => {
-            const vis = STATUS_VIS[c.status];
-            const StatusIcon = vis.icon;
-            const border =
-              c.status === 'resolved'
-                ? 'border-emerald-400 dark:border-emerald-500'
-                : c.status === 'open'
-                  ? 'border-rose-400 dark:border-rose-500'
-                  : c.status === 'in_progress'
-                    ? 'border-amber-400 dark:border-amber-500'
-                    : 'border-zinc-300 dark:border-zinc-700';
-            return (
-              <li key={c.id}>
-                <Link
-                  href={`/reclamations/${c.id}`}
-                  className={`grid grid-cols-[130px_1fr_140px_120px_110px_130px] gap-3 py-3 pl-2 pr-1 items-center text-[13px] border-l-2 transition ${vis.row} ${border}`}
-                >
-                  <IdPill>{c.reference}</IdPill>
-                  <span className="text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</span>
-                  <span className="text-zinc-500 dark:text-zinc-400 truncate text-[12px]">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[900px]">
+            <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+              <div>Référence</div>
+              <div>Objet</div>
+              <div>Réclamant</div>
+              <div>Reçue le</div>
+              <div>Gravité</div>
+              <div>Statut</div>
+              <div className="text-right">Actions</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {complaints.map((c) => (
+                <li key={c.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                  <div>
+                    <IdPill>{c.reference}</IdPill>
+                  </div>
+                  <Link href={`/reclamations/${c.id}`} className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                    {c.subject}
+                  </Link>
+                  <span className="text-zinc-700 dark:text-zinc-300 truncate">
                     {c.reporter_name ?? <span className="text-zinc-400">anonyme</span>}
                   </span>
-                  <span className="tabular-nums text-[11px] text-zinc-500">
+                  <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
                     {format(parseISO(c.created_at), 'dd MMM yyyy', { locale: fr })}
                   </span>
-                  <StatusPill tone={sevTone[c.severity]}>{sevLabel[c.severity]}</StatusPill>
-                  <span className="inline-flex items-center gap-1.5 min-w-0">
-                    <StatusIcon className={`w-3.5 h-3.5 flex-shrink-0 ${vis.iconCls}`} />
-                    <StatusPill tone={vis.pill}>{stateLabel[c.status]}</StatusPill>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                  <div>
+                    <StatusPill tone={sevTone[c.severity]}>{sevLabel[c.severity]}</StatusPill>
+                  </div>
+                  <div>
+                    <StatusPill tone={statusTone[c.status]}>{stateLabel[c.status]}</StatusPill>
+                  </div>
+                  <div className="flex items-center justify-end">
+                    <Link
+                      href={`/reclamations/${c.id}`}
+                      aria-label={`Ouvrir la réclamation ${c.reference}`}
+                      title="Ouvrir"
+                      className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   );

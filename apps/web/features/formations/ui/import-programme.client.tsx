@@ -44,7 +44,7 @@ export function ImportProgrammeButton({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={pending}
-          className="inline-flex items-center gap-2 text-[13px] font-medium px-3 py-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 disabled:opacity-50 transition"
+          className="inline-flex items-center gap-2 text-[13px] font-semibold px-3 h-9 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 disabled:opacity-50 transition"
         >
           {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
           {pending ? 'Lecture du programme…' : 'Importer un programme (PDF)'}

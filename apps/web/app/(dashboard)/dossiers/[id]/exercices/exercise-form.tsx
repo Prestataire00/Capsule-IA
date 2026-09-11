@@ -111,7 +111,7 @@ export function ExerciseForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
+        className="h-9 border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition inline-flex items-center gap-2"
       >
         <Plus className="w-3.5 h-3.5" />
         Nouvel exercice
@@ -122,9 +122,9 @@ export function ExerciseForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-4 space-y-3"
+      className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-3"
     >
-      <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Nouvel exercice</p>
+      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Nouvel exercice</p>
 
       <input
         type="text"
@@ -133,7 +133,7 @@ export function ExerciseForm({
         placeholder="Titre de l'exercice *"
         maxLength={200}
         required
-        className="w-full text-[13px] px-3 py-2 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-orange-400 shadow-sm"
+        className="w-full h-9 text-[13px] px-3 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
       />
 
       <textarea
@@ -142,7 +142,7 @@ export function ExerciseForm({
         placeholder="Instructions (optionnel)"
         maxLength={5000}
         rows={3}
-        className="w-full text-[13px] px-3 py-2 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-orange-400 shadow-sm resize-none"
+        className="w-full text-[13px] px-3 py-2 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 resize-none"
       />
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -152,7 +152,7 @@ export function ExerciseForm({
             type="date"
             value={dueAt}
             onChange={(e) => setDueAt(e.target.value)}
-            className="text-[12px] px-2 py-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-orange-400 shadow-sm"
+            className="h-9 text-[13px] px-3 rounded-lg tabular-nums border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
           />
         </div>
       </div>
@@ -187,7 +187,7 @@ export function ExerciseForm({
         <button
           type="submit"
           disabled={isSubmitting || !title.trim()}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[12px] font-medium shadow-sm transition"
+          className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
         >
           {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
           Créer
@@ -195,7 +195,7 @@ export function ExerciseForm({
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-[12px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition"
+          className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
         >
           Annuler
         </button>

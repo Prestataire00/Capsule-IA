@@ -38,7 +38,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       onClick={handleToggle}
       aria-label={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
       title={isDark ? 'Mode clair' : 'Mode sombre'}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm text-zinc-600 dark:text-zinc-400 hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-200 dark:hover:border-violet-900/60 transition ${className}`}
+      className={`w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-600 dark:hover:text-orange-300 hover:border-orange-200 dark:hover:border-orange-900/60 transition ${className}`}
     >
       {mounted ? (
         isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />

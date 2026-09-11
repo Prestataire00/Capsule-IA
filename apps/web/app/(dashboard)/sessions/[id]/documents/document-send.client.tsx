@@ -26,7 +26,7 @@ export function DocumentSessionForm({ sessionId, learnerCount }: { sessionId: st
   const err = res && !res.ok ? ERROR_LABELS[res.error] ?? res.error : send.result?.serverError ? 'Erreur serveur.' : null;
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 space-y-4 max-w-xl">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4 max-w-xl">
       <FormField
         label="Envoyer un document à tous les apprenants de la session"
         hint="Chaque apprenant reçoit son propre document (le dernier généré de ce type dans son dossier). Ceux sans document sont ignorés."

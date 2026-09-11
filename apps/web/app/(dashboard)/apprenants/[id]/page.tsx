@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, FolderOpen , Download } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -76,10 +76,10 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
 
   return (
     <div className="min-h-[calc(100vh-3rem)]">
-      <div className="max-w-6xl w-full mx-auto px-8 py-8">
+      <div className="max-w-6xl w-full mx-auto px-8 py-9">
         <Link
           href="/apprenants"
-          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+          className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition mb-4"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Tous les apprenants
         </Link>
@@ -110,14 +110,14 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
 
         <section className="mt-10">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-            <h2 className="text-[13px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Formations &amp; dossiers ({dossiers.length})
+            <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+              Formations &amp; dossiers <span className="text-zinc-400 font-semibold tabular-nums">({dossiers.length})</span>
             </h2>
             {/* Assiduité de cet apprenant, demi-journée par demi-journée,
                 absences et demi-journées non émargées comprises. */}
             <a
               href={`/api/emargements/export.csv?learnerId=${params.id}`}
-              className="text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition inline-flex items-center gap-1.5"
+              className="text-[12px] font-semibold px-3 h-8 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition inline-flex items-center gap-1.5"
             >
               <Download className="w-3.5 h-3.5" /> Émargements (CSV)
             </a>
@@ -130,7 +130,7 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
               action={
                 <Link
                   href={`/dossiers/nouveau?learnerId=${lr.id}`}
-                  className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] px-3 py-1.5 rounded-md transition inline-flex items-center gap-2"
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-3 h-8 rounded-lg transition inline-flex items-center gap-2"
                 >
                   Nouveau dossier
                 </Link>

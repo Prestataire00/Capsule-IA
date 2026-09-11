@@ -56,8 +56,8 @@ export function DonutChart({
       </svg>
       {(centerTitle || centerSubtitle) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {centerTitle && <div className="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{centerTitle}</div>}
-          {centerSubtitle && <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{centerSubtitle}</div>}
+          {centerTitle && <div className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{centerTitle}</div>}
+          {centerSubtitle && <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">{centerSubtitle}</div>}
         </div>
       )}
     </div>
@@ -70,9 +70,9 @@ export function DonutLegend({ data }: { data: Slice[] }) {
     <ul className="space-y-2">
       {data.map((s) => (
         <li key={s.label} className="flex items-center gap-2.5 text-[13px]">
-          <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: s.color }} />
+          <span className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0" style={{ backgroundColor: s.color }} />
           <span className="text-zinc-700 dark:text-zinc-300 flex-1 truncate">{s.label}</span>
-          <span className=" text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+          <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums">
             {Math.round((s.value / total) * 100)}%
           </span>
         </li>

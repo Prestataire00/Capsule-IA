@@ -9,7 +9,7 @@ export default function ParametresSecuritePage() {
     <div className="space-y-8">
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <KeyRound className="w-3.5 h-3.5 text-violet-500" />
+          <KeyRound className="w-3.5 h-3.5 text-zinc-400" />
           <SectionLabel>Mot de passe</SectionLabel>
         </div>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-4 max-w-md">
@@ -20,7 +20,7 @@ export default function ParametresSecuritePage() {
 
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <Lock className="w-3.5 h-3.5 text-violet-500" />
+          <Lock className="w-3.5 h-3.5 text-zinc-400" />
           <SectionLabel>Authentification</SectionLabel>
         </div>
         <DataList>
@@ -41,7 +41,7 @@ export default function ParametresSecuritePage() {
 
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <History className="w-3.5 h-3.5 text-violet-500" />
+          <History className="w-3.5 h-3.5 text-zinc-400" />
           <SectionLabel>Conservation et audit</SectionLabel>
         </div>
         <DataList>
@@ -62,7 +62,7 @@ export default function ParametresSecuritePage() {
 
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <FileCheck className="w-3.5 h-3.5 text-violet-500" />
+          <FileCheck className="w-3.5 h-3.5 text-zinc-400" />
           <SectionLabel>RGPD</SectionLabel>
         </div>
         <DataList>
@@ -76,7 +76,7 @@ export default function ParametresSecuritePage() {
           />
           <DataRow
             left="Politique de confidentialité"
-            right={<a href="#" className="text-violet-600 dark:text-violet-400 hover:underline text-[12px]">Voir</a>}
+            right={<a href="#" className="text-orange-600 dark:text-orange-400 font-semibold hover:underline text-[12px]">Voir</a>}
           />
         </DataList>
       </section>

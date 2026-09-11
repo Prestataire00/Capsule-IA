@@ -74,38 +74,40 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
     (funderAssignmentsData as { status: string; recipient_email: string | null; template_id: string }[] | null) ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="space-y-3">
-        <SectionLabel>Questionnaires apprenant ({learnerAssignments.length})</SectionLabel>
+        <SectionLabel>
+          Questionnaires apprenant (<span className="tabular-nums">{learnerAssignments.length}</span>)
+        </SectionLabel>
         <AssignLearner dossierId={params.id} templates={templates} />
         {learnerAssignments.length > 0 && (
-          <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {learnerAssignments.map((q) => {
               const done = q.status === 'completed';
               return (
-                <li key={q.id} className="py-3 px-1 text-[13px] flex items-center justify-between gap-3">
-                  <span className="text-zinc-700 dark:text-zinc-300">
+                <li key={q.id} className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
+                  <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                     {KIND_LABEL[q.template?.kind ?? ''] ?? q.template?.title ?? 'Questionnaire'}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <StatusPill tone={done ? 'success' : 'neutral'}>{done ? 'rempli' : q.status}</StatusPill>
                     {done ? (
                       <a
                         href={`/api/questionnaires/${q.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[12px] font-medium text-zinc-600 dark:text-zinc-300 px-2 py-1 rounded-md border border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                        className="inline-flex items-center gap-1.5 h-8 text-[12px] font-semibold text-zinc-600 dark:text-zinc-300 px-2.5 rounded-lg border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
                       >
-                        <FileText className="w-3 h-3" /> PDF
+                        <FileText className="w-3.5 h-3.5" /> PDF
                       </a>
                     ) : (
                       <Link
                         href={`/dossiers/${params.id}/questionnaires/${q.id}/saisie`}
-                        className="inline-flex items-center gap-1 text-[12px] font-medium text-orange-600 dark:text-orange-400 px-2 py-1 rounded-md bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-950/60 transition"
+                        className="inline-flex items-center gap-1.5 h-8 text-[12px] font-bold text-orange-700 dark:text-orange-300 px-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 hover:bg-orange-100 dark:hover:bg-orange-950/70 transition"
                       >
-                        <ClipboardPen className="w-3 h-3" /> Saisir
+                        <ClipboardPen className="w-3.5 h-3.5" /> Saisir
                       </Link>
                     )}
-                    <StatusPill tone={done ? 'success' : 'neutral'}>{done ? 'rempli' : q.status}</StatusPill>
                   </div>
                 </li>
               );
@@ -114,17 +116,17 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
         )}
       </div>
 
-      <div className="space-y-3 pt-2">
+      <div className="space-y-3">
         <SectionLabel>Questionnaires financeur</SectionLabel>
         <SendFunder dossierId={params.id} funders={funders} />
         {funderAssignments.length > 0 && (
-          <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {funderAssignments.map((a, i) => (
               <li
                 key={`${a.template_id}-${a.recipient_email ?? i}`}
-                className="py-3 px-1 text-[13px] flex items-center justify-between gap-3"
+                className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors"
               >
-                <span className="text-zinc-700 dark:text-zinc-300">{a.recipient_email ?? 'Financeur'}</span>
+                <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{a.recipient_email ?? 'Financeur'}</span>
                 <StatusPill tone={a.status === 'completed' ? 'success' : 'neutral'}>{a.status}</StatusPill>
               </li>
             ))}

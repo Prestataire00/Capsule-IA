@@ -5,6 +5,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { Loader2, Plus, Pencil, Trash2, Power, X } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { Button } from '@/shared/ui/button';
+import { StatusPill } from '@/shared/ui/status-pill';
 import { createSchedule, updateSchedule, toggleSchedule, deleteSchedule } from './actions';
 
 type Anchor =
@@ -70,6 +71,8 @@ const RECIPIENT_LABELS: Record<RecipientKind, string> = {
   learner: 'Apprenant',
   trainer: 'Formateur(s)',
 };
+
+const ROW_GRID = 'grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_100px_112px] gap-4 px-5';
 
 type Direction = 'before' | 'after' | 'same';
 
@@ -176,12 +179,12 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
 
       {/* Formulaire création / édition */}
       {form && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
               {form.id ? 'Modifier la programmation' : 'Nouvelle programmation'}
             </h2>
-            <button type="button" onClick={closeForm} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
+            <button type="button" onClick={closeForm} aria-label="Fermer" className="w-8 h-8 rounded-md grid place-items-center text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -313,68 +316,69 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
           Aucune programmation pour le moment. Créez votre première règle ci-dessus.
         </p>
-      ) : (
-        <ul className="space-y-2">
-          {rules.map((r) => (
-            <li
-              key={r.id}
-              className="flex items-center gap-4 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-4 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                    {r.name}
-                  </span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                      r.enabled
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                        : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
-                    }`}
-                  >
-                    {r.enabled ? 'active' : 'inactive'}
-                  </span>
-                </div>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                  {timingLabel(r.offset_days, r.anchor)} · {RECIPIENT_LABELS[r.recipient_kind]}
-                  {attachmentLabel(r.attachment_kind) ? ` · 📎 ${attachmentLabel(r.attachment_kind)}` : ''} ·{' '}
-                  <span className="italic">{r.subject}</span>
-                </p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  title={r.enabled ? 'Désactiver' : 'Activer'}
-                  onClick={() => toggle.execute({ id: r.id, enabled: !r.enabled })}
-                  className={`p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                    r.enabled ? 'text-emerald-600' : 'text-zinc-400'
-                  }`}
-                >
-                  <Power className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  title="Modifier"
-                  onClick={() => openEdit(r)}
-                  className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  title="Supprimer"
-                  onClick={() => {
-                    if (confirm(`Supprimer la programmation « ${r.name} » ?`)) remove.execute({ id: r.id });
-                  }}
-                  className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      ) : rules.length > 0 ? (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[760px]">
+            <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+              <div>Règle</div>
+              <div>Destinataire</div>
+              <div>Statut</div>
+              <div className="text-right">Actions</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {rules.map((r) => (
+                <li key={r.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</p>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                      {timingLabel(r.offset_days, r.anchor)}
+                      {attachmentLabel(r.attachment_kind) ? ` · pièce jointe : ${attachmentLabel(r.attachment_kind)}` : ''} ·{' '}
+                      <span className="italic">{r.subject}</span>
+                    </p>
+                  </div>
+                  <span className="text-zinc-700 dark:text-zinc-300">{RECIPIENT_LABELS[r.recipient_kind]}</span>
+                  <div>
+                    <StatusPill tone={r.enabled ? 'success' : 'neutral'}>{r.enabled ? 'active' : 'inactive'}</StatusPill>
+                  </div>
+                  <div className="flex items-center justify-end gap-0.5">
+                    <button
+                      type="button"
+                      title={r.enabled ? 'Désactiver' : 'Activer'}
+                      aria-label={`${r.enabled ? 'Désactiver' : 'Activer'} — ${r.name}`}
+                      onClick={() => toggle.execute({ id: r.id, enabled: !r.enabled })}
+                      className={`w-8 h-8 rounded-md grid place-items-center hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition ${
+                        r.enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'
+                      }`}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Modifier"
+                      aria-label={`Modifier — ${r.name}`}
+                      onClick={() => openEdit(r)}
+                      className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Supprimer"
+                      aria-label={`Supprimer — ${r.name}`}
+                      onClick={() => {
+                        if (confirm(`Supprimer la programmation « ${r.name} » ?`)) remove.execute({ id: r.id });
+                      }}
+                      className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

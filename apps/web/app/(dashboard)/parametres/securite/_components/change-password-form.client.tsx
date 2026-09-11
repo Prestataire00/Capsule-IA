@@ -6,9 +6,9 @@ import { Loader2, KeyRound, Check } from 'lucide-react';
 import { changePasswordAction } from '../actions';
 
 const inputClass =
-  'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-200/50 dark:focus:border-orange-500/60 dark:focus:ring-orange-500/20 transition placeholder:text-zinc-400';
+  'w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition placeholder:text-zinc-400';
 
-const labelClass = 'block text-[12px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5';
+const labelClass = 'block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5';
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -108,7 +108,7 @@ export function ChangePasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="bg-orange-500 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm hover:bg-orange-600 hover:shadow-md transition inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-orange-500"
+        className="bg-orange-500 text-white text-[13px] font-semibold px-4 h-10 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 hover:bg-orange-600 transition inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-orange-500"
       >
         {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
         Mettre à jour le mot de passe
@@ -116,7 +116,7 @@ export function ChangePasswordForm() {
 
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
         Vous ne connaissez plus votre mot de passe actuel ?{' '}
-        <Link href="/auth/mot-de-passe-oublie" className="text-violet-600 dark:text-violet-400 hover:underline">
+        <Link href="/auth/mot-de-passe-oublie" className="font-semibold text-orange-600 dark:text-orange-400 hover:underline">
           Réinitialiser par email
         </Link>
       </p>

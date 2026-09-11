@@ -158,10 +158,11 @@ export function ComposeForm({
                 key={t.key}
                 type="button"
                 onClick={() => pickType(t.key)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] border transition ${
+                aria-pressed={active}
+                className={`inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-semibold border transition ${
                   active
-                    ? 'bg-violet-50 dark:bg-violet-950/40 border-violet-300 dark:border-violet-800 text-violet-700 dark:text-violet-300'
-                    : 'bg-white dark:bg-zinc-900 border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300'
+                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300'
+                    : 'bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -219,7 +220,7 @@ export function ComposeForm({
           <Mail className="w-3.5 h-3.5" />
           <span>
             L'email partira à{' '}
-            <span className="text-zinc-700 dark:text-zinc-200 font-medium">
+            <span className="text-zinc-900 dark:text-zinc-100 font-bold">
               {isFree ? freeName.trim() || freeEmail.trim() : selected?.name}
             </span>{' '}
             — {isFree ? freeEmail.trim() : selected?.email}

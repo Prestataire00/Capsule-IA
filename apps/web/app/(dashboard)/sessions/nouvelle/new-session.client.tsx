@@ -14,7 +14,7 @@ export function NewSessionPicker({ formations }: { formations: { id: string; tit
   const [formationId, setFormationId] = useState('');
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-5">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-5">
       <FormField label="Formation" required>
         <select
           value={formationId}
@@ -31,7 +31,7 @@ export function NewSessionPicker({ formations }: { formations: { id: string; tit
       </FormField>
 
       {formationId ? (
-        <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-5">
+        <div className="border-t border-zinc-100 dark:border-zinc-800/80 pt-5">
           {/* key = remonte le formulaire à chaque changement de formation */}
           <GroupSessionForm key={formationId} formationId={formationId} defaultOpen redirectTo="/sessions" />
         </div>

@@ -50,26 +50,26 @@ export default async function ComposeEmailPage() {
   );
 
   return (
-    <div className="max-w-3xl w-full mx-auto px-8 py-8">
+    <div className="max-w-3xl w-full mx-auto px-8 py-9">
       <Link
         href="/emails"
-        className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 mb-4"
+        className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition mb-6"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Historique des envois
       </Link>
 
-      <header className="mb-6">
-        <SectionLabel className="mb-1">Communication</SectionLabel>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-          Rédiger un email
-        </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
+      <header className="mb-7">
+        <SectionLabel className="mb-2">Communication</SectionLabel>
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Rédiger un email</h1>
+        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
           Choisissez un destinataire, saisissez un objet : l'IA propose un email pré-rempli avec les
           informations de sa fiche. L'envoi part de votre boîte connectée.
         </p>
       </header>
 
-      <ComposeForm apprenants={apprenants} formateurs={formateurs} entreprises={entreprises} />
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+        <ComposeForm apprenants={apprenants} formateurs={formateurs} entreprises={entreprises} />
+      </div>
     </div>
   );
 }

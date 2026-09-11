@@ -1,5 +1,6 @@
 // ARCHETYPE: command
 import { notFound } from 'next/navigation';
+import { Info } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -30,10 +31,13 @@ export default async function DepensesPage({ params }: { params: { id: string } 
         sous-traitance confiée à d&apos;autres organismes). Elles alimentent automatiquement le cadre
         « Charges » et la sous-traitance du Bilan Pédagogique et Financier.
       </p>
-      <p className="text-[12px] text-zinc-500 dark:text-zinc-400 max-w-2xl rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 px-3 py-2">
-        💡 Les charges opérationnelles (rémunération formateur, sous-traitance, achats du jour) se pilotent
-        désormais au niveau de la <strong>session</strong> (onglet Dépenses de chaque session) et se
+      <p className="text-[12px] text-zinc-600 dark:text-zinc-400 max-w-2xl rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 flex gap-2">
+        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-zinc-400" />
+        <span>
+        Les charges opérationnelles (rémunération formateur, sous-traitance, achats du jour) se pilotent
+        désormais au niveau de la <strong className="font-bold text-zinc-900 dark:text-zinc-100">session</strong> (onglet Dépenses de chaque session) et se
         consolident dans le budget de la formation. Cet onglet reste dédié aux charges nominatives du BPF.
+        </span>
       </p>
       <ExpensesManager dossierId={params.id} initial={expenses} />
     </div>

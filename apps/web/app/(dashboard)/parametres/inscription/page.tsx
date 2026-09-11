@@ -22,13 +22,11 @@ export default async function ParametresInscriptionPage() {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <div className="flex items-center gap-3">
-        <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-950/60 dark:to-orange-950/30 text-orange-700 dark:text-orange-300 flex items-center justify-center shadow-sm">
-          <Link2 className="w-5 h-5" />
-        </span>
+      <div className="flex items-start gap-3">
+        <Link2 className="w-5 h-5 mt-0.5 text-zinc-400" />
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Lien d'inscription</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+          <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Lien d'inscription</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
             Un lien public vers votre catalogue, à mettre derrière un bouton sur votre site.
           </p>
         </div>

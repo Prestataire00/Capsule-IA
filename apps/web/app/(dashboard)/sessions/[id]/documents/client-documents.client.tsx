@@ -99,22 +99,22 @@ export function ClientDocuments({
   };
 
   const btn =
-    'inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/70 dark:border-zinc-700 px-3 py-1.5 text-[13px] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition';
+    'inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 dark:border-zinc-700 px-3 h-9 text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition';
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
       <div>
-        <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Documents par client</p>
+        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Documents par client</p>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
           Entreprise : une convention signée par son responsable, qui reçoit aussi le récap des convocations et sa
           feuille d’émargement. Particulier : un contrat de formation professionnelle à son nom.
         </p>
       </div>
 
-      <ul className="divide-y divide-zinc-200/60 dark:divide-zinc-800 text-[13px]">
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
         {clients.map((c) => (
-          <li key={c.key} className="py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <span className="inline-flex items-center gap-1.5 min-w-0 text-zinc-900 dark:text-zinc-100">
+          <li key={c.key} className="py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span className="inline-flex items-center gap-1.5 min-w-0 font-bold text-zinc-900 dark:text-zinc-100">
               {c.companyId ? <Building2 className="w-3.5 h-3.5 text-zinc-400" /> : <User className="w-3.5 h-3.5 text-zinc-400" />}
               {c.label}
             </span>

@@ -2,22 +2,28 @@
 // Justification: catalogue formations en données réelles — KPIs, recherche + filtre modalité fonctionnels, grille.
 
 import Link from 'next/link';
-import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Clock, Video, MapPin, Users as UsersIcon, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Video, MapPin, Users as UsersIcon } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import { StatCard } from '@/shared/ui/stat-card';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { StatusPill } from '@/shared/ui/status-pill';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
+import { formationColorMap, deepColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
 
 const modalityStyles = {
-  presentiel: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', icon: MapPin, label: 'Présentiel' },
-  distanciel: { bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', icon: Video, label: 'Distanciel' },
-  hybride: { bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', icon: GraduationCap, label: 'Hybride' },
+  presentiel: { icon: MapPin, label: 'Présentiel' },
+  distanciel: { icon: Video, label: 'Distanciel' },
+  hybride: { icon: GraduationCap, label: 'Hybride' },
 };
 type ModalityKey = keyof typeof modalityStyles;
 
 const MODALITIES = ['presentiel', 'distanciel', 'hybride'] as const;
+
+const ROW_GRID = 'grid grid-cols-[minmax(0,2.6fr)_minmax(0,1.1fr)_128px_80px_112px_112px_96px] gap-4 px-5';
+
+const hoursFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
 
 type FormationRow = {
   id: string;
@@ -26,6 +32,7 @@ type FormationRow = {
   default_modality: string;
   default_duration_hours: number;
   is_published: boolean;
+  created_at: string | null;
 };
 
 type SearchParams = { q?: string; modality?: string };
@@ -38,11 +45,12 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
   const { data } = await sb
     .schema('app')
     .from('formations')
-    .select('id, code, title, default_modality, default_duration_hours, is_published')
+    .select('id, code, title, default_modality, default_duration_hours, is_published, created_at')
     .is('deleted_at', null)
     .order('code', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const all = ((data as any[]) ?? []) as FormationRow[];
+  const colors = formationColorMap(all);
 
   // Compteurs d'apprenants actifs par formation (dossiers actifs/planifiés).
   const { data: dossierRows } = await sb
@@ -68,35 +76,35 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
     return true;
   });
 
-
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-8">
-      <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
+      <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Formations</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-            Catalogue de {all.length} formation{all.length > 1 ? 's' : ''} dans votre OF.
+          <SectionLabel className="mb-2">Catalogue</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Formations</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            Catalogue de <span className="tabular-nums">{all.length}</span> formation{all.length > 1 ? 's' : ''} dans votre OF.
           </p>
         </div>
         <ManageOnly section="catalogue">
-        <Link
-          href="/formations/nouvelle"
-          className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nouvelle formation
-        </Link>
+          <Link
+            href="/formations/nouvelle"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle formation
+          </Link>
         </ManageOnly>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total formations" value={all.length} icon={BookOpen} accent="violet" />
-        <StatCard label="Publiées" value={published} icon={Eye} accent="emerald" hint="visibles au catalogue" hintTone="success" />
-        <StatCard label="Brouillons" value={draft} icon={EyeOff} accent="amber" hint={draft > 0 ? 'à publier' : '—'} hintTone={draft > 0 ? 'warning' : 'neutral'} />
-        <StatCard label="Apprenants actifs" value={totalActive} icon={UsersIcon} accent="blue" hint="dossiers en cours" hintTone="neutral" />
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6" aria-label="Synthèse">
+        <KeyFigure label="Total formations" value={all.length} icon={BookOpen} />
+        <KeyFigure label="Publiées" value={published} icon={Eye} hint="visibles au catalogue" hintTone="success" />
+        <KeyFigure label="Brouillons" value={draft} icon={EyeOff} hint={draft > 0 ? 'à publier' : '—'} hintTone={draft > 0 ? 'warning' : 'neutral'} />
+        <KeyFigure label="Apprenants actifs" value={totalActive} icon={UsersIcon} hint="dossiers en cours" />
       </section>
 
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
         <form action="/formations" method="get" className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
           <input
@@ -104,111 +112,170 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
             name="q"
             defaultValue={searchParams.q}
             placeholder="Rechercher une formation, un code…"
-            className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-[13px] w-80 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
+            className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg pl-9 pr-3 text-[13px] w-80 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
           />
           {modality && <input type="hidden" name="modality" value={modality} />}
         </form>
-        <div className="flex items-center gap-2">
-          <FilterDropdown
-            label="Modalité"
-            paramName="modality"
-            options={MODALITIES.map((m) => ({ value: m, label: modalityStyles[m].label }))}
-            selected={modality ? [modality] : []}
-            basePath="/formations"
-            preserved={{ q: searchParams.q || undefined }}
-          />
-          {(modality || searchParams.q) && (
-            <Link
-              href="/formations"
-              className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
-            >
-              Réinitialiser
-            </Link>
-          )}
-        </div>
+        <FilterDropdown
+          label="Modalité"
+          paramName="modality"
+          options={MODALITIES.map((m) => ({ value: m, label: modalityStyles[m].label }))}
+          selected={modality ? [modality] : []}
+          basePath="/formations"
+          preserved={{ q: searchParams.q || undefined }}
+        />
+        {(modality || searchParams.q) && (
+          <Link
+            href="/formations"
+            className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 h-9 inline-flex items-center rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+          >
+            Réinitialiser
+          </Link>
+        )}
       </div>
 
       {all.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
           <EmptyState
             icon={GraduationCap}
             title="Aucune formation au catalogue."
             description="Créez votre première formation pour pouvoir monter des dossiers."
             action={
-              <Link href="/formations/nouvelle" className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] px-3 py-1.5 rounded-md transition inline-flex items-center gap-2">
+              <Link
+                href="/formations/nouvelle"
+                className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-3 h-8 rounded-lg transition inline-flex items-center gap-2"
+              >
                 <Plus className="w-3.5 h-3.5" /> Nouvelle formation
               </Link>
             }
           />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
           <EmptyState
             icon={GraduationCap}
             title="Aucune formation ne correspond."
             description="Élargissez la recherche ou réinitialisez le filtre de modalité."
             action={
-              <Link href="/formations" className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
+              <Link
+                href="/formations"
+                className="border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 h-8 inline-flex items-center rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
+              >
                 Réinitialiser
               </Link>
             }
           />
         </div>
       ) : (
-        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((f) => {
-            const m = modalityStyles[f.default_modality as ModalityKey] ?? modalityStyles.presentiel;
-            const Icon = m.icon;
-            const enrolled = activeByFormation.get(f.id) ?? 0;
-            return (
-              <li key={f.id} className="relative">
-                <Link
-                  href={`/formations/${f.id}`}
-                  className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <span className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${m.bg}`}>
-                      <Icon className={`w-5 h-5 ${m.text}`} />
-                    </span>
-                    <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-violet-600 transition flex-shrink-0" />
-                  </div>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[960px]">
+            <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+              <div>Formation</div>
+              <div>Code</div>
+              <div>Modalité</div>
+              <div>Durée</div>
+              <div>Apprenants</div>
+              <div>Statut</div>
+              <div className="text-right">Actions</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {filtered.map((f) => {
+                const m = modalityStyles[f.default_modality as ModalityKey] ?? modalityStyles.presentiel;
+                const Icon = m.icon;
+                const enrolled = activeByFormation.get(f.id) ?? 0;
+                const color = colors.get(f.id) ?? NEUTRAL_COLOR;
+                return (
+                  <li key={f.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                    <div className="min-w-0 flex gap-3">
+                      <span className="mt-[5px] w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: color }} />
+                      <Link
+                        href={`/formations/${f.id}`}
+                        className="min-w-0 block truncate text-[14px] font-extrabold hover:underline"
+                        style={{ color: deepColor(color) }}
+                      >
+                        {f.title}
+                      </Link>
+                    </div>
 
-                  <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500 mb-1">{f.code}</p>
-                  <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 mb-3 line-clamp-2">{f.title}</p>
+                    <div className="min-w-0">
+                      <span className="block truncate font-mono text-[12px] text-zinc-500 dark:text-zinc-400">{f.code}</span>
+                    </div>
 
-                  <div className="flex items-center gap-3 text-[12px] text-zinc-600 dark:text-zinc-400 mb-3">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {Number(f.default_duration_hours)} h
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Icon className="w-3 h-3" />
-                      {m.label}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                    <span className={
-                      f.is_published
-                        ? 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 inline-flex items-center gap-1'
-                        : 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 inline-flex items-center gap-1'
-                    }>
-                      {f.is_published ? (<><Eye className="w-2.5 h-2.5" /> publiée</>) : (<><EyeOff className="w-2.5 h-2.5" /> brouillon</>)}
-                    </span>
-                    {enrolled > 0 && (
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums inline-flex items-center gap-1">
-                        <UsersIcon className="w-3 h-3" />
-                        {enrolled} apprenant{enrolled > 1 ? 's' : ''}
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        <Icon className="w-3.5 h-3.5" />
+                        {m.label}
                       </span>
-                    )}
-                  </div>
-                </Link>
-                <CopyInscriptionLink formationId={f.id} className="absolute top-3 right-12 z-10" />
-              </li>
-            );
-          })}
-        </ul>
+                    </div>
+
+                    <div className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                      {hoursFmt.format(Number(f.default_duration_hours))} h
+                    </div>
+
+                    <div className="text-[13px] tabular-nums">
+                      {enrolled > 0 ? (
+                        <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                          {enrolled}
+                          <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400"> actif{enrolled > 1 ? 's' : ''}</span>
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
+                    </div>
+
+                    <div>
+                      <StatusPill tone={f.is_published ? 'success' : 'warning'}>{f.is_published ? 'Publiée' : 'Brouillon'}</StatusPill>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-0.5">
+                      <CopyInscriptionLink formationId={f.id} />
+                      <Link
+                        href={`/formations/${f.id}`}
+                        aria-label={`Ouvrir la formation — ${f.title}`}
+                        title="Ouvrir la formation"
+                        className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       )}
+    </div>
+  );
+}
+
+const HINT_TONE = {
+  neutral: 'text-zinc-500 dark:text-zinc-400',
+  success: 'text-emerald-600 dark:text-emerald-400',
+  warning: 'text-amber-600 dark:text-amber-400',
+} as const;
+
+function KeyFigure({
+  label,
+  value,
+  icon: Icon,
+  hint,
+  hintTone = 'neutral',
+}: {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  hint?: string;
+  hintTone?: keyof typeof HINT_TONE;
+}) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+      <p className="flex items-center gap-2 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+        <Icon className="w-4 h-4 text-zinc-400" />
+        {label}
+      </p>
+      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
+      {hint && <p className={`text-[12px] mt-2 ${HINT_TONE[hintTone]}`}>{hint}</p>}
     </div>
   );
 }

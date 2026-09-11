@@ -4,11 +4,13 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ClipboardList, Star, Send, Plus, BarChart3 } from 'lucide-react';
+import type { ComponentType } from 'react';
+import { ClipboardList, Star, Send, Plus, BarChart3, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
-import { StatCard } from '@/shared/ui/stat-card';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { EmptyState } from '@/shared/ui/empty-state';
 import { TemplatesSection, type TemplateItem } from './templates-section';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 import { SeedQuestionnairesButton } from './seed-button';
@@ -23,6 +25,8 @@ const labels: Record<string, string> = {
   evaluation_acquis: 'Évaluation des acquis',
   custom: 'Personnalisé',
 };
+
+const ROW_GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_130px_110px_70px_110px_56px] gap-4 px-5';
 
 type AssignmentRow = {
   id: string;
@@ -94,40 +98,82 @@ export default async function QuestionnairesPage({
         : all;
 
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-8">
-      <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
+      <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Questionnaires</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-            Positionnement, satisfaction à chaud et à froid — preuves Qualiopi I10, I26, I27.
+          <SectionLabel className="mb-2">Documents &amp; communication</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Questionnaires</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            Positionnement, satisfaction à chaud et à froid — preuves Qualiopi I10, I26, I27.{' '}
+            <span className="tabular-nums">
+              {all.length} envoi{all.length > 1 ? 's' : ''} · {templates.length} modèle{templates.length > 1 ? 's' : ''}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <SeedQuestionnairesButton />
-          <Link href="/questionnaires/analytics" className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
-            <BarChart3 className="w-3.5 h-3.5" /> Statistiques
+          <Link
+            href="/questionnaires/analytics"
+            className="inline-flex items-center gap-2 text-[13px] font-semibold px-4 h-10 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
+          >
+            <BarChart3 className="w-4 h-4" /> Statistiques
           </Link>
-          <Link href="/questionnaires/nouveau" className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow-sm transition">
-            <Plus className="w-3.5 h-3.5" /> Nouveau questionnaire
+          <Link
+            href="/questionnaires/nouveau"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Nouveau questionnaire
           </Link>
         </div>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Questionnaires assignés" value={all.length} icon={ClipboardList} accent="blue" href="/questionnaires" />
-        <StatCard label="Complétés" value={completed} icon={ClipboardList} accent="emerald" hint={`${Math.round((completed / Math.max(all.length, 1)) * 100)}% des envois`} hintTone="success" href="/questionnaires?status=completed" />
-        <StatCard label="En attente" value={pending} icon={Send} accent="amber" hint={pending > 0 ? 'à relancer si due_at proche' : '—'} hintTone={pending > 0 ? 'warning' : 'neutral'} href="/questionnaires?status=pending" />
-        <StatCard label="NPS moyen" value={<span>{npsAvg}<span className="text-[15px] text-zinc-400 font-normal">/10</span></span>} icon={Star} accent="violet" hint="↑ 0.4 vs trimestre" hintTone="success" />
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" aria-label="Synthèse">
+        <Kpi label="Questionnaires assignés" value={all.length} icon={ClipboardList} href="/questionnaires" />
+        <Kpi
+          label="Complétés"
+          value={completed}
+          icon={ClipboardList}
+          hint={`${Math.round((completed / Math.max(all.length, 1)) * 100)}% des envois`}
+          hintTone="success"
+          href="/questionnaires?status=completed"
+        />
+        <Kpi
+          label="En attente"
+          value={pending}
+          icon={Send}
+          hint={pending > 0 ? 'à relancer si due_at proche' : '—'}
+          hintTone={pending > 0 ? 'warning' : 'neutral'}
+          href="/questionnaires?status=pending"
+        />
+        <Kpi
+          label="NPS moyen"
+          value={
+            <span>
+              {npsAvg}
+              <span className="text-[15px] text-zinc-400 font-semibold">/10</span>
+            </span>
+          }
+          icon={Star}
+          hint="↑ 0.4 vs trimestre"
+          hintTone="success"
+        />
       </section>
 
       {/* Modèles de questionnaires */}
       <section className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[13px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium">Modèles ({templates.length})</h2>
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100">Modèles</h2>
+          <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+            {templates.length} modèle{templates.length > 1 ? 's' : ''}
+          </span>
         </div>
         {templates.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-            Aucun modèle. <Link href="/questionnaires/nouveau" className="text-orange-600 hover:underline">Créez votre premier questionnaire</Link>.
+            Aucun modèle.{' '}
+            <Link href="/questionnaires/nouveau" className="font-semibold text-orange-600 dark:text-orange-400 hover:underline">
+              Créez votre premier questionnaire
+            </Link>
+            .
           </p>
         ) : (
           <TemplatesSection templates={templates} />
@@ -135,7 +181,12 @@ export default async function QuestionnairesPage({
       </section>
 
       <div className="flex items-center justify-between gap-2 mb-4">
-        <h2 className="text-[13px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium">Envois</h2>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100">Envois</h2>
+          <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+            {rows.length} envoi{rows.length > 1 ? 's' : ''}
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <FilterDropdown
             label="Statut"
@@ -150,7 +201,7 @@ export default async function QuestionnairesPage({
           {activeStatus && (
             <Link
               href="/questionnaires"
-              className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+              className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 h-9 inline-flex items-center rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
             >
               Réinitialiser
             </Link>
@@ -158,48 +209,121 @@ export default async function QuestionnairesPage({
         </div>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-        <div className="grid grid-cols-[180px_140px_1fr_140px_140px_120px] gap-3 px-5 py-2.5 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
-          <div>Type</div>
-          <div>Dossier</div>
-          <div>Destinataire</div>
-          <div>Échéance</div>
-          <div>NPS</div>
-          <div>Statut</div>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+        <div className="min-w-[880px]">
+          <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+            <div>Destinataire</div>
+            <div>Type</div>
+            <div>Dossier</div>
+            <div>Échéance</div>
+            <div>NPS</div>
+            <div>Statut</div>
+            <div className="text-right">Actions</div>
+          </div>
+          {rows.length === 0 ? (
+            <EmptyState icon={ClipboardList} title="Aucun envoi." />
+          ) : (
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {rows.map((q) => {
+                const kind = q.template?.kind ?? '';
+                const submittedAt = q.response?.submitted_at ?? null;
+                const nps = q.response?.nps ?? null;
+                return (
+                  <li key={q.id}>
+                    <Link
+                      href={`/dossiers/${q.dossier_id}/questionnaires`}
+                      className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group`}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">
+                          {q.recipient_name ?? q.recipient_email ?? '—'}
+                        </p>
+                        {q.recipient_name && q.recipient_email && (
+                          <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">{q.recipient_email}</p>
+                        )}
+                      </div>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold truncate">{labels[kind] ?? q.template?.title ?? kind}</span>
+                      <div>
+                        <IdPill>{q.dossier?.reference ?? '—'}</IdPill>
+                      </div>
+                      <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
+                        {submittedAt
+                          ? `répondu ${format(parseISO(submittedAt), 'dd/MM', { locale: fr })}`
+                          : q.due_at
+                            ? `due ${format(parseISO(q.due_at), 'dd/MM', { locale: fr })}`
+                            : '—'}
+                      </span>
+                      <span className="tabular-nums font-bold text-zinc-900 dark:text-zinc-100">
+                        {nps != null ? (
+                          <>
+                            {nps}
+                            <span className="text-zinc-400 font-semibold">/10</span>
+                          </>
+                        ) : (
+                          <span className="text-zinc-400 font-normal">—</span>
+                        )}
+                      </span>
+                      <div>
+                        <StatusPill tone={q.status === 'completed' ? 'success' : q.status === 'expired' ? 'danger' : q.status === 'in_progress' ? 'warning' : 'info'}>
+                          {q.status === 'completed' ? 'rempli' : q.status === 'expired' ? 'expiré' : q.status === 'in_progress' ? 'en cours' : 'envoyé'}
+                        </StatusPill>
+                      </div>
+                      <div className="flex justify-end">
+                        <span
+                          aria-hidden
+                          className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 group-hover:bg-orange-50 group-hover:text-orange-600 dark:group-hover:bg-orange-950/40 dark:group-hover:text-orange-300 transition"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-          {rows.map((q) => {
-            const kind = q.template?.kind ?? '';
-            const submittedAt = q.response?.submitted_at ?? null;
-            const nps = q.response?.nps ?? null;
-            return (
-              <li key={q.id}>
-                <Link
-                  href={`/dossiers/${q.dossier_id}/questionnaires`}
-                  className="grid grid-cols-[180px_140px_1fr_140px_140px_120px] gap-3 px-5 py-3 items-center text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
-                >
-                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{labels[kind] ?? q.template?.title ?? kind}</span>
-                  <IdPill>{q.dossier?.reference ?? '—'}</IdPill>
-                  <span className="text-zinc-700 dark:text-zinc-300 truncate">{q.recipient_name ?? q.recipient_email ?? '—'}</span>
-                  <span className="tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {submittedAt
-                      ? `répondu ${format(parseISO(submittedAt), 'dd/MM', { locale: fr })}`
-                      : q.due_at
-                        ? `due ${format(parseISO(q.due_at), 'dd/MM', { locale: fr })}`
-                        : '—'}
-                  </span>
-                  <span className="tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {nps != null ? `${nps}/10` : '—'}
-                  </span>
-                  <StatusPill tone={q.status === 'completed' ? 'success' : q.status === 'expired' ? 'danger' : q.status === 'in_progress' ? 'warning' : 'info'}>
-                    {q.status === 'completed' ? 'rempli' : q.status === 'expired' ? 'expiré' : q.status === 'in_progress' ? 'en cours' : 'envoyé'}
-                  </StatusPill>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
       </div>
     </div>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  hint,
+  hintTone = 'neutral',
+  icon: Icon,
+  href,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  hintTone?: 'neutral' | 'success' | 'warning';
+  icon: ComponentType<{ className?: string }>;
+  href?: string;
+}) {
+  const hintCls = {
+    neutral: 'text-zinc-500 dark:text-zinc-400',
+    success: 'text-emerald-700 dark:text-emerald-400',
+    warning: 'text-amber-700 dark:text-amber-400',
+  }[hintTone];
+  const body = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
+        <Icon className="w-4 h-4 text-zinc-400" />
+      </div>
+      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
+      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
+    </>
+  );
+  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
+  return href ? (
+    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }

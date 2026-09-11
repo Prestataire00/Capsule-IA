@@ -1,12 +1,12 @@
 // ARCHETYPE: shared
-// Mini line chart SVG monochrome violet — pour activité récente.
+// Mini line chart SVG monochrome orange (couleur de marque) — pour activité récente.
 
 export function LineChart({
   points,
   labels,
   height = 200,
-  color = '#7c3aed',
-  fillColor = 'rgba(124, 58, 237, 0.08)',
+  color = '#f97316',
+  fillColor = 'rgba(249, 115, 22, 0.08)',
 }: {
   points: number[];
   labels?: string[];

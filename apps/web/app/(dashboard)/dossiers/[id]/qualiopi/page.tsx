@@ -124,15 +124,18 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
     <div className="space-y-6">
       <header>
         <SectionLabel className="mb-2">Conformité Qualiopi</SectionLabel>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-4 py-3 flex items-center gap-4">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4 flex items-center gap-4">
           {ready ? (
-            <ShieldCheck className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+            <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
           ) : (
-            <ShieldAlert className="w-6 h-6 text-amber-600 flex-shrink-0" />
+            <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0" />
           )}
           <div className="flex-1">
-            <p className="text-[15px] font-medium">{satisfied} / {totalCount} indicateurs satisfaits</p>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+            <p className="text-zinc-900 dark:text-zinc-100">
+              <span className="text-[26px] leading-none font-extrabold tabular-nums">{satisfied} / {totalCount}</span>
+              <span className="ml-2 text-[14px] font-semibold text-zinc-600 dark:text-zinc-400">indicateurs satisfaits</span>
+            </p>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1.5 tabular-nums">
               {details.length === 0
                 ? 'Checklist pas encore calculée — cliquez sur Recalculer.'
                 : ready
@@ -142,7 +145,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
             </p>
           </div>
           <form action={async () => { 'use server'; await recomputeNow(params.id); }}>
-            <button type="submit" className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
+            <button type="submit" className="h-9 border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition">
               Recalculer
             </button>
           </form>
@@ -156,7 +159,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
             // Le démarrage n'est plus bloqué par les indicateurs d'entrée (0120) :
             // ils restent signalés, sans empêcher de lancer la formation.
             disabled={status === 'active' || status === 'closed'}
-            className="border border-zinc-200/60 dark:border-zinc-800 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-9 border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition disabled:opacity-40 disabled:cursor-not-allowed"
             title={entryBlockingMissing > 0 ? `${entryBlockingMissing} point(s) d'entrée à compléter — n'empêche pas le démarrage` : ''}
           >
             Démarrer la formation
@@ -166,7 +169,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
           <button
             type="submit"
             disabled={status === 'closed' || closingBlockingMissing > 0}
-            className="border border-zinc-200/60 dark:border-zinc-800 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-9 border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition disabled:opacity-40 disabled:cursor-not-allowed"
             title={closingBlockingMissing > 0 ? `${closingBlockingMissing} indicateur(s) de clôture bloquant(s)` : ''}
           >
             Clôturer le dossier
@@ -176,7 +179,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
 
       {(entryBlockers.length > 0 || closingBlockers.length > 0) && (
         <InfoCallout tone="warning">
-          <p className="font-medium">Indicateurs bloquants à résoudre</p>
+          <p className="font-bold">Indicateurs bloquants à résoudre</p>
           <p className="text-[12px] mt-0.5 mb-3 opacity-80">
             Pour chaque point ci-dessous : voici quoi faire et le lien direct pour le corriger.
           </p>
@@ -196,7 +199,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                   key={b.number}
                   className="bg-white/70 dark:bg-zinc-950/40 border border-amber-200/60 dark:border-amber-900/40 rounded-lg px-3 py-2.5"
                 >
-                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                  <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">
                     <span className="font-mono text-amber-700 dark:text-amber-300 mr-1.5">I{b.number}</span>
                     {b.title}
                     <span className="ml-1.5 text-[11px] font-normal text-amber-600/80">
@@ -210,7 +213,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                     ) : (
                       <Link
                         href={g.href ?? `/dossiers/${params.id}/${g.tab}`}
-                        className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-md transition"
+                        className="inline-flex items-center gap-1.5 h-8 bg-amber-600 hover:bg-amber-700 text-white text-[12px] font-semibold px-3 rounded-lg transition"
                       >
                         {g.linkLabel}
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -237,13 +240,13 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                   Critère {criterion}
                   {label ? ` — ${label}` : ''}
                 </SectionLabel>
-                <span className="tabular-nums text-[11px] text-zinc-500">{okCount}/{applicables.length}</span>
+                <span className="tabular-nums text-[12px] font-bold text-zinc-600 dark:text-zinc-400">{okCount}/{applicables.length}</span>
               </div>
-              <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+              <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
                 {items.map((ind) => {
                   const g = guidanceFor(ind.number, ind.source, { formationId, dossierId: params.id });
                   return (
-                    <li key={ind.number} className="grid grid-cols-[40px_60px_1fr_140px] gap-3 py-3 px-1 items-center text-[13px]">
+                    <li key={ind.number} className="grid grid-cols-[28px_52px_1fr_150px] gap-3 py-3.5 px-5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                       {!ind.applicable ? (
                         <span className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center">
                           <Minus className="w-3 h-3" />
@@ -257,21 +260,21 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                           <X className="w-3 h-3" />
                         </span>
                       )}
-                      <span className="font-mono text-[11px] text-zinc-500">I{ind.number}</span>
-                      <span className={ind.applicable ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500'}>
+                      <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">I{ind.number}</span>
+                      <span className={ind.applicable ? 'font-semibold text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500'}>
                         {ind.title}
                       </span>
                       {!ind.applicable ? (
-                        <span className="text-[11px] text-zinc-400 justify-self-end">non applicable</span>
+                        <span className="text-[12px] text-zinc-400 dark:text-zinc-500 justify-self-end">non applicable</span>
                       ) : ind.satisfied ? (
-                        <span className="text-[11px] text-zinc-400 inline-flex items-center gap-1 justify-self-end">
+                        <span className="text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1 justify-self-end">
                           {ind.stage !== 'none' ? (ind.stage === 'entry' ? 'entrée' : 'clôture') : ''}
                         </span>
                       ) : (
                         <Link
                           href={g.href ?? `/dossiers/${params.id}/${g.tab}`}
                           title={g.todo}
-                          className="justify-self-end inline-flex items-center gap-1 text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
+                          className="justify-self-end inline-flex items-center gap-1 text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                         >
                           {ind.blocking && <span className="text-amber-600 dark:text-amber-400 mr-1">bloquant ·</span>}
                           Corriger

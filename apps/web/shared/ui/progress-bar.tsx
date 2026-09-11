@@ -4,7 +4,7 @@ import { cn } from '@/shared/lib/cn';
 type Tone = 'violet' | 'emerald' | 'amber' | 'rose' | 'blue' | 'zinc';
 
 const colors: Record<Tone, string> = {
-  violet: 'bg-violet-600',
+  violet: 'bg-orange-500',
   emerald: 'bg-emerald-500',
   amber: 'bg-amber-500',
   rose: 'bg-rose-500',

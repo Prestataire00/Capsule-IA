@@ -83,9 +83,9 @@ export function DossierStatusControl({
           type="button"
           onClick={(e) => go(primary, e)}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg shadow-sm transition"
+          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
         >
-          <ArrowRight className="w-3.5 h-3.5" />
+          <ArrowRight className="w-4 h-4" />
           {actionLabel(status, primary)}
         </button>
       )}
@@ -102,8 +102,8 @@ export function DossierStatusControl({
             }}
             className="fixed inset-0 z-40 cursor-default"
           />
-          <div className="absolute left-0 top-full mt-1.5 z-50 min-w-[220px] bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg shadow-xl py-1">
-            <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+          <div className="absolute left-0 top-full mt-1.5 z-50 min-w-[220px] bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-lg py-1">
+            <p className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
               Changer le statut
             </p>
             {menuOptions.map((to) => (
@@ -111,7 +111,7 @@ export function DossierStatusControl({
                 key={to}
                 type="button"
                 onClick={(e) => go(to, e)}
-                className="w-full text-left px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 inline-flex items-center gap-2"
+                className="w-full text-left px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 inline-flex items-center gap-2"
               >
                 <StatusPill tone={dossierStatusTone(to)}>{dossierStatusLabel(to)}</StatusPill>
                 <span className="text-zinc-500 dark:text-zinc-400">{actionLabel(status, to)}</span>
@@ -122,7 +122,7 @@ export function DossierStatusControl({
       )}
 
       {error && (
-        <span className="absolute left-0 top-full mt-1.5 z-50 min-w-[240px] max-w-[320px] bg-white dark:bg-zinc-900 border border-red-200/60 dark:border-red-900/40 rounded-lg shadow-xl p-3">
+        <span className="absolute left-0 top-full mt-1.5 z-50 min-w-[240px] max-w-[320px] bg-white dark:bg-zinc-900 border border-red-200/60 dark:border-red-900/40 rounded-xl shadow-lg p-3">
           <span className="flex items-start gap-2 text-[12px] text-red-600 dark:text-red-400">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>

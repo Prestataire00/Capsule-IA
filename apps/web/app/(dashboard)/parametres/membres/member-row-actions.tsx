@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useAction } from 'next-safe-action/hooks';
+import { Check } from 'lucide-react';
 import { changeMemberRoleAction, deactivateMemberAction, setMemberPasswordAction } from './members-actions';
 import { MEMBER_ROLES, type MemberRole } from './members-schema';
 
@@ -58,7 +59,7 @@ export function MemberRowActions(props: {
 
   if (!props.editable) {
     return (
-      <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 flex-shrink-0">
+      <span className="text-[12px] font-semibold h-6 inline-flex items-center px-2.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 flex-shrink-0">
         {ROLE_LABEL[props.role]}
       </span>
     );
@@ -96,7 +97,7 @@ export function MemberRowActions(props: {
           value={role}
           disabled={pending}
           onChange={(e) => onRoleChange(e.target.value as MemberRole)}
-          className="text-[12px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-2 py-1 disabled:opacity-50"
+          className="h-8 text-[12px] font-medium bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-2 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition disabled:opacity-50"
         >
           {MEMBER_ROLES.map((r) => (
             <option key={r} value={r}>
@@ -112,7 +113,7 @@ export function MemberRowActions(props: {
             setPwDone(false);
           }}
           disabled={pending}
-          className="text-[12px] text-orange-600 hover:text-orange-700 dark:text-orange-400 px-2 py-1 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/30 transition disabled:opacity-50"
+          className="h-8 text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 px-2 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/30 transition disabled:opacity-50"
         >
           Mot de passe
         </button>
@@ -120,7 +121,7 @@ export function MemberRowActions(props: {
           type="button"
           onClick={onDeactivate}
           disabled={pending}
-          className="text-[12px] text-red-600 hover:text-red-700 dark:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition disabled:opacity-50"
+          className="h-8 text-[12px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400 px-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition disabled:opacity-50"
         >
           Désactiver
         </button>
@@ -133,13 +134,13 @@ export function MemberRowActions(props: {
             value={pwValue}
             onChange={(e) => setPwValue(e.target.value)}
             placeholder="Nouveau mot de passe (min. 8)"
-            className="text-[12px] bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-2 py-1 w-52"
+            className="h-8 text-[12px] bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-2 w-52 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition"
           />
           <button
             type="button"
             onClick={() => submitPassword(pwValue)}
             disabled={pending || pwValue.trim().length < 8}
-            className="text-[12px] font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-40 px-2.5 py-1 rounded-lg"
+            className="h-8 text-[12px] font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-40 px-2.5 rounded-lg shadow-sm shadow-orange-600/30 transition"
           >
             Définir
           </button>
@@ -147,7 +148,7 @@ export function MemberRowActions(props: {
             type="button"
             onClick={() => submitPassword('')}
             disabled={pending}
-            className="text-[12px] text-orange-600 hover:text-orange-700 px-2 py-1 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/30 disabled:opacity-50"
+            className="h-8 text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 px-2 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/30 disabled:opacity-50"
           >
             Générer
           </button>
@@ -156,11 +157,11 @@ export function MemberRowActions(props: {
 
       {pwDone && pwResult && (
         <span className="text-[11px] text-emerald-700 dark:text-emerald-400">
-          Nouveau mot de passe : <code className="font-mono bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded">{pwResult}</code> — communiquez-le au membre.
+          Nouveau mot de passe : <code className="font-mono bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded-md">{pwResult}</code> — communiquez-le au membre.
         </span>
       )}
       {pwDone && !pwResult && (
-        <span className="text-[11px] text-emerald-700 dark:text-emerald-400">Mot de passe modifié ✓</span>
+        <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-1"><Check className="w-3 h-3" /> Mot de passe modifié</span>
       )}
     </div>
   );

@@ -56,8 +56,8 @@ export function ExpensesManager({ sessionId, expenses }: { sessionId: string; ex
 
   return (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5">
-        <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 mb-4">Ajouter une dépense</h2>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-4">Ajouter une dépense</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Type">
             <select className={inputClass} value={kind} onChange={(e) => setKind(e.target.value)}>
@@ -85,30 +85,31 @@ export function ExpensesManager({ sessionId, expenses }: { sessionId: string; ex
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Dépenses de la session</h2>
-          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Total : {euros(total)}</span>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Dépenses de la session</h2>
+          <span className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">Total : {euros(total)}</span>
         </div>
         {expenses.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune dépense enregistrée pour cette session.</p>
         ) : (
-          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800 text-[13px]">
+          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
             {expenses.map((e) => (
-              <li key={e.id} className="flex items-center justify-between px-4 py-2.5">
+              <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                 <div className="min-w-0">
-                  <p className="text-zinc-800 dark:text-zinc-200">{e.label}</p>
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="font-bold text-zinc-900 dark:text-zinc-100">{e.label}</p>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                     {kindLabel(e.kind)}
                     {e.supplier_name ? ` · ${e.supplier_name}` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{euros(e.amount_cents ?? 0)}</span>
+                  <span className="font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(e.amount_cents ?? 0)}</span>
                   <button
                     type="button"
                     onClick={() => del.execute({ sessionId, id: e.id })}
-                    className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                    className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
                     title="Supprimer"
+                    aria-label={`Supprimer — ${e.label}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

@@ -61,7 +61,7 @@ export function EditableDocument({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-1.5 rounded-md inline-flex items-center gap-2 shadow-sm"
+              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-[13px] font-semibold px-4 h-9 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Enregistrer
@@ -80,7 +80,7 @@ export function EditableDocument({
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="text-[13px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1.5"
+          className="text-[13px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 inline-flex items-center gap-1.5 transition"
         >
           <Pencil className="w-3.5 h-3.5" /> Modifier
         </button>

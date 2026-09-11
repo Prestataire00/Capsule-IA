@@ -17,11 +17,9 @@ export function EmptyState({
   return (
     <div className={cn('text-center py-16 px-6', className)}>
       {Icon && (
-        <div className="inline-flex w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-900 items-center justify-center mb-3">
-          <Icon className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
-        </div>
+        <Icon className="w-6 h-6 text-zinc-400 dark:text-zinc-500 mx-auto mb-3" />
       )}
-      <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{title}</p>
+      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{title}</p>
       {description && (
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1.5 max-w-sm mx-auto">
           {description}

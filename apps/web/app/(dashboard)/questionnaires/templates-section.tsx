@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
-import { Pencil, Trash2, Copy, FileQuestion } from 'lucide-react';
+import { Pencil, Trash2, Copy } from 'lucide-react';
 import { TEMPLATE_KINDS } from '@/features/questionnaire/template.schema';
 import { deleteQuestionnaireTemplate } from './actions';
 
 const KIND_LABEL = Object.fromEntries(TEMPLATE_KINDS.map((k) => [k.value, k.label]));
+
+const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_110px_100px_80px] gap-4 px-5';
 
 export type TemplateItem = {
   id: string;
@@ -24,47 +26,62 @@ export function TemplatesSection({ templates }: { templates: TemplateItem[] }) {
   });
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {templates.map((t) => (
-        <div key={t.id} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col gap-3">
-          <div className="flex items-start gap-3">
-            <span className="w-9 h-9 rounded-lg bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 flex items-center justify-center flex-shrink-0">
-              <FileQuestion className="w-4 h-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{t.title}</p>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {KIND_LABEL[t.kind] ?? t.kind} · {t.questionCount} question{t.questionCount > 1 ? 's' : ''}
-              </p>
-            </div>
-            {t.isSystem && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 flex-shrink-0">système</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-auto">
-            <Link
-              href={`/questionnaires/${t.id}`}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
-            >
-              {t.isSystem ? <Copy className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
-              {t.isSystem ? 'Dupliquer' : 'Modifier'}
-            </Link>
-            {!t.isSystem && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm(`Supprimer le questionnaire « ${t.title} » ?`)) execute({ templateId: t.id });
-                }}
-                disabled={status === 'executing'}
-                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-zinc-200/60 dark:border-zinc-800 text-zinc-400 hover:text-rose-500 hover:border-rose-200 transition disabled:opacity-50"
-                aria-label="Supprimer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+      <div className="min-w-[640px]">
+        <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+          <div>Modèle</div>
+          <div>Type</div>
+          <div>Questions</div>
+          <div>Origine</div>
+          <div className="text-right">Actions</div>
         </div>
-      ))}
+        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+          {templates.map((t) => (
+            <li key={t.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+              <Link href={`/questionnaires/${t.id}`} className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                {t.title}
+              </Link>
+              <span className="truncate text-zinc-600 dark:text-zinc-400">{KIND_LABEL[t.kind] ?? t.kind}</span>
+              <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
+                {t.questionCount} question{t.questionCount > 1 ? 's' : ''}
+              </span>
+              <div>
+                {t.isSystem ? (
+                  <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    système
+                  </span>
+                ) : (
+                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Organisme</span>
+                )}
+              </div>
+              <div className="flex items-center justify-end gap-0.5">
+                <Link
+                  href={`/questionnaires/${t.id}`}
+                  aria-label={`${t.isSystem ? 'Dupliquer' : 'Modifier'} — ${t.title}`}
+                  title={t.isSystem ? 'Dupliquer' : 'Modifier'}
+                  className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                >
+                  {t.isSystem ? <Copy className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                </Link>
+                {!t.isSystem && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Supprimer le questionnaire « ${t.title} » ?`)) execute({ templateId: t.id });
+                    }}
+                    disabled={status === 'executing'}
+                    className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition disabled:opacity-50"
+                    aria-label="Supprimer"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

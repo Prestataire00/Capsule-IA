@@ -196,9 +196,9 @@ export function NewDossierForm({
       <header className="px-6 py-4 flex items-center justify-between">
         <Link
           href="/dossiers"
-          className="text-[11px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 inline-flex items-center gap-1.5 transition"
+          className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition"
         >
-          <X className="w-3 h-3" />
+          <X className="w-3.5 h-3.5" />
           Quitter
         </Link>
       </header>
@@ -210,10 +210,10 @@ export function NewDossierForm({
           {step === 1 && (
             <section className="space-y-6">
               <div className="text-center">
-                <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                <h1 className="text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
                   Pour qui et quelle formation ?
                 </h1>
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
+                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
                   Sélectionnez l&apos;apprenant, la formation et la période.
                 </p>
               </div>
@@ -266,8 +266,8 @@ export function NewDossierForm({
                         onClick={() => setModality(m)}
                         className={
                           m === modality
-                            ? 'border border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-md px-2 py-2 text-[12px] text-center'
-                            : 'border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md px-2 py-2 text-[12px] text-center hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                            ? 'border border-orange-300 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 font-bold rounded-lg px-2 h-9 text-[12px] text-center'
+                            : 'border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-semibold rounded-lg px-2 h-9 text-[12px] text-center hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
                         }
                       >
                         {MODALITY_LABELS[m]}
@@ -289,20 +289,20 @@ export function NewDossierForm({
           {step === 2 && (
             <section className="space-y-6">
               <div className="text-center">
-                <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                <h1 className="text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
                   Modules et formateur
                 </h1>
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
+                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
                   Ajustez les modules de la formation pour ce dossier.
                 </p>
               </div>
 
               <div>
-                <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-2">
+                <p className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400 mb-2">
                   Modules · <span className="tabular-nums">{totalHours} h</span>
                 </p>
                 {modules.length === 0 ? (
-                  <p className="text-[13px] text-zinc-500">
+                  <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
                     Aucun module rattaché à cette formation. Le dossier sera créé avec une durée minimale (modifiable ensuite).
                   </p>
                 ) : (
@@ -310,18 +310,18 @@ export function NewDossierForm({
                     {modules.map((m, i) => (
                       <li
                         key={`${m.moduleId}-${i}`}
-                        className="bg-zinc-50 dark:bg-zinc-900 rounded-lg px-3 py-2.5 flex items-center gap-3 group"
+                        className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5 flex items-center gap-3 group"
                       >
-                        <span className="tabular-nums text-[11px] text-zinc-400 w-4">{i + 1}.</span>
-                        <span className="text-[13px] text-zinc-900 dark:text-zinc-100 flex-1 truncate">{m.title}</span>
+                        <span className="tabular-nums text-[12px] text-zinc-400 w-5">{i + 1}.</span>
+                        <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex-1 truncate">{m.title}</span>
                         <input
                           type="number"
                           min={0}
                           value={m.durationHours}
                           onChange={(e) => updateModuleHours(i, e.target.value)}
-                          className="w-14 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded px-2 py-1 text-[13px] text-right focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700"
+                          className="w-16 h-8 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-2 text-[13px] text-right tabular-nums transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
                         />
-                        <span className="text-[11px] text-zinc-400">h</span>
+                        <span className="text-[12px] text-zinc-400">h</span>
                         <button
                           type="button"
                           aria-label="Retirer"
@@ -337,7 +337,7 @@ export function NewDossierForm({
               </div>
 
               <div>
-                <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-2">
+                <p className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400 mb-2">
                   Formateur référent
                 </p>
                 {trainers.length === 0 ? (
@@ -370,10 +370,10 @@ export function NewDossierForm({
           {step === 3 && (
             <section className="space-y-6">
               <div className="text-center">
-                <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                <h1 className="text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
                   Financement
                 </h1>
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
+                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
                   Montant et financeur (optionnels au stade brouillon).
                 </p>
               </div>
@@ -389,13 +389,13 @@ export function NewDossierForm({
                       placeholder="0"
                       className={`flex-1 ${inputCls}`}
                     />
-                    <span className="text-[13px] text-zinc-500">€</span>
+                    <span className="text-[13px] text-zinc-500 dark:text-zinc-400">€</span>
                   </div>
                 </Field>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">
+                    <span className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400">
                       Financements
                     </span>
                     {funders.length === 0 ? (
@@ -404,7 +404,7 @@ export function NewDossierForm({
                       <button
                         type="button"
                         onClick={addFunderRow}
-                        className="text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"
+                        className="text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 inline-flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Ajouter un financeur
@@ -421,7 +421,7 @@ export function NewDossierForm({
                       {funderRows.map((row, idx) => (
                         <li
                           key={idx}
-                          className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-3 space-y-2 border border-zinc-200/60 dark:border-zinc-800"
+                          className="bg-white dark:bg-zinc-900 rounded-lg p-3 space-y-2 border border-zinc-200/70 dark:border-zinc-800"
                         >
                           <div className="flex items-center gap-2">
                             <select
@@ -456,7 +456,7 @@ export function NewDossierForm({
                                 placeholder="Montant pris en charge"
                                 className={`flex-1 ${inputCls}`}
                               />
-                              <span className="text-[12px] text-zinc-500">€</span>
+                              <span className="text-[12px] text-zinc-500 dark:text-zinc-400">€</span>
                             </div>
                             <input
                               type="text"
@@ -473,26 +473,26 @@ export function NewDossierForm({
 
                   {totalCents != null && (funderRows.length > 0 || fundersTotalCents > 0) && (
                     <div
-                      className={`mt-2 rounded-md px-3 py-2 text-[12px] flex items-center justify-between ${
+                      className={`mt-2 rounded-lg px-3 py-2 text-[12px] flex items-center justify-between ${
                         fundersOverTotal
                           ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200/60 dark:border-red-900/40'
-                          : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-800'
+                          : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border border-zinc-200/70 dark:border-zinc-800'
                       }`}
                     >
                       <span>
-                        Financé : <span className="tabular-nums">{eurosFromCents(fundersTotalCents)}</span> ·
+                        Financé : <span className="tabular-nums font-bold">{eurosFromCents(fundersTotalCents)}</span> ·
                         Reste à charge :{' '}
-                        <span className="tabular-nums">{eurosFromCents(Math.max(0, resteAChargeCents ?? 0))}</span>
+                        <span className="tabular-nums font-bold">{eurosFromCents(Math.max(0, resteAChargeCents ?? 0))}</span>
                       </span>
-                      {fundersOverTotal && <span className="font-medium">dépasse le total</span>}
+                      {fundersOverTotal && <span className="font-bold">dépasse le total</span>}
                     </div>
                   )}
                 </div>
               </div>
 
               <InfoCallout tone="info">
-                <p className="font-medium">Que se passe-t-il à la création ?</p>
-                <ul className="mt-1 space-y-0.5 text-[11px]">
+                <p className="font-bold">Que se passe-t-il à la création ?</p>
+                <ul className="mt-1 space-y-0.5 text-[12px]">
                   <li>· Le dossier est créé en statut <code className="font-mono">draft</code></li>
                   <li>· Vous pourrez générer la convention, le programme et l&apos;attestation depuis l&apos;onglet Documents</li>
                   <li>· La checklist Qualiopi est disponible pour ce dossier</li>
@@ -500,7 +500,7 @@ export function NewDossierForm({
               </InfoCallout>
 
               {error && (
-                <div className="flex items-start gap-2 text-[13px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-md px-3 py-2">
+                <div className="flex items-start gap-2 text-[13px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-lg px-3 py-2">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -530,18 +530,18 @@ export function NewDossierForm({
 }
 
 const selectCls =
-  'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700';
+  'w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10';
 const inputCls =
-  'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700';
+  'w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] tabular-nums transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10';
 const nextBtnCls =
-  'bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium px-4 py-2 rounded-md transition shadow-sm inline-flex items-center gap-2';
+  'bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2';
 const backBtnCls =
   'text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition disabled:opacity-40';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 block mb-2">
+      <span className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400 block mb-2">
         {label}
       </span>
       {children}
@@ -553,7 +553,7 @@ function EmptyHint({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 text-[13px] text-violet-600 hover:text-violet-700 dark:text-violet-400"
+      className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
     >
       <Plus className="w-3.5 h-3.5" />
       {label}
@@ -578,10 +578,10 @@ function Stepper({ current }: { current: number }) {
               <div
                 className={
                   isDone
-                    ? 'w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-[13px] font-medium'
+                    ? 'w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-[13px] font-bold tabular-nums'
                     : isActive
-                    ? 'w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center text-[13px] font-medium'
-                    : 'w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 flex items-center justify-center text-[13px]'
+                    ? 'w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-[13px] font-bold tabular-nums shadow-sm shadow-orange-600/30'
+                    : 'w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 flex items-center justify-center text-[13px] font-semibold tabular-nums'
                 }
               >
                 {isDone ? <Check className="w-4 h-4" /> : s.num}
@@ -589,8 +589,8 @@ function Stepper({ current }: { current: number }) {
               <span
                 className={
                   isActive
-                    ? 'text-[11px] text-zinc-900 dark:text-zinc-100 font-medium'
-                    : 'text-[11px] text-zinc-500 dark:text-zinc-400'
+                    ? 'text-[12px] text-zinc-900 dark:text-zinc-100 font-bold'
+                    : 'text-[12px] text-zinc-500 dark:text-zinc-400'
                 }
               >
                 {s.label}

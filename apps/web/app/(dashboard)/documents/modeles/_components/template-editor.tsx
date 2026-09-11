@@ -132,7 +132,7 @@ export function TemplateEditor({
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="text-[13px] text-zinc-500 hover:text-red-600 inline-flex items-center gap-1.5 px-3 py-2"
+              className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg inline-flex items-center gap-1.5 px-3 h-10 transition"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Supprimer
@@ -142,7 +142,7 @@ export function TemplateEditor({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-2 rounded-md inline-flex items-center gap-2 shadow-sm"
+            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Enregistrer
@@ -151,7 +151,7 @@ export function TemplateEditor({
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 text-[13px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-md px-3 py-2">
+        <div className="flex items-start gap-2 text-[13px] text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 border border-red-200/70 dark:border-red-900/40 rounded-lg px-3 py-2">
           <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -160,11 +160,11 @@ export function TemplateEditor({
       <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">Type</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 block mb-1.5">Type</span>
               <select
                 value={kind}
                 onChange={(e) => setKind(e.target.value as TemplateKind)}
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+                className="w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
               >
                 {TEMPLATE_KINDS.map((k) => (
                   <option key={k} value={k}>
@@ -174,24 +174,24 @@ export function TemplateEditor({
               </select>
             </label>
             <label className="block">
-              <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">Titre</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 block mb-1.5">Titre</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Convention de formation"
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+                className="w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
               />
             </label>
           </div>
 
           <label className="block">
-            <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 block mb-1.5">
               Formation associée (optionnel)
             </span>
             <select
               value={formationId}
               onChange={(e) => setFormationId(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+              className="w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
             >
               <option value="">Modèle global (toutes formations)</option>
               {formations.map((f) => (
@@ -203,13 +203,13 @@ export function TemplateEditor({
           </label>
 
           <label className="block">
-            <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 block mb-1.5">
               Catégorie (optionnel)
             </span>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+              className="w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
             >
               <option value="">Non classé</option>
               {categories.map((c) => (
@@ -221,7 +221,7 @@ export function TemplateEditor({
           </label>
 
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-zinc-500 block mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 block mb-1.5">
               Contenu du document
             </span>
             <p className="text-[11px] text-zinc-400 mb-2">
@@ -232,9 +232,9 @@ export function TemplateEditor({
           </div>
 
           {/* Aperçu valeurs réelles */}
-          <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-4 space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] uppercase tracking-wider text-zinc-500 inline-flex items-center gap-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" /> Aperçu avec valeurs réelles
               </span>
               {dossiers.length === 0 ? (
@@ -244,7 +244,7 @@ export function TemplateEditor({
                   <select
                     value={previewDossier}
                     onChange={(e) => setPreviewDossier(e.target.value)}
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-2.5 py-1.5 text-[12px]"
+                    className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-2.5 text-[12px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
                   >
                     {dossiers.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -256,7 +256,7 @@ export function TemplateEditor({
                     type="button"
                     onClick={handlePreview}
                     disabled={previewing}
-                    className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 disabled:opacity-40"
+                    className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-semibold px-3 h-9 rounded-lg transition inline-flex items-center gap-1.5 disabled:opacity-40"
                   >
                     {previewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                     Générer l&apos;aperçu

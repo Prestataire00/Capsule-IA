@@ -20,7 +20,7 @@ import {
 import { saveQuestionnaireTemplate, generateQuestionnaireWithAI } from './actions';
 
 const inputClass =
-  'w-full rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-300';
+  'w-full rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-800 dark:text-zinc-200 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400';
 
 export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
   const router = useRouter();
@@ -85,14 +85,14 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
       <div className="space-y-5">
         {/* Métadonnées */}
-        <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
+        <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="block">
-              <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 block mb-1.5">Titre</span>
+              <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Titre</span>
               <input value={values.title} onChange={(e) => patch({ title: e.target.value })} placeholder="Analyse des besoins…" className={inputClass} />
             </label>
             <label className="block">
-              <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 block mb-1.5">Type</span>
+              <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Type</span>
               <select value={values.kind} onChange={(e) => patch({ kind: e.target.value as TemplateFormValues['kind'] })} className={inputClass}>
                 {TEMPLATE_KINDS.map((k) => (
                   <option key={k.value} value={k.value}>{k.label}</option>
@@ -101,7 +101,7 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
             </label>
           </div>
           <label className="block">
-            <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 block mb-1.5">Message de remerciement</span>
+            <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Message de remerciement</span>
             <input value={values.thankYou} onChange={(e) => patch({ thankYou: e.target.value })} className={inputClass} />
           </label>
         </section>
@@ -109,9 +109,9 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
         {/* Questions */}
         <section className="space-y-3">
           {values.questions.map((q, i) => (
-            <div key={i} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-4 space-y-3">
+            <div key={i} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-4 space-y-3">
               <div className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-md bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 flex items-center justify-center text-[11px] font-medium flex-shrink-0 mt-1">
+                <span className="w-6 h-6 rounded-md bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 flex items-center justify-center text-[12px] font-bold tabular-nums flex-shrink-0 mt-1.5">
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0 space-y-3">
@@ -131,7 +131,7 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
                       value={q.id}
                       onChange={(e) => patchQ(i, { id: e.target.value })}
                       placeholder="id_question"
-                      className={`${inputClass} font-mono text-[12px]`}
+                      className={`${inputClass} font-mono !text-[12px]`}
                     />
                     <label className="inline-flex items-center gap-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 px-1">
                       <input type="checkbox" checked={q.required} onChange={(e) => patchQ(i, { required: e.target.checked })} className="accent-orange-500" />
@@ -163,26 +163,26 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
                             placeholder={`Option ${oi + 1}`}
                             className={inputClass}
                           />
-                          <button type="button" onClick={() => patchQ(i, { options: q.options.filter((_, oj) => oj !== oi) })} className="text-zinc-400 hover:text-rose-500 p-1">
+                          <button type="button" onClick={() => patchQ(i, { options: q.options.filter((_, oj) => oj !== oi) })} className="w-8 h-8 rounded-md grid place-items-center text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 transition flex-shrink-0">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ))}
-                      <button type="button" onClick={() => patchQ(i, { options: [...q.options, ''] })} className="text-[12px] text-orange-600 hover:underline inline-flex items-center gap-1">
+                      <button type="button" onClick={() => patchQ(i, { options: [...q.options, ''] })} className="text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:underline inline-flex items-center gap-1">
                         <Plus className="w-3 h-3" /> Ajouter une option
                       </button>
                     </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
-                  <button type="button" onClick={() => moveQ(i, -1)} disabled={i === 0} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
-                  <button type="button" onClick={() => moveQ(i, 1)} disabled={i === values.questions.length - 1} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
-                  <button type="button" onClick={() => removeQ(i)} disabled={values.questions.length === 1} className="text-zinc-400 hover:text-rose-500 p-1 disabled:opacity-30"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button type="button" onClick={() => moveQ(i, -1)} disabled={i === 0} className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition disabled:opacity-30"><ArrowUp className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => moveQ(i, 1)} disabled={i === values.questions.length - 1} className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition disabled:opacity-30"><ArrowDown className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => removeQ(i)} disabled={values.questions.length === 1} className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition disabled:opacity-30"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             </div>
           ))}
-          <button type="button" onClick={addQ} className="w-full border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl py-3 text-[13px] text-zinc-500 hover:text-orange-600 hover:border-orange-300 transition inline-flex items-center justify-center gap-2">
+          <button type="button" onClick={addQ} className="w-full border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl h-11 text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 hover:text-orange-600 hover:border-orange-300 dark:hover:border-orange-800 transition inline-flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" /> Ajouter une question
           </button>
         </section>
@@ -194,15 +194,15 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
             {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             {showPreview ? 'Masquer' : 'Aperçu'}
           </button>
-          <button type="button" onClick={onSave} disabled={isSaving} className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2 disabled:opacity-50">
+          <button type="button" onClick={onSave} disabled={isSaving} className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2 disabled:opacity-50">
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Enregistrer le questionnaire
           </button>
         </div>
 
         {showPreview && (
-          <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-            <p className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium px-5 pt-4">Aperçu</p>
+          <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 px-5 pt-4">Aperçu</p>
             <QuestionRenderer questions={toRuntimeSchema(values).questions} />
           </section>
         )}
@@ -210,9 +210,9 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
 
       {/* Panneau IA */}
       <aside className="space-y-3">
-        <div className="bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/30 dark:to-zinc-900 border border-violet-200/60 dark:border-violet-900/40 rounded-xl shadow-sm p-5 lg:sticky lg:top-6">
-          <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2 mb-1">
-            <Sparkles className="w-4 h-4 text-violet-500" /> Générer avec l'IA
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 lg:sticky lg:top-6">
+          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2 mb-1">
+            <Sparkles className="w-4 h-4 text-orange-500" /> Générer avec l'IA
           </p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
             Décrivez la formation : l'IA propose des questions adaptées au type sélectionné. Vous pourrez tout ajuster.
@@ -224,7 +224,7 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
             placeholder="Ex : formation Excel perfectionnement, 2 jours, public assistants administratifs…"
             className={inputClass}
           />
-          <button type="button" onClick={onGenerate} disabled={aiLoading} className="mt-3 w-full bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center justify-center gap-2 disabled:opacity-50">
+          <button type="button" onClick={onGenerate} disabled={aiLoading} className="mt-3 w-full bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-semibold px-4 h-10 rounded-lg transition inline-flex items-center justify-center gap-2 disabled:opacity-50">
             {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             {aiLoading ? 'Génération…' : 'Générer les questions'}
           </button>

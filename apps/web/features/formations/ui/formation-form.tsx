@@ -216,7 +216,7 @@ function Toggle({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 accent-violet-600"
+        className="mt-0.5 accent-orange-600"
       />
       <span>
         <span className="text-[13px] text-zinc-900 dark:text-zinc-100 font-medium block">{label}</span>
@@ -248,10 +248,10 @@ function MultiCheck({
             type="button"
             onClick={() => onToggle(on ? selected.filter((s) => s !== o.value) : [...selected, o.value])}
             className={cn(
-              'text-[12px] px-3 py-1.5 rounded-full border transition',
+              'text-[12px] font-semibold h-8 px-3 rounded-full border transition',
               on
-                ? 'bg-violet-50 dark:bg-violet-950/40 border-violet-300 dark:border-violet-800 text-violet-700 dark:text-violet-300'
-                : 'bg-white dark:bg-zinc-900 border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300',
+                ? 'bg-orange-50 dark:bg-orange-950/50 border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300'
+                : 'bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700',
             )}
           >
             {o.label}
@@ -721,7 +721,7 @@ export function FormationForm({
           />
         </Row>
         {showCertifBlock && (
-          <div className="rounded-lg border border-violet-200/60 dark:border-violet-900/40 bg-violet-50/40 dark:bg-violet-950/20 p-4 space-y-4">
+          <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 space-y-4">
             <FormField label="Modalités d'obtention">
               <textarea rows={3} {...register('certificationObtention')} className={inputClass} placeholder="Conditions de réussite, examen…" />
             </FormField>
@@ -875,14 +875,14 @@ export function FormationForm({
             « Indicateurs de résultats », organisée par formation. Un champ libre
             dans le formulaire créait un second jeu de chiffres, qui pouvait
             contredire le calcul réel (audit CAP-33). */}
-        <div className="rounded-lg border border-zinc-200/60 dark:border-zinc-800 p-4 space-y-3">
+        <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800 p-4 space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+            <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-zinc-400" /> Indicateurs de résultats
             </p>
             <a
               href="/indicateurs"
-              className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline underline-offset-2"
+              className="text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:underline underline-offset-2"
             >
               Gérer dans Indicateurs de résultats →
             </a>
@@ -902,12 +902,12 @@ export function FormationForm({
             <>
               <dl className="grid grid-cols-2 gap-3">
                 <div>
-                  <dt className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Apprenants formés</dt>
-                  <dd className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{indicators.learners}</dd>
+                  <dt className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Apprenants formés</dt>
+                  <dd className="text-[26px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">{indicators.learners}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Satisfaction</dt>
-                  <dd className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                  <dt className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Satisfaction</dt>
+                  <dd className="text-[26px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">
                     {indicators.satisfactionRate === null ? '—' : `${indicators.satisfactionRate} %`}
                     <span className="ml-1.5 text-[12px] font-normal text-zinc-500">
                       {indicators.satisfactionResponses} réponse{indicators.satisfactionResponses > 1 ? 's' : ''}
@@ -964,9 +964,9 @@ export function FormationForm({
         <button
           type="submit"
           disabled={pending}
-          className="bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+          className="bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
         >
-          <Check className="w-3.5 h-3.5" />
+          <Check className="w-4 h-4" />
           {pending ? 'Enregistrement…' : mode === 'create' ? 'Créer la formation' : 'Enregistrer les modifications'}
         </button>
       </div>

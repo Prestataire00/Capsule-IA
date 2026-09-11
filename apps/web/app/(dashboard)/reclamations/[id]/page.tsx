@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Inbox, Hourglass, CheckCircle2, XCircle, User as UserIcon, Mail } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Mail } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { ReplyForm } from './reply-form';
+import { IdPill } from '@/shared/ui/id-pill';
+import { StatusPill } from '@/shared/ui/status-pill';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
@@ -38,10 +40,10 @@ const admin = () =>
   });
 
 const statusConfig = {
-  open: { label: 'Ouverte', icon: Inbox, tone: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' },
-  in_progress: { label: 'En cours', icon: Hourglass, tone: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
-  resolved: { label: 'Résolue', icon: CheckCircle2, tone: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
-  closed: { label: 'Clôturée', icon: XCircle, tone: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400' },
+  open: { label: 'Ouverte', tone: 'info' },
+  in_progress: { label: 'En cours', tone: 'warning' },
+  resolved: { label: 'Résolue', tone: 'success' },
+  closed: { label: 'Clôturée', tone: 'neutral' },
 } as const;
 
 export default async function ReclamationDetailPage({ params }: { params: { id: string } }) {
@@ -60,31 +62,25 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
   const events = (eData ?? []) as unknown as EventRow[];
 
   const cfg = statusConfig[complaint.status];
-  const StatusIcon = cfg.icon;
   const category = (complaint.metadata?.category_label as string) ?? (complaint.metadata?.category as string) ?? 'Autre';
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="max-w-3xl mx-auto px-8 py-9">
       <Link
         href="/reclamations"
-        className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+        className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         Toutes les réclamations
       </Link>
 
-      <header className="mb-6">
-        <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-          <p className="font-mono text-[12px] text-zinc-400">{complaint.reference}</p>
-          <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${cfg.tone}`}>
-            <StatusIcon className="w-3 h-3" />
-            {cfg.label}
-          </span>
+      <header className="mb-7">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <IdPill>{complaint.reference}</IdPill>
+          <StatusPill tone={cfg.tone}>{cfg.label}</StatusPill>
         </div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-          {complaint.subject}
-        </h1>
-        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 flex-wrap">
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">{complaint.subject}</h1>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 flex items-center gap-2 flex-wrap tabular-nums">
           <span>{category}</span>
           <span className="text-zinc-300 dark:text-zinc-700">·</span>
           <span>Reçue le {new Date(complaint.created_at).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}</span>
@@ -100,7 +96,7 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
           {complaint.reporter_email && (
             <>
               <span className="text-zinc-300 dark:text-zinc-700">·</span>
-              <a href={`mailto:${complaint.reporter_email}`} className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 hover:underline">
+              <a href={`mailto:${complaint.reporter_email}`} className="inline-flex items-center gap-1 font-semibold text-orange-600 dark:text-orange-400 hover:underline">
                 <Mail className="w-3 h-3" />
                 {complaint.reporter_email}
               </a>
@@ -109,13 +105,13 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
         </p>
       </header>
 
-      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm mb-6">
-        <p className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold mb-2">Demande de l&apos;apprenant</p>
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm mb-6">
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2">Demande de l&apos;apprenant</p>
         <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">{complaint.description}</p>
       </section>
 
-      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm mb-6">
-        <p className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold mb-4">Suivi · {events.length} événement{events.length > 1 ? 's' : ''}</p>
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm mb-6">
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-4 tabular-nums">Suivi · {events.length} événement{events.length > 1 ? 's' : ''}</p>
         {events.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 italic">Aucun événement enregistré. Répondez ci-dessous pour démarrer le suivi.</p>
         ) : (
@@ -126,7 +122,7 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
               const isFromLearner = payload.from_learner === true;
               const dotColor =
                 ev.kind === 'resolution' ? 'bg-emerald-500'
-                : ev.kind === 'status_change' ? 'bg-violet-500'
+                : ev.kind === 'status_change' ? 'bg-orange-500'
                 : isFromLearner ? 'bg-rose-500'
                 : 'bg-zinc-400';
               return (
@@ -137,14 +133,14 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
                   </div>
                   <div className="flex-1 min-w-0 pb-1">
                     <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className={`text-[12px] font-medium ${isFromLearner ? 'text-rose-700 dark:text-rose-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                      <span className={`text-[13px] font-bold ${isFromLearner ? 'text-rose-700 dark:text-rose-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
                         {payload.by ?? 'Système'}
                       </span>
-                      <span className="text-[10px] text-zinc-400 tabular-nums">
+                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                         {new Date(ev.occurred_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug whitespace-pre-wrap">
+                    <p className="text-[13px] text-zinc-700 dark:text-zinc-300 mt-0.5 leading-snug whitespace-pre-wrap">
                       {payload.text ?? (payload.to ? `Statut → ${payload.to}` : ev.kind)}
                     </p>
                   </div>

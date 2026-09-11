@@ -127,12 +127,10 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm p-6">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">
       {link.status === 'idle' && (
         <div className="text-center py-6">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-950/60 dark:to-violet-950/30 flex items-center justify-center mb-4 shadow-sm">
-            <Link2 className="w-6 h-6 text-violet-600 dark:text-violet-400" />
-          </div>
+          <Link2 className="w-6 h-6 text-zinc-400 dark:text-zinc-500 mx-auto mb-3" />
           <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-5">
             Aucun lien généré pour ce dossier.
           </p>
@@ -140,7 +138,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
             type="button"
             onClick={handleGenerate}
             disabled={pending}
-            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-5 py-2.5 rounded-lg transition shadow-sm inline-flex items-center gap-2 disabled:opacity-40"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2 disabled:opacity-40"
           >
             {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             {pending ? 'Génération…' : 'Générer le lien apprenant'}
@@ -158,7 +156,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
         <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-lg">
           <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-[13px] text-red-900 dark:text-red-200 font-medium mb-1">Impossible de générer le lien</p>
+            <p className="text-[13px] text-red-900 dark:text-red-200 font-bold mb-1">Impossible de générer le lien</p>
             <p className="text-[12px] text-red-700 dark:text-red-300">{link.message}</p>
             <button
               type="button"
@@ -176,8 +174,8 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
           <div className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-lg">
             <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
             <div className="text-[12px] text-emerald-900 dark:text-emerald-200">
-              <p className="font-medium">Lien généré pour {link.learnerName}</p>
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-300/80 mt-0.5">
+              <p className="font-bold">Lien généré pour {link.learnerName}</p>
+              <p className="text-[12px] text-emerald-700 dark:text-emerald-300/80 mt-0.5 tabular-nums">
                 Expire le {new Date(link.expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
               </p>
             </div>
@@ -185,7 +183,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start">
             <div>
-              <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
+              <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2 block">
                 URL personnelle signée
               </label>
               <div className="flex items-stretch gap-2">
@@ -193,13 +191,13 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
                 type="text"
                 value={link.url}
                 readOnly
-                className="flex-1 font-mono text-[11px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-violet-300 dark:focus:border-violet-700 transition"
+                className="flex-1 h-9 font-mono text-[11px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-zinc-700 dark:text-zinc-300 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
                 onFocus={(e) => e.currentTarget.select()}
               />
               <button
                 type="button"
                 onClick={handleCopy}
-                className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[12px] font-medium px-3 py-2 rounded-lg transition inline-flex items-center gap-1.5 flex-shrink-0"
+                className="h-9 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[12px] font-semibold px-3 rounded-lg transition inline-flex items-center gap-1.5 flex-shrink-0"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Copié' : 'Copier'}
@@ -208,7 +206,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
             </div>
 
             <div className="text-center">
-              <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
+              <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2 block">
                 QR code
               </label>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -222,7 +220,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
           </div>
 
           <div className="border-t border-zinc-100 dark:border-zinc-800 pt-5">
-            <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
+            <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2 block">
               Envoyer par email
             </label>
 
@@ -234,7 +232,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
               <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-lg">
                 <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <p className="text-[12px] text-emerald-900 dark:text-emerald-200">
-                  Email envoyé à <strong>{link.learnerEmail}</strong>
+                  Email envoyé à <strong className="font-bold">{link.learnerEmail}</strong>
                 </p>
               </div>
             ) : email.status === 'error' ? (
@@ -246,13 +244,13 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
               <div className="flex items-center justify-between gap-3 p-3 bg-zinc-50/60 dark:bg-zinc-950/40 border border-zinc-200/60 dark:border-zinc-800 rounded-lg">
                 <div className="min-w-0">
                   <p className="text-[12px] text-zinc-600 dark:text-zinc-400">Destinataire</p>
-                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{link.learnerEmail}</p>
+                  <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{link.learnerEmail}</p>
                 </div>
                 <button
                   type="button"
                   onClick={handleSendEmail}
                   disabled={email.status === 'sending' || pending}
-                  className="bg-violet-600 hover:bg-violet-700 text-white text-[12px] font-medium px-3 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2 flex-shrink-0 disabled:opacity-40"
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-9 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2 flex-shrink-0 disabled:opacity-40"
                 >
                   {email.status === 'sending' ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -267,7 +265,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
 
           {link.learnerEmail && (
             <div className="border-t border-zinc-100 dark:border-zinc-800 pt-5">
-              <label className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-2 block">
+              <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2 block">
                 Dossier d'entrée
               </label>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
@@ -278,7 +276,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
                 <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-lg">
                   <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <p className="text-[12px] text-emerald-900 dark:text-emerald-200">
-                    Dossier d'entrée envoyé à <strong>{link.learnerEmail}</strong>
+                    Dossier d'entrée envoyé à <strong className="font-bold">{link.learnerEmail}</strong>
                   </p>
                 </div>
               ) : welcome.status === 'error' ? (
@@ -291,7 +289,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
                   type="button"
                   onClick={handleSendWelcomePacket}
                   disabled={welcome.status === 'sending' || pending}
-                  className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[12px] font-medium px-3 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2 disabled:opacity-40"
+                  className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-semibold px-4 h-9 rounded-lg transition shadow-sm inline-flex items-center gap-2 disabled:opacity-40"
                 >
                   {welcome.status === 'sending' ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -337,7 +335,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
                     type="button"
                     onClick={handleRevoke}
                     disabled={pending}
-                    className="bg-red-600 hover:bg-red-700 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition shadow-sm disabled:opacity-40"
+                    className="bg-red-600 hover:bg-red-700 text-white text-[12px] font-semibold px-3 h-8 rounded-lg transition shadow-sm disabled:opacity-40"
                   >
                     Révoquer
                   </button>

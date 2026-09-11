@@ -73,7 +73,7 @@ export function ContractUpload({
               href={signedUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 hover:underline ml-1"
+              className="inline-flex items-center gap-1 font-semibold text-orange-600 dark:text-orange-400 hover:underline ml-1"
             >
               <Download className="w-3.5 h-3.5" /> Télécharger
             </a>

@@ -5,8 +5,11 @@ import { Download, Clock, Eye, FileDown, AlertCircle } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 export const dynamic = 'force-dynamic';
+
+const ROW_GRID = 'grid grid-cols-[120px_minmax(0,2.2fr)_100px_120px_150px] gap-4 px-5';
 
 type AccessRow = {
   id: string;
@@ -113,28 +116,22 @@ export default async function TracabilitePage({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Hero header */}
-      <header className="bg-gradient-to-br from-violet-50 to-violet-50/60 dark:from-violet-950/40 dark:to-violet-950/20 border border-violet-200/60 dark:border-violet-900/40 rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap shadow-sm">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <span className="w-10 h-10 rounded-lg bg-white dark:bg-zinc-900 flex items-center justify-center flex-shrink-0 shadow-sm">
-            <Clock className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-          </span>
-          <div className="min-w-0">
-            <SectionLabel className="mb-1">Traçabilité des accès</SectionLabel>
-            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-0.5">
-              {error
-                ? 'Erreur lors du chargement des données.'
-                : rows.length === 0
-                  ? 'Aucun accès enregistré pour le moment.'
-                  : `${rows.length} entrée${rows.length > 1 ? 's' : ''} · preuve Qualiopi`}
-            </p>
-          </div>
+    <div className="space-y-5">
+      <header className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <SectionLabel className="mb-1">Traçabilité des accès</SectionLabel>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+            {error
+              ? 'Erreur lors du chargement des données.'
+              : rows.length === 0
+                ? 'Aucun accès enregistré pour le moment.'
+                : `${rows.length} entrée${rows.length > 1 ? 's' : ''} · preuve Qualiopi`}
+          </p>
         </div>
         {rows.length > 0 && (
           <a
             href={`/api/dossiers/${params.id}/tracabilite.csv`}
-            className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition shadow-sm inline-flex items-center gap-1.5 flex-shrink-0"
+            className="h-9 border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition inline-flex items-center gap-1.5 flex-shrink-0"
           >
             <Download className="w-3.5 h-3.5" />
             Exporter CSV
@@ -152,92 +149,50 @@ export default async function TracabilitePage({
 
       {/* Empty state */}
       {!error && rows.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 gap-4">
-          <span className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shadow-sm">
-            {/* Illustration SVG — horloge vide */}
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="text-zinc-400 dark:text-zinc-500"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 3" />
-            </svg>
-          </span>
-          <div className="text-center">
-            <p className="text-[15px] font-medium text-zinc-700 dark:text-zinc-300">
-              Aucun accès enregistré
-            </p>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-              Les consultations et téléchargements de ressources apparaîtront ici.
-            </p>
-          </div>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
+          <EmptyState
+            icon={Clock}
+            title="Aucun accès enregistré"
+            description="Les consultations et téléchargements de ressources apparaîtront ici."
+          />
         </div>
       )}
 
-      {/* Timeline */}
+      {/* Journal des accès */}
       {!error && rows.length > 0 && (
-        <div className="relative">
-          {/* Ligne verticale timeline */}
-          <div className="absolute left-[19px] top-0 bottom-0 w-px bg-zinc-200/60 dark:bg-zinc-800" />
-
-          <ul className="space-y-0">
-            {rows.map((row, i) => {
-              const isView = row.action === 'view';
-              return (
-                <li
-                  key={row.id ?? i}
-                  className="relative grid grid-cols-[40px_1fr] gap-3 py-3 group"
-                >
-                  {/* Dot timeline */}
-                  <div className="flex items-start justify-center pt-0.5">
-                    <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm z-10 ${
-                        isView
-                          ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400'
-                          : 'bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400'
-                      }`}
-                    >
-                      {isView ? (
-                        <Eye className="w-2.5 h-2.5" />
-                      ) : (
-                        <FileDown className="w-2.5 h-2.5" />
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Contenu */}
-                  <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2.5 shadow-sm group-hover:shadow-md transition min-w-0">
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div className="min-w-0 flex items-center gap-2 flex-wrap">
-                        <StatusPill tone={isView ? 'info' : 'neutral'}>
-                          {isView ? 'consulté' : 'téléchargé'}
-                        </StatusPill>
-                        <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">
-                          {targetLabel(row, resourceTitles)}
-                        </span>
-                        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
-                          {targetKindLabel(row.target_kind)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                          {actorLabel(row.actor_kind)}
-                        </span>
-                        <span className="text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">
-                          {formatDateFR(row.occurred_at)}
-                        </span>
-                      </div>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[760px]">
+            <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+              <div>Action</div>
+              <div>Ressource</div>
+              <div>Type</div>
+              <div>Acteur</div>
+              <div className="text-right">Date</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {rows.map((row, i) => {
+                const isView = row.action === 'view';
+                return (
+                  <li key={row.id ?? i} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                    <div>
+                      <StatusPill tone={isView ? 'info' : 'neutral'}>{isView ? 'consulté' : 'téléchargé'}</StatusPill>
                     </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="min-w-0 flex items-center gap-2">
+                      {isView ? (
+                        <Eye className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+                      ) : (
+                        <FileDown className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+                      )}
+                      <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{targetLabel(row, resourceTitles)}</span>
+                    </div>
+                    <div className="text-[13px] text-zinc-600 dark:text-zinc-400">{targetKindLabel(row.target_kind)}</div>
+                    <div className="text-[13px] text-zinc-600 dark:text-zinc-400">{actorLabel(row.actor_kind)}</div>
+                    <div className="text-right text-[13px] tabular-nums text-zinc-700 dark:text-zinc-300">{formatDateFR(row.occurred_at)}</div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )}
 
@@ -246,7 +201,7 @@ export default async function TracabilitePage({
         <div className="flex justify-center pt-2">
           <a
             href={`/api/dossiers/${params.id}/tracabilite.csv`}
-            className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition"
+            className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition"
           >
             <Download className="w-3.5 h-3.5" />
             Télécharger l&apos;export complet CSV

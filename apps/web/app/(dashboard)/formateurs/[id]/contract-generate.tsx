@@ -59,7 +59,7 @@ export function ContractGenerate({
           className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 px-3 py-2.5 text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
         >
           <span className="inline-flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
-            <FileText className="w-4 h-4 text-violet-500" />
+            <FileText className="w-4 h-4 text-orange-500" />
             Contrat généré — voir / envoyer en signature
           </span>
           <ArrowRight className="w-4 h-4 text-zinc-400" />
@@ -77,7 +77,7 @@ export function ContractGenerate({
           <span>
             Éléments du contrat
             {renseignes > 0 && (
-              <span className="ml-2 text-[11px] text-violet-600 dark:text-violet-400">
+              <span className="ml-2 text-[11px] font-semibold text-orange-600 dark:text-orange-400 tabular-nums">
                 {renseignes} renseigné{renseignes > 1 ? 's' : ''}
               </span>
             )}
@@ -141,7 +141,7 @@ export function ContractGenerate({
         type="button"
         onClick={generate}
         disabled={pending}
-        className="w-full inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm transition"
+        className="w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold px-4 h-10 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
       >
         {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
         {existingDocumentId ? 'Régénérer le contrat (IA)' : 'Générer le contrat (IA)'}
@@ -157,7 +157,7 @@ export function ContractGenerate({
 }
 
 const champ =
-  'w-full text-[13px] px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition';
+  'w-full text-[13px] px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-300 dark:focus:border-orange-800 transition';
 
 function Champ({ label, aide, children }: { label: string; aide?: string; children: React.ReactNode }) {
   return (

@@ -45,20 +45,20 @@ export function StandaloneGenerateButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition inline-flex items-center gap-2 shadow-sm"
+        className="border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg transition hover:bg-zinc-50 dark:hover:bg-zinc-800 inline-flex items-center gap-2"
       >
-        <Sparkles className="w-3.5 h-3.5" />
+        <Sparkles className="w-4 h-4 text-orange-500" />
         Générer avec l&apos;IA
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !loading && setOpen(false)}>
           <div
-            className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200/60 dark:border-zinc-800 p-5 space-y-3"
+            className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-zinc-200/70 dark:border-zinc-800 p-5 space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Générer un modèle avec l&apos;IA</h2>
+              <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Générer un modèle avec l&apos;IA</h2>
               <button type="button" onClick={() => !loading && setOpen(false)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
                 <X className="w-4 h-4" />
               </button>
@@ -73,7 +73,7 @@ export function StandaloneGenerateButton() {
               <select
                 value={kind}
                 onChange={(e) => setKind(e.target.value as (typeof TEMPLATE_KINDS)[number])}
-                className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+                className="flex-1 h-9 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
               >
                 {KIND_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -88,7 +88,7 @@ export function StandaloneGenerateButton() {
               onChange={(e) => setInstruction(e.target.value)}
               rows={3}
               placeholder="Consignes optionnelles (ex : ton, clauses particulières, sections à ajouter)."
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+              className="w-full bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
             />
 
             {error && <p className="text-[12px] text-red-600">{error}</p>}
@@ -101,7 +101,7 @@ export function StandaloneGenerateButton() {
                 type="button"
                 onClick={handleGenerate}
                 disabled={loading}
-                className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-2 rounded-md inline-flex items-center gap-2 shadow-sm"
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-[13px] font-semibold px-4 h-9 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
               >
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 {loading ? 'Génération…' : 'Générer le modèle'}

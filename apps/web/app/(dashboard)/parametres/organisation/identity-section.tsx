@@ -22,8 +22,8 @@ type IdentityProps = {
 };
 
 const inputCls =
-  'mt-1 w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px]';
-const labelCls = 'text-[13px] text-zinc-700 dark:text-zinc-300';
+  'mt-1.5 w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition placeholder:text-zinc-400';
+const labelCls = 'text-[12px] font-semibold text-zinc-700 dark:text-zinc-300';
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'Nom commercial',
@@ -101,10 +101,10 @@ export function IdentitySection(props: { org: IdentityProps }) {
     });
 
   return (
-    <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
+    <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
       <div className="flex items-center gap-2">
-        <Building2 className="w-3.5 h-3.5 text-violet-500" />
-        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Identité légale</h2>
+        <Building2 className="w-4 h-4 text-zinc-400" />
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Identité légale</h2>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -167,8 +167,8 @@ export function IdentitySection(props: { org: IdentityProps }) {
         </label>
       </div>
 
-      <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 space-y-3">
-        <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">TVA</p>
+      <div className="border-t border-zinc-200/70 dark:border-zinc-800 pt-4 space-y-3">
+        <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">TVA</p>
         <div className="grid grid-cols-2 gap-3">
           <label className={labelCls}>
             Régime
@@ -193,7 +193,7 @@ export function IdentitySection(props: { org: IdentityProps }) {
               value={form.defaultVatRate}
               onChange={set('defaultVatRate')}
               disabled={form.vatRegime === 'exempt'}
-              className={`${inputCls} disabled:opacity-50`}
+              className={`${inputCls} tabular-nums disabled:opacity-50`}
             />
           </label>
         </div>
@@ -210,7 +210,7 @@ export function IdentitySection(props: { org: IdentityProps }) {
         type="button"
         onClick={save}
         disabled={pending}
-        className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
+        className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-9 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition disabled:opacity-50"
       >
         {saved ? 'Enregistré' : 'Enregistrer l’identité'}
       </button>

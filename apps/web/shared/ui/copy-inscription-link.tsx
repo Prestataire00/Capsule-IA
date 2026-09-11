@@ -33,10 +33,10 @@ export function CopyInscriptionLink({
         type="button"
         onClick={handleCopy}
         title="Copier le lien public de pré-inscription"
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-medium transition shadow-sm border ${
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition shadow-sm border ${
           copied
             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/40'
-            : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200/60 dark:border-zinc-800 hover:bg-violet-50 dark:hover:bg-violet-950/40 hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-200 dark:hover:border-violet-900/60'
+            : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200/80 dark:border-zinc-800 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-700 dark:hover:text-orange-300 hover:border-orange-200 dark:hover:border-orange-900/60'
         } ${className}`}
       >
         {copied ? (
@@ -60,10 +60,10 @@ export function CopyInscriptionLink({
       onClick={handleCopy}
       title="Copier le lien de pré-inscription"
       aria-label="Copier le lien de pré-inscription"
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition border ${
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition border ${
         copied
           ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/40'
-          : 'bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm text-zinc-500 dark:text-zinc-400 border-zinc-200/60 dark:border-zinc-800 hover:text-violet-700 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40 hover:border-violet-200 dark:hover:border-violet-900/60'
+          : 'bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm text-zinc-500 dark:text-zinc-400 border-zinc-200/80 dark:border-zinc-800 hover:text-orange-700 dark:hover:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:border-orange-200 dark:hover:border-orange-900/60'
       } ${className}`}
     >
       {copied ? (

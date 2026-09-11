@@ -7,9 +7,9 @@ export function PrintButton() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-print bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-md inline-flex items-center gap-2 shadow-sm"
+      className="no-print bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
     >
-      <Printer className="w-3.5 h-3.5" />
+      <Printer className="w-4 h-4" />
       Imprimer / Enregistrer en PDF
     </button>
   );

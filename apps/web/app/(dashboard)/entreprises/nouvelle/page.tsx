@@ -8,7 +8,6 @@ import { FormSubmit } from '@/shared/ui/form-submit';
 import {
   ArrowLeft,
   Check,
-  Building2,
   Mail,
   Phone,
   MapPin,
@@ -18,6 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { createCompany } from './actions';
 
 type SireneHit = {
@@ -119,24 +119,16 @@ export default function NouvelleEntreprisePage() {
       <div className="max-w-2xl w-full mx-auto px-8 py-10">
         <Link
           href="/entreprises"
-          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+          className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition mb-4"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Retour aux entreprises
         </Link>
 
-        <header className="mb-8 flex items-center gap-3">
-          <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-950/60 dark:to-blue-950/30 text-blue-700 dark:text-blue-300 flex items-center justify-center shadow-sm">
-            <Building2 className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Nouvelle entreprise
-            </h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Recherchez par nom ou SIRET — les champs se remplissent automatiquement.
-            </p>
-          </div>
+        <header className="mb-8">
+          <SectionLabel className="mb-2">Entreprises</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouvelle entreprise</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Recherchez par nom ou SIRET — les champs se remplissent automatiquement.</p>
         </header>
 
         {errorMsg && (
@@ -147,12 +139,12 @@ export default function NouvelleEntreprisePage() {
 
         <form
           action={createCompany}
-          className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800"
+          className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80"
         >
           <section className="p-6 space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-              <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
                 Recherche INSEE
               </p>
             </div>
@@ -182,7 +174,7 @@ export default function NouvelleEntreprisePage() {
                         <button
                           type="button"
                           onMouseDown={() => handleSelect(hit)}
-                          className="w-full text-left px-3 py-2.5 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+                          className="w-full text-left px-3 py-2.5 hover:bg-orange-50 dark:hover:bg-orange-950/40 transition border-b border-zinc-100 dark:border-zinc-800 last:border-0"
                         >
                           <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
                             {hit.nom_complet}
@@ -221,7 +213,7 @@ export default function NouvelleEntreprisePage() {
           </section>
 
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Identification</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Identification</p>
             <FormField label="Nom commercial" required>
               <input
                 type="text"
@@ -261,7 +253,7 @@ export default function NouvelleEntreprisePage() {
           </section>
 
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Contact</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Contact</p>
             <FormField label="Email" required>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
@@ -302,7 +294,7 @@ export default function NouvelleEntreprisePage() {
           </section>
 
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Adresse</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Adresse</p>
             <FormField label="Adresse">
               <input
                 type="text"
@@ -341,7 +333,7 @@ export default function NouvelleEntreprisePage() {
           </section>
 
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Rattachement</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Rattachement</p>
             <FormField label="Convention collective" hint="IDCC ou intitulé.">
               <input
                 type="text"
@@ -368,7 +360,7 @@ export default function NouvelleEntreprisePage() {
             <Link href="/entreprises" className="text-[13px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition">
               Annuler
             </Link>
-            <FormSubmit label="Créer l'entreprise" pendingLabel="Création…" />
+            <FormSubmit label="Créer l'entreprise" pendingLabel="Création…" className="bg-orange-500 hover:bg-orange-600 shadow-orange-600/30" />
           </div>
         </form>
       </div>

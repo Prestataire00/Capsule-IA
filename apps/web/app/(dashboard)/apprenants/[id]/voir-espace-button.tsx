@@ -26,7 +26,7 @@ export function VoirEspaceButton({ dossierId }: { dossierId: string }) {
       type="button"
       onClick={open}
       disabled={loading}
-      className="inline-flex items-center gap-1.5 text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 disabled:opacity-50"
     >
       {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
       Voir l'espace apprenant

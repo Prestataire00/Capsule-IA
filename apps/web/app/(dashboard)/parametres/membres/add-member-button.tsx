@@ -23,7 +23,7 @@ const ERR: Record<string, string> = {
 };
 
 const inputClass =
-  'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-200/50 dark:focus:border-orange-500/60 dark:focus:ring-orange-500/20 transition';
+  'w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition placeholder:text-zinc-400';
 
 export function AddMemberButton() {
   const [open, setOpen] = useState(false);
@@ -60,9 +60,9 @@ export function AddMemberButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition shadow-sm inline-flex items-center gap-1.5"
+        className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-3.5 h-9 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-1.5"
       >
-        <UserPlus className="w-3 h-3" />
+        <UserPlus className="w-3.5 h-3.5" />
         Inviter un membre
       </button>
     );
@@ -72,12 +72,12 @@ export function AddMemberButton() {
     <div className="absolute right-0 top-9 z-50 w-80 rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg p-4">
       {created ? (
         <div className="space-y-3">
-          <p className="text-[13px] font-medium text-emerald-700 dark:text-emerald-400">Membre ajouté ✅</p>
+          <p className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Membre ajouté</p>
           <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
             Transmettez ces identifiants à <strong>{created.email}</strong> (à changer à la première connexion) :
           </p>
           <div className="rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/70 dark:border-zinc-800 px-3 py-2 flex items-center justify-between gap-2">
-            <code className="text-[12px] text-zinc-800 dark:text-zinc-200 break-all">{created.tempPassword}</code>
+            <code className="font-mono text-[12px] text-zinc-800 dark:text-zinc-200 break-all">{created.tempPassword}</code>
             <button
               type="button"
               onClick={() => {
@@ -93,24 +93,24 @@ export function AddMemberButton() {
           <button
             type="button"
             onClick={reset}
-            className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium px-3 py-2 rounded-lg"
+            className="w-full h-9 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition"
           >
             Terminé
           </button>
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Inviter un membre</p>
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Inviter un membre</p>
           <div className="space-y-1">
-            <label className="text-[11px] text-zinc-500">Nom complet</label>
+            <label className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">Nom complet</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Marie Dupont" className={inputClass} />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-zinc-500">Email</label>
+            <label className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">Email</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="marie@votre-of.fr" className={inputClass} />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-zinc-500">Rôle</label>
+            <label className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">Rôle</label>
             <select value={role} onChange={(e) => setRole(e.target.value as AddMemberRole)} className={inputClass}>
               {ADD_MEMBER_ROLES.map((r) => (
                 <option key={r} value={r}>{ROLE_LABELS[r]}</option>
@@ -123,12 +123,12 @@ export function AddMemberButton() {
               type="button"
               onClick={submit}
               disabled={pending || name.trim() === '' || email.trim() === ''}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[12px] font-medium px-3 py-2 rounded-lg transition inline-flex items-center justify-center gap-1.5"
+              className="flex-1 h-9 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold px-3 rounded-lg shadow-sm shadow-orange-600/30 transition inline-flex items-center justify-center gap-1.5"
             >
               {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Créer le membre
             </button>
-            <button type="button" onClick={reset} disabled={pending} className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 px-2">
+            <button type="button" onClick={reset} disabled={pending} className="text-[13px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 px-2">
               Annuler
             </button>
           </div>

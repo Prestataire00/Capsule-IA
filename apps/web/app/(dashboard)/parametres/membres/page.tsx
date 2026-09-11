@@ -71,23 +71,23 @@ export default async function ParametresMembresPage() {
       <section>
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-violet-500" />
-            <SectionLabel>Membres actifs ({members.length})</SectionLabel>
+            <Users className="w-3.5 h-3.5 text-zinc-400" />
+            <SectionLabel className="tabular-nums">Membres actifs ({members.length})</SectionLabel>
           </div>
           <div className="relative">{canEdit && <AddMemberButton />}</div>
         </div>
-        <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800">
+        <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
           {members.map((m) => {
             const initials = m.name.split(' ').map((s) => s[0] ?? '').slice(0, 2).join('').toUpperCase();
             return (
-              <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-3">
+              <li key={m.id} className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-950/60 dark:to-violet-950/30 text-violet-700 dark:text-violet-300 flex items-center justify-center text-[12px] font-semibold flex-shrink-0">
+                  <span className="w-9 h-9 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 ring-1 ring-inset ring-orange-200/70 dark:ring-orange-900/50 flex items-center justify-center text-[12px] font-bold flex-shrink-0">
                     {initials}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{m.name}</p>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono truncate">{m.email}</p>
+                    <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{m.name}</p>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{m.email}</p>
                   </div>
                 </div>
                 <MemberRowActions memberId={m.id} role={asMemberRole(m.role)} editable={canEdit} />
@@ -99,10 +99,10 @@ export default async function ParametresMembresPage() {
 
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <SectionLabel>Invitations en attente ({pendingInvitations.length})</SectionLabel>
+          <SectionLabel className="tabular-nums">Invitations en attente ({pendingInvitations.length})</SectionLabel>
         </div>
         {pendingInvitations.length === 0 ? (
-          <div className="bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl px-5 py-8 text-center">
+          <div className="bg-white dark:bg-zinc-900 border border-dashed border-zinc-200/80 dark:border-zinc-800 rounded-xl px-5 py-8 text-center">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
               Aucune invitation en attente.
             </p>

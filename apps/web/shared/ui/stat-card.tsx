@@ -5,15 +5,17 @@ import { ArrowUpRight } from 'lucide-react';
 
 type Accent = 'violet' | 'orange' | 'rose' | 'blue' | 'purple' | 'emerald' | 'amber' | 'zinc';
 
-const accentStyles: Record<Accent, { iconBg: string; iconText: string; ring: string }> = {
-  violet: { iconBg: 'bg-violet-100 dark:bg-violet-950/40', iconText: 'text-violet-700 dark:text-violet-400', ring: 'group-hover:border-violet-200 dark:group-hover:border-violet-900/40' },
-  orange: { iconBg: 'bg-violet-100 dark:bg-violet-950/40', iconText: 'text-violet-700 dark:text-violet-400', ring: 'group-hover:border-violet-200 dark:group-hover:border-violet-900/40' },
-  rose: { iconBg: 'bg-rose-100 dark:bg-rose-950/40', iconText: 'text-rose-600 dark:text-rose-400', ring: 'group-hover:border-rose-200 dark:group-hover:border-rose-900/40' },
-  blue: { iconBg: 'bg-blue-100 dark:bg-blue-950/40', iconText: 'text-blue-600 dark:text-blue-400', ring: 'group-hover:border-blue-200 dark:group-hover:border-blue-900/40' },
-  purple: { iconBg: 'bg-purple-100 dark:bg-purple-950/40', iconText: 'text-purple-600 dark:text-purple-400', ring: 'group-hover:border-purple-200 dark:group-hover:border-purple-900/40' },
-  emerald: { iconBg: 'bg-emerald-100 dark:bg-emerald-950/40', iconText: 'text-emerald-600 dark:text-emerald-400', ring: 'group-hover:border-emerald-200 dark:group-hover:border-emerald-900/40' },
-  amber: { iconBg: 'bg-amber-100 dark:bg-amber-950/40', iconText: 'text-amber-600 dark:text-amber-400', ring: 'group-hover:border-amber-200 dark:group-hover:border-amber-900/40' },
-  zinc: { iconBg: 'bg-zinc-100 dark:bg-zinc-800/60', iconText: 'text-zinc-600 dark:text-zinc-400', ring: 'group-hover:border-zinc-300 dark:group-hover:border-zinc-700' },
+// Charte v4 : pas de pastille d'icône colorée. L'accent ne teinte plus qu'un fin
+// liseré au survol (quand la carte est cliquable) ; l'icône reste monochrome.
+const accentRing: Record<Accent, string> = {
+  violet: 'group-hover:border-orange-200 dark:group-hover:border-orange-900/50',
+  orange: 'group-hover:border-orange-200 dark:group-hover:border-orange-900/50',
+  rose: 'group-hover:border-rose-200 dark:group-hover:border-rose-900/40',
+  blue: 'group-hover:border-blue-200 dark:group-hover:border-blue-900/40',
+  purple: 'group-hover:border-purple-200 dark:group-hover:border-purple-900/40',
+  emerald: 'group-hover:border-emerald-200 dark:group-hover:border-emerald-900/40',
+  amber: 'group-hover:border-amber-200 dark:group-hover:border-amber-900/40',
+  zinc: 'group-hover:border-zinc-300 dark:group-hover:border-zinc-700',
 };
 
 export function StatCard({
@@ -41,35 +43,31 @@ export function StatCard({
     warning: 'text-amber-600 dark:text-amber-500',
     danger: 'text-red-600 dark:text-red-500',
   };
-  const a = accentStyles[accent];
 
   const content = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        {Icon && (
-          <span className={cn('w-9 h-9 rounded-lg flex items-center justify-center', a.iconBg)}>
-            <Icon className={cn('w-4 h-4', a.iconText)} />
-          </span>
-        )}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-2 min-w-0">
+          {Icon && <Icon className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-500" />}
+          <span className="truncate">{label}</span>
+        </p>
         {href && (
-          <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition" />
+          <ArrowUpRight className="w-4 h-4 shrink-0 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-600 dark:group-hover:text-orange-300 transition" />
         )}
       </div>
-      <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mt-3">
-        {label}
-      </p>
-      <p className="text-2xl font-semibold mt-1 tabular-nums text-zinc-900 dark:text-zinc-100">
+      <p className="text-[26px] leading-none font-extrabold mt-3 tabular-nums text-zinc-900 dark:text-zinc-100">
         {value}
       </p>
       {hint && (
-        <p className={cn('text-[11px] mt-1.5', hintColors[hintTone ?? 'neutral'])}>{hint}</p>
+        <p className={cn('text-[12px] mt-2 tabular-nums', hintColors[hintTone ?? 'neutral'])}>{hint}</p>
       )}
     </>
   );
 
   const baseClass = cn(
-    'group bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md transition block',
-    a.ring,
+    'group bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm transition block',
+    href && 'hover:shadow-md',
+    href && accentRing[accent],
     className,
   );
 

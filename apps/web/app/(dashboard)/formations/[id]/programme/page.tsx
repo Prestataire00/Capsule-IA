@@ -119,11 +119,11 @@ export default async function ProgrammeEditPage({ params }: { params: { id: stri
       <div className="mb-4 flex items-center justify-between">
         <Link
           href={`/formations/${fRow.id}`}
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400"
+          className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
         >
-          <ArrowLeft className="h-4 w-4" /> Retour à la formation
+          <ArrowLeft className="h-3.5 w-3.5" /> Retour à la formation
         </Link>
-        <h1 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Programme — {fRow.title}</h1>
+        <h1 className="text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100">Programme — {fRow.title}</h1>
       </div>
       <ProgrammeEditor formationId={fRow.id} initial={initial} publicHref={publicHref} />
     </div>

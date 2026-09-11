@@ -2,9 +2,12 @@
 // Justification: page Documents org-wide — onglets dérivés du statut réel, table dense, recherche.
 
 import Link from 'next/link';
-import { FileText, Search, Eye } from 'lucide-react';
+import { FileText, Search, Eye, PenLine } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { StatusPill } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
 import { DocumentUploadButton, AttachToDossier, type DossierOption } from './document-tools';
 import { KindFilter } from './kind-filter';
 import { StandaloneGenerateButton } from './standalone-generate';
@@ -34,6 +37,10 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 const kindLabel = (kind: string) => KIND_LABELS[kind] ?? kind.replace(/_/g, ' ');
+
+const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_170px_minmax(0,1.3fr)_minmax(0,1.1fr)_120px_72px] gap-4 px-5';
+
+const dateFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 const KIND_OPTIONS = Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }));
 
@@ -115,32 +122,30 @@ export default async function DocumentsPage({
   };
   const rows = all.filter((d) => d.tab === activeTab);
 
+  const tabHref = (id: TabId) => {
+    const tabParams = new URLSearchParams({ tab: id });
+    if (q) tabParams.set('q', q);
+    if (kind) tabParams.set('kind', kind);
+    return `/documents?${tabParams.toString()}`;
+  };
+
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-8">
-      <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
+      <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Documents</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-            Conventions, attestations, certificats — générés depuis vos templates.
+          <SectionLabel className="mb-2">Documents &amp; communication</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Documents</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            Conventions, attestations, certificats — générés depuis vos templates.{' '}
+            <span className="tabular-nums">
+              {all.length} document{all.length > 1 ? 's' : ''} · {counts['a-signer']} à signer
+            </span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <form action="/documents" method="get" className="relative">
-            <input type="hidden" name="tab" value={activeTab} />
-            {kind && <input type="hidden" name="kind" value={kind} />}
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-            <input
-              type="search"
-              name="q"
-              defaultValue={q}
-              placeholder="Rechercher un document…"
-              className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-[13px] w-72 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
-            />
-          </form>
-          <KindFilter options={KIND_OPTIONS} value={kind} />
+        <div className="flex items-center gap-2 flex-wrap">
           <Link
             href="/dossiers"
-            className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-medium px-4 py-2 rounded-lg transition hover:bg-zinc-50 dark:hover:bg-zinc-900 inline-flex items-center gap-2"
+            className="border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg transition hover:bg-zinc-50 dark:hover:bg-zinc-800 inline-flex items-center gap-2"
           >
             Générer depuis un dossier
           </Link>
@@ -149,133 +154,130 @@ export default async function DocumentsPage({
         </div>
       </header>
 
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-5 pt-3 border-b border-zinc-200/60 dark:border-zinc-800">
-          <ul className="flex items-center gap-1 overflow-x-auto">
-            {TABS.map((t) => {
-              const active = t.id === activeTab;
-              const tabParams = new URLSearchParams({ tab: t.id });
-              if (q) tabParams.set('q', q);
-              if (kind) tabParams.set('kind', kind);
-              return (
-                <li key={t.id}>
-                  <Link
-                    href={`/documents?${tabParams.toString()}`}
-                    className={
-                      active
-                        ? 'text-[13px] font-medium text-violet-700 dark:text-violet-400 border-b-2 border-violet-600 px-3 py-2 -mb-px transition whitespace-nowrap inline-block'
-                        : 'text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2 transition whitespace-nowrap inline-block'
-                    }
-                  >
-                    {t.label}
-                    <span
-                      className={
-                        active
-                          ? 'ml-1.5 text-[11px] bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 px-1.5 py-0.5 rounded'
-                          : 'ml-1.5 text-[11px] text-zinc-400'
-                      }
-                    >
-                      {counts[t.id]}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
+        <form action="/documents" method="get" className="relative">
+          <input type="hidden" name="tab" value={activeTab} />
+          {kind && <input type="hidden" name="kind" value={kind} />}
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Rechercher un document…"
+            className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg pl-9 pr-3 text-[13px] w-72 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
+          />
+        </form>
+        <KindFilter options={KIND_OPTIONS} value={kind} />
+        <nav aria-label="Onglets" className="ml-auto inline-flex p-0.5 rounded-lg bg-zinc-200/60 dark:bg-zinc-800/70 text-[12px]">
+          {TABS.map((t) => {
+            const active = t.id === activeTab;
+            return (
+              <Link
+                key={t.id}
+                href={tabHref(t.id)}
+                aria-current={active ? 'page' : undefined}
+                className={
+                  active
+                    ? 'px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-bold shadow-sm tabular-nums whitespace-nowrap'
+                    : 'px-3 py-1.5 rounded-md text-zinc-500 dark:text-zinc-400 font-medium hover:text-zinc-900 dark:hover:text-zinc-100 tabular-nums whitespace-nowrap'
+                }
+              >
+                {t.label} {counts[t.id]}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
 
-        <div className="grid grid-cols-[28px_1.5fr_140px_1.2fr_140px_120px_100px] gap-3 px-5 py-2.5 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
-          <div />
-          <div>Document</div>
-          <div>Dossier</div>
-          <div>Apprenant</div>
-          <div>Type</div>
-          <div>Statut</div>
-          <div>Action</div>
-        </div>
-
-        {rows.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-[14px] text-zinc-700 dark:text-zinc-300">
-              {q || kind ? 'Aucun document ne correspond à ces filtres.' : 'Aucun document dans cet onglet.'}
-            </p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
-              Les documents sont générés depuis l&apos;onglet Documents d&apos;un dossier.
-            </p>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+        <div className="min-w-[920px]">
+          <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+            <div>Document</div>
+            <div>Dossier</div>
+            <div>Apprenant</div>
+            <div>Type</div>
+            <div>Statut</div>
+            <div className="text-right">Actions</div>
           </div>
-        ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {rows.map((d) => {
-              const href = `/documents/${d.id}/apercu`;
-              const statusPill =
-                activeTab === 'archives'
-                  ? { label: 'Archivé', cls: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400' }
-                  : activeTab === 'a-signer'
-                    ? { label: 'À signer', cls: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400' }
-                    : d.status === 'ready'
-                      ? { label: 'Généré', cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' }
-                      : d.status === 'failed'
-                        ? { label: 'Échec', cls: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400' }
-                        : { label: 'En cours', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' };
-              const action = activeTab === 'a-signer' ? 'Signer' : 'Voir';
-              const rowGrid =
-                'grid grid-cols-[28px_1.5fr_140px_1.2fr_140px_120px_100px] gap-3 px-5 py-3 items-center text-[13px]';
 
-              // Document sans dossier : ligne non-lien avec rattachement + téléchargement.
-              if (!d.dossier) {
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title={q || kind ? 'Aucun document ne correspond à ces filtres.' : 'Aucun document dans cet onglet.'}
+              description="Les documents sont générés depuis l'onglet Documents d'un dossier."
+            />
+          ) : (
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {rows.map((d) => {
+                const href = `/documents/${d.id}/apercu`;
+                const statusPill: { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info' } =
+                  activeTab === 'archives'
+                    ? { label: 'Archivé', tone: 'neutral' }
+                    : activeTab === 'a-signer'
+                      ? { label: 'À signer', tone: 'warning' }
+                      : d.status === 'ready'
+                        ? { label: 'Généré', tone: 'success' }
+                        : d.status === 'failed'
+                          ? { label: 'Échec', tone: 'danger' }
+                          : { label: 'En cours', tone: 'info' };
+                const action = activeTab === 'a-signer' && d.dossier ? 'Signer' : 'Voir';
+                const ActionIcon = action === 'Signer' ? PenLine : Eye;
+
                 return (
-                  <li key={d.id} className={`${rowGrid} hover:bg-zinc-50 dark:hover:bg-zinc-950 transition`}>
-                    <span className="w-7 h-7 rounded-md bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-3.5 h-3.5" />
+                  <li key={d.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                    <div className="min-w-0">
+                      {d.dossier ? (
+                        <Link href={href} className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                          {d.title}
+                        </Link>
+                      ) : (
+                        <span className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
+                      )}
+                      {d.created_at && (
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums mt-0.5">
+                          {dateFmt.format(new Date(d.created_at))}
+                        </p>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      {d.dossier ? (
+                        <IdPill>{d.dossier.reference}</IdPill>
+                      ) : (
+                        // Document sans dossier : rattachement direct depuis la ligne.
+                        <AttachToDossier documentId={d.id} dossiers={dossiers} />
+                      )}
+                    </div>
+                    <span className={`truncate ${d.dossier ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400'}`}>
+                      {d.dossier ? learnerName(d.dossier.learner ?? null) : '—'}
                     </span>
-                    <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.title}</span>
-                    <AttachToDossier documentId={d.id} dossiers={dossiers} />
-                    <span className="text-zinc-400">—</span>
                     <span className="text-zinc-500 dark:text-zinc-400 truncate">{kindLabel(d.kind)}</span>
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusPill.cls}`}>
-                      {statusPill.label}
-                    </span>
-                    <Link
-                      href={`/documents/${d.id}/apercu`}
-                      className="text-[12px] font-medium text-orange-600 hover:text-orange-700 transition text-right inline-flex items-center gap-1 justify-end"
-                    >
-                      Voir <Eye className="w-3 h-3" />
-                    </Link>
+                    <div>
+                      <StatusPill tone={statusPill.tone}>{statusPill.label}</StatusPill>
+                    </div>
+                    <div className="flex items-center justify-end">
+                      <Link
+                        href={href}
+                        aria-label={`${action} — ${d.title}`}
+                        title={action}
+                        className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                      >
+                        <ActionIcon className="w-4 h-4" />
+                      </Link>
+                    </div>
                   </li>
                 );
-              }
+              })}
+            </ul>
+          )}
 
-              return (
-                <li key={d.id}>
-                  <Link href={href} className={`${rowGrid} hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group`}>
-                    <span className="w-7 h-7 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.title}</span>
-                    <IdPill className="!text-[10px]">{d.dossier.reference}</IdPill>
-                    <span className="text-zinc-700 dark:text-zinc-300 truncate">{learnerName(d.dossier?.learner ?? null)}</span>
-                    <span className="text-zinc-500 dark:text-zinc-400 truncate">{kindLabel(d.kind)}</span>
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center w-fit ${statusPill.cls}`}>
-                      {statusPill.label}
-                    </span>
-                    <span className="text-[12px] font-medium text-violet-600 dark:text-violet-400 group-hover:text-violet-700 dark:group-hover:text-violet-300 transition text-right inline-flex items-center gap-1 justify-end group-hover:underline">
-                      {action}
-                      {action === 'Voir' && <Eye className="w-3 h-3" />}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        <div className="px-5 py-3 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between text-[12px] text-zinc-500">
-          <span>
-            {all.length} document{all.length > 1 ? 's' : ''} au total
-          </span>
-          <Link href="/dossiers" className="text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition">
-            Voir par dossier →
-          </Link>
+          <div className="px-5 py-3 border-t border-zinc-200/70 dark:border-zinc-800 flex items-center justify-between text-[12px] text-zinc-500 dark:text-zinc-400">
+            <span className="tabular-nums">
+              {all.length} document{all.length > 1 ? 's' : ''} au total
+            </span>
+            <Link href="/dossiers" className="font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition">
+              Voir par dossier →
+            </Link>
+          </div>
         </div>
       </div>
     </div>

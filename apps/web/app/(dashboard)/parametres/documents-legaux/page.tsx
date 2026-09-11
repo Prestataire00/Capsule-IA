@@ -29,7 +29,7 @@ export default async function DocumentsLegauxPage() {
     <div className="space-y-8">
       <header>
         <SectionLabel>Documents juridiques (assistés par IA)</SectionLabel>
-        <p className="text-[12px] text-zinc-500 mt-1">
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
           Génération à partir des sources officielles (Légifrance) —{' '}
           <strong>aide à la rédaction, pas un conseil juridique</strong> : relisez et validez avant usage.
         </p>
@@ -39,10 +39,10 @@ export default async function DocumentsLegauxPage() {
         const d = byKind.get(kind);
         const sources = (d?.sources_used as Array<{ ref: string }> | undefined) ?? [];
         return (
-          <section key={kind} className="rounded-lg border border-zinc-200/60 dark:border-zinc-800 p-4 space-y-3">
+          <section key={kind} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200/70 dark:border-zinc-800 shadow-sm p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium text-[14px]">{label}</h3>
-              <span className="text-[11px] text-zinc-500">
+              <h3 className="font-bold text-[15px] text-zinc-900 dark:text-zinc-100">{label}</h3>
+              <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                 {d
                   ? d.status === 'validated'
                     ? `Validé le ${new Date(d.validated_at).toLocaleDateString('fr-FR')}`
@@ -53,18 +53,18 @@ export default async function DocumentsLegauxPage() {
 
             <div className="flex flex-wrap gap-2">
               <form action={async () => { 'use server'; await generateLegalDocDraft(orgId, kind); }}>
-                <button type="submit" className="border border-zinc-200/60 dark:border-zinc-800 text-[12px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
+                <button type="submit" className="h-8 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition">
                   {d ? 'Régénérer (IA)' : 'Générer (IA)'}
                 </button>
               </form>
               {d?.status === 'draft' && (
                 <form action={async () => { 'use server'; await validateLegalDoc(orgId, kind); }}>
-                  <button type="submit" className="bg-orange-500 text-white text-[12px] px-3 py-1.5 rounded-md hover:bg-orange-600 transition">
+                  <button type="submit" className="h-8 bg-orange-500 text-white text-[12px] font-semibold px-3 rounded-lg shadow-sm shadow-orange-600/30 hover:bg-orange-600 transition">
                     Valider
                   </button>
                 </form>
               )}
-              {d?.pdf_storage_path && <span className="text-[11px] text-emerald-600 self-center">PDF généré</span>}
+              {d?.pdf_storage_path && <span className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400 self-center">PDF généré</span>}
             </div>
 
             {d?.content_md && (
@@ -79,16 +79,16 @@ export default async function DocumentsLegauxPage() {
                   name="content"
                   defaultValue={d.content_md}
                   rows={10}
-                  className="w-full text-[12px] font-mono border border-zinc-200/60 dark:border-zinc-800 rounded p-2 bg-transparent"
+                  className="w-full text-[13px] leading-relaxed border border-zinc-200/80 dark:border-zinc-800 rounded-lg p-3 bg-white dark:bg-zinc-950/40 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition"
                 />
-                <button type="submit" className="border border-zinc-200/60 dark:border-zinc-800 text-[12px] px-3 py-1 rounded-md">
+                <button type="submit" className="h-8 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition">
                   Enregistrer les modifications
                 </button>
               </form>
             )}
 
             {sources.length > 0 && (
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Sources citées : {sources.map((s) => s.ref).join(', ')}
                 {d?.generated_model ? ` · ${d.generated_model}` : ''}
               </p>

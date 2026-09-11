@@ -44,20 +44,20 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
           <Link
             key={href}
             href={`/dossiers/${id}/${href}`}
-            className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-4 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+            className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4 hover:border-orange-200 hover:shadow-md dark:hover:border-orange-900/60 transition"
           >
-            <div className="flex items-center gap-2 mb-1">
-              <Icon className="w-3.5 h-3.5 text-zinc-400" />
-              <p className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</p>
+            <div className="flex items-center gap-2">
+              <Icon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{label}</p>
             </div>
-            <p className="text-[22px] font-medium">{value}</p>
+            <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}</p>
           </Link>
         ))}
       </div>
       <BpfFieldsEditor dossierId={id} initialActionType={actionType} initialTraineeCategory={traineeCategory} />
       <TagsEditor dossierId={id} initialTags={tags} />
 
-      <p className="text-[12px] text-zinc-500">
+      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
         Utilisez les onglets ci-dessus pour gérer sessions, émargements, heures, Qualiopi, financeurs et documents.
       </p>
     </div>

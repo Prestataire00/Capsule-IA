@@ -2,8 +2,9 @@
 // Justification: création d'un apprenant — formulaire focalisé, pas de sidebar.
 
 import Link from 'next/link';
-import { ArrowLeft, User, Mail, Phone, Building2, Accessibility } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Building2, Accessibility } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { createLearner } from './actions';
 import { SubmitButton } from './submit-button';
@@ -33,26 +34,18 @@ export default async function NouvelApprenantPage({ searchParams }: { searchPara
       <div className="max-w-2xl w-full mx-auto px-8 py-10">
         <Link
           href="/apprenants"
-          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+          className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition mb-4"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Retour aux apprenants
         </Link>
 
         <header className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-950/60 dark:to-rose-950/30 text-rose-700 dark:text-rose-300 flex items-center justify-center shadow-sm">
-              <User className="w-5 h-5" />
-            </span>
-            <div>
-              <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                Nouvel apprenant
-              </h1>
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Ajoutez un apprenant à votre carnet pour pouvoir l'inscrire à un dossier.
-              </p>
-            </div>
-          </div>
+          <SectionLabel className="mb-2">Apprenants</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouvel apprenant</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            Ajoutez un apprenant à votre carnet pour pouvoir l'inscrire à un dossier.
+          </p>
         </header>
 
         {errorMsg && (
@@ -61,10 +54,10 @@ export default async function NouvelApprenantPage({ searchParams }: { searchPara
           </div>
         )}
 
-        <form action={createLearner} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
+        <form action={createLearner} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
           {/* Identité */}
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Identité</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Identité</p>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Prénom" required>
                 <input type="text" name="firstName" required placeholder="Alice" className={inputClass} />
@@ -100,7 +93,7 @@ export default async function NouvelApprenantPage({ searchParams }: { searchPara
 
           {/* Contexte pro */}
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Contexte professionnel</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Contexte professionnel</p>
             <FormField label="Entreprise" hint="Laissez vide si l'apprenant est indépendant ou en autofinancement.">
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
@@ -129,9 +122,9 @@ export default async function NouvelApprenantPage({ searchParams }: { searchPara
 
           {/* Accessibilité */}
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Accessibilité</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Accessibilité</p>
             <label className="flex items-start gap-3 cursor-pointer p-3 -mx-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition">
-              <input type="checkbox" name="rqth" className="mt-0.5 accent-violet-600" />
+              <input type="checkbox" name="rqth" className="mt-0.5 accent-orange-500" />
               <div>
                 <span className="text-[13px] text-zinc-900 dark:text-zinc-100 font-medium inline-flex items-center gap-1.5">
                   <Accessibility className="w-3.5 h-3.5 text-blue-500" />

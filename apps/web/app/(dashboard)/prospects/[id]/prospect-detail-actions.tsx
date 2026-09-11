@@ -131,11 +131,11 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 flex-wrap">
-          <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">
             {doc.label}
             {doc.required && <span className="text-red-500" title="Pièce obligatoire"> *</span>}
           </p>
-          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${v.badge}`}>{v.label}</span>
+          <span className={`text-[12px] font-semibold h-6 inline-flex items-center px-2.5 rounded-full whitespace-nowrap ${v.badge}`}>{v.label}</span>
         </div>
 
         {state === 'rejected' && doc.rejectedReason && (
@@ -149,7 +149,7 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
               href={doc.downloadHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[12px] font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"
+              className="text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 inline-flex items-center gap-1"
             >
               <Download className="w-3.5 h-3.5" /> Voir la pièce
             </a>
@@ -198,7 +198,7 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Motif du refus…"
-              className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-[12px] w-64"
+              className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-700 rounded-lg px-2.5 text-[12px] w-64 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
             />
             <button type="button" onClick={doReject} disabled={busy} className="text-[12px] font-medium text-red-600 hover:text-red-700">
               Confirmer le refus
@@ -305,7 +305,7 @@ export function ProspectDetailActions({
             onClick={doValidate}
             disabled={!canValidate || validate.isExecuting}
             title={canValidate ? '' : 'Vérifiez toutes les pièces requises d’abord'}
-            className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-2 rounded-lg"
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-[13px] font-semibold px-4 h-10 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
           >
             {validate.isExecuting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
             Valider la demande
@@ -314,7 +314,7 @@ export function ProspectDetailActions({
             <button
               type="button"
               onClick={() => setRejecting(true)}
-              className="inline-flex items-center gap-2 text-[13px] text-red-600 hover:text-red-700 px-3 py-2"
+              className="inline-flex items-center gap-2 text-[13px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400 px-3 h-10 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition"
             >
               <Ban className="w-4 h-4" /> Refuser
             </button>
@@ -324,7 +324,7 @@ export function ProspectDetailActions({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Motif du refus…"
-                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded px-2 py-1.5 text-[12px] w-64"
+                className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-2.5 text-[12px] w-64 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
               />
               <button type="button" onClick={doRejectDemande} disabled={rejectDemande.isExecuting} className="text-[12px] text-red-600 hover:text-red-700">
                 Confirmer

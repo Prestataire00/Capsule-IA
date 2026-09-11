@@ -2,11 +2,15 @@
 // Justification: recherche transversale unifiée (entreprises, apprenants, dossiers) — F-CRM-09.
 
 import Link from 'next/link';
-import { Search } from 'lucide-react';
+import { Search, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 
 type SearchParams = { q?: string };
+
+const LIST = 'bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden divide-y divide-zinc-100 dark:divide-zinc-800/80';
+const GROUP_TITLE = 'text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2 tabular-nums';
 
 export default async function RecherchePage({ searchParams }: { searchParams: SearchParams }) {
   const q = (searchParams.q ?? '').trim();
@@ -37,10 +41,16 @@ export default async function RecherchePage({ searchParams }: { searchParams: Se
   const total = companies.length + learners.length + dossiers.length;
 
   return (
-    <div className="max-w-3xl w-full mx-auto px-8 py-10 space-y-6">
+    <div className="max-w-3xl w-full mx-auto px-8 py-9 space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Recherche</h1>
-        <form action="/recherche" method="get" className="relative mt-4">
+        <SectionLabel className="mb-2">Pilotage</SectionLabel>
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Recherche</h1>
+        {q.length >= 2 && (
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+            {total} résultat{total > 1 ? 's' : ''} pour « {q} »
+          </p>
+        )}
+        <form action="/recherche" method="get" className="relative mt-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
           <input
             type="search"
@@ -48,25 +58,25 @@ export default async function RecherchePage({ searchParams }: { searchParams: Se
             defaultValue={q}
             autoFocus
             placeholder="Entreprise, apprenant, référence de dossier…"
-            className="w-full bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md pl-9 pr-3 py-2.5 text-[14px] focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700 placeholder:text-zinc-400"
+            className="w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg pl-9 pr-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
           />
         </form>
       </header>
 
       {q.length < 2 ? (
-        <p className="text-[13px] text-zinc-500">Saisissez au moins 2 caractères.</p>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Saisissez au moins 2 caractères.</p>
       ) : total === 0 ? (
-        <p className="text-[13px] text-zinc-500">Aucun résultat pour « {q} ».</p>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun résultat pour « {q} ».</p>
       ) : (
         <div className="space-y-6">
           {companies.length > 0 && (
             <section>
-              <SectionLabel className="mb-2">Entreprises ({companies.length})</SectionLabel>
-              <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+              <h2 className={GROUP_TITLE}>Entreprises ({companies.length})</h2>
+              <ul className={LIST}>
                 {companies.map((c) => (
-                  <li key={c.id} className="py-2.5 px-1 text-[13px] flex items-center justify-between">
-                    <span>{c.name}</span>
-                    {c.siret && <span className="font-mono text-[11px] text-zinc-400">{c.siret}</span>}
+                  <li key={c.id} className="px-5 py-3.5 text-[13px] flex items-center justify-between gap-4">
+                    <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.name}</span>
+                    {c.siret && <span className="font-mono text-[12px] text-zinc-500 dark:text-zinc-400">{c.siret}</span>}
                   </li>
                 ))}
               </ul>
@@ -75,12 +85,14 @@ export default async function RecherchePage({ searchParams }: { searchParams: Se
 
           {learners.length > 0 && (
             <section>
-              <SectionLabel className="mb-2">Apprenants ({learners.length})</SectionLabel>
-              <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+              <h2 className={GROUP_TITLE}>Apprenants ({learners.length})</h2>
+              <ul className={LIST}>
                 {learners.map((l) => (
-                  <li key={l.id} className="py-2.5 px-1 text-[13px] flex items-center justify-between">
-                    <span>{[l.first_name, l.last_name].filter(Boolean).join(' ')}</span>
-                    <span className="text-[11px] text-zinc-400">{l.email}</span>
+                  <li key={l.id} className="px-5 py-3.5 text-[13px] flex items-center justify-between gap-4">
+                    <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                      {[l.first_name, l.last_name].filter(Boolean).join(' ')}
+                    </span>
+                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{l.email}</span>
                   </li>
                 ))}
               </ul>
@@ -89,13 +101,24 @@ export default async function RecherchePage({ searchParams }: { searchParams: Se
 
           {dossiers.length > 0 && (
             <section>
-              <SectionLabel className="mb-2">Dossiers ({dossiers.length})</SectionLabel>
-              <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+              <h2 className={GROUP_TITLE}>Dossiers ({dossiers.length})</h2>
+              <ul className={LIST}>
                 {dossiers.map((d) => (
-                  <li key={d.id} className="py-2.5 px-1 text-[13px]">
-                    <Link href={`/dossiers/${d.id}`} className="flex items-center justify-between hover:underline">
-                      <span className="font-mono">{d.reference}</span>
-                      <span className="text-[11px] text-zinc-400">{d.status}</span>
+                  <li key={d.id}>
+                    <Link
+                      href={`/dossiers/${d.id}`}
+                      className="px-5 py-3.5 text-[13px] flex items-center gap-4 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group"
+                    >
+                      <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 truncate">{d.reference}</span>
+                      <span className="ml-auto">
+                        <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 group-hover:bg-orange-50 group-hover:text-orange-600 dark:group-hover:bg-orange-950/40 dark:group-hover:text-orange-300 transition"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </span>
                     </Link>
                   </li>
                 ))}

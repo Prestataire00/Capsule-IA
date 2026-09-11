@@ -29,7 +29,7 @@ export function QuestionnaireSessionForm({
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 space-y-4 max-w-xl">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4 max-w-xl">
       <FormField label="Assigner un questionnaire à tous les apprenants de la session">
         <select className={inputClass} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
           <option value="">— Choisir un modèle —</option>

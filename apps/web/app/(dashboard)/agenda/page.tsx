@@ -86,18 +86,22 @@ function packLanes(evts: Timed[]): Positioned[] {
 /** Une ligne d'événement dans la vue Liste (heure + titre + lieu + Meet). */
 function AgendaListRow({ e, timeText }: { e: CalEvent; timeText: string }) {
   const inner = (
-    <div className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950/40 transition">
-      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: e.bgColor ?? DEFAULT_BG }} />
-      <span className=" text-[12px] text-zinc-500 dark:text-zinc-400 w-[92px] flex-shrink-0 tabular-nums">
+    <div className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
+      <span className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0" style={{ backgroundColor: e.bgColor ?? DEFAULT_BG }} />
+      <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 w-[92px] flex-shrink-0 tabular-nums">
         {timeText}
       </span>
-      <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate flex-1">{e.title || '(sans titre)'}</span>
+      <span className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 truncate flex-1">{e.title || '(sans titre)'}</span>
       {e.location && (
-        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate hidden sm:inline max-w-[200px]">
+        <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate hidden sm:inline max-w-[200px]">
           {e.location}
         </span>
       )}
-      {e.hangoutLink && <Video className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+      {e.hangoutLink && (
+        <span className="h-6 w-6 rounded-md grid place-items-center flex-shrink-0 bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
+          <Video className="w-3.5 h-3.5" />
+        </span>
+      )}
     </div>
   );
   return e.htmlLink ? (
@@ -133,9 +137,9 @@ export default async function AgendaPage({
 
   const header = (
     <div>
-      <SectionLabel className="mb-1">Mon espace</SectionLabel>
-      <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Agenda</h1>
-      <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+      <SectionLabel className="mb-2">Mon espace</SectionLabel>
+      <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Agenda</h1>
+      <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
         {accountEmail ? `Synchronisé avec votre Google Agenda — ${accountEmail}` : 'Vos événements Google Agenda, synchronisés dans Capsule IA.'}
       </p>
     </div>
@@ -146,15 +150,15 @@ export default async function AgendaPage({
       <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
         <AgendaTabs />
         {header}
-        <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-2xl px-6 py-10 text-center bg-zinc-50/40 dark:bg-zinc-950/40">
-          <CalendarDays className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-          <p className="text-[15px] font-medium text-zinc-800 dark:text-zinc-200">Aucun agenda connecté</p>
+        <div className="border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-6 py-10 text-center bg-white dark:bg-zinc-900">
+          <CalendarDays className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Aucun agenda connecté</p>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
             Connectez votre compte Google pour voir vos événements ici et créer automatiquement les liens Meet de vos sessions.
           </p>
           <Link
             href="/parametres/integrations/google-calendar"
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 shadow-sm transition"
+            className="mt-5 inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
           >
             <Plug className="w-4 h-4" /> Connecter Google Agenda
           </Link>
@@ -189,18 +193,18 @@ export default async function AgendaPage({
 
   const monthLabel = `${MONTHS[monday.getUTCMonth()]} ${monday.getUTCFullYear()}`;
   const nav = (
-    <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/60 dark:border-zinc-800">
+    <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800">
       <div className="flex items-center gap-3">
         <Link href={`/agenda?week=${weekOffset - 1}`} aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
           <ChevronLeft className="w-4 h-4" />
         </Link>
-        <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 capitalize">{monthLabel}</p>
+        <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 capitalize tabular-nums">{monthLabel}</p>
         <Link href={`/agenda?week=${weekOffset + 1}`} aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
           <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
       {weekOffset !== 0 && (
-        <Link href="/agenda" className="text-[12px] text-violet-600 dark:text-violet-400 hover:underline transition">
+        <Link href="/agenda" className="text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition">
           Cette semaine
         </Link>
       )}
@@ -212,10 +216,10 @@ export default async function AgendaPage({
       <div className="max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
         <AgendaTabs />
         {header}
-        <div className="border border-amber-200/70 dark:border-amber-900/50 rounded-2xl px-6 py-8 text-center bg-amber-50/60 dark:bg-amber-950/30">
-          <p className="text-[14px] font-medium text-amber-800 dark:text-amber-200">Agenda momentanément indisponible</p>
+        <div className="border border-amber-200/70 dark:border-amber-900/50 rounded-xl px-6 py-8 text-center bg-amber-50/60 dark:bg-amber-950/30">
+          <p className="text-[14px] font-bold text-amber-800 dark:text-amber-200">Agenda momentanément indisponible</p>
           <p className="text-[13px] text-amber-700/80 dark:text-amber-300/70 mt-1">Impossible de récupérer vos événements. L'accès a peut-être été révoqué côté Google.</p>
-          <Link href="/parametres/integrations/google-calendar" className="mt-3 inline-flex items-center gap-2 text-[13px] font-medium text-amber-800 dark:text-amber-200 hover:underline">
+          <Link href="/parametres/integrations/google-calendar" className="mt-3 inline-flex items-center gap-2 text-[13px] font-semibold text-amber-800 dark:text-amber-200 hover:underline">
             <Plug className="w-4 h-4" /> Reconnecter
           </Link>
         </div>
@@ -259,18 +263,19 @@ export default async function AgendaPage({
       <div className="flex items-end justify-between gap-4 flex-wrap">
         {header}
         <div className="flex items-center gap-3">
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 tabular-nums">
             {eventCount} événement{eventCount > 1 ? 's' : ''} cette semaine
           </p>
-          <div className="inline-flex items-center gap-0.5 bg-zinc-100 dark:bg-zinc-900 rounded-lg p-0.5">
+          <div className="inline-flex items-center p-0.5 rounded-lg bg-zinc-200/60 dark:bg-zinc-800/70">
             {(['liste', 'semaine'] as const).map((v) => (
               <Link
                 key={v}
                 href={`/agenda?week=${weekOffset}&view=${v}`}
-                className={`px-3 py-1 rounded-md text-[12px] font-medium capitalize transition ${
+                aria-current={view === v ? 'page' : undefined}
+                className={`px-3 py-1.5 rounded-md text-[12px] capitalize transition ${
                   view === v
-                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+                    ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-bold shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 font-medium hover:text-zinc-900 dark:hover:text-zinc-100'
                 }`}
               >
                 {v}
@@ -281,9 +286,9 @@ export default async function AgendaPage({
       </div>
 
       {view === 'liste' && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
           {nav}
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {days.map((d, i) => {
               const allDay = allDayByDay.get(d.key) ?? [];
               const timed = [...(timedByDay.get(d.key) ?? [])].sort((a, b) => a.startHour - b.startHour);
@@ -291,18 +296,18 @@ export default async function AgendaPage({
               return (
                 <div
                   key={d.key}
-                  className={`px-4 sm:px-5 py-3 ${d.isToday ? 'bg-orange-50/40 dark:bg-orange-950/10' : ''}`}
+                  className={`px-4 sm:px-5 py-3.5 ${d.isToday ? 'bg-orange-50/40 dark:bg-orange-950/10' : ''}`}
                 >
                   <div className="flex items-baseline gap-2 mb-1.5">
                     <span
-                      className={`text-[13px] font-semibold ${
+                      className={`text-[13px] font-bold tabular-nums ${
                         d.isToday ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'
                       }`}
                     >
                       {FULL_DAY_LABELS[i]} {d.dayNum}
                     </span>
                     {total > 0 && (
-                      <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                         · {total} évt
                       </span>
                     )}
@@ -331,28 +336,28 @@ export default async function AgendaPage({
       )}
 
       {view === 'semaine' && (
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         {nav}
 
         {/* En-tête des jours */}
-        <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
-          <div className="border-r border-zinc-200/60 dark:border-zinc-800" />
+        <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+          <div className="border-r border-zinc-200/70 dark:border-zinc-800" />
           {days.map((d) => (
-            <div key={d.key} className="px-2 py-2 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800">
-              <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
-              <p className={`text-[15px] mt-0.5 tabular-nums ${d.isToday ? 'font-semibold text-orange-600 dark:text-orange-400' : 'font-medium text-zinc-900 dark:text-zinc-100'}`}>{d.dayNum}</p>
+            <div key={d.key} className="px-2 py-2 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800">
+              <p className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
+              <p className={`text-[17px] font-extrabold mt-0.5 tabular-nums ${d.isToday ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'}`}>{d.dayNum}</p>
             </div>
           ))}
         </div>
 
         {/* Bandeau journée entière */}
         {days.some((d) => (allDayByDay.get(d.key)?.length ?? 0) > 0) && (
-          <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/30">
-            <div className="border-r border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center">
+          <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/30">
+            <div className="border-r border-zinc-200/70 dark:border-zinc-800 flex items-center justify-center">
               <span className="text-[9px] uppercase tracking-wider text-zinc-400">jour</span>
             </div>
             {days.map((d) => (
-              <div key={d.key} className="p-1 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800 space-y-1 min-h-[28px]">
+              <div key={d.key} className="p-1 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800 space-y-1 min-h-[28px]">
                 {(allDayByDay.get(d.key) ?? []).map((e) => (
                   <div
                     key={e.id}
@@ -397,9 +402,9 @@ export default async function AgendaPage({
                   const leftPct = e.lane * widthPct;
                   const content = (
                     <>
-                      <p className="text-[11px] font-medium leading-tight truncate">{e.title}</p>
+                      <p className="text-[11px] font-bold leading-tight truncate">{e.title}</p>
                       {height > 30 && (
-                        <p className="text-[10px] opacity-80 truncate leading-tight inline-flex items-center gap-1">
+                        <p className="text-[10px] opacity-80 truncate leading-tight inline-flex items-center gap-1 tabular-nums">
                           {e.hangoutLink && <Video className="w-2.5 h-2.5" />}
                           {e.timeLabel}
                         </p>
@@ -440,7 +445,7 @@ export default async function AgendaPage({
       )}
 
       {eventCount === 0 && (
-        <p className="text-[13px] text-zinc-400 dark:text-zinc-500 text-center">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 text-center">
           Aucun événement cette semaine. Si votre agenda en contient, déconnectez puis reconnectez Google Agenda pour autoriser la lecture de tous vos agendas.
         </p>
       )}

@@ -1,11 +1,12 @@
 // ARCHETYPE: command
-// Justification: carnet formateurs en données réelles — KPIs + grille de cards, lien vers la fiche.
+// Justification: carnet formateurs en données réelles — chiffres clés + une ligne par formateur, lien vers la fiche.
 
 import Link from 'next/link';
-import { Plus, UserCog, Building, Briefcase, Mail, ArrowUpRight, ShieldCheck, FileSignature } from 'lucide-react';
+import { Plus, UserCog, Building, Briefcase, Eye, ShieldCheck, FileSignature } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import { StatCard } from '@/shared/ui/stat-card';
+import { SectionLabel } from '@/shared/ui/section-label';
+import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 
@@ -25,13 +26,30 @@ function trainerPhotoUrl(path: string | null): string | null {
   return `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/trainer-photos/${path}`;
 }
 
-const palette = [
-  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
-  'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
-  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
-];
+const ROW_GRID = 'grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.6fr)_96px_130px_72px] gap-4 px-5';
+
+function KeyFigure({
+  label,
+  value,
+  hint,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
+        <Icon className="w-4 h-4 text-zinc-400" />
+      </div>
+      <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}</p>
+      {hint && <p className="mt-2 text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{hint}</p>}
+    </div>
+  );
+}
 
 export default async function FormateursPage() {
   const sb = supabaseServer();
@@ -50,30 +68,34 @@ export default async function FormateursPage() {
   const withContract = trainers.filter((t) => t.contract_path).length;
 
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-8">
-      <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
+      <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Formateurs</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-            {trainers.length} formateur{trainers.length > 1 ? 's' : ''} dans votre réseau.
+          <SectionLabel className="mb-2">Relations</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Formateurs</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            <span className="tabular-nums">
+              {trainers.length} formateur{trainers.length > 1 ? 's' : ''}
+            </span>{' '}
+            dans votre réseau.
           </p>
         </div>
         <div className="flex items-center gap-2">
-        <Link
-          href="/formateurs/facturation"
-          className="border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-medium px-4 py-2 rounded-lg transition hover:bg-zinc-50 dark:hover:bg-zinc-900"
-        >
-          Factures & frais
-        </Link>
-        <ManageOnly section="dossiers">
-        <Link
-          href="/formateurs/nouveau"
-          className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nouveau formateur
-        </Link>
-        </ManageOnly>
+          <Link
+            href="/formateurs/facturation"
+            className="border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 inline-flex items-center rounded-lg transition hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+          >
+            Factures & frais
+          </Link>
+          <ManageOnly section="dossiers">
+            <Link
+              href="/formateurs/nouveau"
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Nouveau formateur
+            </Link>
+          </ManageOnly>
         </div>
       </header>
 
@@ -84,15 +106,15 @@ export default async function FormateursPage() {
         </div>
       )}
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total formateurs" value={trainers.length} icon={UserCog} accent="violet" />
-        <StatCard label="Internes" value={internal} icon={Building} accent="emerald" hint={`${Math.round((internal / Math.max(trainers.length, 1)) * 100)}% de l'équipe`} hintTone="neutral" />
-        <StatCard label="Externes" value={external} icon={Briefcase} accent="blue" hint="freelances" hintTone="neutral" />
-        <StatCard label="Contrats déposés" value={withContract} icon={FileSignature} accent="amber" hint={`sur ${external} externe${external > 1 ? 's' : ''}`} hintTone="neutral" />
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <KeyFigure label="Total formateurs" value={trainers.length} icon={UserCog} />
+        <KeyFigure label="Internes" value={internal} icon={Building} hint={`${Math.round((internal / Math.max(trainers.length, 1)) * 100)}% de l'équipe`} />
+        <KeyFigure label="Externes" value={external} icon={Briefcase} hint="freelances" />
+        <KeyFigure label="Contrats déposés" value={withContract} icon={FileSignature} hint={`sur ${external} externe${external > 1 ? 's' : ''}`} />
       </section>
 
       {trainers.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
           <EmptyState
             icon={UserCog}
             title="Aucun formateur dans votre réseau."
@@ -100,7 +122,7 @@ export default async function FormateursPage() {
             action={
               <Link
                 href="/formateurs/nouveau"
-                className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] px-3 py-1.5 rounded-md transition inline-flex items-center gap-2"
+                className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-3 h-8 rounded-lg transition inline-flex items-center gap-2"
               >
                 <Plus className="w-3.5 h-3.5" /> Nouveau formateur
               </Link>
@@ -108,71 +130,92 @@ export default async function FormateursPage() {
           />
         </div>
       ) : (
-        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {trainers.map((t) => {
-            const initials = `${t.first_name[0] ?? ''}${t.last_name[0] ?? ''}`.toUpperCase();
-            const idx = ((t.first_name.charCodeAt(0) || 0) + (t.last_name.charCodeAt(0) || 0)) % palette.length;
-            const specialties = t.specialties ?? [];
-            const photoUrl = trainerPhotoUrl(t.photo_path);
-            return (
-              <li key={t.id}>
-                <Link
-                  href={`/formateurs/${t.id}`}
-                  className="group block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-violet-200 dark:hover:border-violet-900/60 transition"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[880px]">
+            <div
+              className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}
+            >
+              <div>Formateur</div>
+              <div>Spécialités</div>
+              <div>Type</div>
+              <div>Contrat</div>
+              <div className="text-right">Actions</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {trainers.map((t) => {
+                const initials = `${t.first_name[0] ?? ''}${t.last_name[0] ?? ''}`.toUpperCase();
+                const specialties = t.specialties ?? [];
+                const photoUrl = trainerPhotoUrl(t.photo_path);
+                const name = `${t.first_name} ${t.last_name}`;
+                return (
+                  <li key={t.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                    <div className="min-w-0 flex items-center gap-3">
                       {photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={photoUrl} alt="" className="w-12 h-12 rounded-full object-cover flex-shrink-0 shadow-sm" />
+                        <img src={photoUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
                       ) : (
-                        <span className={`w-12 h-12 rounded-full flex items-center justify-center text-[14px] font-medium flex-shrink-0 shadow-sm ${palette[idx]}`}>
+                        <span className="w-9 h-9 rounded-full grid place-items-center text-[12px] font-bold flex-shrink-0 bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
                           {initials}
                         </span>
                       )}
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                            {t.first_name} {t.last_name}
-                          </p>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Link
+                            href={`/formateurs/${t.id}`}
+                            className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                          >
+                            {name}
+                          </Link>
                           {t.contract_path && (
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" aria-label="Contrat déposé" />
                           )}
                         </div>
-                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate inline-flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {t.email}
-                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{t.email}</p>
                       </div>
                     </div>
-                    <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-violet-600 transition flex-shrink-0" />
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
-                    {specialties.map((s) => (
-                      <span key={s} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                        {s}
+                    <div className="flex flex-wrap gap-1.5 min-w-0">
+                      {specialties.length ? (
+                        specialties.map((s) => (
+                          <span
+                            key={s}
+                            className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                          >
+                            {s}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        {t.is_internal ? <Building className="w-3.5 h-3.5 text-zinc-400" /> : <Briefcase className="w-3.5 h-3.5 text-zinc-400" />}
+                        {t.is_internal ? 'Interne' : 'Externe'}
                       </span>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                    <span className={
-                      t.is_internal
-                        ? 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
-                        : 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
-                    }>
-                      {t.is_internal ? 'Interne' : 'Externe'}
-                    </span>
-                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
-                      {t.contract_path ? 'contrat ✓' : 'sans contrat'}
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    </div>
+                    <div>
+                      {t.contract_path ? (
+                        <StatusPill tone="success">contrat déposé</StatusPill>
+                      ) : (
+                        <StatusPill tone="neutral">sans contrat</StatusPill>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end">
+                      <Link
+                        href={`/formateurs/${t.id}`}
+                        aria-label={`Ouvrir la fiche — ${name}`}
+                        title="Ouvrir la fiche"
+                        className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   );

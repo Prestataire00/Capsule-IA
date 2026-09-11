@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase, UserRound, UserCog, Receipt } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { libre } from '@/features/trainer-space/billing';
 import { ContractUpload } from './contract-upload';
 import { ContractGenerate } from './contract-generate';
@@ -88,45 +89,51 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
     : null;
 
   return (
-    <div className="max-w-3xl w-full mx-auto px-8 py-8">
-      <Link
-        href="/formateurs"
-        className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        Retour aux formateurs
-      </Link>
-
-      <header className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm p-6 mb-6">
+    <div className="max-w-3xl w-full mx-auto px-8 py-9">
+      <header className="mb-7">
+        <div className="flex items-center gap-2 mb-2">
+          <Link
+            href="/formateurs"
+            className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Retour aux formateurs
+          </Link>
+          <span className="text-zinc-300 dark:text-zinc-700" aria-hidden>
+            ·
+          </span>
+          <SectionLabel>Formateur</SectionLabel>
+        </div>
         <div className="flex items-start gap-4">
           {photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt="" className="w-14 h-14 rounded-full object-cover shadow-sm flex-shrink-0" />
           ) : (
-            <span className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center justify-center text-[16px] font-medium shadow-sm flex-shrink-0">
+            <span className="w-14 h-14 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 flex items-center justify-center text-[17px] font-bold flex-shrink-0">
               {initials}
             </span>
           )}
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              {t.first_name} {t.last_name}
-            </h1>
-            <div className="flex items-center gap-3 mt-2 flex-wrap text-[12px] text-zinc-500 dark:text-zinc-400">
-              <span className="inline-flex items-center gap-1"><Mail className="w-3 h-3" />{t.email}</span>
-              {t.phone && <span className="inline-flex items-center gap-1"><Phone className="w-3 h-3" />{t.phone}</span>}
-              <span className={
-                t.is_internal
-                  ? 'inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400'
-                  : 'inline-flex items-center gap-1 text-blue-700 dark:text-blue-400'
-              }>
-                {t.is_internal ? <Building className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
+          <div className="min-w-0 pt-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
+                {t.first_name} {t.last_name}
+              </h1>
+              <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                {t.is_internal ? <Building className="w-3.5 h-3.5 text-zinc-400" /> : <Briefcase className="w-3.5 h-3.5 text-zinc-400" />}
                 {t.is_internal ? 'Interne' : 'Externe'}
               </span>
+            </div>
+            <div className="flex items-center gap-4 mt-3 flex-wrap text-[14px] text-zinc-500 dark:text-zinc-400">
+              <span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{t.email}</span>
+              {t.phone && <span className="inline-flex items-center gap-1.5 tabular-nums"><Phone className="w-3.5 h-3.5" />{t.phone}</span>}
             </div>
             {t.specialties && t.specialties.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {t.specialties.map((s) => (
-                  <span key={s} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span
+                    key={s}
+                    className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  >
                     {s}
                   </span>
                 ))}
@@ -135,7 +142,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
           </div>
         </div>
         {t.bio && (
-          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 whitespace-pre-line">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-5 pt-5 border-t border-zinc-200/70 dark:border-zinc-800 whitespace-pre-line">
             {t.bio}
           </p>
         )}
@@ -160,7 +167,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
             }}
           />
 
-          <div className="mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800">
+          <div className="mt-4 pt-4 border-t border-zinc-200/70 dark:border-zinc-800">
             <SpaceAccess
               trainerId={t.id}
               disabledAt={(t as { space_disabled_at?: string | null }).space_disabled_at ?? null}
@@ -184,7 +191,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
             label="Lien Zoom"
             value={
               t.zoom_url ? (
-                <a href={t.zoom_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 hover:underline">
+                <a href={t.zoom_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-bold bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950/50 dark:text-orange-300 transition">
                   <Video className="w-3 h-3" /> Ouvrir
                 </a>
               ) : null
@@ -204,14 +211,14 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
 
       <div className="mt-4">
         <Card title="Factures & frais" icon={Receipt}>
-          <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 tabular-nums">
             {aTraiter > 0
               ? `${aTraiter} élément${aTraiter > 1 ? 's' : ''} à valider (factures d’honoraires, notes de frais).`
               : 'Aucune facture ni note de frais en attente.'}
           </p>
           <Link
             href={`/formateurs/facturation?formateur=${t.id}`}
-            className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-violet-600 dark:text-violet-400 hover:underline"
+            className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-orange-600 dark:text-orange-400 hover:underline"
           >
             Voir ses factures et notes de frais →
           </Link>
@@ -223,10 +230,10 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
 
 function Card({ title, icon: Icon, children }: { title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
-        <Icon className="w-3.5 h-3.5 text-zinc-400" />
-        <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">{title}</p>
+        <Icon className="w-4 h-4 text-zinc-400" />
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{title}</p>
       </div>
       {children}
     </div>
@@ -237,7 +244,7 @@ function Row({ label, value, mono }: { label: string; value: React.ReactNode; mo
   return (
     <div className="flex items-center justify-between py-1.5 text-[13px]">
       <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
-      <span className={mono ? 'font-mono text-[12px] text-zinc-700 dark:text-zinc-300' : 'text-zinc-700 dark:text-zinc-300'}>
+      <span className={mono ? 'font-mono text-[12px] text-zinc-900 dark:text-zinc-100' : 'font-semibold text-zinc-900 dark:text-zinc-100'}>
         {value ?? <span className="text-zinc-400">—</span>}
       </span>
     </div>

@@ -17,7 +17,7 @@ export function AiAssistant() {
     {
       role: 'assistant',
       content:
-        "Bonjour Ismaël 👋 Je suis votre assistant. Je connais vos dossiers, votre Qualiopi et votre activité. Que puis-je vous aider à faire aujourd'hui ?",
+        "Bonjour Ismaël. Je suis votre assistant. Je connais vos dossiers, votre Qualiopi et votre activité. Que puis-je vous aider à faire aujourd'hui ?",
       suggestions: initialSuggestions,
     },
   ]);
@@ -98,15 +98,15 @@ export function AiAssistant() {
         aria-label="Ouvrir l'assistant IA"
         className={cn(
           'fixed bottom-6 right-6 z-30 group',
-          'bg-violet-600 hover:bg-violet-700 text-white',
-          'rounded-full shadow-lg shadow-violet-600/30 hover:shadow-xl hover:shadow-violet-600/40',
-          'h-14 px-5 flex items-center gap-2.5 transition-all hover:scale-105',
+          'bg-orange-500 hover:bg-orange-600 text-white ring-1 ring-inset ring-white/10',
+          'rounded-full shadow-lg shadow-orange-600/30',
+          'h-12 px-5 flex items-center gap-2.5 transition',
           open && 'opacity-0 pointer-events-none',
         )}
       >
         <Sparkles className="w-4 h-4" />
-        <span className="text-[13px] font-medium">Assistant IA</span>
-        <kbd className="hidden md:inline-flex items-center font-mono text-[10px] bg-violet-700 dark:bg-violet-800 px-1.5 py-0.5 rounded ml-1">
+        <span className="text-[13px] font-semibold">Assistant IA</span>
+        <kbd className="hidden md:inline-flex items-center font-mono text-[10px] bg-orange-600 dark:bg-orange-700 px-1.5 py-0.5 rounded-md ml-1">
           ⌘J
         </kbd>
       </button>
@@ -123,21 +123,19 @@ export function AiAssistant() {
       <aside
         className={cn(
           'fixed top-0 right-0 bottom-0 z-50 w-[420px] max-w-full',
-          'bg-white dark:bg-zinc-950 border-l border-zinc-200/60 dark:border-zinc-800',
-          'shadow-2xl flex flex-col',
+          'bg-white dark:bg-zinc-900 border-l border-zinc-200/70 dark:border-zinc-800',
+          'shadow-lg flex flex-col',
           'transition-transform duration-300 ease-out',
           open ? 'translate-x-0' : 'translate-x-full',
         )}
         aria-hidden={!open}
       >
         {/* Header */}
-        <header className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800">
+        <header className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800">
           <div className="flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-rose-500 text-white flex items-center justify-center shadow-sm">
-              <Sparkles className="w-4 h-4" />
-            </span>
+            <Sparkles className="w-4 h-4 text-orange-500" />
             <div>
-              <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
+              <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
                 Assistant IA
               </p>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
@@ -150,7 +148,7 @@ export function AiAssistant() {
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Fermer l'assistant"
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -170,9 +168,9 @@ export function AiAssistant() {
             e.preventDefault();
             send();
           }}
-          className="border-t border-zinc-200/60 dark:border-zinc-800 px-3 py-3"
+          className="border-t border-zinc-200/70 dark:border-zinc-800 px-3 py-3"
         >
-          <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-violet-300 dark:focus-within:border-violet-800 transition">
+          <div className="flex items-center gap-2 bg-white dark:bg-zinc-950/40 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 py-1.5 focus-within:border-orange-300 dark:focus-within:border-orange-800 focus-within:ring-4 focus-within:ring-orange-500/10 transition">
             <input
               ref={inputRef}
               type="text"
@@ -189,7 +187,7 @@ export function AiAssistant() {
               className={cn(
                 'w-8 h-8 rounded-lg flex items-center justify-center transition shadow-sm',
                 input.trim() && !typing
-                  ? 'bg-violet-600 hover:bg-violet-700 text-white'
+                  ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-600/30'
                   : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600',
               )}
             >
@@ -213,8 +211,8 @@ function Message({ message, onSuggestion }: { message: Msg; onSuggestion: (s: st
         className={cn(
           'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
           isUser
-            ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
-            : 'bg-gradient-to-br from-violet-500 to-rose-500 text-white shadow-sm',
+            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+            : 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300 ring-1 ring-inset ring-orange-200/70 dark:ring-orange-900/50',
         )}
       >
         {isUser ? <UserIcon className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
@@ -224,8 +222,8 @@ function Message({ message, onSuggestion }: { message: Msg; onSuggestion: (s: st
           className={cn(
             'rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed max-w-[320px]',
             isUser
-              ? 'bg-violet-600 text-white rounded-tr-sm'
-              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-tl-sm',
+              ? 'bg-orange-500 text-white rounded-tr-sm'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tl-sm',
           )}
         >
           <FormattedContent text={message.content} />
@@ -237,11 +235,11 @@ function Message({ message, onSuggestion }: { message: Msg; onSuggestion: (s: st
                 <button
                   type="button"
                   onClick={() => onSuggestion(s)}
-                  className="group text-left text-[12px] bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 hover:bg-violet-50/40 dark:hover:bg-violet-950/20 rounded-lg px-3 py-1.5 transition flex items-center gap-2 max-w-[320px]"
+                  className="group text-left text-[12px] bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 hover:border-orange-300 dark:hover:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 rounded-lg px-3 py-1.5 transition flex items-center gap-2 max-w-[320px]"
                 >
-                  <Sparkles className="w-3 h-3 text-violet-500 flex-shrink-0" />
+                  <Sparkles className="w-3 h-3 text-zinc-400 group-hover:text-orange-500 flex-shrink-0 transition" />
                   <span className="text-zinc-700 dark:text-zinc-300 truncate">{s}</span>
-                  <ArrowRight className="w-3 h-3 text-zinc-300 dark:text-zinc-600 group-hover:text-violet-500 group-hover:translate-x-0.5 transition flex-shrink-0 ml-auto" />
+                  <ArrowRight className="w-3 h-3 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-500 group-hover:translate-x-0.5 transition flex-shrink-0 ml-auto" />
                 </button>
               </li>
             ))}
@@ -267,7 +265,7 @@ function FormattedContent({ text }: { text: string }) {
             {parts.map((p, j) => {
               if (p.startsWith('**') && p.endsWith('**')) {
                 return (
-                  <strong key={j} className="font-semibold">
+                  <strong key={j} className="font-bold">
                     {p.slice(2, -2)}
                   </strong>
                 );
@@ -284,10 +282,10 @@ function FormattedContent({ text }: { text: string }) {
 function TypingDots() {
   return (
     <div className="flex gap-2.5 animate-in fade-in duration-200">
-      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-rose-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+      <span className="w-7 h-7 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300 ring-1 ring-inset ring-orange-200/70 dark:ring-orange-900/50 flex items-center justify-center flex-shrink-0">
         <Bot className="w-3.5 h-3.5" />
       </span>
-      <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-1">
+      <div className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-1">
         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '0ms' }} />
         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '150ms' }} />
         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '300ms' }} />

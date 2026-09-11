@@ -53,22 +53,23 @@ export default async function SessionFundersTab({ params }: { params: { id: stri
         Financeurs agrégés (en lecture) depuis les dossiers des apprenants de la session. Le financement reste nominatif par apprenant.
       </p>
       {rows.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
           <EmptyState icon={Wallet} title="Aucun financeur" description="Aucun financement rattaché aux apprenants de cette session." />
         </div>
       ) : (
         <>
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-4 py-3 inline-block">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">Total financé</p>
-            <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{euros(total)}</p>
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 inline-block min-w-[200px]">
+            <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">Total financé</p>
+            <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{euros(total)}</p>
           </div>
-          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800 text-[13px]">
+          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
             {rows.map((r, i) => (
-              <li key={i} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-zinc-800 dark:text-zinc-200">
-                  {r.name} <span className="text-[11px] text-zinc-400">· {r.count} apprenant{r.count > 1 ? 's' : ''}</span>
+              <li key={i} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                <span className="min-w-0">
+                  <span className="block font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</span>
+                  <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{r.count} apprenant{r.count > 1 ? 's' : ''}</span>
                 </span>
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">{euros(r.total)}</span>
+                <span className="font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(r.total)}</span>
               </li>
             ))}
           </ul>

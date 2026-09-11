@@ -68,14 +68,18 @@ export function FilterDropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 transition"
+        className={`inline-flex items-center gap-2 h-9 bg-white dark:bg-zinc-900 border rounded-lg px-3 text-[13px] font-medium transition focus:outline-none focus-visible:border-orange-300 focus-visible:ring-4 focus-visible:ring-orange-500/10 ${
+          count > 0
+            ? 'border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300'
+            : 'border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700'
+        }`}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <ListFilter className="w-3.5 h-3.5 text-zinc-400" />
+        <ListFilter className={`w-3.5 h-3.5 ${count > 0 ? 'text-orange-500' : 'text-zinc-400'}`} />
         {current ?? label}
         {multi && count > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-medium tabular-nums">
+          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold tabular-nums">
             {count}
           </span>
         )}
@@ -83,7 +87,7 @@ export function FilterDropdown({
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1">
+        <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-lg z-20 py-1">
           <ul role="listbox" aria-multiselectable={multi} className="max-h-72 overflow-auto">
             {options.map((o) => {
               const on = selected.includes(o.value);
@@ -110,7 +114,7 @@ export function FilterDropdown({
             })}
           </ul>
           {count > 0 && (
-            <div className="border-t border-zinc-200/60 dark:border-zinc-800 mt-1 pt-1">
+            <div className="border-t border-zinc-200/70 dark:border-zinc-800 mt-1 pt-1">
               <button
                 type="button"
                 onClick={() => {

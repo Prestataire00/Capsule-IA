@@ -39,7 +39,7 @@ export function FormationTabs({
     <div>
       <nav
         role="tablist"
-        className="border-b border-zinc-200/60 dark:border-zinc-800 flex items-center gap-1 -mx-1 overflow-x-auto scrollbar-hide mb-5"
+        className="border-b border-zinc-200/70 dark:border-zinc-800 flex items-center gap-1 -mx-1 overflow-x-auto scrollbar-hide mb-5"
       >
         {TABS.map((t) => {
           const isActive = active === t.key;
@@ -52,14 +52,14 @@ export function FormationTabs({
               aria-selected={isActive}
               onClick={() => setActive(t.key)}
               className={cn(
-                'text-[13px] px-3 py-2 -mb-px border-b-2 transition whitespace-nowrap',
+                'text-[13px] px-3 py-2.5 -mb-px border-b-2 transition-colors whitespace-nowrap',
                 isActive
-                  ? 'text-zinc-900 dark:text-zinc-100 border-zinc-900 dark:border-zinc-100 font-medium'
-                  : 'text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-700 dark:hover:text-zinc-300',
+                  ? 'text-zinc-900 dark:text-zinc-100 border-orange-500 font-bold'
+                  : 'text-zinc-500 dark:text-zinc-400 border-transparent font-medium hover:text-zinc-900 dark:hover:text-zinc-100',
               )}
             >
               {t.label}
-              {c != null ? <span className="text-zinc-400"> ({c})</span> : null}
+              {c != null ? <span className="text-zinc-400 font-medium tabular-nums"> ({c})</span> : null}
             </button>
           );
         })}

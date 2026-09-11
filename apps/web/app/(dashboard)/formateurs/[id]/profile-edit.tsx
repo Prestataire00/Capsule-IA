@@ -137,7 +137,7 @@ export function TrainerProfileEdit({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span className="w-full h-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center justify-center text-[18px] font-medium">
+            <span className="w-full h-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 flex items-center justify-center text-[17px] font-bold">
               {initials}
             </span>
           )}
@@ -179,7 +179,7 @@ export function TrainerProfileEdit({
               href={cvUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[13px] text-violet-600 dark:text-violet-400 hover:underline"
+              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-orange-600 dark:text-orange-400 hover:underline"
             >
               <Download className="w-3.5 h-3.5" />
               Voir le CV
@@ -205,14 +205,14 @@ export function TrainerProfileEdit({
           }}
           rows={4}
           placeholder="Parcours, spécialités, expérience du formateur…"
-          className="w-full rounded-lg border border-zinc-200/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-y"
+          className="w-full rounded-lg border border-zinc-200/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 resize-y"
         />
         <div className="flex items-center gap-3 mt-2">
           <button
             type="button"
             onClick={saveBio}
             disabled={savingBio}
-            className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-[13px] font-medium px-3.5 py-1.5 rounded-md shadow-sm transition"
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold px-3.5 h-9 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
           >
             {savingBio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Enregistrer

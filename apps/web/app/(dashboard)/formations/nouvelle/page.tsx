@@ -3,8 +3,9 @@
 // écrit dans app.formations + metadata.catalog via Server Action.
 
 import Link from 'next/link';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { FormationForm } from '@/features/formations/ui/formation-form';
 import { loadOrgVat } from '@/features/formations/load-org-vat';
 import { loadOrgContacts } from '@/features/formations/load-org-contacts';
@@ -35,25 +36,21 @@ export default async function NouvelleFormationPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
-      <div className="max-w-3xl w-full mx-auto px-8 py-10">
+      <div className="max-w-3xl w-full mx-auto px-8 py-9">
         <Link
           href="/formations"
-          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+          className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Retour au catalogue
         </Link>
 
-        <header className="mb-8 flex items-center gap-3">
-          <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/60 dark:to-amber-950/30 text-amber-700 dark:text-amber-300 flex items-center justify-center shadow-sm">
-            <BookOpen className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Nouvelle formation</h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Ajoutez une formation au catalogue de votre OF.
-            </p>
-          </div>
+        <header className="mb-7">
+          <SectionLabel className="mb-2">Catalogue</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouvelle formation</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            Ajoutez une formation au catalogue de votre OF.
+          </p>
         </header>
 
         <FormationForm mode="create" trainers={trainers} orgVat={orgVat} contacts={contacts} />

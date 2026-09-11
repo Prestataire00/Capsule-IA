@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { ArrowLeft, FileText, Paperclip } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { canManageSection, requireAccess } from '@/shared/lib/auth/require-access';
 import { libre } from '@/features/trainer-space/billing';
 import { CATEGORIES_FRAIS, CLASSES_TON, STATUT_FACTURE, STATUT_FRAIS, formatEuros } from '@/features/trainer-space/billing-rules';
@@ -80,13 +81,19 @@ export default async function FacturationFormateursPage({ searchParams }: { sear
   const aTraiter = factures.filter((f) => f.status === 'soumise').length + frais.filter((f) => f.status === 'soumise').length;
 
   return (
-    <div className="max-w-5xl w-full mx-auto px-8 py-8 space-y-8">
-      <Link href="/formateurs" className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5">
-        <ArrowLeft className="w-3.5 h-3.5" /> Formateurs
-      </Link>
+    <div className="max-w-5xl w-full mx-auto px-8 py-9 space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Factures & frais des formateurs</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
+        <div className="flex items-center gap-2 mb-2">
+          <Link href="/formateurs" className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition">
+            <ArrowLeft className="w-3.5 h-3.5" /> Formateurs
+          </Link>
+          <span className="text-zinc-300 dark:text-zinc-700" aria-hidden>
+            ·
+          </span>
+          <SectionLabel>Relations</SectionLabel>
+        </div>
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Factures & frais des formateurs</h1>
+        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           {aTraiter > 0 ? `${aTraiter} élément${aTraiter > 1 ? 's' : ''} à traiter.` : 'Rien à traiter pour le moment.'}
           {filtre && nom.get(filtre) ? ` Filtré sur ${nom.get(filtre)} — ` : ' '}
           {filtre && <Link href="/formateurs/facturation" className="underline">tout afficher</Link>}
@@ -94,7 +101,7 @@ export default async function FacturationFormateursPage({ searchParams }: { sear
       </header>
 
       <section className="space-y-3">
-        <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Factures d’honoraires</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Factures d’honoraires</h2>
         {factures.length === 0 ? (
           <p className="text-[13px] text-zinc-400">Aucune facture reçue.</p>
         ) : (
@@ -146,7 +153,7 @@ export default async function FacturationFormateursPage({ searchParams }: { sear
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Notes de frais</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Notes de frais</h2>
         {frais.length === 0 ? (
           <p className="text-[13px] text-zinc-400">Aucune note de frais reçue.</p>
         ) : (

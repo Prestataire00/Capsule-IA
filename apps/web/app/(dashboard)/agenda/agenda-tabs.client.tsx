@@ -13,7 +13,7 @@ const TABS = [
 export function AgendaTabs() {
   const pathname = usePathname();
   return (
-    <div className="flex items-center gap-1 border-b border-zinc-200/60 dark:border-zinc-800 mb-6">
+    <div className="flex items-center gap-1 border-b border-zinc-200/70 dark:border-zinc-800 mb-6">
       {TABS.map((t) => {
         const active = pathname === t.href || pathname.startsWith(`${t.href}/`);
         const Icon = t.icon;
@@ -23,8 +23,8 @@ export function AgendaTabs() {
             href={t.href}
             className={
               active
-                ? 'inline-flex items-center gap-2 text-[13px] font-medium text-violet-700 dark:text-violet-400 border-b-2 border-violet-600 px-3 py-2.5 -mb-px'
-                : 'inline-flex items-center gap-2 text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2.5 transition'
+                ? 'inline-flex items-center gap-2 text-[13px] font-bold text-orange-700 dark:text-orange-300 border-b-2 border-orange-500 px-3 py-2.5 -mb-px'
+                : 'inline-flex items-center gap-2 text-[13px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2.5 transition'
             }
           >
             <Icon className="w-3.5 h-3.5" />

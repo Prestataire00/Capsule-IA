@@ -6,6 +6,7 @@ import { FileText, Download, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
 import { GenerateFromTemplate, type TemplateChoice } from './_components/generate-from-template';
 import { GenerateWithAi } from './_components/generate-with-ai';
 import { EmailDocButton } from './_components/email-doc-button';
@@ -24,6 +25,10 @@ const KIND_TO_ROUTE: Record<string, string> = {
   attestation_fin: 'attestation.pdf',
   certificat_realisation: 'certificat.pdf',
 };
+
+const ROW_GRID = 'grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_112px_minmax(0,1.2fr)] gap-4 px-5';
+const ICON_BTN =
+  'w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition';
 
 export default async function DocumentsPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -93,12 +98,12 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <SectionLabel>Générer depuis un modèle</SectionLabel>
-          <Link href="/documents/modeles" className="text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400">
+          <Link href="/documents/modeles" className="text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300">
             Gérer les modèles
           </Link>
         </div>
         <GenerateFromTemplate dossierId={params.id} templates={templates} />
-        <p className="text-[11px] text-zinc-400">
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
           Le modèle est rempli avec les données du dossier, puis consultable/imprimable. ★ = modèle de cette formation.
         </p>
         <GenerateWithAi dossierId={params.id} />
@@ -114,70 +119,81 @@ export default async function DocumentsPage({ params }: { params: { id: string }
               href={`/api/dossiers/${params.id}/${g.route}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-center gap-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2.5 hover:border-violet-300 dark:hover:border-violet-800 transition"
+              className="group flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-4 h-11 hover:border-orange-300 dark:hover:border-orange-800 transition"
             >
-              <FileText className="w-4 h-4 text-violet-500 flex-shrink-0" />
-              <span className="text-[13px] text-zinc-900 dark:text-zinc-100 flex-1 truncate">{g.label}</span>
-              <Download className="w-3.5 h-3.5 text-zinc-400 group-hover:text-violet-500 transition" />
+              <FileText className="w-4 h-4 text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
+              <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex-1 truncate">{g.label}</span>
+              <Download className="w-3.5 h-3.5 text-zinc-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition" />
             </a>
           ))}
         </div>
-        <p className="text-[11px] text-zinc-400">
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
           Ouvrez un PDF une fois pour l&apos;enregistrer : il devient alors envoyable par email ci-dessous.
         </p>
       </section>
 
       <section className="space-y-3">
-        <SectionLabel>Documents générés ({rows.length})</SectionLabel>
+        <SectionLabel>
+          Documents générés (<span className="tabular-nums">{rows.length}</span>)
+        </SectionLabel>
         {rows.length === 0 ? (
-          <p className="text-[13px] text-zinc-500">
-            Aucun document généré pour ce dossier. Utilisez les options ci-dessus.
-          </p>
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
+            <EmptyState icon={FileText} title="Aucun document généré pour ce dossier." description="Utilisez les options ci-dessus." />
+          </div>
         ) : (
-          <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-            {rows.map((d) => {
-              const pdfRoute = KIND_TO_ROUTE[d.kind];
-              const payer = d.metadata?.payer;
-              const downloadHref = pdfRoute
-                ? `/api/dossiers/${params.id}/${pdfRoute}${
-                    d.kind === 'convention' && payer ? `?payer=${encodeURIComponent(payer)}` : ''
-                  }`
-                : null;
-              return (
-                <li key={d.id} className="py-3 px-1 text-[13px] flex items-center justify-between gap-3">
-                  <span className="truncate">{d.title}</span>
-                  <span className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-[11px] text-zinc-400">{d.kind}</span>
-                    <StatusPill tone={d.status === 'ready' ? 'success' : 'neutral'}>{d.status}</StatusPill>
-                    {d.storage_path && <EmailDocButton documentId={d.id} defaultEmail={learnerEmail} />}
-                    {d.content_html || d.storage_path ? (
-                      // HTML éditable OU PDF stocké → visualiseur universel (aperçu).
-                      <Link
-                        href={`/documents/${d.id}/apercu`}
-                        className="text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"
-                      >
-                        <Eye className="w-3 h-3" />
-                        Ouvrir
-                      </Link>
-                    ) : (
-                      downloadHref && (
-                        // Pas encore de fichier stocké → génération PDF standard à la volée.
-                        <a
-                          href={downloadHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1"
-                        >
-                          <Download className="w-3 h-3" />
-                          Ouvrir
-                        </a>
-                      )
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+            <div className="min-w-[680px]">
+              <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+                <div>Document</div>
+                <div>Type</div>
+                <div>Statut</div>
+                <div className="text-right">Actions</div>
+              </div>
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+                {rows.map((d) => {
+                  const pdfRoute = KIND_TO_ROUTE[d.kind];
+                  const payer = d.metadata?.payer;
+                  const downloadHref = pdfRoute
+                    ? `/api/dossiers/${params.id}/${pdfRoute}${
+                        d.kind === 'convention' && payer ? `?payer=${encodeURIComponent(payer)}` : ''
+                      }`
+                    : null;
+                  return (
+                    <li key={d.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                      <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
+                      <span className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{d.kind}</span>
+                      <span>
+                        <StatusPill tone={d.status === 'ready' ? 'success' : 'neutral'}>{d.status}</StatusPill>
+                      </span>
+                      <span className="flex items-center justify-end gap-0.5">
+                        {d.storage_path && <EmailDocButton documentId={d.id} defaultEmail={learnerEmail} />}
+                        {d.content_html || d.storage_path ? (
+                          // HTML éditable OU PDF stocké → visualiseur universel (aperçu).
+                          <Link href={`/documents/${d.id}/apercu`} aria-label={`Ouvrir — ${d.title}`} title="Ouvrir" className={ICON_BTN}>
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        ) : (
+                          downloadHref && (
+                            // Pas encore de fichier stocké → génération PDF standard à la volée.
+                            <a
+                              href={downloadHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Ouvrir — ${d.title}`}
+                              title="Ouvrir"
+                              className={ICON_BTN}
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                          )
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
         )}
       </section>
     </div>

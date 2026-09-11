@@ -2,7 +2,8 @@
 // Justification: saisie manuelle d'une réclamation (Qualiopi I31) — formulaire focalisé.
 
 import Link from 'next/link';
-import { ArrowLeft, MessageSquareWarning } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { FormSubmit } from '@/shared/ui/form-submit';
 import { createComplaint } from './actions';
@@ -18,19 +19,17 @@ export default function NouvelleReclamationPage({ searchParams }: { searchParams
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
-      <div className="max-w-2xl w-full mx-auto px-8 py-10">
-        <Link href="/reclamations" className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6">
+      <div className="max-w-2xl w-full mx-auto px-8 py-9">
+        <Link href="/reclamations" className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6">
           <ArrowLeft className="w-3.5 h-3.5" />
           Retour aux réclamations
         </Link>
 
-        <header className="mb-8 flex items-center gap-3">
-          <span className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-sm">
-            <MessageSquareWarning className="w-5 h-5" />
-          </span>
+        <header className="mb-7">
           <div>
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Nouvelle réclamation</h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">Saisie manuelle — tracée pour l'indicateur Qualiopi I31.</p>
+            <SectionLabel className="mb-2">Réclamations</SectionLabel>
+            <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouvelle réclamation</h1>
+            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Saisie manuelle — tracée pour l'indicateur Qualiopi I31.</p>
           </div>
         </header>
 
@@ -40,7 +39,7 @@ export default function NouvelleReclamationPage({ searchParams }: { searchParams
           </div>
         )}
 
-        <form action={createComplaint} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-200/60 dark:divide-zinc-800">
+        <form action={createComplaint} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
           <section className="p-6 space-y-4">
             <FormField label="Objet" required>
               <input type="text" name="subject" required maxLength={200} placeholder="Résumé de la réclamation" className={inputClass} />
@@ -70,7 +69,7 @@ export default function NouvelleReclamationPage({ searchParams }: { searchParams
           </section>
 
           <section className="p-6 space-y-4">
-            <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-medium">Réclamant (optionnel)</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Réclamant (optionnel)</p>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Nom">
                 <input type="text" name="reporterName" maxLength={200} className={inputClass} />
@@ -81,7 +80,7 @@ export default function NouvelleReclamationPage({ searchParams }: { searchParams
             </div>
           </section>
 
-          <div className="px-6 py-4 bg-zinc-50/40 dark:bg-zinc-950/40 flex items-center justify-between gap-3">
+          <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950/40 rounded-b-xl flex items-center justify-between gap-3">
             <Link href="/reclamations" className="text-[13px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition">Annuler</Link>
             <FormSubmit label="Enregistrer la réclamation" pendingLabel="Enregistrement…" />
           </div>

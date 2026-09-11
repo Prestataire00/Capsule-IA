@@ -5,7 +5,7 @@ export function SectionLabel({ children, className }: { children: React.ReactNod
   return (
     <p
       className={cn(
-        'text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500',
+        'text-[11px] font-bold tracking-[0.08em] uppercase text-orange-600 dark:text-orange-400',
         className,
       )}
     >

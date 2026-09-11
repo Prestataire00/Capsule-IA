@@ -37,10 +37,10 @@ export function EmailDocButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-[12px] text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400 inline-flex items-center gap-1"
+        className="h-8 px-2 rounded-md inline-flex items-center gap-1.5 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
         title="Envoyer par email"
       >
-        <Mail className="w-3 h-3" />
+        <Mail className="w-4 h-4" />
         Email
       </button>
     );
@@ -53,13 +53,13 @@ export function EmailDocButton({
         onChange={(e) => setTo(e.target.value)}
         placeholder="email@exemple.com"
         type="email"
-        className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded px-2 py-1 text-[12px] w-44"
+        className="h-8 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-2.5 text-[12px] w-48 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
       />
       <button
         type="button"
         onClick={send}
         disabled={state === 'sending'}
-        className="text-violet-600 hover:text-violet-700 disabled:opacity-40"
+        className="w-8 h-8 rounded-md grid place-items-center text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/40 disabled:opacity-40 transition"
         title="Envoyer"
       >
         {state === 'sending' ? (
@@ -67,10 +67,10 @@ export function EmailDocButton({
         ) : state === 'sent' ? (
           <Check className="w-3.5 h-3.5 text-emerald-600" />
         ) : (
-          <Mail className="w-3.5 h-3.5" />
+          <Mail className="w-4 h-4" />
         )}
       </button>
-      {state === 'error' && <span className="text-[11px] text-red-600">échec</span>}
+      {state === 'error' && <span className="text-[11px] text-red-600 dark:text-red-400">échec</span>}
     </span>
   );
 }

@@ -6,7 +6,7 @@ import { fr } from 'date-fns/locale';
 import { ClipboardList, GraduationCap, User, Building2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { StatCard } from '@/shared/ui/stat-card';
+import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 
 export const dynamic = 'force-dynamic';
@@ -117,8 +117,28 @@ function Answer({ label, value }: { label: string; value: string | null | undefi
   if (!value) return null;
   return (
     <div>
-      <p className="text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 mb-0.5">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500 mb-0.5">{label}</p>
       <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{value}</p>
+    </div>
+  );
+}
+
+function KeyFigure({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+      <p className="flex items-center gap-2 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+        <Icon className="w-4 h-4 text-zinc-400" />
+        {label}
+      </p>
+      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
     </div>
   );
 }
@@ -139,68 +159,64 @@ export default async function FichesBesoinPage() {
   const prospectCount = fiches.filter((f) => f.source === 'prospect').length;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9 space-y-6">
       <header>
-        <SectionLabel className="mb-1">Qualité</SectionLabel>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+        <SectionLabel className="mb-2">Qualité</SectionLabel>
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
           Fiches besoin
         </h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
           Analyse des besoins recueillie auprès des apprenants et des inscrits, regroupée par formation.
         </p>
       </header>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <StatCard icon={ClipboardList} label="Fiches besoin" value={String(fiches.length)} />
-        <StatCard icon={User} label="Apprenants" value={String(learnerCount)} />
-        <StatCard icon={Building2} label="Inscrits (prospects)" value={String(prospectCount)} />
+        <KeyFigure icon={ClipboardList} label="Fiches besoin" value={fiches.length} />
+        <KeyFigure icon={User} label="Apprenants" value={learnerCount} />
+        <KeyFigure icon={Building2} label="Inscrits (prospects)" value={prospectCount} />
       </div>
 
       {fiches.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          title="Aucune fiche besoin pour le moment"
-          description="Les fiches besoin apparaîtront ici dès qu'un apprenant ou un inscrit aura répondu."
-        />
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
+          <EmptyState
+            icon={ClipboardList}
+            title="Aucune fiche besoin pour le moment"
+            description="Les fiches besoin apparaîtront ici dès qu'un apprenant ou un inscrit aura répondu."
+          />
+        </div>
       ) : (
         <div className="space-y-6">
           {orderedGroups.map(([formationTitle, list]) => (
             <section key={formationTitle}>
-              <div className="flex items-center gap-2 mb-2">
-                <GraduationCap className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+              <div className="flex items-center gap-2 mb-3">
+                <GraduationCap className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100">
                   {formationTitle}
                 </h2>
-                <span className="text-[11px] tabular-nums text-zinc-400">{list.length}</span>
+                <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">{list.length}</span>
               </div>
 
-              <ul className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+              <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
                 {list.map((f) => (
                   <li key={f.key}>
                     <details className="group">
-                      <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition list-none">
-                        <span className="text-[13px] text-zinc-900 dark:text-zinc-100 flex-1">
-                          {f.name}
-                          <span
-                            className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${
-                              f.source === 'learner'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                            }`}
-                          >
+                      <summary className="flex items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors list-none">
+                        <span className="text-[13px] flex-1 flex items-center gap-2 min-w-0">
+                          <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{f.name}</span>
+                          <StatusPill tone={f.source === 'learner' ? 'info' : 'warning'}>
                             {f.source === 'learner' ? 'apprenant' : 'inscrit'}
-                          </span>
+                          </StatusPill>
                         </span>
                         {f.answers.currentLevel != null && (
-                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
                             Niveau : {LEVEL_LABELS[f.answers.currentLevel] ?? f.answers.currentLevel}
                           </span>
                         )}
-                        <span className="tabular-nums text-[11px] text-zinc-400">
+                        <span className="tabular-nums text-[12px] text-zinc-500 dark:text-zinc-400">
                           {f.dateIso ? format(parseISO(f.dateIso), 'dd MMM yyyy', { locale: fr }) : '—'}
                         </span>
                       </summary>
-                      <div className="px-4 pb-4 pt-1 space-y-3 bg-zinc-50/40 dark:bg-zinc-950/40">
+                      <div className="px-5 pb-4 pt-1 space-y-3 bg-zinc-50/60 dark:bg-zinc-950/40">
                         <Answer label="Objectifs" value={f.answers.objectives} />
                         <Answer label="Attentes" value={f.answers.expectations} />
                         <Answer label="Contraintes" value={f.answers.constraints} />

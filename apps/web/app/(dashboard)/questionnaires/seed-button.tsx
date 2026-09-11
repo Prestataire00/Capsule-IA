@@ -32,9 +32,9 @@ export function SeedQuestionnairesButton() {
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="text-[13px] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 inline-flex items-center gap-2 transition"
+        className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-4 h-10 inline-flex items-center gap-2 transition"
       >
-        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
         Importer les questionnaires Qualiopi
       </button>
       {msg && <span className="text-[12px] text-zinc-500">{msg}</span>}

@@ -16,10 +16,8 @@ export function PageError({ error, reset, homeHref = '/' }: { error: Error & { d
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4 py-12">
       <div className="max-w-md text-center space-y-4">
-        <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
-          <AlertTriangle className="w-7 h-7" aria-hidden />
-        </div>
-        <h1 className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100">Cette page n’a pas pu s’afficher</h1>
+        <AlertTriangle className="w-7 h-7 text-amber-500 dark:text-amber-400 mx-auto" aria-hidden />
+        <h1 className="text-[20px] font-extrabold text-zinc-900 dark:text-zinc-100">Cette page n’a pas pu s’afficher</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
           Une erreur est survenue de notre côté. Réessayez dans un instant ; si elle persiste, transmettez ce code à l’organisme.
         </p>
@@ -28,7 +26,7 @@ export function PageError({ error, reset, homeHref = '/' }: { error: Error & { d
           <button
             type="button"
             onClick={reset}
-            className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-lg shadow-sm"
+            className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
           >
             <RotateCcw className="w-3.5 h-3.5" /> Réessayer
           </button>

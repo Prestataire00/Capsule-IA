@@ -8,7 +8,7 @@ import { setIndicatorStatus, removeProof } from './actions';
 import { ORG_STATUSES, ORG_STATUS_LABELS, PROOF_MAX_BYTES, type OrgStatus } from '@/features/qualiopi/status';
 
 const champ =
-  'w-full text-[13px] px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition';
+  'w-full text-[13px] px-3 py-2 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-300 dark:focus:border-purple-800 placeholder:text-zinc-400 transition';
 
 const ERREURS: Record<string, string> = {
   forbidden: 'Réservé aux personnes qui gèrent la qualité.',
@@ -51,7 +51,7 @@ export function IndicatorStatus({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <label className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400" htmlFor={`statut-${indicatorId}`}>
+        <label className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300" htmlFor={`statut-${indicatorId}`}>
           Mon évaluation
         </label>
         <select
@@ -80,7 +80,7 @@ export function IndicatorStatus({
           type="button"
           onClick={enregistrer}
           disabled={pending}
-          className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium px-3 py-1.5 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition disabled:opacity-40 inline-flex items-center gap-1.5"
+          className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-semibold px-3 h-8 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition disabled:opacity-40 inline-flex items-center gap-1.5"
         >
           {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           Enregistrer
@@ -167,7 +167,7 @@ export function ProofUpload({ indicatorId }: { indicatorId: string }) {
         type="button"
         onClick={() => input.current?.click()}
         disabled={envoi}
-        className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-1.5 disabled:opacity-40"
+        className="border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[12px] font-semibold px-3 h-8 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition inline-flex items-center gap-1.5 disabled:opacity-40"
       >
         {envoi ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
         {envoi ? 'Dépôt…' : 'Déposer une preuve'}
@@ -196,7 +196,7 @@ export function RemoveProofButton({ proofId }: { proofId: string }) {
       }
       disabled={pending}
       aria-label="Retirer la preuve"
-      className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition p-1 disabled:opacity-40"
+      className="w-8 h-8 rounded-md grid place-items-center text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition disabled:opacity-40"
     >
       {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
     </button>

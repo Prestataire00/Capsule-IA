@@ -44,8 +44,8 @@ export function ConvertButton({
         disabled={pending}
         className={
           variant === 'primary'
-            ? 'w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm transition disabled:opacity-50'
-            : 'inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50'
+            ? 'w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition disabled:opacity-50'
+            : 'inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-semibold px-3 h-8 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition disabled:opacity-50'
         }
       >
         <ArrowRightCircle className="w-3.5 h-3.5" />

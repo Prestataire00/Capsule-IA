@@ -6,6 +6,7 @@ import { PenLine, User, FileDown, Eye, EyeOff } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
 import { ExerciseForm } from './exercise-form';
 import { GradeForm } from './grade-form';
 
@@ -110,7 +111,7 @@ export default async function ExercicesPage({ params }: { params: { id: string }
       <header className="flex items-center justify-between gap-4">
         <div>
           <SectionLabel className="mb-1">Exercices</SectionLabel>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
             {exercises.length} exercice{exercises.length > 1 ? 's' : ''} ·{' '}
             {submissions.length} soumission{submissions.length > 1 ? 's' : ''}
           </p>
@@ -119,9 +120,8 @@ export default async function ExercicesPage({ params }: { params: { id: string }
       </header>
 
       {exercises.length === 0 ? (
-        <div className="border border-dashed border-zinc-200/60 dark:border-zinc-800 rounded-xl py-12 text-center">
-          <PenLine className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun exercice. Créez-en un ci-dessus.</p>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
+          <EmptyState icon={PenLine} title="Aucun exercice." description="Créez-en un ci-dessus." />
         </div>
       ) : (
         <div className="space-y-4">
@@ -132,34 +132,32 @@ export default async function ExercicesPage({ params }: { params: { id: string }
             return (
               <section
                 key={ex.id}
-                className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm"
+                className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm"
               >
                 {/* Header exercice */}
-                <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+                <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800/80">
                   <div className="flex items-start gap-3">
-                    <span className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 flex items-center justify-center flex-shrink-0">
-                      <PenLine className="w-3.5 h-3.5" />
-                    </span>
+                    <PenLine className="w-4 h-4 mt-0.5 text-zinc-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">{ex.title}</p>
+                        <p className="text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100">{ex.title}</p>
                         <StatusPill tone={ex.is_published ? 'success' : 'neutral'}>
                           {ex.is_published ? 'Publié' : 'Brouillon'}
                         </StatusPill>
                         {subs.length > 0 && (
-                          <StatusPill tone="info">
+                          <StatusPill tone="info" className="tabular-nums">
                             {gradedCount}/{subs.length} corrigé{subs.length > 1 ? 's' : ''}
                           </StatusPill>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         {ex.due_at && (
-                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                             Échéance : {new Date(ex.due_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                           </p>
                         )}
                         {ex.attachment_path && (
-                          <span className="text-[11px] text-blue-600 dark:text-blue-400 inline-flex items-center gap-1">
+                          <span className="text-[12px] text-zinc-600 dark:text-zinc-400 inline-flex items-center gap-1">
                             <FileDown className="w-3 h-3" />
                             Énoncé joint
                           </span>
@@ -180,25 +178,23 @@ export default async function ExercicesPage({ params }: { params: { id: string }
                     <p className="text-[12px] text-zinc-400 dark:text-zinc-600">Aucune soumission.</p>
                   </div>
                 ) : (
-                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
                     {subs.map((sub) => {
                       const learnerName = [sub.learner_first_name, sub.learner_last_name]
                         .filter(Boolean)
                         .join(' ') || 'Apprenant';
 
                       return (
-                        <li key={sub.id} className="px-5 py-3">
+                        <li key={sub.id} className="px-5 py-3.5">
                           <div className="flex items-start gap-3">
-                            <span className="w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 flex items-center justify-center flex-shrink-0 text-[11px] font-medium">
-                              <User className="w-3.5 h-3.5" />
-                            </span>
+                            <User className="w-4 h-4 mt-0.5 text-zinc-400 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{learnerName}</p>
+                                <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">{learnerName}</p>
                                 <StatusPill tone={sub.status === 'graded' ? 'success' : 'warning'}>
                                   {sub.status === 'graded' ? 'Corrigé' : 'À corriger'}
                                 </StatusPill>
-                                <span className="text-[11px] text-zinc-400 dark:text-zinc-600">
+                                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                                   {new Date(sub.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                                 </span>
                               </div>
@@ -212,7 +208,7 @@ export default async function ExercicesPage({ params }: { params: { id: string }
                                   href={`/api/dossiers/${params.id}/submission/${sub.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-[12px] text-blue-600 dark:text-blue-400 hover:underline mt-1"
+                                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:underline mt-1"
                                 >
                                   <FileDown className="w-3 h-3" />
                                   Télécharger le fichier
@@ -223,7 +219,7 @@ export default async function ExercicesPage({ params }: { params: { id: string }
                                 <div className="mt-2 space-y-0.5">
                                   {sub.grade !== null && (
                                     <p className="text-[12px] text-zinc-700 dark:text-zinc-300">
-                                      Note : <span className="font-medium text-emerald-700 dark:text-emerald-400">{sub.grade}</span>
+                                      Note : <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{sub.grade}</span>
                                     </p>
                                   )}
                                   {sub.feedback && (
@@ -281,7 +277,7 @@ function PublishToggleForm({
       <button
         type="submit"
         title={isPublished ? 'Masquer aux apprenants' : 'Publier aux apprenants'}
-        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 shadow-sm transition"
+        className="inline-flex items-center gap-1.5 h-8 text-[12px] font-semibold px-2.5 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 transition"
       >
         {isPublished ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
         {isPublished ? 'Masquer' : 'Publier'}

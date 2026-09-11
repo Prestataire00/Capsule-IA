@@ -46,7 +46,7 @@ export function Logo({
         className="flex-shrink-0 object-contain"
       />
       {wordmark && (
-        <span className={`font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 ${titleCls[size]}`}>
+        <span className={`font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 ${titleCls[size]}`}>
           Capsule IA
         </span>
       )}

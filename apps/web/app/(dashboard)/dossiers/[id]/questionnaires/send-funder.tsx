@@ -77,7 +77,7 @@ export function SendFunder({
   };
 
   const selectClass =
-    'rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40';
+    'h-9 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-[13px] text-zinc-800 dark:text-zinc-200 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10';
 
   return (
     <div className="space-y-3">
@@ -114,7 +114,7 @@ export function SendFunder({
           type="button"
           onClick={onSend}
           disabled={isPending}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white text-[13px] font-medium hover:bg-orange-600 disabled:opacity-50 shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-orange-500 text-white text-[13px] font-semibold hover:bg-orange-600 disabled:opacity-50 transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
         >
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           Envoyer au financeur
@@ -123,12 +123,12 @@ export function SendFunder({
 
       {link && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2">
-          <span className="text-[12px] text-emerald-700 dark:text-emerald-300">
-            Questionnaire créé ✓
+          <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
+            <Check className="w-3.5 h-3.5" /> Questionnaire créé
           </span>
           <a
             href={link}
-            className="text-[12px] font-medium text-emerald-800 dark:text-emerald-200 underline underline-offset-2 break-all"
+            className="font-mono text-[11px] text-emerald-800 dark:text-emerald-200 underline underline-offset-2 break-all"
           >
             {link}
           </a>

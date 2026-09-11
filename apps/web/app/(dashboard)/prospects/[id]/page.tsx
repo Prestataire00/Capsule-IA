@@ -3,12 +3,12 @@
 
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Fraunces } from 'next/font/google';
 import { createClient } from '@supabase/supabase-js';
 import { ArrowLeft, ClipboardList, History, FileCheck2 } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ProspectNoteForm } from './note-form.client';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { requiredDocs } from '@/features/prospect/funding';
 import { ProspectDetailActions, type DocChecklistItem } from './prospect-detail-actions';
@@ -16,9 +16,6 @@ import { ConvertButton } from '../convert-button';
 import { QUOTE_STATUS_LABELS, type QuoteStatus } from '@/features/billing/domain/quote';
 
 export const dynamic = 'force-dynamic';
-
-// Police éditoriale chaleureuse pour les titres (change le rendu « fade » par défaut).
-const display = Fraunces({ subsets: ['latin'], weight: ['500', '600'], display: 'swap' });
 
 type ProspectDoc = { key: string; label: string; storage_path: string };
 
@@ -70,7 +67,7 @@ function Answer({ label, value }: { label: string; value: string | null | undefi
   if (!value) return null;
   return (
     <div>
-      <p className="text-[11px] tracking-wider uppercase text-amber-600/80 dark:text-amber-400/70 mb-0.5 font-semibold">
+      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-0.5">
         {label}
       </p>
       <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{value}</p>
@@ -112,8 +109,8 @@ function admin() {
 
 function SectionTitle({ icon: Icon, children }: { icon: typeof ClipboardList; children: React.ReactNode }) {
   return (
-    <h2 className={`${display.className} text-[18px] font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2`}>
-      <Icon className="h-4 w-4 text-orange-500" />
+    <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+      <Icon className="h-4 w-4 text-zinc-400" />
       {children}
     </h2>
   );
@@ -123,8 +120,8 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof ClipboardList; ch
 function KeyFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{label}</p>
-      <p className="text-[13px] text-zinc-800 dark:text-zinc-200 mt-0.5 break-words">{value}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5 break-words tabular-nums">{value}</p>
     </div>
   );
 }
@@ -133,7 +130,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
       <dt className="text-zinc-500 dark:text-zinc-400">{label}</dt>
-      <dd className="text-zinc-900 dark:text-zinc-100 text-right break-words">{value}</dd>
+      <dd className="text-zinc-900 dark:text-zinc-100 font-semibold text-right break-words tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -285,47 +282,61 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
 
   return (
     <div className="max-w-6xl w-full mx-auto px-6 pb-10">
-      {/* Barre d'action collante : identité + les trois gestes principaux, toujours atteignables */}
-      <div className="sticky top-0 z-20 -mx-6 px-6 py-3 bg-white/85 dark:bg-zinc-950/85 backdrop-blur border-b border-zinc-200/60 dark:border-zinc-800">
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/prospects"
-            className="text-[13px] text-zinc-500 hover:text-orange-600 inline-flex items-center gap-1 transition"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Demandes
-          </Link>
-          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-orange-400 text-white text-[13px] font-semibold">
-            {initials || '?'}
-          </span>
-          <h1 className={`${display.className} text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 truncate`}>
-            {prospect.first_name} {prospect.last_name}
-          </h1>
-          <StatusPill
-            tone={
-              prospect.validation_status === 'validated'
-                ? 'success'
-                : prospect.validation_status === 'rejected'
-                  ? 'danger'
-                  : 'warning'
-            }
-          >
-            {prospect.validation_status === 'validated'
-              ? 'Validée'
-              : prospect.validation_status === 'rejected'
-                ? 'Refusée'
-                : 'En attente'}
-          </StatusPill>
+      {/* En-tête collant : identité + les trois gestes principaux, toujours atteignables */}
+      <div className="sticky top-0 z-20 -mx-6 px-6 pt-6 pb-5 bg-white/85 dark:bg-zinc-950/85 backdrop-blur border-b border-zinc-200/70 dark:border-zinc-800">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <Link
+                href="/prospects"
+                className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Demandes
+              </Link>
+              <span className="text-zinc-300 dark:text-zinc-700" aria-hidden>
+                ·
+              </span>
+              <SectionLabel className="tabular-nums">Demande {reference}</SectionLabel>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-[13px] font-bold">
+                {initials || '?'}
+              </span>
+              <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">
+                {prospect.first_name} {prospect.last_name}
+              </h1>
+              <StatusPill
+                tone={
+                  prospect.validation_status === 'validated'
+                    ? 'success'
+                    : prospect.validation_status === 'rejected'
+                      ? 'danger'
+                      : 'warning'
+                }
+              >
+                {prospect.validation_status === 'validated'
+                  ? 'Validée'
+                  : prospect.validation_status === 'rejected'
+                    ? 'Refusée'
+                    : 'En attente'}
+              </StatusPill>
+            </div>
+            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+              Reçue le {new Date(prospect.created_at).toLocaleDateString('fr-FR')}
+              {prospect.company_name ? ` · ${prospect.company_name}` : ''}
+            </p>
+          </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <a
               href={`mailto:${prospect.email}`}
-              className="text-[13px] px-3 py-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 transition"
+              className="text-[13px] font-semibold px-3 h-9 inline-flex items-center rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
             >
               Envoyer un e-mail
             </a>
             <Link
               href="/agenda"
-              className="text-[13px] px-3 py-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 transition"
+              className="text-[13px] font-semibold px-3 h-9 inline-flex items-center rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
             >
               Programmer un RDV
             </Link>
@@ -339,17 +350,17 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] mt-6">
         {/* ── Colonne principale ─────────────────────────────────────────── */}
         <main className="space-y-5 min-w-0">
-          <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-4">
+          <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <SectionTitle icon={ClipboardList}>Fiche besoin</SectionTitle>
               <div className="ml-auto flex flex-wrap gap-1.5">
                 {n?.currentLevel != null && (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-medium">
+                  <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                     Niveau : {LEVEL_LABELS[n.currentLevel] ?? n.currentLevel}
                   </span>
                 )}
                 {funders.length > 0 && (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 font-medium">
+                  <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                     {funders.join(', ').toUpperCase()}
                   </span>
                 )}
@@ -368,17 +379,17 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               <p className="text-[13px] text-zinc-400">Aucune fiche besoin renseignée.</p>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-3 rounded-lg border border-zinc-200/70 dark:border-zinc-800 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden bg-zinc-50/60 dark:bg-zinc-950/40">
               <KeyFact label="Situation" value={`${situationLabel}${prospect.company_batch_id ? ' · entreprise' : ''}`} />
               <KeyFact label="Entreprise" value={prospect.company_name ?? '—'} />
               <KeyFact label="Reçue le" value={new Date(prospect.created_at).toLocaleDateString('fr-FR')} />
             </div>
           </section>
 
-          <section id="pieces" className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-3">
+          <section id="pieces" className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-3">
             <div className="flex items-center gap-2">
               <SectionTitle icon={FileCheck2}>Pièces justificatives</SectionTitle>
-              <span className="ml-auto text-[12px] text-zinc-500 dark:text-zinc-400">
+              <span className="ml-auto text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                 {providedCount} / {docs.length} fournie{docs.length > 1 ? 's' : ''}
               </span>
             </div>
@@ -391,17 +402,21 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
             <p
               className={
                 missingRequired === 0
-                  ? 'text-[12px] text-emerald-600 dark:text-emerald-400'
-                  : 'text-[12px] text-amber-600 dark:text-amber-400'
+                  ? 'flex items-center gap-2 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums'
+                  : 'flex items-center gap-2 text-[12px] font-semibold text-amber-600 dark:text-amber-400 tabular-nums'
               }
             >
+              <span
+                className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${missingRequired === 0 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                aria-hidden
+              />
               {missingRequired === 0
-                ? '● Aucune pièce bloquante — la demande peut avancer.'
-                : `● ${missingRequired} pièce${missingRequired > 1 ? 's' : ''} obligatoire${missingRequired > 1 ? 's' : ''} à vérifier avant validation.`}
+                ? 'Aucune pièce bloquante — la demande peut avancer.'
+                : `${missingRequired} pièce${missingRequired > 1 ? 's' : ''} obligatoire${missingRequired > 1 ? 's' : ''} à vérifier avant validation.`}
             </p>
           </section>
 
-          <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-3">
+          <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-3">
             <SectionTitle icon={History}>Suivi &amp; historique</SectionTitle>
             <ProspectNoteForm prospectId={prospect.id} />
             {events.length === 0 ? (
@@ -415,7 +430,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                       {i < events.length - 1 && <span className="w-px flex-1 bg-zinc-200 dark:bg-zinc-800" />}
                     </span>
                     <span className="pb-3">
-                      <span className="text-zinc-800 dark:text-zinc-200 font-medium">
+                      <span className="text-zinc-900 dark:text-zinc-100 font-bold">
                         {e.kind === 'comment'
                           ? (CHANNEL_LABELS[String(e.payload?.channel ?? '')] ?? 'Note interne')
                           : (EVENT_LABELS[e.kind] ?? e.kind)}
@@ -431,7 +446,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                       {typeof e.payload?.reason === 'string' && (
                         <span className="text-zinc-400 truncate"> — {e.payload.reason as string}</span>
                       )}
-                      <span className="block text-zinc-400 dark:text-zinc-500">
+                      <span className="block text-zinc-500 dark:text-zinc-400 tabular-nums">
                         {new Date(e.occurred_at).toLocaleString('fr-FR')}
                         {e.actor_user_id && actorNames.get(e.actor_user_id) && (
                           <> · {actorNames.get(e.actor_user_id)}</>
@@ -447,16 +462,16 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
 
         {/* ── Colonne de droite : à qui on parle, quoi faire, tout le reste ── */}
         <aside className="space-y-4 lg:sticky lg:top-24 self-start">
-          <section className="rounded-2xl border border-orange-100/80 dark:border-zinc-800 bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 p-4 shadow-sm">
+          <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-orange-400 text-white text-[15px] font-semibold">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-[15px] font-bold">
                 {initials || '?'}
               </span>
               <div className="min-w-0">
-                <p className={`${display.className} text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 truncate`}>
+                <p className="text-[17px] font-extrabold text-zinc-900 dark:text-zinc-100 truncate">
                   {prospect.first_name} {prospect.last_name}
                 </p>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Demande {reference}</p>
+                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">Demande {reference}</p>
               </div>
             </div>
             <div className="mt-3 space-y-1.5 text-[13px]">
@@ -464,7 +479,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                 {prospect.email}
               </a>
               {prospect.phone ? (
-                <a href={`tel:${prospect.phone}`} className="block text-zinc-700 dark:text-zinc-300 hover:text-orange-600">
+                <a href={`tel:${prospect.phone}`} className="block text-zinc-700 dark:text-zinc-300 hover:text-orange-600 tabular-nums">
                   {prospect.phone}
                 </a>
               ) : (
@@ -473,12 +488,12 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
             </div>
           </section>
 
-          <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+          <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
               Prochaine action
             </p>
             <div>
-              <p className={`${display.className} text-[16px] font-semibold text-zinc-900 dark:text-zinc-100`}>
+              <p className="text-[17px] font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">
                 {nextAction.title}
               </p>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">{nextAction.why}</p>
@@ -488,36 +503,36 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
             ) : (
               <a
                 href="#pieces"
-                className="w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm transition"
+                className="w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
               >
                 Voir les pièces
               </a>
             )}
             <a
               href={`mailto:${prospect.email}`}
-              className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-4 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+              className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
             >
               Relancer par e-mail
             </a>
           </section>
 
           {convertedDossierId && (
-            <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+            <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
                 Devis
               </p>
               {devis ? (
                 <>
-                  <p className="text-[13px] text-zinc-900 dark:text-zinc-100 tabular-nums">
-                    {devis.reference} · {QUOTE_STATUS_LABELS[devis.status]}
+                  <p className="text-[13px] text-zinc-900 dark:text-zinc-100">
+                    <span className="font-mono text-[12px]">{devis.reference}</span> · <span className="font-semibold">{QUOTE_STATUS_LABELS[devis.status]}</span>
                   </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                     Établi le {new Date(devis.created_at).toLocaleDateString('fr-FR')}
                     {devis.status === 'draft' ? ' — à relire avant envoi.' : '.'}
                   </p>
                   <Link
                     href={`/devis/${devis.id}`}
-                    className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-4 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                    className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
                   >
                     {devis.status === 'draft' ? 'Relire et envoyer' : 'Ouvrir le devis'}
                   </Link>
@@ -530,11 +545,11 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
             </section>
           )}
 
-          <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">
+          <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2">
               Récapitulatif
             </p>
-            <dl className="text-[13px] divide-y divide-zinc-100 dark:divide-zinc-800">
+            <dl className="text-[13px] divide-y divide-zinc-100 dark:divide-zinc-800/80">
               <SummaryRow
                 label="Statut"
                 value={

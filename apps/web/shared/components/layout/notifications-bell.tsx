@@ -52,11 +52,11 @@ export function NotificationsBell({
         type="button"
         onClick={toggle}
         aria-label="Notifications"
-        className="relative w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+        className="relative w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
       >
         <Bell className="w-4 h-4" />
         {count > 0 && (
-          <span className="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-orange-500 text-white text-[9px] font-medium flex items-center justify-center">
+          <span className="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-orange-500 text-white text-[9px] font-bold tabular-nums flex items-center justify-center">
             {count > 9 ? '9+' : count}
           </span>
         )}
@@ -66,13 +66,13 @@ export function NotificationsBell({
         <>
           <div className="fixed inset-0 z-40" aria-hidden onClick={() => setOpen(false)} />
           <div className="absolute right-0 mt-2 w-80 z-50 rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between gap-2">
-              <p className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">Notifications</p>
+            <div className="px-4 py-2.5 border-b border-zinc-200/70 dark:border-zinc-800 flex items-center justify-between gap-2">
+              <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">Notifications</p>
               {visible.length > 0 && (
                 <button
                   type="button"
                   onClick={markAll}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 inline-flex items-center gap-1 transition"
+                  className="text-[11px] font-semibold text-zinc-500 hover:text-orange-600 dark:hover:text-orange-300 inline-flex items-center gap-1 transition"
                 >
                   <Check className="w-3 h-3" /> Tout marquer lu
                 </button>
@@ -85,21 +85,19 @@ export function NotificationsBell({
                 <p className="text-[12px] text-zinc-400">Aucune notification non lue</p>
               </div>
             ) : (
-              <ul className="max-h-[22rem] overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800">
+              <ul className="max-h-[22rem] overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/80">
                 {visible.map((n) => {
                   const meta = NOTIF_META[n.template_code] ?? NOTIF_FALLBACK;
                   const Icon = meta.icon;
                   const href = notifHref(n);
                   const inner = (
                     <div className="flex items-start gap-2.5 px-4 py-2.5">
-                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.tone}`}>
-                        <Icon className="w-3.5 h-3.5" />
-                      </span>
+                      <Icon className="w-4 h-4 mt-0.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12px] text-zinc-800 dark:text-zinc-200 leading-snug">
+                        <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                           {n.subject ?? meta.label}
                         </p>
-                        <p className="text-[10px] text-zinc-400 mt-0.5">
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
                           {formatDistanceToNow(parseISO(n.created_at), { addSuffix: true, locale: fr })}
                         </p>
                       </div>
@@ -114,7 +112,7 @@ export function NotificationsBell({
                             dismissOne(n.id);
                             setOpen(false);
                           }}
-                          className="block hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                          className="block hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition"
                         >
                           {inner}
                         </Link>
@@ -122,7 +120,7 @@ export function NotificationsBell({
                         <button
                           type="button"
                           onClick={() => dismissOne(n.id)}
-                          className="block w-full text-left hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                          className="block w-full text-left hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition"
                         >
                           {inner}
                         </button>
@@ -136,7 +134,7 @@ export function NotificationsBell({
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-center text-[12px] font-medium text-orange-600 dark:text-orange-400 border-t border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+              className="block px-4 py-2.5 text-center text-[12px] font-bold text-orange-600 dark:text-orange-400 border-t border-zinc-200/70 dark:border-zinc-800 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition"
             >
               Voir tout
             </Link>

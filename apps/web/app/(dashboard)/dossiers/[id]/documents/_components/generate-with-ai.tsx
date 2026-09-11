@@ -46,7 +46,7 @@ export function GenerateWithAi({ dossierId }: { dossierId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-[13px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1.5"
+        className="text-[13px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 inline-flex items-center gap-1.5"
       >
         <Sparkles className="w-3.5 h-3.5" />
         Générer un document avec l&apos;IA
@@ -56,13 +56,13 @@ export function GenerateWithAi({ dossierId }: { dossierId: string }) {
   }
 
   return (
-    <div className="space-y-2 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-3">
+    <div className="space-y-2 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-4">
       <div className="flex items-center gap-2">
         <label className="text-[12px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Type de document</label>
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value as (typeof TEMPLATE_KINDS)[number])}
-          className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+          className="flex-1 h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
         >
           {KIND_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -75,14 +75,14 @@ export function GenerateWithAi({ dossierId }: { dossierId: string }) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Titre (optionnel — sinon le type sera utilisé)"
-        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+        className="w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
       />
       <textarea
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
         rows={3}
         placeholder="Décrivez ce que l'IA doit rédiger (ex : un protocole individuel de formation adapté à l'apprenant, mentionnant les objectifs et l'accessibilité)."
-        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
       />
       <div className="flex items-center justify-between">
         <button
@@ -96,13 +96,13 @@ export function GenerateWithAi({ dossierId }: { dossierId: string }) {
           type="button"
           onClick={handleGenerate}
           disabled={loading}
-          className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-2 rounded-md inline-flex items-center gap-2 shadow-sm"
+          className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-[13px] font-semibold px-4 h-9 rounded-lg inline-flex items-center gap-2 transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
         >
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
           {loading ? 'Génération…' : 'Générer'}
         </button>
       </div>
-      {error && <p className="text-[12px] text-red-600">{error}</p>}
+      {error && <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

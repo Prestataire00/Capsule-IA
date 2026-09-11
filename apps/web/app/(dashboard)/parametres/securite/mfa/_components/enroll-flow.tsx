@@ -95,17 +95,17 @@ export function EnrollFlow() {
   // state.kind === 'enrolled'
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+      <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5">
         <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-5 items-start">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={state.qrCode}
             alt="QR code MFA"
-            className="w-44 h-44 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white"
+            className="w-44 h-44 rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white"
           />
           <div className="space-y-3">
             <div>
-              <p className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                 1. Scannez le QR avec votre app d'authentification
               </p>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
@@ -117,7 +117,7 @@ export function EnrollFlow() {
                 Ou entrez ce secret manuellement :
               </p>
               <div className="flex items-center gap-2">
-                <code className="text-[12px] font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded select-all">
+                <code className="text-[12px] font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md select-all">
                   {state.secret}
                 </code>
                 <button
@@ -134,7 +134,7 @@ export function EnrollFlow() {
       </div>
 
       <div className="space-y-2">
-        <p className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
+        <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">
           2. Entrez le code à 6 chiffres affiché dans votre app
         </p>
         <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ export function EnrollFlow() {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             placeholder="123456"
-            className="font-mono text-[15px] tracking-widest text-center w-32 h-10 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+            className="font-mono text-[15px] tracking-widest text-center w-32 h-10 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition"
             autoFocus
           />
           <Button onClick={handleVerify} disabled={pending || code.length !== 6}>
@@ -163,7 +163,7 @@ export function EnrollFlow() {
       </div>
 
       <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-        ⚠ V1 : pas de codes de récupération. Si vous perdez l'accès à votre app TOTP, contactez un owner pour réinitialiser. Recovery codes prévus V1.5.
+        V1 : pas de codes de récupération. Si vous perdez l'accès à votre app TOTP, contactez un owner pour réinitialiser. Recovery codes prévus V1.5.
       </p>
     </div>
   );

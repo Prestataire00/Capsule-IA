@@ -116,12 +116,12 @@ export function SupportsUploader({
           placeholder="Titre du support"
           maxLength={200}
           required
-          className="flex-1 min-w-[180px] text-[13px] px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-orange-400 shadow-sm"
+          className="flex-1 min-w-[180px] h-9 text-[13px] px-3 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
         />
         <button
           type="submit"
           disabled={isSubmitting || !selectedFile || !title.trim()}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[12px] font-medium shadow-sm transition"
+          className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
         >
           {isSubmitting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

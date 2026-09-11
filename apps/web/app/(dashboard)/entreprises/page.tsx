@@ -1,20 +1,15 @@
 // ARCHETYPE: command
-// Justification: carnet entreprises réel (RLS-scopé) — cartes avec contact + compteur apprenants.
+// Justification: carnet entreprises réel (RLS-scopé) — une ligne par entreprise avec contact + compteur apprenants.
 
 import Link from 'next/link';
-import { Plus, Building2, MapPin, Mail } from 'lucide-react';
+import { Plus, Building2, MapPin, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 
-const palette = [
-  'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
-  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
-  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
-];
+const ROW_GRID = 'grid grid-cols-[minmax(0,1.7fr)_minmax(0,1.7fr)_170px_110px_72px] gap-4 px-5';
 
 export default async function EntreprisesPage() {
   await requireAccess('crm');
@@ -38,75 +33,119 @@ export default async function EntreprisesPage() {
   }
 
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-8">
-      <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
+      <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Entreprises</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
-            {companies.length} entreprise{companies.length > 1 ? 's' : ''} dans votre carnet.
+          <SectionLabel className="mb-2">Relations</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Entreprises</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            <span className="tabular-nums">
+              {companies.length} entreprise{companies.length > 1 ? 's' : ''}
+            </span>{' '}
+            dans votre carnet.
           </p>
         </div>
         <ManageOnly section="crm">
-        <Link
-          href="/entreprises/nouvelle"
-          className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nouvelle entreprise
-        </Link>
+          <Link
+            href="/entreprises/nouvelle"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle entreprise
+          </Link>
         </ManageOnly>
       </header>
 
       {companies.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
           <EmptyState
             icon={Building2}
             title="Aucune entreprise dans votre carnet."
             description="Ajoutez une entreprise cliente pour la rattacher à des dossiers et financeurs."
             action={
-              <Link href="/entreprises/nouvelle" className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] px-3 py-1.5 rounded-md transition inline-flex items-center gap-2">
+              <Link
+                href="/entreprises/nouvelle"
+                className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-3 h-8 rounded-lg transition inline-flex items-center gap-2"
+              >
                 <Plus className="w-3.5 h-3.5" /> Nouvelle entreprise
               </Link>
             }
           />
         </div>
       ) : (
-        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {companies.map((c) => {
-            const initials = (c.name as string).split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
-            const idx = (c.name as string).charCodeAt(0) % palette.length;
-            const city = c.address?.city ?? '';
-            return (
-              <li key={c.id}>
-                <Link href={`/entreprises/${c.id}`} className="block bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition">
-                  <div className="flex items-center gap-3 min-w-0 mb-3">
-                    <span className={`w-12 h-12 rounded-xl flex items-center justify-center text-[14px] font-semibold flex-shrink-0 shadow-sm ${palette[idx]}`}>
-                      {initials}
-                    </span>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[880px]">
+            <div
+              className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}
+            >
+              <div>Entreprise</div>
+              <div>Contact</div>
+              <div>SIRET</div>
+              <div>Apprenants</div>
+              <div className="text-right">Actions</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {companies.map((c) => {
+                const city = c.address?.city ?? '';
+                const count = learnerCount.get(c.id) ?? 0;
+                return (
+                  <li key={c.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
                     <div className="min-w-0">
-                      <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{c.name}</p>
+                      <Link
+                        href={`/entreprises/${c.id}`}
+                        className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                      >
+                        {c.name}
+                      </Link>
                       {city && (
-                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />{city}
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1 truncate">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          {city}
                         </p>
                       )}
                     </div>
-                  </div>
-                  <div className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400">
-                    {c.contact_email && (
-                      <div className="flex items-center gap-2"><Mail className="w-3 h-3 flex-shrink-0" /><span className="truncate">{c.contact_email}</span></div>
-                    )}
-                    {c.contact_name && <div className="text-[11px] text-zinc-500">Contact : {c.contact_name}</div>}
-                    {c.siret && <div className="font-mono text-[11px] text-zinc-400">SIRET {c.siret}</div>}
-                  </div>
-                  <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800 text-[12px] text-zinc-600 dark:text-zinc-400">
-                    {learnerCount.get(c.id) ?? 0} apprenant{(learnerCount.get(c.id) ?? 0) > 1 ? 's' : ''} rattaché{(learnerCount.get(c.id) ?? 0) > 1 ? 's' : ''}
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    <div className="min-w-0">
+                      {c.contact_name || c.contact_email ? (
+                        <>
+                          {c.contact_name && (
+                            <p className="truncate font-semibold text-zinc-900 dark:text-zinc-100">Contact : {c.contact_name}</p>
+                          )}
+                          {c.contact_email && <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">{c.contact_email}</p>}
+                        </>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      {c.siret ? (
+                        <span className="font-mono text-[12px] text-zinc-600 dark:text-zinc-400">{c.siret}</span>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
+                    </div>
+                    <div
+                      className="tabular-nums"
+                      title={`${count} apprenant${count > 1 ? 's' : ''} rattaché${count > 1 ? 's' : ''}`}
+                    >
+                      <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{count}</span>
+                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400"> rattaché{count > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center justify-end">
+                      <Link
+                        href={`/entreprises/${c.id}`}
+                        aria-label={`Ouvrir la fiche — ${c.name}`}
+                        title="Ouvrir la fiche"
+                        className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   );

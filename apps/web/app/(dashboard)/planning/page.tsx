@@ -5,6 +5,7 @@ import { AgendaNowLine } from '../agenda/agenda-now-line.client';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { AgendaTabs } from '../agenda/agenda-tabs.client';
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
@@ -18,17 +19,17 @@ const MONTHS = [
 type SessionStatus = 'planned' | 'in_progress' | 'done' | 'cancelled';
 
 const toneByStatus: Record<SessionStatus, string> = {
-  planned: 'bg-violet-50 dark:bg-violet-950/40 border-violet-200/60 dark:border-violet-900/50 text-violet-900 dark:text-violet-200',
-  in_progress: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/60 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200',
-  done: 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300',
-  cancelled: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200/60 dark:border-rose-900/50 text-rose-900 dark:text-rose-200 line-through',
+  planned: 'bg-orange-50 dark:bg-orange-950/40 border-orange-200/70 dark:border-orange-900/50 text-orange-900 dark:text-orange-200',
+  in_progress: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/70 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200',
+  done: 'bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200/70 dark:border-zinc-700/60 text-zinc-700 dark:text-zinc-300',
+  cancelled: 'bg-red-50 dark:bg-red-950/40 border-red-200/70 dark:border-red-900/50 text-red-900 dark:text-red-200 line-through',
 };
 
 const legend = [
   { label: 'En cours', dot: 'bg-emerald-500' },
-  { label: 'Planifiée', dot: 'bg-violet-500' },
+  { label: 'Planifiée', dot: 'bg-orange-500' },
   { label: 'Terminée', dot: 'bg-zinc-400' },
-  { label: 'Annulée', dot: 'bg-rose-500' },
+  { label: 'Annulée', dot: 'bg-red-500' },
 ];
 
 type SessionRow = {
@@ -107,12 +108,13 @@ export default async function PlanningPage({
   const monthLabel = `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
 
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-8">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
       <AgendaTabs />
-      <header className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+      <header className="flex items-end justify-between mb-7 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Planning des sessions</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">
+          <SectionLabel className="mb-2">Planification</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Planning des sessions</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
             {sessions.length} session{sessions.length > 1 ? 's' : ''} cette semaine.
           </p>
           {sessionErr && (
@@ -124,23 +126,23 @@ export default async function PlanningPage({
         <div className="flex items-center gap-2">
           <Link
             href="/sessions"
-            className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-2"
+            className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3.5 h-10 rounded-lg shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition inline-flex items-center gap-2"
           >
-            <Filter className="w-3.5 h-3.5" />
+            <Filter className="w-4 h-4 text-zinc-400" />
             Toutes les sessions
           </Link>
           <Link
             href="/sessions/nouvelle"
-            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             Nouvelle session
           </Link>
         </div>
       </header>
 
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/60 dark:border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800">
           <div className="flex items-center gap-3">
             <Link
               href={`/planning?week=${weekOffset - 1}`}
@@ -149,7 +151,7 @@ export default async function PlanningPage({
             >
               <ChevronLeft className="w-4 h-4" />
             </Link>
-            <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 capitalize">{monthLabel}</p>
+            <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 capitalize tabular-nums">{monthLabel}</p>
             <Link
               href={`/planning?week=${weekOffset + 1}`}
               aria-label="Semaine suivante"
@@ -161,7 +163,7 @@ export default async function PlanningPage({
           {weekOffset !== 0 && (
             <Link
               href="/planning"
-              className="text-[12px] text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition"
+              className="text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition"
             >
               Cette semaine
             </Link>
@@ -169,12 +171,12 @@ export default async function PlanningPage({
         </div>
 
         {/* En-tête des jours */}
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-zinc-200/60 dark:border-zinc-800">
-          <div className="border-r border-zinc-200/60 dark:border-zinc-800" />
+        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+          <div className="border-r border-zinc-200/70 dark:border-zinc-800" />
           {days.map((d) => (
-            <div key={d.label} className="px-3 py-3 border-r last:border-r-0 border-zinc-200/60 dark:border-zinc-800">
-              <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
-              <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 mt-0.5 tabular-nums">{d.dayNum}</p>
+            <div key={d.label} className="px-3 py-3 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800">
+              <p className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
+              <p className="text-[17px] font-extrabold text-zinc-900 dark:text-zinc-100 mt-0.5 tabular-nums">{d.dayNum}</p>
             </div>
           ))}
         </div>
@@ -190,7 +192,7 @@ export default async function PlanningPage({
                 {days.map((_, dayIdx) => (
                   <div
                     key={`${h}-${dayIdx}`}
-                    className="h-16 border-b border-r last:border-r-0 border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/50 dark:hover:bg-zinc-950/40 transition"
+                    className="h-16 border-b border-r last:border-r-0 border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition"
                   />
                 ))}
               </div>
@@ -217,8 +219,8 @@ export default async function PlanningPage({
                         className={`absolute left-1.5 right-1.5 rounded-md border px-2.5 py-1.5 pointer-events-auto cursor-pointer hover:shadow-md transition block overflow-hidden ${toneByStatus[e.status]}`}
                         style={{ top, height }}
                       >
-                        <p className="text-[12px] font-medium leading-tight truncate">{e.title}</p>
-                        <p className="text-[11px] opacity-75 truncate mt-0.5">
+                        <p className="text-[12px] font-bold leading-tight truncate">{e.title}</p>
+                        <p className="text-[11px] opacity-80 truncate mt-0.5 tabular-nums">
                           {e.timeLabel}{e.isGroup ? ' · groupe' : ''}
                         </p>
                       </Link>
@@ -230,10 +232,10 @@ export default async function PlanningPage({
         </div>
 
         {/* Légende */}
-        <div className="px-5 py-3 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center gap-5 flex-wrap">
+        <div className="px-5 py-3 border-t border-zinc-200/70 dark:border-zinc-800 flex items-center gap-5 flex-wrap">
           {legend.map((l) => (
-            <div key={l.label} className="inline-flex items-center gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-              <span className={`w-2 h-2 rounded-full ${l.dot}`} />
+            <div key={l.label} className="inline-flex items-center gap-2 text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+              <span className={`w-2.5 h-2.5 rounded-[3px] ${l.dot}`} />
               {l.label}
             </div>
           ))}

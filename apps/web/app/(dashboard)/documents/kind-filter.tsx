@@ -22,7 +22,7 @@ export function KindFilter({ options, value }: { options: KindOption[]; value: s
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label="Filtrer par type"
-      className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700"
+      className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] text-zinc-700 dark:text-zinc-300 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10"
     >
       <option value="">Tous les types</option>
       {options.map((o) => (

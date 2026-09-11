@@ -27,17 +27,17 @@ export default async function SessionHoursTab({ params }: { params: { id: string
       </div>
 
       <div>
-        <h2 className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
           <Clock className="w-4 h-4 text-zinc-400" /> Découpage
         </h2>
-        <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800 text-[13px]">
+        <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
           {sheets.length === 0 ? (
-            <li className="px-4 py-3 text-zinc-500 dark:text-zinc-400">Aucune demi-journée matérialisée.</li>
+            <li className="px-5 py-3.5 text-zinc-500 dark:text-zinc-400">Aucune demi-journée matérialisée.</li>
           ) : (
             sheets.map((s) => (
-              <li key={s.id} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-zinc-800 dark:text-zinc-200">{HALF_DAY[s.half_day] ?? s.half_day}</span>
-                <span className="text-[12px] text-zinc-500">{s.signed}/{s.total} présences signées</span>
+              <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                <span className="font-bold text-zinc-900 dark:text-zinc-100">{HALF_DAY[s.half_day] ?? s.half_day}</span>
+                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{s.signed}/{s.total} présences signées</span>
               </li>
             ))
           )}
@@ -49,9 +49,9 @@ export default async function SessionHoursTab({ params }: { params: { id: string
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-4 py-3">
-      <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mb-1">{label}</p>
-      <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{value}</p>
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+      <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">{label}</p>
+      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}</p>
     </div>
   );
 }

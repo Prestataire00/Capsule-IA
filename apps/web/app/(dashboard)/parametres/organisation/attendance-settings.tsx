@@ -5,7 +5,7 @@ import { Check, Loader2 } from 'lucide-react';
 import { setAttendanceAutoSend, setAttendanceLunch } from './attendance-settings-actions';
 
 const champ =
-  'text-[13px] px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30';
+  'h-9 text-[13px] tabular-nums px-2.5 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition';
 
 /** Réglages d'émargement : pause déjeuner et envoi automatique des liens. */
 export function AttendanceSettings({
@@ -33,9 +33,9 @@ export function AttendanceSettings({
         : 'Le réglage n’a pas été enregistré.';
 
   return (
-    <section className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-4">
+    <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-4">
       <div>
-        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Émargement</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Émargement</h2>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">Une feuille par demi-journée, signée à l’entrée et à la sortie.</p>
       </div>
       {!available ? (
@@ -43,7 +43,7 @@ export function AttendanceSettings({
       ) : (
         <>
           <div className="space-y-2">
-            <p className="text-[13px] text-zinc-800 dark:text-zinc-200">Pause déjeuner</p>
+            <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Pause déjeuner</p>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
               Elle sépare le matin de l’après-midi : sortir à son début ou revenir à la reprise n’est ni un départ anticipé ni un retard.
             </p>
@@ -66,7 +66,7 @@ export function AttendanceSettings({
                     setEtat(r.ok ? { ok: true, texte: 'Pause enregistrée — appliquée aux séances à venir' } : { ok: false, texte: message(r.error) });
                   })
                 }
-                className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40"
+                className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition disabled:opacity-40"
               >
                 Enregistrer
               </button>
@@ -92,9 +92,9 @@ export function AttendanceSettings({
                     }
                   });
                 }}
-                className="w-4 h-4 accent-violet-600"
+                className="w-4 h-4 accent-orange-500"
               />
-              <span className="text-[13px] text-zinc-800 dark:text-zinc-200">Envoyer automatiquement les liens d’émargement</span>
+              <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Envoyer automatiquement les liens d’émargement</span>
               {pending && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />}
             </label>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400">

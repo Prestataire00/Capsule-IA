@@ -56,11 +56,11 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
   return (
     <div className="space-y-4">
       {/* Formulaire d'ajout */}
-      <form action={onAdd} className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-4">
+      <form action={onAdd} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
         <input type="hidden" name="dossierId" value={dossierId} />
         <div className="flex items-center gap-2 mb-3">
-          <Wallet className="w-3.5 h-3.5 text-zinc-400" />
-          <p className="text-[11px] uppercase tracking-wider text-zinc-500">Ajouter une dépense</p>
+          <Wallet className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Ajouter une dépense</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <label className="block col-span-2 md:col-span-1">
@@ -98,7 +98,7 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
           <button
             type="submit"
             disabled={pending}
-            className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-9 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 disabled:opacity-50"
           >
             {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
             Ajouter
@@ -108,8 +108,8 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
       </form>
 
       {/* Liste */}
-      <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl overflow-hidden">
-        <div className="px-4 py-2.5 bg-zinc-50/60 dark:bg-zinc-900/40 text-[11px] tracking-wider uppercase text-zinc-500 grid grid-cols-[1fr_120px_90px_40px] gap-3">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-5 h-9 items-center bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800 text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400 grid grid-cols-[1fr_120px_90px_40px] gap-3">
           <span>Nature / prestataire</span>
           <span className="text-right">Montant HT</span>
           <span className="text-right">Date</span>
@@ -118,20 +118,20 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
         {rows.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 text-center py-8">Aucune dépense enregistrée.</p>
         ) : (
-          <ul className="divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {rows.map((r) => (
-              <li key={r.id} className="px-4 py-3 grid grid-cols-[1fr_120px_90px_40px] gap-3 items-center text-[13px]">
+              <li key={r.id} className="px-5 py-3.5 grid grid-cols-[1fr_120px_90px_40px] gap-3 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                 <div className="min-w-0">
-                  <p className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                  <p className="font-bold text-zinc-900 dark:text-zinc-100 truncate">
                     {KIND_LABEL[r.kind] ?? r.kind}
-                    {r.hours != null && r.hours > 0 && <span className="text-zinc-400 font-normal"> · {r.hours} h</span>}
+                    {r.hours != null && r.hours > 0 && <span className="text-zinc-400 font-normal tabular-nums"> · {r.hours} h</span>}
                   </p>
-                  <p className="text-[11px] text-zinc-500 truncate">
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
                     {[r.supplier_name, r.label].filter(Boolean).join(' · ') || '—'}
                   </p>
                 </div>
-                <span className="text-right tabular-nums text-zinc-900 dark:text-zinc-100">{eur(r.amount_cents)}</span>
-                <span className="text-right text-[12px] text-zinc-500">
+                <span className="text-right tabular-nums font-bold text-zinc-900 dark:text-zinc-100">{eur(r.amount_cents)}</span>
+                <span className="text-right text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                   {r.incurred_on ? new Date(r.incurred_on).toLocaleDateString('fr-FR') : '—'}
                 </span>
                 <button
@@ -139,15 +139,15 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
                   onClick={() => onDelete(r.id)}
                   disabled={pending}
                   aria-label="Supprimer"
-                  className="justify-self-end text-zinc-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 transition"
+                  className="justify-self-end w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 disabled:opacity-50 transition"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </li>
             ))}
-            <li className="px-4 py-3 grid grid-cols-[1fr_120px_90px_40px] gap-3 items-center text-[13px] bg-zinc-50/60 dark:bg-zinc-950/40 font-semibold">
+            <li className="px-5 py-3.5 grid grid-cols-[1fr_120px_90px_40px] gap-3 items-center text-[13px] bg-zinc-50 dark:bg-zinc-950/40 font-bold text-zinc-900 dark:text-zinc-100">
               <span>Total des charges du dossier</span>
-              <span className="text-right tabular-nums text-violet-700 dark:text-violet-400">{eur(total)}</span>
+              <span className="text-right tabular-nums text-[15px] font-extrabold">{eur(total)}</span>
               <span />
               <span />
             </li>

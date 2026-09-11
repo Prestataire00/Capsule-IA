@@ -107,7 +107,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 py-8 px-4">
+    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 py-8 px-4">
       <style>{`
         @media print {
           body { background: #fff !important; }
@@ -131,9 +131,9 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
             href={`/api/documents/${doc.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[13px] text-violet-600 hover:text-violet-700 dark:text-violet-400 inline-flex items-center gap-1.5"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-4 h-4" />
             Ouvrir / Télécharger
           </a>
         ) : (
@@ -172,7 +172,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
             </article>
           )}
 
-          <div className="no-print max-w-[760px] mx-auto mt-5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+          <div className="no-print max-w-[760px] mx-auto mt-5 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">
             <SignaturePanel documentId={doc.id} suggestions={suggestions} existing={existing} />
           </div>
         </>

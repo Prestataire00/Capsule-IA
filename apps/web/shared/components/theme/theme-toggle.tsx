@@ -61,7 +61,7 @@ export function ThemeToggle() {
       onClick={handleToggle}
       aria-label={isDark ? 'Activer le mode clair' : 'Activer le mode sombre'}
       title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
-      className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+      className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
     >
       {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
     </button>

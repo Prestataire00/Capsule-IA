@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, FolderOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -123,35 +123,28 @@ export default async function FormationSupportsPage({
   const totalResources = modulesWithResources.reduce((n, m) => n + m.resources.length, 0);
 
   return (
-    <div className="max-w-4xl w-full mx-auto px-8 py-8">
+    <div className="max-w-4xl w-full mx-auto px-8 py-9">
       <Link
         href={`/formations/${params.id}`}
-        className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+        className="text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         Retour à la formation
       </Link>
 
-      <header className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-sm p-6 mb-6">
-        <div className="flex items-start gap-4">
-          <span className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm bg-violet-100 dark:bg-violet-950/40">
-            <FolderOpen className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-          </span>
-          <div>
-            <SectionLabel className="mb-1">Supports pédagogiques</SectionLabel>
-            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              {(formation as { title: string }).title}
-            </h1>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
-              {modulesWithResources.length} module{modulesWithResources.length !== 1 ? 's' : ''} —{' '}
-              {totalResources} support{totalResources !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
+      <header className="mb-7">
+        <SectionLabel className="mb-2">Supports pédagogiques</SectionLabel>
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
+          {(formation as { title: string }).title}
+        </h1>
+        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          {modulesWithResources.length} module{modulesWithResources.length !== 1 ? 's' : ''} —{' '}
+          {totalResources} support{totalResources !== 1 ? 's' : ''}
+        </p>
       </header>
 
       {modulesWithResources.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-8 text-center shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-8 text-center shadow-sm">
           <BookOpen className="w-8 h-8 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
             Cette formation n&apos;a aucun module rattaché.
@@ -162,18 +155,16 @@ export default async function FormationSupportsPage({
           {modulesWithResources.map((mod) => (
             <section
               key={mod.moduleId}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden"
+              className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden"
             >
               {/* En-tête du module */}
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
-                <span className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                </span>
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+                <BookOpen className="w-4 h-4 text-zinc-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                  <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                     {mod.moduleTitle}
                   </p>
-                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                     Module {mod.position + 1} — {mod.resources.length} support{mod.resources.length !== 1 ? 's' : ''}
                   </p>
                 </div>
@@ -186,20 +177,18 @@ export default async function FormationSupportsPage({
                     Aucun support pour ce module.
                   </p>
                 ) : (
-                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 -my-1">
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80 -my-1">
                     {mod.resources.map((res) => (
                       <li
                         key={res.id}
-                        className="flex items-center gap-3 py-2.5 flex-wrap"
+                        className="flex items-center gap-3 py-3 flex-wrap"
                       >
-                        <span className="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
-                        </span>
+                        <FileText className="w-4 h-4 text-zinc-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">
+                          <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                             {res.title}
                           </p>
-                          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                             {mimeLabel(res.mime_type)} · {formatBytes(res.file_size_bytes)}
                           </p>
                         </div>

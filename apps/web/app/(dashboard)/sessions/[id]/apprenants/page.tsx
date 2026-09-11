@@ -36,7 +36,7 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
 
   if (learners.length === 0) {
     return (
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
         <EmptyState
           icon={Users}
           title="Aucun apprenant"
@@ -51,30 +51,30 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
       {groupByClient(learners).map((g) => (
         <section
           key={g.key}
-          className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg overflow-hidden"
+          className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden"
         >
-          <header className="px-4 py-2.5 bg-zinc-50/60 dark:bg-zinc-900/40 flex items-center gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-            {g.company ? <Building2 className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
-            <span className="font-medium text-zinc-900 dark:text-zinc-100">{g.label}</span>
-            <span>
+          <header className="px-5 h-10 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800 flex items-center gap-2 text-[12px] text-zinc-500 dark:text-zinc-400">
+            {g.company ? <Building2 className="w-3.5 h-3.5 text-zinc-400" /> : <User className="w-3.5 h-3.5 text-zinc-400" />}
+            <span className="font-bold text-zinc-900 dark:text-zinc-100">{g.label}</span>
+            <span className="tabular-nums">
               · {g.learners.length} stagiaire{g.learners.length > 1 ? 's' : ''}
               {g.company ? ' · une convention et un devis pour l’entreprise' : ' · un contrat et un devis chacun'}
             </span>
           </header>
-          <ul className="divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {g.learners.map((l) => (
-              <li key={l.id} className="flex items-center justify-between px-4 py-3 text-[13px]">
+              <li key={l.id} className="flex items-center justify-between gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                 <div className="min-w-0">
-                  <p className="text-zinc-900 dark:text-zinc-100">
+                  <p className="font-bold text-zinc-900 dark:text-zinc-100">
                     {l.first_name} {l.last_name}
                   </p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
-                    {l.email} · dossier {l.dossierReference}
+                    {l.email} · dossier <span className="font-mono">{l.dossierReference}</span>
                   </p>
                 </div>
                 <Link
                   href={`/dossiers/${l.dossierId}`}
-                  className="inline-flex items-center gap-1 text-[12px] text-violet-600 dark:text-violet-400 hover:underline shrink-0"
+                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md text-[12px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition shrink-0"
                 >
                   Dossier <ArrowUpRight className="w-3 h-3" />
                 </Link>

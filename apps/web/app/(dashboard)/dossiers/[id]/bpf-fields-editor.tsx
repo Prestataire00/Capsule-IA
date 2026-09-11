@@ -29,10 +29,10 @@ export function BpfFieldsEditor({
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-4 py-4">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4">
       <div className="flex items-center gap-2 mb-3">
-        <GraduationCap className="w-3.5 h-3.5 text-zinc-400" />
-        <p className="text-[11px] uppercase tracking-wider text-zinc-500">Classification BPF</p>
+        <GraduationCap className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Classification BPF</p>
         {pending && <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />}
       </div>
 

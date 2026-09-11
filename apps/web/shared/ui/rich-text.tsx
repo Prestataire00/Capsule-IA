@@ -55,8 +55,8 @@ export function RichText({
   };
 
   return (
-    <div className="rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-violet-300 dark:focus-within:border-violet-800 focus-within:ring-2 focus-within:ring-violet-500/10 transition">
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-zinc-200/60 dark:border-zinc-800">
+    <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-orange-300 dark:focus-within:border-orange-800 focus-within:ring-4 focus-within:ring-orange-500/10 transition">
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-zinc-200/70 dark:border-zinc-800">
         {TOOLS.map((t) => (
           <button
             key={t.cmd}

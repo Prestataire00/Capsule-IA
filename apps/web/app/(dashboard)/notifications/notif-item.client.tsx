@@ -46,7 +46,7 @@ export function NotifItem({
             handleClick();
           }
         }}
-        className="block cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+        className="block cursor-pointer hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors focus:outline-none focus-visible:bg-orange-50/60 dark:focus-visible:bg-orange-950/30"
       >
         {children}
       </div>

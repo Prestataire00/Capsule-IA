@@ -31,12 +31,12 @@ export function AssignLearner({
   }
 
   const selectClass =
-    'rounded-lg border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40';
+    'h-9 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-[13px] text-zinc-800 dark:text-zinc-200 transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10';
 
   const onAssign = () => {
     setMsg(null);
     startTransition(async () => {
-      const res = await executeAsync({ dossierId, templateId: templateId || templates[0].id });
+      const res = await executeAsync({ dossierId, templateId: templateId || (templates[0]?.id ?? '') });
       if (res?.data?.ok) {
         setMsg({ ok: true, text: 'Questionnaire affecté — disponible dans l’espace apprenant.' });
         router.refresh();
@@ -59,7 +59,7 @@ export function AssignLearner({
           type="button"
           onClick={onAssign}
           disabled={isPending}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white text-[13px] font-medium hover:bg-orange-600 disabled:opacity-50 shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-orange-500 text-white text-[13px] font-semibold hover:bg-orange-600 disabled:opacity-50 transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
         >
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
           Affecter à l’apprenant

@@ -55,14 +55,14 @@ export default async function ZoomIntegrationPage() {
     <div className="space-y-6">
       <Link
         href="/parametres/integrations"
-        className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition"
+        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-orange-600 dark:hover:text-orange-400 transition"
       >
         <ArrowLeft className="w-3 h-3" />
         Retour aux intégrations
       </Link>
 
       <div className="flex items-center gap-2 mb-1">
-        <Video className="w-3.5 h-3.5 text-violet-500" />
+        <Video className="w-3.5 h-3.5 text-zinc-400" />
         <SectionLabel>Zoom Server-to-Server</SectionLabel>
       </div>
 

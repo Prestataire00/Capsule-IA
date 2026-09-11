@@ -14,6 +14,8 @@ export const dynamic = 'force-dynamic';
 
 const HALF_DAY: Record<string, string> = { morning: 'Matin', afternoon: 'Après-midi', full: 'Journée', evening: 'Soir' };
 
+const LIST = 'bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80';
+
 export default async function SessionOverview({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
@@ -30,11 +32,11 @@ export default async function SessionOverview({ params }: { params: { id: string
           return (
             <div
               key={col.title}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg shadow-sm p-4"
+              className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-4"
             >
               <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{col.title}</h2>
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{col.title}</h2>
+                <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums">
                   {faites}/{col.steps.length}
                 </span>
               </div>
@@ -49,17 +51,17 @@ export default async function SessionOverview({ params }: { params: { id: string
       </section>
 
       <section>
-        <h2 className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 mb-3">Apprenants de la session</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-3">Apprenants de la session</h2>
         {learners.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun apprenant rattaché à cette session.</p>
         ) : (
-          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          <ul className={LIST}>
             {learners.map((l) => (
-              <li key={l.id} className="flex items-center justify-between px-4 py-2.5 text-[13px]">
-                <Link href={`/dossiers/${l.dossierId}`} className="text-zinc-800 dark:text-zinc-200 hover:text-violet-600">
+              <li key={l.id} className="flex items-center justify-between gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
+                <Link href={`/dossiers/${l.dossierId}`} className="font-bold text-zinc-900 dark:text-zinc-100 hover:text-orange-600 dark:hover:text-orange-300 truncate">
                   {l.first_name} {l.last_name}
                 </Link>
-                <span className="text-[12px] text-zinc-400">{l.email}</span>
+                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{l.email}</span>
               </li>
             ))}
           </ul>
@@ -67,15 +69,15 @@ export default async function SessionOverview({ params }: { params: { id: string
       </section>
 
       <section>
-        <h2 className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 mb-3">Émargements</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-3">Émargements</h2>
         {sheets.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune feuille d'émargement générée.</p>
         ) : (
-          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800">
+          <ul className={LIST}>
             {sheets.map((s) => (
-              <li key={s.id} className="flex items-center justify-between px-4 py-2.5 text-[13px]">
-                <span className="text-zinc-800 dark:text-zinc-200">{HALF_DAY[s.half_day] ?? s.half_day}</span>
-                <span className="text-[12px] text-zinc-500">
+              <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3.5 text-[13px]">
+                <span className="font-bold text-zinc-900 dark:text-zinc-100">{HALF_DAY[s.half_day] ?? s.half_day}</span>
+                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                   {s.signed}/{s.total} signés · {s.status}
                 </span>
               </li>
@@ -105,7 +107,7 @@ function Etape({ step }: { step: BoardStep }) {
         <span className="sr-only"> — {ETAT_LU[step.state]}</span>
       </span>
       {step.compte && (
-        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+        <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
           {step.total === 0 ? '—' : `${step.done}/${step.total}`}
         </span>
       )}
@@ -117,7 +119,7 @@ function Etape({ step }: { step: BoardStep }) {
       {step.href ? (
         <Link
           href={step.href}
-          className="group flex items-center gap-2 -mx-2 px-2 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+          className="group flex items-center gap-2 -mx-2 px-2 py-1.5 rounded-md hover:bg-orange-50/60 dark:hover:bg-orange-950/30 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-500/20"
         >
           {contenu}
         </Link>

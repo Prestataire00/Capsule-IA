@@ -2,15 +2,22 @@
 // Justification: tâches d'envoi par financeur (brouillon assisté + envoi 1 clic).
 
 import { notFound } from 'next/navigation';
+import { Landmark } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
 import { prepareFunderTaskDraft, sendFunderTask } from './actions';
 
 const STATUS_LABEL: Record<string, string> = {
   pending: 'À préparer', ready: 'Échéance proche', drafted: 'Brouillon prêt',
   sent: 'Envoyé', done: 'Terminé', skipped: 'Ignoré',
 };
+const STATUS_TONE: Record<string, 'neutral' | 'warning' | 'info'> = {
+  pending: 'neutral', ready: 'warning', drafted: 'info', skipped: 'neutral',
+};
+
+const ROW_GRID = 'grid grid-cols-[minmax(0,2.2fr)_110px_100px_150px_minmax(0,1.3fr)] gap-4 px-5';
 
 export default async function FinanceursPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -29,55 +36,76 @@ export default async function FinanceursPage({ params }: { params: { id: string 
   const rows = (tasks as any[]) ?? [];
 
   return (
-    <div className="space-y-6">
-      <SectionLabel>Financeurs — documents à transmettre ({rows.length})</SectionLabel>
+    <div className="space-y-5">
+      <SectionLabel>
+        Financeurs — documents à transmettre (<span className="tabular-nums">{rows.length}</span>)
+      </SectionLabel>
 
       {rows.length === 0 ? (
-        <p className="text-[13px] text-zinc-500">
-          Aucune tâche financeur. Rattachez un financeur au dossier pour générer le calendrier d'envoi.
-        </p>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
+          <EmptyState
+            icon={Landmark}
+            title="Aucune tâche financeur."
+            description="Rattachez un financeur au dossier pour générer le calendrier d'envoi."
+          />
+        </div>
       ) : (
-        <ul className="space-y-2">
-          {rows.map((t) => {
-            const atts = (t.resolved_attachments as Array<unknown> | null) ?? [];
-            const canPrepare = t.status !== 'sent' && t.status !== 'done';
-            return (
-              <li key={t.id} className="flex items-center justify-between gap-4 rounded border border-zinc-200/60 dark:border-zinc-800 p-3">
-                <div className="min-w-0">
-                  <div className="font-medium text-[13px]">{t.funders?.name ?? 'Financeur'}</div>
-                  <div className="text-[11px] text-zinc-500">
-                    {STATUS_LABEL[t.status] ?? t.status}
-                    {t.due_date ? ` · échéance ${new Date(t.due_date).toLocaleDateString('fr-FR')}` : ''}
-                    {atts.length ? ` · ${atts.length} pièce(s)` : ''}
-                  </div>
-                  {t.draft_subject && <div className="truncate text-[12px] text-zinc-600 dark:text-zinc-400">Objet : {t.draft_subject}</div>}
-                </div>
-                <div className="flex items-center gap-2">
-                  {t.status === 'sent' || t.status === 'done' ? (
-                    <StatusPill tone="success">envoyé</StatusPill>
-                  ) : (
-                    <>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[760px]">
+            <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+              <div>Financeur</div>
+              <div>Échéance</div>
+              <div>Pièces</div>
+              <div>Statut</div>
+              <div className="text-right">Actions</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {rows.map((t) => {
+                const atts = (t.resolved_attachments as Array<unknown> | null) ?? [];
+                const canPrepare = t.status !== 'sent' && t.status !== 'done';
+                return (
+                  <li key={t.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                    <div className="min-w-0">
+                      <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{t.funders?.name ?? 'Financeur'}</p>
+                      {t.draft_subject && (
+                        <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Objet : {t.draft_subject}</p>
+                      )}
+                    </div>
+                    <div className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                      {t.due_date ? new Date(t.due_date).toLocaleDateString('fr-FR') : <span className="font-normal text-zinc-400">—</span>}
+                    </div>
+                    <div className="text-[13px] text-zinc-700 dark:text-zinc-300 tabular-nums">
+                      {atts.length ? `${atts.length} pièce(s)` : <span className="text-zinc-400">—</span>}
+                    </div>
+                    <div>
+                      {t.status === 'sent' || t.status === 'done' ? (
+                        <StatusPill tone="success">envoyé</StatusPill>
+                      ) : (
+                        <StatusPill tone={STATUS_TONE[t.status] ?? 'neutral'}>{STATUS_LABEL[t.status] ?? t.status}</StatusPill>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
                       {canPrepare && (
                         <form action={async () => { 'use server'; await prepareFunderTaskDraft(t.id, params.id); }}>
-                          <button type="submit" className="border border-zinc-200/60 dark:border-zinc-800 text-[12px] px-3 py-1 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
+                          <button type="submit" className="h-8 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition">
                             Préparer
                           </button>
                         </form>
                       )}
                       {t.status === 'drafted' && (
                         <form action={async () => { 'use server'; await sendFunderTask(t.id, params.id); }}>
-                          <button type="submit" className="bg-orange-500 text-white text-[12px] px-3 py-1 rounded-md hover:bg-orange-600 transition">
+                          <button type="submit" className="h-8 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-semibold px-3 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10">
                             Envoyer
                           </button>
                         </form>
                       )}
-                    </>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   );

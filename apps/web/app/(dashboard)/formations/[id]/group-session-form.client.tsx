@@ -98,7 +98,7 @@ export function GroupSessionForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 text-[13px] font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400"
+        className="inline-flex items-center gap-2 text-[13px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
       >
         <CalendarPlus className="w-4 h-4" /> Planifier une session de groupe
       </button>
@@ -107,8 +107,8 @@ export function GroupSessionForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
-        <Users className="w-4 h-4 text-violet-500" /> Session de groupe
+      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+        <Users className="w-4 h-4 text-zinc-400" /> Session de groupe
       </p>
       <FormField label="Intitulé" required>
         <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Séance 1 — …" className={inputClass} />
@@ -120,9 +120,9 @@ export function GroupSessionForm({
 
       <div className="space-y-2">
         <p className="text-[12px] font-medium text-zinc-600 dark:text-zinc-400">Demi-journée(s)</p>
-        <div className="rounded-lg border border-zinc-200/60 dark:border-zinc-800 p-3">
+        <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800 p-3">
           <label className="flex items-center gap-2 text-[13px] font-medium text-zinc-800 dark:text-zinc-200 cursor-pointer">
-            <input type="checkbox" checked={form.morning} onChange={(e) => set('morning', e.target.checked)} className="w-4 h-4 accent-violet-600" />
+            <input type="checkbox" checked={form.morning} onChange={(e) => set('morning', e.target.checked)} className="w-4 h-4 accent-orange-600" />
             Matin
           </label>
           {form.morning && (
@@ -132,9 +132,9 @@ export function GroupSessionForm({
             </div>
           )}
         </div>
-        <div className="rounded-lg border border-zinc-200/60 dark:border-zinc-800 p-3">
+        <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800 p-3">
           <label className="flex items-center gap-2 text-[13px] font-medium text-zinc-800 dark:text-zinc-200 cursor-pointer">
-            <input type="checkbox" checked={form.afternoon} onChange={(e) => set('afternoon', e.target.checked)} className="w-4 h-4 accent-violet-600" />
+            <input type="checkbox" checked={form.afternoon} onChange={(e) => set('afternoon', e.target.checked)} className="w-4 h-4 accent-orange-600" />
             Après-midi
           </label>
           {form.afternoon && (
@@ -176,17 +176,23 @@ export function GroupSessionForm({
         Tous les apprenants de la formation seront rattachés automatiquement (émargement de groupe). Le devis de
         chaque client reprend ce tarif par défaut.
       </p>
-      {error && <p className="text-[12px] text-red-600">{error}</p>}
+      {error && <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>}
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={submit}
           disabled={pending}
-          className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-[13px] font-medium px-4 py-2 rounded-lg"
+          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
         >
           {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Créer
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="text-[13px] text-zinc-500">Annuler</button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+        >
+          Annuler
+        </button>
       </div>
     </div>
   );

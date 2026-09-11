@@ -4,8 +4,9 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, UserCog, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { SectionLabel } from '@/shared/ui/section-label';
 import { createTrainer, type CreateTrainerResult } from './actions';
 
 export default function NouveauFormateurPage() {
@@ -33,24 +34,16 @@ export default function NouveauFormateurPage() {
       <div className="max-w-2xl w-full mx-auto px-8 py-10">
         <Link
           href="/formateurs"
-          className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1.5 transition mb-6"
+          className="text-[12px] text-zinc-500 hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1 transition mb-4"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Retour aux formateurs
         </Link>
 
-        <header className="mb-8 flex items-center gap-3">
-          <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/60 dark:to-emerald-950/30 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shadow-sm">
-            <UserCog className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Nouveau formateur
-            </h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Ajoutez un formateur (interne ou externe) à votre réseau.
-            </p>
-          </div>
+        <header className="mb-8">
+          <SectionLabel className="mb-2">Formateurs</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouveau formateur</h1>
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Ajoutez un formateur (interne ou externe) à votre réseau.</p>
         </header>
 
         <form onSubmit={onSubmit} className="space-y-5">
@@ -103,8 +96,8 @@ export default function NouveauFormateurPage() {
           </FormField>
 
           {/* Profil public — repris tel quel dans l'équipe pédagogique des formations */}
-          <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 space-y-4">
-            <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Profil</p>
+          <div className="border-t border-zinc-200/70 dark:border-zinc-800 pt-4 space-y-4">
+            <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Profil</p>
 
             <FormField
               label="Description"
@@ -133,16 +126,17 @@ export default function NouveauFormateurPage() {
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white text-[13px] font-medium hover:bg-orange-600 disabled:opacity-50 shadow-sm transition"
+              className="inline-flex items-center gap-2 px-4 h-10 rounded-lg bg-orange-500 text-white text-[13px] font-semibold hover:bg-orange-600 disabled:opacity-50 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
             >
               {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Créer le formateur
             </button>
             {result?.ok && (
-              <span className="text-[12px] text-emerald-600 dark:text-emerald-400">
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <Check className="w-3.5 h-3.5" />
                 {result.invited
-                  ? '✓ Fiche créée, invitation envoyée'
-                  : '✓ Fiche créée (utilisateur déjà membre)'}
+                  ? 'Fiche créée, invitation envoyée'
+                  : 'Fiche créée (utilisateur déjà membre)'}
               </span>
             )}
             {result && !result.ok && (

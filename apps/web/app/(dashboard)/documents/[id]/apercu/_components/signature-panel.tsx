@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
-import { Loader2, Plus, Send, Trash2, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { Loader2, Plus, Send, Trash2 } from 'lucide-react';
+import { StatusPill } from '@/shared/ui/status-pill';
 import { requestSignatures } from '../signature-actions';
 import { SIGNER_KINDS, SIGNER_KIND_LABELS, type SignerKind } from '../signature-schema';
 
@@ -80,16 +81,16 @@ export function SignaturePanel({
     <div className="space-y-5">
       {existing.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-wider text-zinc-500">Signatures</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Signatures</p>
           <ul className="space-y-1.5">
             {existing.map((s, i) => (
               <li
                 key={i}
-                className="flex items-center justify-between gap-3 text-[13px] bg-zinc-50 dark:bg-zinc-900 rounded-md px-3 py-2"
+                className="flex items-center justify-between gap-3 text-[13px] bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5"
               >
-                <span className="min-w-0 truncate">
+                <span className="min-w-0 truncate font-bold text-zinc-900 dark:text-zinc-100">
                   {s.signerName ?? s.signerEmail ?? '—'}{' '}
-                  <span className="text-[11px] text-zinc-400">
+                  <span className="text-[12px] font-normal text-zinc-500">
                     · {SIGNER_KIND_LABELS[s.signerKind as SignerKind] ?? s.signerKind}
                   </span>
                 </span>
@@ -101,13 +102,13 @@ export function SignaturePanel({
       )}
 
       <div className="space-y-2">
-        <p className="text-[11px] uppercase tracking-wider text-zinc-500">Demander une signature</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Demander une signature</p>
         {rows.map((r, i) => (
           <div key={i} className="flex flex-col sm:flex-row gap-2">
             <select
               value={r.kind}
               onChange={(e) => update(i, { kind: e.target.value as SignerKind })}
-              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-2 py-2 text-[13px] sm:w-44"
+              className="h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 px-2 text-[13px] sm:w-44"
             >
               {SIGNER_KINDS.map((k) => (
                 <option key={k} value={k}>
@@ -119,21 +120,21 @@ export function SignaturePanel({
               value={r.name}
               onChange={(e) => update(i, { name: e.target.value })}
               placeholder="Nom"
-              className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+              className="flex-1 h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 px-3 text-[13px]"
             />
             <input
               value={r.email}
               onChange={(e) => update(i, { email: e.target.value, learnerId: null })}
               placeholder="email@exemple.com"
               type="email"
-              className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-md px-3 py-2 text-[13px]"
+              className="flex-1 h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 px-3 text-[13px]"
             />
             {rows.length > 1 && (
               <button
                 type="button"
                 onClick={() => removeRow(i)}
                 aria-label="Retirer"
-                className="text-zinc-400 hover:text-red-600 px-2"
+                className="w-9 h-9 rounded-md grid place-items-center text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 transition"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -154,7 +155,7 @@ export function SignaturePanel({
             type="button"
             onClick={send}
             disabled={sending}
-            className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-[13px] font-medium px-4 py-2 rounded-md inline-flex items-center gap-2 shadow-sm"
+            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-[13px] font-semibold px-4 h-9 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
           >
             {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             Envoyer
@@ -168,21 +169,8 @@ export function SignaturePanel({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'signed')
-    return (
-      <span className="text-[11px] text-emerald-600 inline-flex items-center gap-1 flex-shrink-0">
-        <CheckCircle2 className="w-3.5 h-3.5" /> Signé
-      </span>
-    );
+  if (status === 'signed') return <StatusPill tone="success">Signé</StatusPill>;
   if (status === 'declined' || status === 'expired')
-    return (
-      <span className="text-[11px] text-red-500 inline-flex items-center gap-1 flex-shrink-0">
-        <XCircle className="w-3.5 h-3.5" /> {status === 'declined' ? 'Refusé' : 'Expiré'}
-      </span>
-    );
-  return (
-    <span className="text-[11px] text-amber-600 inline-flex items-center gap-1 flex-shrink-0">
-      <Clock className="w-3.5 h-3.5" /> En attente
-    </span>
-  );
+    return <StatusPill tone="danger">{status === 'declined' ? 'Refusé' : 'Expiré'}</StatusPill>;
+  return <StatusPill tone="warning">En attente</StatusPill>;
 }

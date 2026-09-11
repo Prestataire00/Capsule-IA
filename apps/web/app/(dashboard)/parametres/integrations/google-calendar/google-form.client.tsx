@@ -26,10 +26,10 @@ export function GoogleCalendarForm({ initialStatus, error }: { initialStatus: Go
       )}
 
       {initialStatus.configured ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 space-y-3">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Check className="w-4 h-4 text-emerald-600" />
-            <span className="text-[13px] text-zinc-900 dark:text-zinc-100">
+            <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
               Connecté{initialStatus.accountEmail ? ` — ${initialStatus.accountEmail}` : ''}
             </span>
           </div>
@@ -49,13 +49,13 @@ export function GoogleCalendarForm({ initialStatus, error }: { initialStatus: Go
                   router.refresh();
                 })
               }
-              className="inline-flex items-center gap-1.5 text-[12px] text-violet-600 hover:text-violet-700 dark:text-violet-400 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 disabled:opacity-50"
             >
               {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Tester
             </button>
             <a
               href="/api/integrations/google-calendar/connect"
-              className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500 hover:text-violet-600"
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-orange-600 dark:hover:text-orange-400"
             >
               <CalendarDays className="w-3.5 h-3.5" /> Reconnecter
             </a>
@@ -68,7 +68,7 @@ export function GoogleCalendarForm({ initialStatus, error }: { initialStatus: Go
                   router.refresh();
                 })
               }
-              className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500 hover:text-red-600 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-red-600 disabled:opacity-50"
             >
               <Unplug className="w-3.5 h-3.5" /> Déconnecter
             </button>
@@ -78,7 +78,7 @@ export function GoogleCalendarForm({ initialStatus, error }: { initialStatus: Go
       ) : (
         <a
           href="/api/integrations/google-calendar/connect"
-          className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg"
+          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
         >
           <CalendarDays className="w-4 h-4" /> Connecter Google Agenda
         </a>

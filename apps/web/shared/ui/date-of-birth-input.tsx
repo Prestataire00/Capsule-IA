@@ -105,7 +105,7 @@ export function DateOfBirthInput({
   };
 
   const selectClass =
-    'w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg pl-3 pr-8 py-2 text-[13px] focus:outline-none focus:border-violet-300 dark:focus:border-violet-700 focus:ring-2 focus:ring-violet-500/10 transition appearance-none cursor-pointer text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700';
+    'w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg pl-3 pr-8 text-[13px] tabular-nums focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition appearance-none cursor-pointer text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700';
 
   const wrapClass = 'relative';
   const chevronClass = 'absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none';

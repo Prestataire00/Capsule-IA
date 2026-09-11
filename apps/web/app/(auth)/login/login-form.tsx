@@ -6,7 +6,7 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { login } from './actions';
 
 const inputClass =
-  'w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-200/50 dark:focus:border-orange-500/60 dark:focus:ring-orange-500/20 transition placeholder:text-zinc-400';
+  'w-full h-10 bg-white dark:bg-zinc-950/40 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition placeholder:text-zinc-400';
 
 /**
  * Les valeurs sont lues dans le formulaire à l'envoi : le remplissage
@@ -38,7 +38,7 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-1.5">
-        <label htmlFor="email" className="block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+        <label htmlFor="email" className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
           Email
         </label>
         <input
@@ -53,7 +53,7 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="password" className="block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+        <label htmlFor="password" className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
           Mot de passe
         </label>
         <input
@@ -70,7 +70,7 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
       <div className="flex justify-end -mt-1">
         <Link
           href="/auth/mot-de-passe-oublie"
-          className="text-[12px] text-zinc-500 hover:text-violet-600 transition"
+          className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-orange-600 dark:hover:text-orange-400 transition"
         >
           Mot de passe oublié ?
         </Link>
@@ -85,7 +85,7 @@ export function LoginForm({ redirectedFrom }: { redirectedFrom?: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full bg-orange-500 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg shadow-sm hover:bg-orange-600 hover:shadow-md transition inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-orange-500"
+        className="w-full h-10 bg-orange-500 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 hover:bg-orange-600 transition inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-orange-500"
       >
         {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
         Se connecter

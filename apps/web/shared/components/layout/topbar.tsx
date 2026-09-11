@@ -34,16 +34,16 @@ export async function Topbar() {
   const notifications = ((recent as any[]) ?? []) as Notif[];
 
   return (
-    <header className="h-16 flex-shrink-0 border-b border-zinc-200/60 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl backdrop-saturate-150 sticky top-0 z-40 flex items-center px-6 gap-4">
+    <header className="h-16 flex-shrink-0 border-b border-zinc-200/70 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl backdrop-saturate-150 sticky top-0 z-40 flex items-center px-6 gap-4">
       <div className="flex-1" />
 
       <form action="/dossiers" method="get" className="relative w-full max-w-md">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
         <input
           type="search"
           name="q"
           placeholder="Rechercher un dossier, apprenant, formation…"
-          className="w-full h-10 bg-white dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800 rounded-xl pl-10 pr-3 text-[13px] shadow-sm transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
+          className="w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg pl-9 pr-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 placeholder:text-zinc-400"
         />
       </form>
 
@@ -53,13 +53,13 @@ export async function Topbar() {
         <Link
           href="/reclamations"
           aria-label="Messages"
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
         >
           <Mail className="w-4 h-4" />
         </Link>
         <Link
           href="/parametres"
-          className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-medium text-[11px] flex items-center justify-center hover:opacity-80 transition shadow-sm"
+          className="w-9 h-9 rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-bold text-[11px] flex items-center justify-center ring-1 ring-inset ring-orange-200/70 dark:ring-orange-900/50 hover:bg-orange-200/70 dark:hover:bg-orange-900/50 transition"
           aria-label={fullName}
           title={fullName}
         >

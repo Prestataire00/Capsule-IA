@@ -23,9 +23,9 @@ export function InfoCallout({ tone = 'info', children, className }: {
     tone === 'warning' ? 'text-amber-600' :
     tone === 'success' ? 'text-emerald-600' : 'text-red-600';
   return (
-    <div className={cn('rounded-md px-4 py-3 flex gap-2.5 border-l-2', s.bg, s.border, className)}>
+    <div className={cn('rounded-lg px-4 py-3 flex gap-2.5 border-l-2', s.bg, s.border, className)}>
       <Icon className={cn('w-4 h-4 mt-0.5 flex-shrink-0', iconColor)} />
-      <div className={cn('text-xs', s.text)}>{children}</div>
+      <div className={cn('text-[12px] leading-relaxed', s.text)}>{children}</div>
     </div>
   );
 }

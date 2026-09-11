@@ -2,19 +2,18 @@
 // Justification: home dashboard convivial style Notion/Linear — hero personnalisé + KPI multi-couleurs + charts SVG + à-traiter + table dossiers + Qualiopi card.
 
 import Link from 'next/link';
+import type { ComponentType } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   ArrowUpRight, FolderOpen, Clock, GraduationCap, BarChart3,
-  FileSignature, ClipboardCheck, ClipboardList, Calendar, Info,
+  FileSignature, ClipboardCheck, ClipboardList, Calendar, Info, Eye,
 } from 'lucide-react';
 
-import { StatCard } from '@/shared/ui/stat-card';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
-import { DonutChart, DonutLegend } from '@/shared/ui/donut-chart';
-import { LineChart } from '@/shared/ui/line-chart';
 import { ProgressBar } from '@/shared/ui/progress-bar';
+import { SectionLabel } from '@/shared/ui/section-label';
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getHomeCharts } from '@/features/reports/home-charts.query';
@@ -30,17 +29,13 @@ const greet = () => {
   return 'Bonsoir';
 };
 
-const taskColors = {
-  violet: { bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-600 dark:text-violet-400' },
-  amber: { bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-600 dark:text-amber-400' },
-  blue: { bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-600 dark:text-blue-400' },
-  rose: { bg: 'bg-rose-100 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400' },
-};
-
 const MOTIFS: Record<string, string> = {
   'no-trainer-membership':
     "Cet accès est réservé aux formateurs. Votre compte n'est rattaché à aucune fiche formateur — vous avez été ramené ici.",
 };
+
+const CARD = 'bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm';
+const RECENT_GRID = 'grid grid-cols-[110px_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_100px_120px_40px] gap-3 px-5';
 
 export default async function Home({
   searchParams,
@@ -56,10 +51,19 @@ export default async function Home({
   const tauxQualiopi = Math.round(kpis.qualiopiRate * 100);
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   const tasks = [
-    { icon: FileSignature, label: 'Documents à signer', count: kpis.toSign, href: '/documents', color: 'violet' as const },
-    { icon: ClipboardCheck, label: 'Émargements manquants', count: kpis.attendanceMissing, href: '/dossiers', color: 'amber' as const },
-    { icon: ClipboardList, label: 'Questionnaires à compléter', count: kpis.questionnairesPending, href: '/dossiers', color: 'blue' as const },
+    { icon: FileSignature, label: 'Documents à signer', count: kpis.toSign, href: '/documents' },
+    { icon: ClipboardCheck, label: 'Émargements manquants', count: kpis.attendanceMissing, href: '/dossiers' },
+    { icon: ClipboardList, label: 'Questionnaires à compléter', count: kpis.questionnairesPending, href: '/dossiers' },
   ];
+  const tiles: { href: string; label: string; value: string | number; icon: ComponentType<{ className?: string }> }[] = [
+    { href: '/dossiers', label: 'Dossiers actifs', value: kpis.dossiersActive, icon: FolderOpen },
+    { href: '/factures', label: 'CA en cours', value: euro.format(kpis.revenueInProgressCents / 100), icon: Clock },
+    { href: '/dossiers', label: 'Clôturés ce mois', value: kpis.dossiersClosedThisMonth, icon: GraduationCap },
+    { href: '/qualiopi', label: 'Taux Qualiopi', value: `${tauxQualiopi}%`, icon: BarChart3 },
+  ];
+  const fundersTotal = charts.funders.reduce((a, f) => a + f.value, 0);
+  const fundersMax = Math.max(1, ...charts.funders.map((f) => f.value));
+  const activityTotal = charts.activityPoints.reduce((a, b) => a + b, 0);
   const me = await getCurrentMember();
   const firstName = (me?.fullName ?? '').split(' ')[0] ?? '';
   const today = new Date();
@@ -76,38 +80,50 @@ export default async function Home({
       : null;
 
   return (
-    <div className="max-w-7xl w-full mx-auto px-8 py-8">
+    <div className="max-w-7xl w-full mx-auto px-8 py-9">
       {motif && (
         <div className="mb-6 flex items-start gap-2.5 p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-lg">
           <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-[13px] text-amber-900 dark:text-amber-200">{motif}</p>
         </div>
       )}
-      <header className="flex items-end justify-between mb-8">
+      <header className="flex items-end justify-between gap-4 flex-wrap mb-7">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            {greet()} {firstName} <span aria-hidden="true">👋</span>
+          <SectionLabel className="mb-2">Accueil</SectionLabel>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
+            {greet()} {firstName}
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
             Voici l'activité de votre organisme aujourd'hui.
           </p>
         </div>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 inline-flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 h-9 inline-flex items-center gap-2 text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 shadow-sm tabular-nums">
           <Calendar className="w-3.5 h-3.5 text-zinc-400" />
           {start} – {end}
         </div>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard href="/dossiers" label="Dossiers actifs" value={kpis.dossiersActive} icon={FolderOpen} accent="purple" />
-        <StatCard href="/factures" label="CA en cours" value={euro.format(kpis.revenueInProgressCents / 100)} icon={Clock} accent="emerald" />
-        <StatCard href="/dossiers" label="Clôturés ce mois" value={kpis.dossiersClosedThisMonth} icon={GraduationCap} accent="blue" />
-        <StatCard href="/qualiopi" label="Taux Qualiopi" value={`${tauxQualiopi}%`} icon={BarChart3} accent="amber" />
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" aria-label="Chiffres clés">
+        {tiles.map((t) => {
+          const Icon = t.icon;
+          return (
+            <Link key={t.label} href={t.href} className={`group ${CARD} p-5 hover:shadow-md transition block`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
+                  <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                  {t.label}
+                </p>
+                <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-600 dark:group-hover:text-orange-300 transition" />
+              </div>
+              <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{t.value}</p>
+            </Link>
+          );
+        })}
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
-        <section className="lg:col-span-4 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-          <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+        <section className={`lg:col-span-4 ${CARD} p-5`}>
+          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 mb-4">
             Répartition des dossiers par financeur
           </h2>
           {charts.funders.length === 0 ? (
@@ -115,41 +131,61 @@ export default async function Home({
               Aucun financeur rattaché à un dossier pour l&apos;instant.
             </p>
           ) : (
-            <div className="flex items-center gap-5">
-              <DonutChart data={charts.funders} size={150} strokeWidth={22} />
-              <div className="flex-1 min-w-0">
-                <DonutLegend data={charts.funders} />
-              </div>
-            </div>
+            <ul className="grid gap-3">
+              {charts.funders.map((f) => {
+                const share = fundersTotal > 0 ? Math.round((f.value / fundersTotal) * 100) : 0;
+                return (
+                  <li key={f.label} title={`${f.label} · ${f.value} dossier${f.value > 1 ? 's' : ''} · ${share} %`}>
+                    <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{f.label}</span>
+                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums whitespace-nowrap">
+                        {f.value} · {share} %
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-2 rounded-full bg-orange-100 dark:bg-orange-950/50">
+                      <div className="h-full rounded-full bg-orange-500" style={{ width: `${(f.value / fundersMax) * 100}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
 
-        <section className="lg:col-span-5 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-          <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-            Activité des 7 derniers jours
-          </h2>
-          <LineChart points={charts.activityPoints} labels={charts.activityLabels} height={150} />
+        <section className={`lg:col-span-5 ${CARD} p-5 min-w-0`}>
+          <div className="flex items-baseline justify-between gap-3 mb-4">
+            <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">
+              Activité des 7 derniers jours
+            </h2>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+              {activityTotal} dossier{activityTotal > 1 ? 's' : ''} créé{activityTotal > 1 ? 's' : ''}
+            </p>
+          </div>
+          <ActivityChart points={charts.activityPoints} labels={charts.activityLabels} />
         </section>
 
-        <section className="lg:col-span-3 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-          <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+        <section className={`lg:col-span-3 ${CARD} p-5`}>
+          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 mb-4">
             À traiter
           </h2>
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {tasks.map((t) => {
               const Icon = t.icon;
-              const c = taskColors[t.color];
               return (
                 <li key={t.label}>
                   <Link
                     href={t.href}
-                    className="flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-950 transition group"
+                    className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-md hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition group"
                   >
-                    <span className={`w-7 h-7 rounded-lg ${c.bg} flex items-center justify-center flex-shrink-0`}>
-                      <Icon className={`w-3.5 h-3.5 ${c.text}`} />
-                    </span>
+                    <Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
                     <span className="flex-1 text-[13px] text-zinc-700 dark:text-zinc-300 truncate">{t.label}</span>
-                    <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{t.count}</span>
+                    <span
+                      className={`text-[15px] font-extrabold tabular-nums ${
+                        t.count > 0 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500'
+                      }`}
+                    >
+                      {t.count}
+                    </span>
                   </Link>
                 </li>
               );
@@ -159,90 +195,100 @@ export default async function Home({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <section className="lg:col-span-8 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Dossiers récents</h2>
-            <Link href="/dossiers" className="text-[12px] text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 inline-flex items-center gap-1 transition">
+        <section className={`lg:col-span-8 ${CARD} overflow-hidden`}>
+          <div className="px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800 flex items-center justify-between">
+            <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Dossiers récents</h2>
+            <Link href="/dossiers" className="text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 inline-flex items-center gap-1 transition">
               Voir tous les dossiers
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
-          <div>
-            <div className="grid grid-cols-[110px_1fr_1fr_1fr_100px_120px] gap-3 px-5 py-2.5 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 border-b border-zinc-200/60 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40">
-              <div>Dossier</div>
-              <div>Apprenant</div>
-              <div>Formation</div>
-              <div>Entreprise</div>
-              <div>Statut</div>
-              <div>Avancement</div>
-            </div>
-            {recents.length === 0 ? (
-              <p className="px-5 py-8 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
-                Aucun dossier pour l&apos;instant.
-              </p>
-            ) : (
-            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {recents.map((d) => (
-                <li key={d.id}>
-                  <Link
-                    href={`/dossiers/${d.id}`}
-                    className="grid grid-cols-[110px_1fr_1fr_1fr_100px_120px] gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50 dark:hover:bg-zinc-950 transition items-center"
-                  >
-                    <IdPill>{d.reference}</IdPill>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Avatar name={d.learnerName} />
-                      <span className="text-zinc-900 dark:text-zinc-100 truncate">{d.learnerName}</span>
-                    </div>
-                    <span className="text-zinc-700 dark:text-zinc-300 truncate">{d.formationTitle}</span>
-                    <span className="text-zinc-500 dark:text-zinc-400 truncate">{d.companyName ?? '—'}</span>
-                    <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
-                    <div className="flex items-center gap-2">
-                      <ProgressBar value={d.progress} tone={d.progress === 100 ? 'emerald' : 'violet'} size="sm" />
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums w-9 text-right">
-                        {d.progress}%
+          <div className="overflow-x-auto">
+            <div className="min-w-[820px]">
+              <div className={`${RECENT_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+                <div>Dossier</div>
+                <div>Apprenant</div>
+                <div>Formation</div>
+                <div>Entreprise</div>
+                <div>Statut</div>
+                <div>Avancement</div>
+                <div className="sr-only">Actions</div>
+              </div>
+              {recents.length === 0 ? (
+                <p className="px-5 py-8 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
+                  Aucun dossier pour l&apos;instant.
+                </p>
+              ) : (
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+                {recents.map((d) => (
+                  <li key={d.id}>
+                    <Link
+                      href={`/dossiers/${d.id}`}
+                      className={`${RECENT_GRID} py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors items-center group`}
+                    >
+                      <IdPill>{d.reference}</IdPill>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Avatar name={d.learnerName} />
+                        <span className="text-zinc-900 dark:text-zinc-100 font-bold truncate">{d.learnerName}</span>
+                      </div>
+                      <span className="text-zinc-700 dark:text-zinc-300 truncate">{d.formationTitle}</span>
+                      <span className="text-zinc-500 dark:text-zinc-400 truncate">{d.companyName ?? '—'}</span>
+                      <div>
+                        <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ProgressBar value={d.progress} tone={d.progress === 100 ? 'emerald' : 'violet'} size="sm" />
+                        <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums w-9 text-right">
+                          {d.progress}%
+                        </span>
+                      </div>
+                      <span
+                        aria-hidden="true"
+                        className="ml-auto w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 group-hover:bg-orange-50 group-hover:text-orange-600 dark:group-hover:bg-orange-950/40 dark:group-hover:text-orange-300 transition"
+                      >
+                        <Eye className="w-4 h-4" />
                       </span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              )}
+            </div>
           </div>
         </section>
 
-        <section className="lg:col-span-4 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Conformité Qualiopi</h2>
+        <section className={`lg:col-span-4 ${CARD} p-5`}>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Conformité Qualiopi</h2>
+            <StatusPill tone={tauxQualiopi >= 90 ? 'success' : 'warning'}>
+              {tauxQualiopi >= 90 ? 'Conforme' : 'À compléter'}
+            </StatusPill>
           </div>
           {/* Le taux vient de `app.v_org_kpis` : la part des dossiers actifs sans
               élément Qualiopi bloquant. Un « 92 % Conforme » codé en dur, avec
               sa liste de contrôles tous au vert et sa date figée, s'affichait
               auparavant quel que soit l'organisme — sur un sujet où un chiffre
               inventé peut coûter une certification (audit CAP-27). */}
-          <div className="flex items-center gap-5">
-            <DonutChart
-              data={[
-                { label: 'Conforme', value: tauxQualiopi, color: '#10b981' },
-                { label: 'Restant', value: Math.max(0, 100 - tauxQualiopi), color: '#e4e4e7' },
-              ]}
-              size={120}
-              strokeWidth={16}
-              centerTitle={<span>{tauxQualiopi}%</span>}
-              centerSubtitle={
-                <span className={tauxQualiopi >= 90 ? 'text-emerald-600' : 'text-amber-600'}>
-                  {tauxQualiopi >= 90 ? 'Conforme' : 'À compléter'}
-                </span>
-              }
+          <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">
+            {tauxQualiopi}%
+          </p>
+          <div
+            className="mt-3 h-2 rounded-full bg-zinc-100 dark:bg-zinc-800"
+            title={`Conforme · ${tauxQualiopi} %`}
+          >
+            <div
+              className={`h-full rounded-full ${tauxQualiopi >= 90 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+              style={{ width: `${Math.min(100, Math.max(0, tauxQualiopi))}%` }}
             />
-            <p className="flex-1 text-[12px] text-zinc-600 dark:text-zinc-400">
-              Part de vos dossiers actifs sans élément Qualiopi bloquant. Le détail par indicateur
-              est sur le tableau de bord Qualiopi.
-            </p>
           </div>
+          <p className="mt-4 text-[12px] text-zinc-500 dark:text-zinc-400">
+            Part de vos dossiers actifs sans élément Qualiopi bloquant. Le détail par indicateur
+            est sur le tableau de bord Qualiopi.
+          </p>
 
           <Link
             href="/qualiopi"
-            className="block w-full text-center bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-[13px] font-medium px-4 py-2 rounded-lg transition"
+            className="mt-5 inline-flex items-center justify-center w-full bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-950/60 text-orange-700 dark:text-orange-300 text-[13px] font-semibold px-4 h-9 rounded-lg transition"
           >
             Voir le tableau de bord Qualiopi
           </Link>
@@ -253,18 +299,77 @@ export default async function Home({
   );
 }
 
+function ActivityChart({ points, labels }: { points: number[]; labels: string[] }) {
+  const w = 460;
+  const h = 170;
+  const padL = 26;
+  const padR = 4;
+  const padT = 20;
+  const padB = 22;
+  const iw = w - padL - padR;
+  const ih = h - padT - padB;
+  const max = Math.max(2, Math.ceil(Math.max(0, ...points) / 2) * 2);
+  const slot = iw / Math.max(1, points.length);
+  const bw = Math.min(32, slot - 12);
+  const base = padT + ih;
+  const sy = (v: number) => (v / max) * ih;
+  const last = points.length - 1;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label="Dossiers créés par jour sur les 7 derniers jours" className="block overflow-visible">
+      {[0, max / 2, max].map((t) => (
+        <g key={t}>
+          <line x1={padL} x2={w - padR} y1={base - sy(t)} y2={base - sy(t)} className="stroke-zinc-200 dark:stroke-zinc-800" />
+          <text x={padL - 8} y={base - sy(t) + 3.5} textAnchor="end" className="fill-zinc-400 text-[10px] tabular-nums">
+            {t}
+          </text>
+        </g>
+      ))}
+      {points.map((v, i) => {
+        const x = padL + i * slot + (slot - bw) / 2;
+        const hh = sy(v);
+        const y0 = base - hh;
+        const r = Math.min(4, hh);
+        const label = labels[i] ?? '';
+        const tip = `${label} · ${v} dossier${v > 1 ? 's' : ''} créé${v > 1 ? 's' : ''}`;
+        return (
+          <g key={`${label}-${i}`}>
+            {v === 0 ? (
+              <rect x={x} y={base - 2} width={bw} height={2} rx={1} className="fill-zinc-200 dark:fill-zinc-800">
+                <title>{tip}</title>
+              </rect>
+            ) : (
+              <path
+                d={`M${x},${base} V${y0 + r} Q${x},${y0} ${x + r},${y0} H${x + bw - r} Q${x + bw},${y0} ${x + bw},${y0 + r} V${base} Z`}
+                className="fill-orange-500"
+              >
+                <title>{tip}</title>
+              </path>
+            )}
+            {v > 0 && (
+              <text x={x + bw / 2} y={y0 - 6} textAnchor="middle" className="fill-zinc-900 dark:fill-zinc-100 text-[11px] font-bold tabular-nums">
+                {v}
+              </text>
+            )}
+            <text
+              x={x + bw / 2}
+              y={h - 6}
+              textAnchor="middle"
+              className={i === last ? 'fill-orange-600 dark:fill-orange-400 text-[10px] font-bold tabular-nums' : 'fill-zinc-400 text-[10px] tabular-nums'}
+            >
+              {i === last ? "Aujourd'hui" : label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function Avatar({ name }: { name: string }) {
   const initials = name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
-  const palette = [
-    'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
-    'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-    'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
-    'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
-  ];
-  const idx = name.charCodeAt(0) % palette.length;
   return (
-    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium flex-shrink-0 ${palette[idx]}`}>
+    <span className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
       {initials}
     </span>
   );

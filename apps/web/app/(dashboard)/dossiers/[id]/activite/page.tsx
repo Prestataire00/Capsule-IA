@@ -3,7 +3,9 @@
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { dossierStatusLabel } from '@/shared/ui/status-pill';
+import { History, ArrowRight } from 'lucide-react';
+import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 export default async function ActivitePage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -21,20 +23,24 @@ export default async function ActivitePage({ params }: { params: { id: string } 
     <div className="space-y-4">
       <SectionLabel>Activité du dossier</SectionLabel>
       {rows.length === 0 ? (
-        <p className="text-[13px] text-zinc-500">Aucune activité enregistrée pour l'instant.</p>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
+          <EmptyState icon={History} title="Aucune activité enregistrée pour l'instant." />
+        </div>
       ) : (
-        <ol className="relative border-l border-zinc-200/60 dark:border-zinc-800 ml-2 space-y-4">
+        <ol className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
           {rows.map((e) => (
-            <li key={e.id} className="ml-4">
-              <span className="absolute -left-1.5 mt-1.5 w-3 h-3 rounded-full bg-orange-400" />
-              <p className="text-[13px] text-zinc-900 dark:text-zinc-100">
-                {e.from_status ? `${dossierStatusLabel(e.from_status)} → ` : ''}
-                <strong>{dossierStatusLabel(e.to_status)}</strong>
-              </p>
-              <p className="text-[11px] text-zinc-500">
-                {new Date(e.occurred_at).toLocaleString('fr-FR')}
-                {e.reason ? ` · ${e.reason}` : ''}
-              </p>
+            <li key={e.id} className="px-5 py-3.5 flex items-center justify-between gap-4 flex-wrap hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                {e.from_status && (
+                  <>
+                    <span className="text-[13px] text-zinc-500 dark:text-zinc-400">{dossierStatusLabel(e.from_status)}</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
+                  </>
+                )}
+                <StatusPill tone={dossierStatusTone(e.to_status)}>{dossierStatusLabel(e.to_status)}</StatusPill>
+                {e.reason && <span className="text-[12px] text-zinc-500 dark:text-zinc-400">· {e.reason}</span>}
+              </div>
+              <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{new Date(e.occurred_at).toLocaleString('fr-FR')}</span>
             </li>
           ))}
         </ol>

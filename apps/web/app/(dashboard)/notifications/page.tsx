@@ -34,19 +34,17 @@ function NotifRow({ n }: { n: Notif }) {
   const href = notifHref(n);
   return (
     <NotifItem id={n.id} href={href}>
-      <div className="flex items-start gap-3 px-4 py-3">
-        <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.tone}`}>
-          <Icon className="w-4 h-4" />
-        </span>
+      <div className="flex items-start gap-3 px-5 py-3.5">
+        <Icon className="w-4 h-4 mt-0.5 flex-shrink-0 text-zinc-400" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${meta.tone}`}>{meta.label}</span>
-          </div>
-          <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 mt-1">{n.subject ?? meta.label}</p>
-          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 tabular-nums">
+          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{n.subject ?? meta.label}</p>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
             {format(parseISO(n.created_at), 'dd/MM/yyyy HH:mm')}
           </p>
         </div>
+        <span className={`flex-shrink-0 text-[12px] font-semibold h-6 px-2.5 rounded-full inline-flex items-center whitespace-nowrap ${meta.tone}`}>
+          {meta.label}
+        </span>
       </div>
     </NotifItem>
   );
@@ -56,10 +54,11 @@ function FilterChip({ href, active, label, count }: { href: string; active: bool
   return (
     <Link
       href={href}
-      className={`text-[12px] px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1.5 ${
+      aria-current={active ? 'page' : undefined}
+      className={`text-[12px] h-8 px-3 rounded-full border transition inline-flex items-center gap-1.5 ${
         active
-          ? 'bg-violet-600 border-violet-600 text-white'
-          : 'bg-white dark:bg-zinc-900 border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700'
+          ? 'bg-orange-500 border-orange-500 text-white font-bold'
+          : 'bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium hover:border-zinc-300 dark:hover:border-zinc-700'
       }`}
     >
       {label}
@@ -101,17 +100,17 @@ export default async function NotificationsPage({
   }
 
   return (
-    <div className="max-w-3xl w-full mx-auto px-8 py-10">
-      <header className="mb-8">
+    <div className="max-w-3xl w-full mx-auto px-8 py-9">
+      <header className="mb-7">
         <SectionLabel className="mb-2">Suivi</SectionLabel>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Notifications</h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
+        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Notifications</h1>
+        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           {notifs.length} notification{notifs.length > 1 ? 's' : ''} non lue{notifs.length > 1 ? 's' : ''} — cliquez pour ouvrir et retirer de la liste.
         </p>
       </header>
 
       {notifs.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm">
           <EmptyState icon={Bell} title="Vous êtes à jour" description="Aucune notification non lue. Les nouvelles alertes (émargement manquant, dossiers à risque, documents…) apparaîtront ici." />
         </div>
       ) : (
@@ -140,13 +139,13 @@ export default async function NotificationsPage({
             if (!items || items.length === 0) return null;
             return (
               <section key={key}>
-                <h2 className="text-[12px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium mb-2 flex items-center gap-2">
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-2">
                   {label}
-                  <span className="text-zinc-400 dark:text-zinc-600 font-normal normal-case tabular-nums">
+                  <span className="text-zinc-400 dark:text-zinc-500 font-semibold normal-case tabular-nums">
                     · {items.length}
                   </span>
                 </h2>
-                <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl divide-y divide-zinc-200/60 dark:divide-zinc-800 overflow-hidden">
+                <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
                   {items.map((n) => (
                     <NotifRow key={n.id} n={n} />
                   ))}
