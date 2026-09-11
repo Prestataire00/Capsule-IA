@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Save, Send } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { TARIF_BASES } from '@/features/trainer-space/billing-rules';
 import { updateTrainerIdentity, resendTrainerInvite } from './profile-actions';
 
 export type TrainerIdentity = {
@@ -16,6 +17,8 @@ export type TrainerIdentity = {
   nda: string;
   zoomUrl: string;
   specialties: string[];
+  tarifBase: '' | 'heure' | 'jour' | 'session';
+  tarifEuros: string;
 };
 
 /** Édition complète de la fiche formateur + renvoi de l'invitation à son espace. */
@@ -124,6 +127,36 @@ export function TrainerIdentityEdit({
         </FormField>
         <FormField label="NDA" hint="N° de déclaration d'activité (sous-traitant)">
           <input value={form.nda} onChange={set('nda')} className={inputClass} maxLength={50} />
+        </FormField>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField label="Tarif HT (€)" hint="Ce que le formateur coûte à l’organisme ; ses factures se calculent dessus">
+          <input
+            value={form.tarifEuros}
+            onChange={set('tarifEuros')}
+            className={`${inputClass} tabular-nums`}
+            inputMode="decimal"
+            placeholder="Ex. 45 ou 350,50"
+            maxLength={12}
+          />
+        </FormField>
+        <FormField label="Base de facturation">
+          <select
+            value={form.tarifBase}
+            onChange={(e) => {
+              setSaved(false);
+              setForm((f) => ({ ...f, tarifBase: e.target.value as TrainerIdentity['tarifBase'] }));
+            }}
+            className={inputClass}
+          >
+            <option value="">— Non renseignée —</option>
+            {TARIF_BASES.map((b) => (
+              <option key={b.value} value={b.value}>
+                {b.label}
+              </option>
+            ))}
+          </select>
         </FormField>
       </div>
 

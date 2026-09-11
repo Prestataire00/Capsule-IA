@@ -58,6 +58,13 @@ export default async function FormateursPage() {
             {trainers.length} formateur{trainers.length > 1 ? 's' : ''} dans votre réseau.
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Link
+          href="/formateurs/facturation"
+          className="border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-medium px-4 py-2 rounded-lg transition hover:bg-zinc-50 dark:hover:bg-zinc-900"
+        >
+          Factures & frais
+        </Link>
         <ManageOnly section="dossiers">
         <Link
           href="/formateurs/nouveau"
@@ -67,6 +74,7 @@ export default async function FormateursPage() {
           Nouveau formateur
         </Link>
         </ManageOnly>
+        </div>
       </header>
 
       {error && (

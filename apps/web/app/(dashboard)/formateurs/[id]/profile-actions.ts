@@ -8,6 +8,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendTrainerInvite } from '@/features/trainers/send-trainer-invite';
 import { TrainerIdentitySchema, type TrainerIdentityInput } from './identity-schema';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -42,6 +43,8 @@ export async function updateTrainerIdentity(
       nda: parsed.data.nda || null,
       zoom_url: parsed.data.zoomUrl || null,
       specialties: parsed.data.specialties,
+      tarif_base: parsed.data.tarifEuros ? parsed.data.tarifBase || null : null,
+      tarif_cents: parsed.data.tarifEuros ? eurosEnCentimes(parsed.data.tarifEuros) : null,
     } as never)
     .eq('id', trainerId)
     .is('deleted_at', null)

@@ -3,9 +3,10 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase, UserRound, UserCog } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Briefcase, UserRound, UserCog, Receipt } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { libre } from '@/features/trainer-space/billing';
 import { ContractUpload } from './contract-upload';
 import { ContractGenerate } from './contract-generate';
 import { TrainerProfileEdit } from './profile-edit';
@@ -28,6 +29,8 @@ type Trainer = {
   photo_path: string | null;
   cv_path: string | null;
   bio: string | null;
+  tarif_base: 'heure' | 'jour' | 'session' | null;
+  tarif_cents: number | null;
 };
 
 function trainerPhotoUrl(path: string | null): string | null {
@@ -41,7 +44,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
     .schema('app')
     .from('trainers')
     .select(
-      'id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path, photo_path, cv_path, bio, user_id, space_disabled_at',
+      'id, organization_id, first_name, last_name, email, phone, is_internal, siret, nda, zoom_url, specialties, contract_path, photo_path, cv_path, bio, user_id, space_disabled_at, tarif_base, tarif_cents',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -69,6 +72,13 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
     .limit(1)
     .maybeSingle();
   const contractDocId = (contractDoc as { id: string } | null)?.id ?? null;
+
+  // Éléments en attente de décision (lisibles par les rôles « facturation » seulement).
+  const [{ count: facturesEnAttente }, { count: fraisEnAttente }] = await Promise.all([
+    libre(sb).schema('app').from('trainer_invoices').select('id', { count: 'exact', head: true }).eq('trainer_id', t.id).eq('status', 'soumise'),
+    libre(sb).schema('app').from('trainer_expenses').select('id', { count: 'exact', head: true }).eq('trainer_id', t.id).eq('status', 'soumise'),
+  ]);
+  const aTraiter = (facturesEnAttente ?? 0) + (fraisEnAttente ?? 0);
 
   const initials = `${t.first_name[0] ?? ''}${t.last_name[0] ?? ''}`.toUpperCase();
   const photoUrl = trainerPhotoUrl(t.photo_path);
@@ -145,6 +155,8 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
               nda: t.nda ?? '',
               zoomUrl: t.zoom_url ?? '',
               specialties: t.specialties ?? [],
+              tarifBase: t.tarif_base ?? '',
+              tarifEuros: t.tarif_cents != null ? String(Number(t.tarif_cents) / 100).replace('.', ',') : '',
             }}
           />
 
@@ -187,6 +199,22 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
             Ou déposer un PDF signé
           </p>
           <ContractUpload trainerId={t.id} hasContract={!!t.contract_path} signedUrl={signedUrl} />
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card title="Factures & frais" icon={Receipt}>
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+            {aTraiter > 0
+              ? `${aTraiter} élément${aTraiter > 1 ? 's' : ''} à valider (factures d’honoraires, notes de frais).`
+              : 'Aucune facture ni note de frais en attente.'}
+          </p>
+          <Link
+            href={`/formateurs/facturation?formateur=${t.id}`}
+            className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-violet-600 dark:text-violet-400 hover:underline"
+          >
+            Voir ses factures et notes de frais →
+          </Link>
         </Card>
       </div>
     </div>

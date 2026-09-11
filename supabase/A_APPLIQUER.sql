@@ -1,14 +1,16 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- Capsule IA — migrations à appliquer
 --
---   0150  espace formateur : le formateur (même externe, non membre de
---         l'organisme) voit SES séances, apprenants, feuilles d'émargement,
---         sa feuille clôturée et son contrat ; liaison fiche ↔ compte réparée
---   0151  espace formateur : questionnaires envoyés par le formateur à ses
---         apprenants, suivi par séance, évaluations anonymes (3 réponses min.)
+--   0150  espace formateur : le formateur (même externe) voit SES séances,
+--         apprenants, feuilles d'émargement ; liaison fiche ↔ compte réparée
+--   0151  espace formateur : questionnaires envoyés par le formateur,
+--         évaluations anonymes (3 réponses minimum)
+--   0152  devis et facturation façon RFC (autre chantier, déjà sur main)
+--   0153  espace formateur : tarif sur la fiche (heure / jour / séance),
+--         factures d'honoraires (générées ou déposées), notes de frais
 --
--- Les migrations 0138 à 0149 sont déjà en production. Toutes deux sont
--- rejouables : sans risque si 0150 a déjà été appliquée.
+-- Les migrations 0138 à 0149 sont déjà en production. Toutes sont
+-- rejouables : sans risque si 0150 ou 0151 ont déjà été appliquées.
 -- À coller dans l'éditeur SQL Supabase, puis « Run ».
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -373,6 +375,448 @@ BEGIN
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', f);
   END LOOP;
 END $$;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ───────────── 0152_devis_facturation.sql ─────────────
+
+-- ============================================================================
+-- 0152 — Devis structurés & facturation « façon RFC »
+--
+-- Un devis par CLIENT : une entreprise (tous ses stagiaires d'une même
+-- session regroupés) ou un particulier. Généré automatiquement dès que le
+-- dossier a une session et une analyse du besoin, relu/modifié par l'organisme,
+-- puis envoyé en signature. Sa signature crée la facture brouillon.
+--
+-- Le rendu HTML reste un `documents` (kind 'devis') : aperçu, signature
+-- électronique et frise d'avancement le lisent déjà.
+-- ============================================================================
+
+-- Tarif de la session (HT, par stagiaire). NULL = tarif catalogue de la formation.
+ALTER TABLE app.sessions
+  ADD COLUMN IF NOT EXISTS price_cents BIGINT CHECK (price_cents IS NULL OR price_cents >= 0);
+
+COMMENT ON COLUMN app.sessions.price_cents IS
+  'Tarif HT par stagiaire de la session ; à défaut, formations.default_price_cents. Prix unitaire par défaut du devis.';
+
+-- ── Numérotation continue DEV-AAAA-NNN / FAC-AAAA-NNN ────────────────────────
+CREATE TABLE IF NOT EXISTS app.document_counters (
+  organization_id UUID NOT NULL REFERENCES app.organizations(id) ON DELETE CASCADE,
+  prefix TEXT NOT NULL CHECK (prefix IN ('DEV', 'FAC')),
+  year INT NOT NULL,
+  last_value INT NOT NULL DEFAULT 0 CHECK (last_value >= 0),
+  PRIMARY KEY (organization_id, prefix, year)
+);
+
+-- ── Devis ────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS app.quotes (
+  id UUID PRIMARY KEY DEFAULT uuidv7(),
+  organization_id UUID NOT NULL REFERENCES app.organizations(id) ON DELETE RESTRICT,
+  reference TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft'
+    CHECK (status IN ('draft', 'sent', 'signed', 'refused', 'expired', 'cancelled')),
+  client_kind TEXT NOT NULL CHECK (client_kind IN ('company', 'individual')),
+  company_id UUID REFERENCES app.companies(id) ON DELETE SET NULL,
+  learner_id UUID REFERENCES app.learners(id) ON DELETE SET NULL,
+  formation_id UUID REFERENCES app.formations(id) ON DELETE SET NULL,
+  session_id UUID REFERENCES app.sessions(id) ON DELETE SET NULL,
+  recipient_name TEXT,
+  recipient_email TEXT,
+  object TEXT NOT NULL,
+  notes TEXT,
+  issued_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  valid_until DATE NOT NULL,
+  vat_rate NUMERIC(5, 2) NOT NULL DEFAULT 0 CHECK (vat_rate >= 0 AND vat_rate <= 100),
+  subtotal_cents BIGINT NOT NULL DEFAULT 0,
+  vat_cents BIGINT NOT NULL DEFAULT 0,
+  total_cents BIGINT NOT NULL DEFAULT 0,
+  currency CHAR(3) NOT NULL DEFAULT 'EUR',
+  document_id UUID REFERENCES app.documents(id) ON DELETE SET NULL,
+  auto_generated BOOLEAN NOT NULL DEFAULT false,
+  sent_at TIMESTAMPTZ,
+  signed_at TIMESTAMPTZ,
+  refused_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ NULL,
+  UNIQUE (organization_id, reference)
+);
+
+CREATE TABLE IF NOT EXISTS app.quote_lines (
+  id UUID PRIMARY KEY DEFAULT uuidv7(),
+  organization_id UUID NOT NULL REFERENCES app.organizations(id) ON DELETE CASCADE,
+  quote_id UUID NOT NULL REFERENCES app.quotes(id) ON DELETE CASCADE,
+  position INT NOT NULL CHECK (position >= 0),
+  description TEXT NOT NULL,
+  details TEXT,
+  quantity NUMERIC(10, 2) NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  unit_amount_cents BIGINT NOT NULL CHECK (unit_amount_cents >= 0),
+  -- NULL = taux du devis.
+  vat_rate NUMERIC(5, 2) CHECK (vat_rate IS NULL OR (vat_rate >= 0 AND vat_rate <= 100)),
+  total_cents BIGINT GENERATED ALWAYS AS (ROUND(quantity * unit_amount_cents)::BIGINT) STORED,
+  UNIQUE (quote_id, position)
+);
+
+-- Dossiers (donc stagiaires) couverts par le devis.
+CREATE TABLE IF NOT EXISTS app.quote_dossiers (
+  quote_id UUID NOT NULL REFERENCES app.quotes(id) ON DELETE CASCADE,
+  dossier_id UUID NOT NULL REFERENCES app.dossiers(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES app.organizations(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (quote_id, dossier_id)
+);
+
+DROP TRIGGER IF EXISTS tg_quotes_updated_at ON app.quotes;
+CREATE TRIGGER tg_quotes_updated_at BEFORE UPDATE ON app.quotes
+FOR EACH ROW EXECUTE FUNCTION app.set_updated_at();
+
+CREATE INDEX IF NOT EXISTS ix_quotes_org_status ON app.quotes(organization_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS ix_quotes_company ON app.quotes(company_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS ix_quotes_session ON app.quotes(session_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS ix_quotes_document ON app.quotes(document_id);
+CREATE INDEX IF NOT EXISTS ix_quote_lines_quote ON app.quote_lines(quote_id);
+CREATE INDEX IF NOT EXISTS ix_quote_dossiers_dossier ON app.quote_dossiers(dossier_id);
+
+-- Facture issue d'un devis.
+ALTER TABLE app.invoices
+  ADD COLUMN IF NOT EXISTS quote_id UUID REFERENCES app.quotes(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS ix_invoices_quote ON app.invoices(quote_id) WHERE deleted_at IS NULL;
+
+-- Modes de règlement des organismes de formation (OPCO, CPF, espèces).
+ALTER TABLE app.payments DROP CONSTRAINT IF EXISTS payments_method_check;
+ALTER TABLE app.payments
+  ADD CONSTRAINT payments_method_check
+  CHECK (method IN ('virement', 'cheque', 'cb', 'stripe', 'especes', 'opco', 'cpf', 'autre'));
+
+-- ── RPC de numérotation ──────────────────────────────────────────────────────
+-- Compteur par (organisme, préfixe, année), incrémenté sous verrou de ligne :
+-- deux devis simultanés ne peuvent pas prendre le même numéro, et la suite
+-- repart au plus grand numéro déjà présent (reprise d'historique).
+CREATE OR REPLACE FUNCTION app.next_document_number(p_org UUID, p_prefix TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = app, pg_temp
+AS $$
+DECLARE
+  v_year INT := EXTRACT(YEAR FROM (now() AT TIME ZONE 'Europe/Paris'))::INT;
+  v_base INT;
+  v_next INT;
+BEGIN
+  IF p_prefix NOT IN ('DEV', 'FAC') THEN
+    RAISE EXCEPTION 'préfixe de numérotation inconnu : %', p_prefix;
+  END IF;
+
+  IF COALESCE(current_setting('request.jwt.claims', true)::jsonb ->> 'role', '') <> 'service_role'
+     AND (p_org IS DISTINCT FROM app.current_organization_id()
+          OR NOT (app.is_staff() OR app.has_role('comptable'))) THEN
+    RAISE EXCEPTION 'numérotation refusée' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT COALESCE(MAX((regexp_match(r.reference, '^' || p_prefix || '-' || v_year || '-(\d+)$'))[1]::INT), 0)
+    INTO v_base
+  FROM (
+    SELECT reference FROM app.invoices WHERE organization_id = p_org AND p_prefix = 'FAC'
+    UNION ALL
+    SELECT reference FROM app.quotes WHERE organization_id = p_org AND p_prefix = 'DEV'
+  ) r;
+
+  INSERT INTO app.document_counters (organization_id, prefix, year, last_value)
+  VALUES (p_org, p_prefix, v_year, v_base + 1)
+  ON CONFLICT (organization_id, prefix, year)
+  DO UPDATE SET last_value = GREATEST(app.document_counters.last_value, v_base) + 1
+  RETURNING last_value INTO v_next;
+
+  RETURN p_prefix || '-' || v_year || '-' || lpad(v_next::TEXT, 3, '0');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION app.next_document_number(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION app.next_document_number(UUID, TEXT) TO authenticated, service_role;
+
+-- ── RLS ──────────────────────────────────────────────────────────────────────
+ALTER TABLE app.document_counters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app.document_counters FORCE ROW LEVEL SECURITY;
+ALTER TABLE app.quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app.quotes FORCE ROW LEVEL SECURITY;
+ALTER TABLE app.quote_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app.quote_lines FORCE ROW LEVEL SECURITY;
+ALTER TABLE app.quote_dossiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app.quote_dossiers FORCE ROW LEVEL SECURITY;
+
+-- Compteurs : lecture seule pour le staff, écriture uniquement via la RPC.
+CREATE POLICY document_counters_select ON app.document_counters FOR SELECT
+USING (organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable')));
+
+CREATE POLICY quotes_select ON app.quotes FOR SELECT
+USING (organization_id = app.current_organization_id() AND deleted_at IS NULL
+       AND (app.is_staff() OR app.has_role('comptable')));
+CREATE POLICY quotes_insert ON app.quotes FOR INSERT
+WITH CHECK (organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable')));
+CREATE POLICY quotes_update ON app.quotes FOR UPDATE
+USING (organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable')))
+WITH CHECK (organization_id = app.current_organization_id());
+CREATE POLICY quotes_delete ON app.quotes FOR DELETE
+USING (organization_id = app.current_organization_id() AND app.is_admin_or_owner() AND status = 'draft');
+
+CREATE POLICY quote_lines_select ON app.quote_lines FOR SELECT
+USING (organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable')));
+CREATE POLICY quote_lines_insert ON app.quote_lines FOR INSERT
+WITH CHECK (
+  organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable'))
+  AND EXISTS (SELECT 1 FROM app.quotes q
+              WHERE q.id = quote_lines.quote_id AND q.organization_id = app.current_organization_id()
+                AND q.status = 'draft')
+);
+CREATE POLICY quote_lines_update ON app.quote_lines FOR UPDATE
+USING (
+  organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable'))
+  AND EXISTS (SELECT 1 FROM app.quotes q WHERE q.id = quote_lines.quote_id AND q.status = 'draft')
+)
+WITH CHECK (organization_id = app.current_organization_id());
+CREATE POLICY quote_lines_delete ON app.quote_lines FOR DELETE
+USING (
+  organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable'))
+  AND EXISTS (SELECT 1 FROM app.quotes q WHERE q.id = quote_lines.quote_id AND q.status = 'draft')
+);
+
+CREATE POLICY quote_dossiers_select ON app.quote_dossiers FOR SELECT
+USING (organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable')));
+CREATE POLICY quote_dossiers_insert ON app.quote_dossiers FOR INSERT
+WITH CHECK (organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable')));
+CREATE POLICY quote_dossiers_delete ON app.quote_dossiers FOR DELETE
+USING (organization_id = app.current_organization_id() AND (app.is_staff() OR app.has_role('comptable')));
+
+NOTIFY pgrst, 'reload schema';
+
+-- ───────────── 0153_espace_formateur_facturation.sql ─────────────
+
+-- 0153 — Espace formateur : tarif sur la fiche, factures d'honoraires, notes de frais
+--
+--  · Tarif du formateur saisi par l'organisme sur la fiche : montant et base
+--    (heure, jour, séance). Le formateur le voit mais ne peut pas le changer.
+--  · Profil de facturation PAR COMPTE formateur (numérotation continue de ses
+--    factures, tous clients confondus) : identité, adresse, SIRET, TVA, banque.
+--  · Factures d'honoraires : générées dans Capsule (calculées depuis les
+--    séances terminées et le tarif) ou déposées en PDF ; l'organisme valide,
+--    refuse, puis marque « payée ». Une séance n'est facturée qu'une fois.
+--  · Notes de frais : justificatif obligatoire, rattachées à une séance ;
+--    l'organisme valide, refuse, puis marque « remboursée ».
+--  · Lecture : le formateur pour les siennes, l'organisme pour ses rôles
+--    « facturation » (dirigeant, administrateur, gestionnaire, comptable).
+--    Aucune écriture directe : actions et routes gardées, en service role.
+--
+-- Rejouable sans risque.
+
+-- ── 1. Tarif sur la fiche ───────────────────────────────────────────────────
+ALTER TABLE app.trainers
+  ADD COLUMN IF NOT EXISTS tarif_base TEXT,
+  ADD COLUMN IF NOT EXISTS tarif_cents BIGINT;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trainers_tarif_check') THEN
+    ALTER TABLE app.trainers ADD CONSTRAINT trainers_tarif_check CHECK (
+      (tarif_base IS NULL OR tarif_base IN ('heure', 'jour', 'session'))
+      AND (tarif_cents IS NULL OR tarif_cents >= 0));
+  END IF;
+END $$;
+
+COMMENT ON COLUMN app.trainers.tarif_base IS 'Base de facturation du formateur : heure, jour ou séance (0153).';
+COMMENT ON COLUMN app.trainers.tarif_cents IS 'Tarif du formateur par unité de la base, en centimes HT (0153).';
+
+CREATE OR REPLACE FUNCTION app.trainers_self_edit_guard()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  -- Si l'updater est le trainer lui-même (user_id du row = auth.uid()),
+  -- aucun champ admin-only ne doit changer — son tarif compris (0153).
+  IF NEW.user_id = auth.uid() AND OLD.user_id = auth.uid() THEN
+    IF NEW.email             IS DISTINCT FROM OLD.email             OR
+       NEW.is_internal       IS DISTINCT FROM OLD.is_internal       OR
+       NEW.hourly_rate_cents IS DISTINCT FROM OLD.hourly_rate_cents OR
+       NEW.tarif_base        IS DISTINCT FROM OLD.tarif_base        OR
+       NEW.tarif_cents       IS DISTINCT FROM OLD.tarif_cents       OR
+       NEW.siret             IS DISTINCT FROM OLD.siret             OR
+       NEW.organization_id   IS DISTINCT FROM OLD.organization_id
+    THEN
+      RAISE EXCEPTION 'forbidden field update by trainer self'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- ── 2. Profil de facturation du formateur ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS app.trainer_billing_profiles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  legal_name TEXT CHECK (legal_name IS NULL OR char_length(legal_name) <= 200),
+  address_line TEXT CHECK (address_line IS NULL OR char_length(address_line) <= 300),
+  postal_code TEXT CHECK (postal_code IS NULL OR char_length(postal_code) <= 20),
+  city TEXT CHECK (city IS NULL OR char_length(city) <= 120),
+  country TEXT NOT NULL DEFAULT 'France',
+  siret TEXT CHECK (siret IS NULL OR siret ~ '^[0-9]{14}$'),
+  vat_regime TEXT NOT NULL DEFAULT 'franchise' CHECK (vat_regime IN ('franchise', 'assujetti')),
+  vat_rate NUMERIC(5,2) NOT NULL DEFAULT 20 CHECK (vat_rate BETWEEN 0 AND 30),
+  vat_number TEXT CHECK (vat_number IS NULL OR char_length(vat_number) <= 30),
+  iban TEXT CHECK (iban IS NULL OR iban ~ '^[A-Z]{2}[0-9A-Z]{13,32}$'),
+  bic TEXT CHECK (bic IS NULL OR bic ~ '^[A-Z0-9]{8}([A-Z0-9]{3})?$'),
+  invoice_prefix TEXT NOT NULL DEFAULT 'FAC' CHECK (invoice_prefix ~ '^[A-Z0-9-]{1,10}$'),
+  next_invoice_number INT NOT NULL DEFAULT 1 CHECK (next_invoice_number >= 1),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── 3. Factures d'honoraires ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS app.trainer_invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES app.organizations(id) ON DELETE CASCADE,
+  trainer_id UUID NOT NULL REFERENCES app.trainers(id) ON DELETE RESTRICT,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  source TEXT NOT NULL CHECK (source IN ('generee', 'deposee')),
+  number TEXT NOT NULL CHECK (char_length(number) BETWEEN 1 AND 40),
+  issue_date DATE NOT NULL,
+  due_date DATE,
+  subtotal_cents BIGINT NOT NULL CHECK (subtotal_cents >= 0),
+  vat_cents BIGINT NOT NULL DEFAULT 0 CHECK (vat_cents >= 0),
+  total_cents BIGINT NOT NULL CHECK (total_cents >= 0),
+  expected_subtotal_cents BIGINT,
+  status TEXT NOT NULL DEFAULT 'soumise' CHECK (status IN ('soumise', 'validee', 'refusee', 'payee')),
+  pdf_path TEXT,
+  issuer_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  notes TEXT CHECK (notes IS NULL OR char_length(notes) <= 1000),
+  decided_by UUID,
+  decided_at TIMESTAMPTZ,
+  decision_note TEXT CHECK (decision_note IS NULL OR char_length(decision_note) <= 500),
+  paid_at TIMESTAMPTZ,
+  paid_by UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, number),
+  CONSTRAINT trainer_invoices_decided_check CHECK ((status = 'soumise') = (decided_at IS NULL)),
+  CONSTRAINT trainer_invoices_paid_check CHECK ((status = 'payee') = (paid_at IS NOT NULL))
+);
+
+CREATE TABLE IF NOT EXISTS app.trainer_invoice_lines (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id UUID NOT NULL REFERENCES app.trainer_invoices(id) ON DELETE CASCADE,
+  session_id UUID REFERENCES app.sessions(id) ON DELETE SET NULL,
+  position INT NOT NULL DEFAULT 0,
+  label TEXT NOT NULL CHECK (char_length(label) BETWEEN 1 AND 300),
+  quantity NUMERIC(8,2) NOT NULL CHECK (quantity > 0),
+  unit TEXT NOT NULL,
+  unit_price_cents BIGINT NOT NULL CHECK (unit_price_cents >= 0),
+  total_cents BIGINT NOT NULL CHECK (total_cents >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS app.trainer_invoice_sessions (
+  invoice_id UUID NOT NULL REFERENCES app.trainer_invoices(id) ON DELETE CASCADE,
+  session_id UUID NOT NULL REFERENCES app.sessions(id) ON DELETE CASCADE,
+  PRIMARY KEY (invoice_id, session_id)
+);
+
+-- ── 4. Notes de frais ───────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS app.trainer_expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES app.organizations(id) ON DELETE CASCADE,
+  trainer_id UUID NOT NULL REFERENCES app.trainers(id) ON DELETE RESTRICT,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  session_id UUID NOT NULL REFERENCES app.sessions(id) ON DELETE RESTRICT,
+  expense_date DATE NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('transport', 'repas', 'hebergement', 'materiel', 'autre')),
+  label TEXT NOT NULL CHECK (char_length(label) BETWEEN 1 AND 200),
+  amount_cents BIGINT NOT NULL CHECK (amount_cents > 0 AND amount_cents <= 10000000),
+  receipt_path TEXT NOT NULL,
+  receipt_name TEXT NOT NULL,
+  receipt_mime TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'soumise' CHECK (status IN ('soumise', 'validee', 'refusee', 'remboursee')),
+  decided_by UUID,
+  decided_at TIMESTAMPTZ,
+  decision_note TEXT CHECK (decision_note IS NULL OR char_length(decision_note) <= 500),
+  reimbursed_at TIMESTAMPTZ,
+  reimbursed_by UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT trainer_expenses_decided_check CHECK ((status = 'soumise') = (decided_at IS NULL)),
+  CONSTRAINT trainer_expenses_reimbursed_check CHECK ((status = 'remboursee') = (reimbursed_at IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS trainer_invoices_org_status_idx ON app.trainer_invoices (organization_id, status);
+CREATE INDEX IF NOT EXISTS trainer_invoices_user_idx ON app.trainer_invoices (user_id);
+CREATE INDEX IF NOT EXISTS trainer_invoice_sessions_session_idx ON app.trainer_invoice_sessions (session_id);
+CREATE INDEX IF NOT EXISTS trainer_expenses_org_status_idx ON app.trainer_expenses (organization_id, status);
+CREATE INDEX IF NOT EXISTS trainer_expenses_user_idx ON app.trainer_expenses (user_id);
+
+-- ── 5. Accès ────────────────────────────────────────────────────────────────
+DO $$
+DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['trainer_billing_profiles', 'trainer_invoices', 'trainer_invoice_lines',
+                           'trainer_invoice_sessions', 'trainer_expenses'] LOOP
+    EXECUTE format('ALTER TABLE app.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE app.%I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('REVOKE ALL ON app.%I FROM PUBLIC, anon, authenticated', t);
+    EXECUTE format('GRANT SELECT ON app.%I TO authenticated', t);
+    EXECUTE format('GRANT ALL ON app.%I TO service_role', t);
+  END LOOP;
+END $$;
+
+DROP POLICY IF EXISTS trainer_billing_profiles_self ON app.trainer_billing_profiles;
+CREATE POLICY trainer_billing_profiles_self ON app.trainer_billing_profiles
+  FOR SELECT TO authenticated USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS trainer_invoices_self ON app.trainer_invoices;
+CREATE POLICY trainer_invoices_self ON app.trainer_invoices
+  FOR SELECT TO authenticated USING (user_id = auth.uid());
+DROP POLICY IF EXISTS trainer_invoices_org ON app.trainer_invoices;
+CREATE POLICY trainer_invoices_org ON app.trainer_invoices
+  FOR SELECT TO authenticated
+  USING (organization_id = app.current_organization_id()
+         AND app.current_role() IN ('owner', 'admin', 'gestionnaire', 'comptable'));
+
+DROP POLICY IF EXISTS trainer_invoice_lines_read ON app.trainer_invoice_lines;
+CREATE POLICY trainer_invoice_lines_read ON app.trainer_invoice_lines
+  FOR SELECT TO authenticated USING (invoice_id IN (SELECT id FROM app.trainer_invoices));
+DROP POLICY IF EXISTS trainer_invoice_sessions_read ON app.trainer_invoice_sessions;
+CREATE POLICY trainer_invoice_sessions_read ON app.trainer_invoice_sessions
+  FOR SELECT TO authenticated USING (invoice_id IN (SELECT id FROM app.trainer_invoices));
+
+DROP POLICY IF EXISTS trainer_expenses_self ON app.trainer_expenses;
+CREATE POLICY trainer_expenses_self ON app.trainer_expenses
+  FOR SELECT TO authenticated USING (user_id = auth.uid());
+DROP POLICY IF EXISTS trainer_expenses_org ON app.trainer_expenses;
+CREATE POLICY trainer_expenses_org ON app.trainer_expenses
+  FOR SELECT TO authenticated
+  USING (organization_id = app.current_organization_id()
+         AND app.current_role() IN ('owner', 'admin', 'gestionnaire', 'comptable'));
+
+-- ── 6. Numérotation continue des factures générées ─────────────────────────
+CREATE OR REPLACE FUNCTION app.next_trainer_invoice_number(p_user_id UUID)
+RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER SET search_path = app, public AS $$
+DECLARE
+  v_prefix TEXT;
+  v_n INT;
+BEGIN
+  UPDATE app.trainer_billing_profiles
+     SET next_invoice_number = next_invoice_number + 1, updated_at = now()
+   WHERE user_id = p_user_id
+  RETURNING invoice_prefix, next_invoice_number - 1 INTO v_prefix, v_n;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'billing_profile_missing' USING ERRCODE = 'P0001';
+  END IF;
+  RETURN format('%s-%s-%s', v_prefix, to_char(current_date, 'YYYY'), lpad(v_n::text, 4, '0'));
+END $$;
+
+REVOKE ALL ON FUNCTION app.next_trainer_invoice_number(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION app.next_trainer_invoice_number(UUID) TO service_role;
+
+-- ── 7. Seau privé : factures et justificatifs, servis par URL signée ────────
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'trainer-billing', 'trainer-billing', false,
+  10485760, -- 10 Mo
+  ARRAY['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/heic']
+)
+ON CONFLICT (id) DO UPDATE
+  SET public = false,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 NOTIFY pgrst, 'reload schema';
 
