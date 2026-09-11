@@ -110,6 +110,19 @@ const TON_STATUT: Record<OrgStatus, string> = {
   non_applicable: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
 };
 
+const CATEGORIES: ReadonlyArray<readonly [string, string]> = [
+  ['Formation', 'action_formation'],
+  ['Bilan', 'bilan_competences'],
+  ['VAE', 'vae'],
+  ['Apprentissage', 'apprentissage'],
+];
+
+/** Catégories d'action visées par un indicateur réservé ; null s'il est commun. */
+function categoriesVisees(appliesTo: string[] | null): string | null {
+  if (!appliesTo) return null;
+  return CATEGORIES.filter(([, code]) => appliesTo.includes(code)).map(([label]) => label).join(' · ') || null;
+}
+
 function Badge({ children }: { children: React.ReactNode }) {
   return (
     <span className="text-[11px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
@@ -327,7 +340,7 @@ export default async function QualiopiPage({
                         <Badge>{ind.scope === 'dossier' ? 'Par dossier' : 'Organisme'}</Badge>
                         {ind.new_entrant && <Badge>Nouvel entrant</Badge>}
                         {ind.certifying_only && <Badge>Certifiant</Badge>}
-                        {ind.applies_to?.includes('apprentissage') && <Badge>Apprentissage</Badge>}
+                        {categoriesVisees(ind.applies_to) && <Badge>{categoriesVisees(ind.applies_to)}</Badge>}
                         {ind.condition === 'subcontracting' && <Badge>Sous-traitance</Badge>}
                         {ind.condition === 'work_periods' && <Badge>Périodes en entreprise</Badge>}
                         <Badge>{ind.minor_nc_possible ? 'Écart mineur possible' : 'Écart majeur'}</Badge>
