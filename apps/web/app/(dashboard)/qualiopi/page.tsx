@@ -4,7 +4,7 @@
 // et l'auto-évaluation ; plus le suivi de conformité des dossiers.
 
 import Link from 'next/link';
-import { ShieldCheck, ShieldAlert, Check, Circle, FileText, ArrowUpRight, Info } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, Circle, FileText, ArrowUpRight, Info, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireAccess } from '@/shared/lib/auth/require-access';
@@ -16,6 +16,7 @@ import { dossierStatusLabel } from '@/shared/ui/status-pill';
 import { loadOrgEvidence, type Evidence } from '@/features/qualiopi/evidence';
 import { ORG_STATUS_LABELS, type OrgStatus } from '@/features/qualiopi/status';
 import { jourParis, versions, VERSION_LABELS } from '@/features/qualiopi/referentiel';
+import { preuvesParNumero, statutEffectif, statutsParNumero, type OrgStatutRow, type Profil } from '@/features/qualiopi/statut';
 import { IndicatorStatus, ProofUpload, RemoveProofButton } from './indicator-actions.client';
 
 export const dynamic = 'force-dynamic';
@@ -83,29 +84,6 @@ type Indicateur = {
 };
 
 type Preuve = { id: string; indicator_id: string; title: string; valid_until: string | null; created_at: string };
-
-/** Ce que l'on sait de l'organisme pour décider d'une non-applicabilité. */
-type Profil = { apprentissage: boolean; certifiant: boolean; sousTraitance: boolean };
-
-/**
- * Statut affiché : l'évaluation saisie par l'organisme prime. À défaut, Capsule
- * propose un statut — non applicable si l'organisme n'exerce pas l'activité
- * visée, conforme si toutes ses preuves automatiques suffisent.
- */
-function statutEffectif(
-  ind: Indicateur,
-  saisi: OrgStatus | undefined,
-  preuves: Evidence[],
-  profil: Profil,
-): { status: OrgStatus; auto: boolean } {
-  if (saisi) return { status: saisi, auto: false };
-  const reserveApprentissage = ind.applies_to?.length === 1 && ind.applies_to[0] === 'apprentissage';
-  if ((reserveApprentissage && !profil.apprentissage) || (ind.certifying_only && !profil.certifiant) || (ind.condition === 'subcontracting' && !profil.sousTraitance)) {
-    return { status: 'non_applicable', auto: true };
-  }
-  if (preuves.length > 0 && preuves.every((p) => p.ok)) return { status: 'conforme', auto: true };
-  return { status: 'a_traiter', auto: true };
-}
 
 const TON_STATUT: Record<OrgStatus, string> = {
   conforme: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -208,19 +186,8 @@ export default async function QualiopiPage({
 
   // Statuts et preuves suivent le numéro : le travail fait sous la V9 vaut sous la V10.
   const numeroParId = new Map(tous.map((i) => [i.id, i.number]));
-  type Statut = { indicator_id: string; status: OrgStatus; note: string | null; updated_at: string };
-  const statuts = new Map<number, Statut>();
-  for (const s of ((statutsRes as { data: unknown }).data ?? []) as Statut[]) {
-    const n = numeroParId.get(s.indicator_id);
-    if (n === undefined) continue;
-    const prec = statuts.get(n);
-    if (!prec || s.updated_at > prec.updated_at) statuts.set(n, s);
-  }
-  const preuvesParIndicateur = new Map<number, Preuve[]>();
-  for (const p of ((preuvesRes as { data: unknown }).data ?? []) as Preuve[]) {
-    const n = numeroParId.get(p.indicator_id);
-    if (n !== undefined) preuvesParIndicateur.set(n, [...(preuvesParIndicateur.get(n) ?? []), p]);
-  }
+  const statuts = statutsParNumero(((statutsRes as { data: unknown }).data ?? []) as OrgStatutRow[], numeroParId);
+  const preuvesParIndicateur = preuvesParNumero(((preuvesRes as { data: unknown }).data ?? []) as Preuve[], numeroParId);
 
   // Ce qui change au passage à la version suivante, au même numéro.
   const evolutions = new Map<number, 'nouveau' | 'modifie'>();
@@ -286,13 +253,24 @@ export default async function QualiopiPage({
 
   return (
     <div className="max-w-6xl w-full mx-auto px-6 py-8">
-      <header className="mb-6">
+      <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
         <SectionLabel className="mb-1">Conformité</SectionLabel>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Qualiopi</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           Référentiel national qualité — 7 critères, {indicateurs.length} indicateurs
           {version ? ` (${VERSION_LABELS[version] ?? version})` : ''}.
         </p>
+        </div>
+        {!referentielIndisponible && (
+          <a
+            href="/api/qualiopi/export"
+            className="border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition inline-flex items-center gap-1.5 shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Exporter le dossier d&apos;audit
+          </a>
+        )}
       </header>
 
       {!referentielIndisponible && suivante && (
