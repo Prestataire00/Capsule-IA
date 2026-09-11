@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Check, X, ShieldCheck, ShieldAlert, ArrowRight } from 'lucide-react';
+import { Check, X, ShieldCheck, ShieldAlert, ArrowRight, Minus } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { InfoCallout } from '@/shared/ui/info-callout';
@@ -12,16 +12,14 @@ import { startTraining, closeDossier, recomputeNow } from './actions';
 import { AssignTrainer } from './assign-trainer.client';
 import { AssignLearner } from '../questionnaires/assign-learner';
 
-// Indicateur → type de questionnaire à envoyer à l'apprenant (résolution inline).
-const QST_KIND_BY_CODE: Record<string, string> = {
-  I5: 'positionnement',
-  I10: 'positionnement',
-  I15: 'evaluation_acquis',
-  I23: 'evaluation_acquis',
-  I26: 'satisfaction_chaud',
-  I27: 'satisfaction_froid',
+// Indicateur (numéro officiel RNQ) → type de questionnaire à envoyer à l'apprenant.
+const QST_KIND_BY_NUMBER: Record<number, string> = {
+  4: 'positionnement',
+  8: 'positionnement',
+  11: 'evaluation_acquis',
+  30: 'satisfaction_chaud',
 };
-const LEARNER_QST_KINDS = new Set(Object.values(QST_KIND_BY_CODE));
+const LEARNER_QST_KINDS = new Set(Object.values(QST_KIND_BY_NUMBER));
 
 type DetailRow = {
   indicator_id: string;
@@ -30,7 +28,11 @@ type DetailRow = {
   is_blocking: boolean;
   satisfied: boolean;
   source: string;
+  /** Absent des check-lists calculées avant la migration 0139 : vaut alors vrai. */
+  applicable?: boolean;
 };
+
+type RefRow = { number: number; title: string; criterion: number; criterion_label: string | null };
 
 export default async function QualiopiPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -48,28 +50,35 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
     .select('total_indicators, satisfied_indicators, entry_blocking_missing, closing_blocking_missing, details')
     .eq('dossier_id', params.id).maybeSingle();
 
+  // Référentiel en vigueur uniquement : l'ancien jeu (« legacy »), mal numéroté,
+  // est désactivé depuis la migration 0139 (audit CAP-35). Tant que celle-ci
+  // n'est pas appliquée, la requête échoue et les titres retombent sur
+  // « Indicateur N » — la page reste utilisable.
   const { data: indicators } = await sb
     .schema('app').from('qualiopi_indicators')
-    .select('code, number, title, criterion').eq('scope', 'dossier');
+    .select('number, title, criterion, criterion_label' as never)
+    .eq('scope', 'dossier')
+    .eq('is_active', true)
+    .neq('referential_version' as never, 'legacy' as never);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c = (checklist as any) ?? {};
   const details: DetailRow[] = c.details ?? [];
   const entryBlockingMissing: number = c.entry_blocking_missing ?? 0;
   const closingBlockingMissing: number = c.closing_blocking_missing ?? 0;
-  const refByNumber = new Map<number, { code: string; title: string; criterion: number }>(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((indicators as any[]) ?? []).map((i) => [i.number, { code: i.code, title: i.title, criterion: i.criterion }]),
+  const refByNumber = new Map<number, RefRow>(
+    ((indicators as unknown as RefRow[] | null) ?? []).map((i) => [i.number, i]),
   );
 
   const enriched = details.map((d) => {
     const ref = refByNumber.get(d.number);
     return {
-      code: ref?.code ?? `#${d.number}`,
+      number: d.number,
       title: ref?.title ?? `Indicateur ${d.number}`,
       criterion: ref?.criterion ?? 0,
-      number: d.number,
+      criterionLabel: ref?.criterion_label ?? null,
       satisfied: d.satisfied,
+      applicable: d.applicable !== false,
       blocking: d.is_blocking,
       stage: d.stage,
       source: d.source,
@@ -81,12 +90,13 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
     return acc;
   }, {});
 
-  const entryBlockers = enriched.filter((e) => e.stage === 'entry' && e.blocking && !e.satisfied);
-  const closingBlockers = enriched.filter((e) => e.stage === 'closing' && e.blocking && !e.satisfied);
-  const satisfied = c.satisfied_indicators ?? enriched.filter((e) => e.satisfied).length;
-  const totalCount = c.total_indicators ?? enriched.length;
+  const entryBlockers = enriched.filter((e) => e.applicable && e.stage === 'entry' && e.blocking && !e.satisfied);
+  const closingBlockers = enriched.filter((e) => e.applicable && e.stage === 'closing' && e.blocking && !e.satisfied);
+  const satisfied = c.satisfied_indicators ?? enriched.filter((e) => e.applicable && e.satisfied).length;
+  const totalCount = c.total_indicators ?? enriched.filter((e) => e.applicable).length;
+  const notApplicable = enriched.filter((e) => !e.applicable).length;
   const ready = entryBlockingMissing === 0 && closingBlockingMissing === 0;
-  const i21Missing = enriched.some((e) => e.number === 21 && !e.satisfied);
+  const i21Missing = enriched.some((e) => e.number === 21 && e.applicable && !e.satisfied);
   const { data: trainerRows } = await sb
     .schema('app').from('trainers').select('id, first_name, last_name').order('last_name');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,6 +135,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                 : ready
                   ? 'Tous les indicateurs bloquants sont satisfaits.'
                   : `${entryBlockers.length} bloquant(s) d'entrée, ${closingBlockers.length} bloquant(s) de clôture.`}
+              {notApplicable > 0 && ` ${notApplicable} indicateur(s) non applicable(s) à ce dossier.`}
             </p>
           </div>
           <form action={async () => { 'use server'; await recomputeNow(params.id); }}>
@@ -171,17 +182,17 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
           )}
           <ul className="space-y-2">
             {[...entryBlockers, ...closingBlockers].map((b) => {
-              const g = guidanceFor(b.code, b.source, { formationId, dossierId: params.id });
-              const qstKind = QST_KIND_BY_CODE[b.code];
+              const g = guidanceFor(b.number, b.source, { formationId, dossierId: params.id });
+              const qstKind = QST_KIND_BY_NUMBER[b.number];
               const qstTemplates = qstKind ? templatesByKind.get(qstKind) : undefined;
               const inlineQuestionnaire = !!qstTemplates && qstTemplates.length > 0;
               return (
                 <li
-                  key={b.code}
+                  key={b.number}
                   className="bg-white/70 dark:bg-zinc-950/40 border border-amber-200/60 dark:border-amber-900/40 rounded-lg px-3 py-2.5"
                 >
                   <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
-                    <span className="font-mono text-amber-700 dark:text-amber-300 mr-1.5">{b.code}</span>
+                    <span className="font-mono text-amber-700 dark:text-amber-300 mr-1.5">I{b.number}</span>
                     {b.title}
                     <span className="ml-1.5 text-[11px] font-normal text-amber-600/80">
                       ({b.stage === 'entry' ? "à l'entrée" : 'à la clôture'})
@@ -208,49 +219,67 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
         </InfoCallout>
       )}
 
-      {Object.entries(byCriterion).map(([criterion, items]) => {
-        const okCount = items.filter((i) => i.satisfied).length;
-        return (
-          <section key={criterion}>
-            <div className="flex items-center justify-between mb-2">
-              <SectionLabel>Critère {criterion}</SectionLabel>
-              <span className="font-mono text-[11px] text-zinc-500">{okCount}/{items.length}</span>
-            </div>
-            <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-              {items.map((ind) => (
-                <li key={ind.code} className="grid grid-cols-[40px_60px_1fr_120px] gap-3 py-3 px-1 items-center text-[13px]">
-                  {ind.satisfied ? (
-                    <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
-                      <Check className="w-3 h-3" />
-                    </span>
-                  ) : (
-                    <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 flex items-center justify-center">
-                      <X className="w-3 h-3" />
-                    </span>
-                  )}
-                  <span className="font-mono text-[11px] text-zinc-500">{ind.code}</span>
-                  <span className="text-zinc-900 dark:text-zinc-100">{ind.title}</span>
-                  {ind.satisfied ? (
-                    <span className="text-[11px] text-zinc-400 inline-flex items-center gap-1 justify-self-end">
-                      {ind.stage !== 'none' ? (ind.stage === 'entry' ? 'entrée' : 'clôture') : ''}
-                    </span>
-                  ) : (
-                    <Link
-                      href={guidanceFor(ind.code, ind.source, { formationId, dossierId: params.id }).href ?? `/dossiers/${params.id}/${guidanceFor(ind.code, ind.source, { formationId, dossierId: params.id }).tab}`}
-                      title={guidanceFor(ind.code, ind.source, { formationId, dossierId: params.id }).todo}
-                      className="justify-self-end inline-flex items-center gap-1 text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
-                    >
-                      {ind.blocking && <span className="text-amber-600 dark:text-amber-400 mr-1">bloquant ·</span>}
-                      Corriger
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {Object.entries(byCriterion)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([criterion, items]) => {
+          const applicables = items.filter((i) => i.applicable);
+          const okCount = applicables.filter((i) => i.satisfied).length;
+          const label = items[0]?.criterionLabel;
+          return (
+            <section key={criterion}>
+              <div className="flex items-center justify-between mb-2">
+                <SectionLabel>
+                  Critère {criterion}
+                  {label ? ` — ${label}` : ''}
+                </SectionLabel>
+                <span className="font-mono text-[11px] text-zinc-500">{okCount}/{applicables.length}</span>
+              </div>
+              <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
+                {items.map((ind) => {
+                  const g = guidanceFor(ind.number, ind.source, { formationId, dossierId: params.id });
+                  return (
+                    <li key={ind.number} className="grid grid-cols-[40px_60px_1fr_140px] gap-3 py-3 px-1 items-center text-[13px]">
+                      {!ind.applicable ? (
+                        <span className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center">
+                          <Minus className="w-3 h-3" />
+                        </span>
+                      ) : ind.satisfied ? (
+                        <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                          <Check className="w-3 h-3" />
+                        </span>
+                      ) : (
+                        <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+                          <X className="w-3 h-3" />
+                        </span>
+                      )}
+                      <span className="font-mono text-[11px] text-zinc-500">I{ind.number}</span>
+                      <span className={ind.applicable ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500'}>
+                        {ind.title}
+                      </span>
+                      {!ind.applicable ? (
+                        <span className="text-[11px] text-zinc-400 justify-self-end">non applicable</span>
+                      ) : ind.satisfied ? (
+                        <span className="text-[11px] text-zinc-400 inline-flex items-center gap-1 justify-self-end">
+                          {ind.stage !== 'none' ? (ind.stage === 'entry' ? 'entrée' : 'clôture') : ''}
+                        </span>
+                      ) : (
+                        <Link
+                          href={g.href ?? `/dossiers/${params.id}/${g.tab}`}
+                          title={g.todo}
+                          className="justify-self-end inline-flex items-center gap-1 text-[12px] font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
+                        >
+                          {ind.blocking && <span className="text-amber-600 dark:text-amber-400 mr-1">bloquant ·</span>}
+                          Corriger
+                          <ArrowRight className="w-3 h-3" />
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
     </div>
   );
 }
