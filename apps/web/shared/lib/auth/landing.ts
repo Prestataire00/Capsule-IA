@@ -15,13 +15,15 @@ import { getCurrentMember } from './current-member';
  */
 export type Landing = '/' | '/formateur';
 
-async function ficheRattachee(userId: string): Promise<boolean> {
+/** Fiche formateur active reliée au compte, espace ouvert. */
+export async function hasTrainerSpace(userId: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin()
     .schema('app')
     .from('trainers')
     .select('id')
     .eq('user_id', userId)
     .is('deleted_at', null)
+    .is('space_disabled_at', null)
     .limit(1)
     .maybeSingle();
   if (error) {
@@ -42,7 +44,7 @@ async function ficheRattachee(userId: string): Promise<boolean> {
  * suffirait à prendre sa fiche. La colonne `email` est en `citext`.
  */
 export async function isTrainer(userId: string): Promise<boolean> {
-  if (await ficheRattachee(userId)) return true;
+  if (await hasTrainerSpace(userId)) return true;
   const admin = supabaseAdmin();
   const { data: compte } = await admin.auth.admin.getUserById(userId);
   const email = compte?.user?.email?.trim().toLowerCase();
@@ -53,6 +55,7 @@ export async function isTrainer(userId: string): Promise<boolean> {
     .update({ user_id: userId } as never)
     .eq('email', email)
     .is('deleted_at', null)
+    .is('space_disabled_at', null)
     .select('id');
   if (error) {
     console.error('[landing] rattachement par e-mail échoué', error.message);

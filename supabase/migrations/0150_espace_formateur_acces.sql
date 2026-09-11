@@ -1,19 +1,3 @@
--- ════════════════════════════════════════════════════════════════════════════
--- Capsule IA — migration à appliquer
---
---   0150  espace formateur : le formateur (même externe, non membre de
---         l'organisme) voit SES séances, apprenants, feuilles d'émargement,
---         sa feuille clôturée et son contrat ; liaison fiche ↔ compte réparée
---         (elle faisait planter l'espace formateur)
---
--- Les migrations 0138 à 0149 sont déjà en production. Rejouable sans risque.
--- À coller dans l'éditeur SQL Supabase, puis « Run ».
--- ════════════════════════════════════════════════════════════════════════════
-
-BEGIN;
-
--- ───────────── 0150_espace_formateur_acces.sql ─────────────
-
 -- 0150 — Espace formateur : le formateur accède à SES séances, sans être membre
 --
 -- Constat : toutes les politiques de lecture exigeaient l'organisme de la
@@ -224,5 +208,3 @@ BEGIN
 END $$;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

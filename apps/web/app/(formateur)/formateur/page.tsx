@@ -1,4 +1,4 @@
-// apps/web/app/(formateur)/page.tsx
+// apps/web/app/(formateur)/formateur/page.tsx
 // ARCHETYPE: workflow
 import Link from 'next/link';
 import { cookies } from 'next/headers';
@@ -6,21 +6,30 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SupabaseMembershipReader } from '@/features/identity/trainer-self/infrastructure/supabase-membership.reader';
 import { SupabaseTrainerCompetencyRepository } from '@/features/identity/trainer-self/infrastructure/supabase-trainer-competency.repository';
 import { GetCompetencyAlertsQuery } from '@/features/identity/trainer-self/application/queries/get-competency-alerts';
-import { Calendar, ClipboardList, FileText, GraduationCap, AlertTriangle } from 'lucide-react';
+import { loadSessionsByIds, mySessionIds } from '@/features/trainer-space/my-sessions';
+import { SessionCard } from '@/features/trainer-space/session-card';
+import { CalendarDays, ClipboardList, FileBadge, UserRound, AlertTriangle } from 'lucide-react';
+
+const JOUR_MS = 24 * 60 * 60 * 1000;
 
 export default async function FormateurDashboard() {
   const supabase = supabaseServer();
   const reader = new SupabaseMembershipReader(supabase);
-  const memberships = await reader.list();
   const focus = cookies().get('of_focus')?.value ?? 'all';
+  const [memberships, ids] = await Promise.all([reader.list(), mySessionIds(supabase)]);
 
   const visible = focus === 'all' ? memberships : memberships.filter(m => m.organizationId === focus);
 
   const compRepo = new SupabaseTrainerCompetencyRepository(supabase);
   const alertsQuery = new GetCompetencyAlertsQuery(compRepo);
-  const alerts = await Promise.all(visible.map(m => alertsQuery.execute(m.trainerId)));
+  const [alerts, seances] = await Promise.all([
+    Promise.all(visible.map(m => alertsQuery.execute(m.trainerId))),
+    loadSessionsByIds(supabase, ids, { from: new Date(), to: new Date(Date.now() + 60 * JOUR_MS) }, focus === 'all' ? null : focus),
+  ]);
+  const prochaines = seances.filter(s => s.status !== 'cancelled').slice(0, 3);
   const totalExpiring = alerts.reduce((s, a) => s + a.expiringSoon, 0);
   const totalExpired  = alerts.reduce((s, a) => s + a.expired, 0);
+  const noms = memberships.length > 1 ? new Map(memberships.map(m => [m.organizationId as string, m.organizationName])) : null;
 
   const firstName = visible[0]?.firstName ?? '';
 
@@ -32,7 +41,7 @@ export default async function FormateurDashboard() {
           Bonjour {firstName} 👋
         </h1>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1">
-          Vous êtes formateur chez <strong>{visible.length}</strong> organisme{visible.length > 1 ? 's' : ''} de formation
+          Vous êtes formateur chez <strong className="tabular-nums">{visible.length}</strong> organisme{visible.length > 1 ? 's' : ''} de formation
           {focus !== 'all' && ' (filtré)'}.
         </p>
         {(totalExpiring > 0 || totalExpired > 0) && (
@@ -45,6 +54,25 @@ export default async function FormateurDashboard() {
             </span>
             <Link href="/cv" className="ml-2 text-orange-600 dark:text-orange-400 hover:underline">Mettre à jour →</Link>
           </div>
+        )}
+      </section>
+
+      {/* Prochaines séances */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Prochaines séances</h2>
+          <Link href="/mon-planning" className="text-[12px] text-orange-600 dark:text-orange-400 hover:underline">Tout le planning →</Link>
+        </div>
+        {prochaines.length === 0 ? (
+          <p className="text-[13px] text-zinc-400 py-4">Aucune séance planifiée dans les deux prochains mois.</p>
+        ) : (
+          <ul className="space-y-2">
+            {prochaines.map((s, i) => (
+              <li key={s.id}>
+                <SessionCard s={s} organizationName={noms?.get(s.organizationId) ?? null} emphasize={i === 0} />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
@@ -74,10 +102,10 @@ export default async function FormateurDashboard() {
       <section>
         <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 mb-3">Raccourcis</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <ShortcutCard href="/profil" icon={<GraduationCap className="w-4 h-4" />} label="Mon profil" />
-          <ShortcutCard href="/cv" icon={<FileText className="w-4 h-4" />} label="Mon CV" />
-          <ShortcutCard href="/mes-sessions" icon={<Calendar className="w-4 h-4" />} label="Mes sessions" subtle />
-          <ShortcutCard href="/mes-sessions" icon={<ClipboardList className="w-4 h-4" />} label="Émargements" subtle />
+          <ShortcutCard href="/mon-planning" icon={<CalendarDays className="w-4 h-4" />} label="Mon planning" />
+          <ShortcutCard href="/mes-sessions" icon={<ClipboardList className="w-4 h-4" />} label="Sessions & émargement" />
+          <ShortcutCard href="/profil" icon={<UserRound className="w-4 h-4" />} label="Mon profil" subtle />
+          <ShortcutCard href="/cv" icon={<FileBadge className="w-4 h-4" />} label="CV & compétences" subtle />
         </div>
       </section>
     </div>
