@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { autoSendDue } from '@/features/attendance/link-recipients';
+import { sessionsAutomationOff } from '@/features/automation/session-automations';
 import { sendSheetLinks } from '@/features/attendance/send-links';
 
 /**
@@ -50,7 +51,11 @@ async function tick() {
   let traitees = 0;
   let envoyes = 0;
   const erreurs: string[] = [];
-  for (const s of (sessions ?? []) as { id: string }[]) {
+  // Séances dont le formateur ou le gestionnaire a coupé cet envoi (0156).
+  const seances = (sessions ?? []) as { id: string }[];
+  const coupees = await sessionsAutomationOff(sb, seances.map((s) => s.id), 'emargement_liens');
+  for (const s of seances) {
+    if (coupees.has(s.id)) continue;
     // Fenêtres de la base : pause déjeuner de l'organisme comprise.
     const { data: fenetres } = await sb.schema('app').rpc('attendance_session_windows' as never, { p_session_id: s.id } as never);
     for (const f of (fenetres ?? []) as { sheet_id: string; window_start: string }[]) {

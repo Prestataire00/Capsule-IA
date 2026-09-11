@@ -27,6 +27,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { expireOverdueQuotes, sweepMissingQuotes } from '@/features/billing/quotes/quote-service';
 import { runAutomaticReminders } from '@/features/billing/invoices/reminders';
 import { sendCertificatToCompany } from '@/features/documents/send-certificat-to-company';
+import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automation/session-automations';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -184,7 +185,14 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
     return { candidates: 0, sent: 0, errors: [sErr.message] };
   }
 
-  const sessionRows = (sessions ?? []) as unknown as SessionRow[];
+  const toutes = (sessions ?? []) as unknown as SessionRow[];
+  // Séances dont la convocation a été coupée dans l'onglet Automatisations (0156).
+  const convocationCoupee = await sessionsAutomationOff(
+    sb,
+    toutes.map((s) => s.id),
+    'convocation',
+  );
+  const sessionRows = toutes.filter((s) => !convocationCoupee.has(s.id));
   if (sessionRows.length === 0) {
     return { candidates: 0, sent: 0, errors: [] };
   }
@@ -334,6 +342,15 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
   let certificateSent = 0;
   const errors: string[] = [];
 
+  // Envois coupés dans l'onglet Automatisations de la séance (0156). Le
+  // certificat adressé à l'entreprise cliente n'en dépend pas : c'est une pièce
+  // administrative qui lui est due.
+  const dossierIdsFin = rows.map((d) => d.id);
+  const [satisfactionOff, finOff] = await Promise.all([
+    dossiersAutomationOff(sb, dossierIdsFin, 'satisfaction'),
+    dossiersAutomationOff(sb, dossierIdsFin, 'fin_formation'),
+  ]);
+
   for (const d of rows) {
     const [{ data: learnerRow }, { data: formationRow }] = await Promise.all([
       sb.schema('app').from('learners').select('first_name, last_name, email').eq('id', d.learner_id).maybeSingle(),
@@ -344,7 +361,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     const formationTitle = (formationRow as { title: string } | null)?.title ?? 'Votre formation';
 
     // Satisfaction — JWT signed URL
-    try {
+    if (!satisfactionOff.has(d.id)) try {
       const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
       const templateId = await ensureSatisfactionTemplate(sb);
 
@@ -379,7 +396,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
 
     // Fin de formation : attestation de fin (apprenant) + certificat de réalisation
     // (administratif) — les deux pour tous les dossiers terminés.
-    try {
+    if (!finOff.has(d.id)) try {
       const base = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
       const attestationUrl = base ? `${base}/api/dossiers/${d.id}/attestation.pdf` : null;
       const certificateUrl = base ? `${base}/api/dossiers/${d.id}/certificat.pdf` : null;
@@ -447,9 +464,11 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
       .map((s) => [s.id, s] as const),
   );
 
+  // Alerte coupée pour la séance dans l'onglet Automatisations (0156).
+  const alerteOff = await sessionsAutomationOff(sb, sessionIds, 'alerte_emargement');
   const candidates = sheets.filter((sh) => {
     const sess = sessById.get(sh.session_id);
-    return !!sess && sess.status !== 'cancelled' && sess.ends_at < nowISO;
+    return !!sess && sess.status !== 'cancelled' && sess.ends_at < nowISO && !alerteOff.has(sh.session_id);
   });
   if (candidates.length === 0) return { candidates: 0, alerted: 0, errors: [] };
 
@@ -615,8 +634,11 @@ async function runTrainerSatisfaction(): Promise<{ candidates: number; sent: num
   const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
   const templateId = await ensureTrainerSatisfactionTemplate(sb);
   let sent = 0;
+  // Retour formateur coupé pour la séance (0156).
+  const retourOff = await dossiersAutomationOff(sb, rows.map((d) => d.id), 'retour_formateur');
 
   for (const d of rows) {
+    if (retourOff.has(d.id)) continue;
     const [{ data: formationRow }, { data: dtRows }] = await Promise.all([
       sb.schema('app').from('formations').select('title').eq('id', d.formation_id).maybeSingle(),
       sb.schema('app').from('dossier_trainers').select('trainer_id').eq('dossier_id', d.id),
@@ -750,30 +772,41 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
   const { data: sigs, error } = await sb
     .schema('app')
     .from('attendance_signatures')
-    .select('learner_id, signed_at, sheet:attendance_sheets(dossier_id, organization_id)')
+    .select('learner_id, signed_at, sheet:attendance_sheets(dossier_id, organization_id, session_id)')
     .eq('participant_kind', 'learner')
     .not('signed_at', 'is', null)
     .gte('signed_at', cutoff);
   if (error) return { candidates: 0, sent: 0, errors: [error.message] };
 
   // Un présent unique par dossier (le dossier porte 1 apprenant).
-  const byDossier = new Map<string, { learnerId: string; organizationId: string }>();
+  const byDossier = new Map<string, { learnerId: string; organizationId: string; sessionId: string | null }>();
   for (const s of (sigs ?? []) as unknown as Array<{
     learner_id: string | null;
-    sheet: { dossier_id: string | null; organization_id: string } | null;
+    sheet: { dossier_id: string | null; organization_id: string; session_id: string | null } | null;
   }>) {
     const dossierId = s.sheet?.dossier_id;
     if (!dossierId || !s.learner_id || !s.sheet) continue;
     if (!byDossier.has(dossierId)) {
-      byDossier.set(dossierId, { learnerId: s.learner_id, organizationId: s.sheet.organization_id });
+      byDossier.set(dossierId, {
+        learnerId: s.learner_id,
+        organizationId: s.sheet.organization_id,
+        sessionId: s.sheet.session_id ?? null,
+      });
     }
   }
 
   let sent = 0;
   const errors: string[] = [];
   const base = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
+  // Attestation d'entrée coupée pour la séance qui a recueilli la signature (0156).
+  const entreeOff = await sessionsAutomationOff(
+    sb,
+    [...byDossier.values()].map((v) => v.sessionId).filter((v): v is string => Boolean(v)),
+    'attestation_entree',
+  );
 
   for (const [dossierId, ctx] of byDossier) {
+    if (ctx.sessionId && entreeOff.has(ctx.sessionId)) continue;
     try {
       // Dédup : déjà envoyée pour ce dossier ?
       const { data: already } = await sb
@@ -1016,8 +1049,11 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
     }
 
     dossierIds = [...new Set(dossierIds)];
-    candidates += dossierIds.length;
     const kind = `schedule:${rule.id}`;
+    // Programmation coupée séance par séance (0156).
+    const coupes = await dossiersAutomationOff(sb, dossierIds, kind);
+    dossierIds = dossierIds.filter((id) => !coupes.has(id));
+    candidates += dossierIds.length;
 
     for (const dossierId of dossierIds) {
       const { data: dRow } = await sb

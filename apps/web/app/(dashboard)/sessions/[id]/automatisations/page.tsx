@@ -1,5 +1,5 @@
 // ARCHETYPE: command
-// Justification: envois automatiques qui concernent la session — ceux de Capsule et les programmations de l'organisme.
+// Justification: envois automatiques qui concernent la session — ceux de Capsule et les programmations de l'organisme, activables séance par séance.
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -8,6 +8,9 @@ import { Mail, Zap } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { loadSession } from '@/features/sessions/load-session';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { AUTOMATION_KEYS, loadSessionAutomations, scheduleKey } from '@/features/automation/session-automations';
+import { AutomationToggle } from './automation-toggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,49 +33,52 @@ function quand(ancre: string, decalage: number): string {
   return `${n} jour${n > 1 ? 's' : ''} ${decalage < 0 ? 'avant' : 'après'} ${cible}`;
 }
 
-/** Envois intégrés à Capsule (tâches programmées). */
-const INTEGRES = [
-  { titre: 'Convocation', quand: '7 jours avant la séance', a: 'aux apprenants' },
-  { titre: 'Liens d’émargement', quand: 'Au début de chaque demi-journée, si l’envoi automatique est activé dans les paramètres', a: 'aux apprenants' },
-  { titre: 'Questionnaire de satisfaction à chaud', quand: 'À la fin de la formation', a: 'aux apprenants' },
-  { titre: 'Retour du formateur', quand: 'À la fin du dossier', a: 'au formateur' },
-];
-
 type Regle = { id: string; name: string; anchor: string; offset_days: number; recipient_kind: string; subject: string; enabled: boolean };
 
 export default async function SessionAutomatisations({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
+  const gerer = await canManageSection('dossiers');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = sb as unknown as SupabaseClient<any, any, any>;
-  const { data } = await db
-    .schema('app')
-    .from('email_schedules')
-    .select('id, name, anchor, offset_days, recipient_kind, subject, enabled')
-    .is('deleted_at', null)
-    .order('offset_days', { ascending: true });
+
+  const [{ data }, reglages] = await Promise.all([
+    db
+      .schema('app')
+      .from('email_schedules')
+      .select('id, name, anchor, offset_days, recipient_kind, subject, enabled')
+      .is('deleted_at', null)
+      .order('offset_days', { ascending: true }),
+    loadSessionAutomations(db, params.id),
+  ]);
   const regles = (data ?? []) as Regle[];
+  const actif = (cle: string) => reglages.get(cle) ?? true;
 
   return (
     <div className="space-y-6">
       <p className="text-[13px] text-zinc-600 dark:text-zinc-400 max-w-2xl">
-        E-mails envoyés automatiquement aux participants et au formateur de cette session : ceux de Capsule, puis les programmations de
-        votre organisme.
+        E-mails envoyés automatiquement aux participants et au formateur de cette session. Chaque envoi se coupe pour{' '}
+        <strong>cette séance seulement</strong> — les autres séances et les réglages de l’organisme ne changent pas.
       </p>
 
       <section className="space-y-2">
         <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Envois de Capsule</h2>
         <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800">
-          {INTEGRES.map((e) => (
-            <li key={e.titre} className="px-4 py-3 flex items-start gap-3">
-              <Mail className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" aria-hidden />
-              <div className="min-w-0">
-                <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{e.titre}</p>
-                <p className="text-[12px] text-zinc-500">
-                  {e.quand}, {e.a}.
-                </p>
+          {AUTOMATION_KEYS.map((e) => (
+            <li key={e.key} className="px-4 py-3 flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <Mail className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" aria-hidden />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{e.label}</p>
+                  <p className="text-[12px] text-zinc-500">{e.quand}.</p>
+                </div>
               </div>
+              {gerer ? (
+                <AutomationToggle sessionId={params.id} cle={e.key} actif={actif(e.key)} libelle={e.label} />
+              ) : (
+                <StatusPill tone={actif(e.key) ? 'success' : 'neutral'}>{actif(e.key) ? 'Actif' : 'Coupé'}</StatusPill>
+              )}
             </li>
           ))}
         </ul>
@@ -100,9 +106,21 @@ export default async function SessionAutomatisations({ params }: { params: { id:
                     <p className="text-[12px] text-zinc-500">
                       {quand(r.anchor, r.offset_days)}, {DESTINATAIRES[r.recipient_kind] ?? r.recipient_kind} — « {r.subject} »
                     </p>
+                    {!r.enabled && <p className="text-[11px] text-zinc-400 mt-0.5">En pause pour tout l’organisme.</p>}
                   </div>
                 </div>
-                <StatusPill tone={r.enabled ? 'success' : 'neutral'}>{r.enabled ? 'Active' : 'En pause'}</StatusPill>
+                {gerer ? (
+                  <AutomationToggle
+                    sessionId={params.id}
+                    cle={scheduleKey(r.id)}
+                    actif={actif(scheduleKey(r.id))}
+                    libelle={r.name}
+                  />
+                ) : (
+                  <StatusPill tone={actif(scheduleKey(r.id)) ? 'success' : 'neutral'}>
+                    {actif(scheduleKey(r.id)) ? 'Actif' : 'Coupé'}
+                  </StatusPill>
+                )}
               </li>
             ))}
           </ul>
