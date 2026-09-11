@@ -7,7 +7,9 @@ import { ChevronRight, Clock, MapPin, Users as UsersIcon, Video } from 'lucide-r
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { loadSession } from '@/features/sessions/load-session';
+import { canManageSection } from '@/shared/lib/auth/require-access';
 import { SessionTabsNav } from './session-tabs-nav';
+import { StatusSelect } from './status-select';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +42,7 @@ export default async function SessionLayout({
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
   const { session, formation, learners } = loaded;
+  const gerer = await canManageSection('dossiers');
 
   const st = STATUS[session.status] ?? { label: session.status, tone: 'neutral' as const };
   const etape = ETAPES.findIndex((e) => e.key === session.status);
@@ -70,7 +73,7 @@ export default async function SessionLayout({
                 <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 first-letter:uppercase">
                   {session.title || formation?.title || dayFmt.format(debut)}
                 </h1>
-                <StatusPill tone={st.tone}>{st.label}</StatusPill>
+                {gerer ? <StatusSelect sessionId={session.id} status={session.status} /> : <StatusPill tone={st.tone}>{st.label}</StatusPill>}
               </div>
               <p className="text-[15px] text-zinc-600 dark:text-zinc-300 mt-1.5 tabular-nums first-letter:uppercase">
                 {dayFmt.format(debut)} · {timeFmt.format(debut)} – {timeFmt.format(fin)}

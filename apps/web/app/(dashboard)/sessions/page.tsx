@@ -414,10 +414,10 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         </ManageOnly>
       </header>
 
-      {/* Graphiques dans une colonne à gauche, le tableau à droite. */}
-      <div className={filtered.length > 0 ? 'grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start' : ''}>
+      {/* Les trois graphiques en bande au-dessus du tableau (demande utilisateur). */}
+      <div>
       {filtered.length > 0 && (
-        <aside className="grid gap-4 xl:sticky xl:top-32" aria-label="Synthèse">
+        <aside className="grid gap-4 md:grid-cols-3 items-stretch mb-6" aria-label="Synthèse">
           <div className="rounded-xl p-5 bg-zinc-900 dark:bg-zinc-800/60 text-white">
             <p className="text-[12px] font-semibold text-white/60">Heures planifiées</p>
             <p className="text-[36px] leading-none font-extrabold tabular-nums mt-2 tracking-tight">{fmtH(totalHours)}</p>
@@ -455,7 +455,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
               </ul>
             </div>
             <div className="mt-4">
-              <WeeklyChart weeks={weeks} series={chart.series} currentIndex={WEEKS_BEFORE} w={268} />
+              <WeeklyChart weeks={weeks} series={chart.series} currentIndex={WEEKS_BEFORE} w={460} />
             </div>
           </div>
 
