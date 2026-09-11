@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto';
 import { headers } from 'next/headers';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifyDocumentSignatureToken } from '@/shared/lib/document-signature-token';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { onDocumentSigned } from '@/features/billing/quotes/quote-service';
 
 export type SignResult = { ok: true } | { ok: false; error: string };
 
@@ -89,6 +91,14 @@ export async function submitDocumentSignature(input: {
     } as never)
     .eq('id', signatureId);
   if (updErr) return { ok: false, error: 'db_update_failed' };
+
+  // Devis signé → statut « signé », facture brouillon. La signature est déjà
+  // acquise : un échec de la cascade est journalisé, jamais renvoyé au signataire.
+  try {
+    await onDocumentSigned(admin as unknown as SupabaseClient, documentId);
+  } catch (e) {
+    console.error('[signature] cascade devis en échec', documentId, e);
+  }
 
   return { ok: true };
 }

@@ -31,6 +31,8 @@ export const NOTIF_META: Record<string, Meta> = {
   document_signed: { label: 'Document signé', icon: FileCheck2, tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' },
   questionnaire_completed: { label: 'Questionnaire complété', icon: ClipboardCheck, tone: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30' },
   'prospect.new_demande': { label: 'Nouvelle demande', icon: Inbox, tone: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30' },
+  'quote.draft_ready': { label: 'Devis à relire', icon: FileText, tone: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30' },
+  'quote.signed': { label: 'Devis signé', icon: FileCheck2, tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' },
 };
 
 export const NOTIF_FALLBACK: Meta = {
@@ -42,6 +44,7 @@ export const NOTIF_FALLBACK: Meta = {
 /** Lien cible d'une notification (vers le dossier concerné quand on le connaît). */
 export function notifHref(n: Notif): string | null {
   const p = n.payload ?? {};
+  if (typeof p.quote_id === 'string') return `/devis/${p.quote_id}`;
   // Demandes (prospects) : lien vers la fiche de la demande.
   if (n.related_aggregate_type === 'prospect') {
     const prospectId = (p.prospect_id as string | undefined) ?? n.related_aggregate_id ?? undefined;

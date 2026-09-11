@@ -9,7 +9,7 @@ import {
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, PenLine,
-  TrendingUp,
+  TrendingUp, FileSignature,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -103,6 +103,7 @@ const GROUPS: Group[] = [
     short: 'Gestion',
     icon: Briefcase,
     items: [
+      { href: '/devis', icon: FileSignature, label: 'Devis' },
       { href: '/factures', icon: Receipt, label: 'Facturation' },
       { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/bpf', icon: FileText, label: 'BPF' },

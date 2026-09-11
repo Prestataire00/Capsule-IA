@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { guardRowAction } from '@/shared/lib/auth/guard-action';
+import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -34,6 +35,7 @@ export async function linkDossierToSession(
   if (error) return { ok: false, error: error.message };
 
   await recompute(sb, sessionId);
+  await tryEnsureQuoteForDossier(sb, dossierId);
   revalidatePath(`/dossiers/${primaryDossierId}/sessions`);
   return { ok: true };
 }

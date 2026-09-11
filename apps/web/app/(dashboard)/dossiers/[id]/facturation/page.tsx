@@ -20,6 +20,13 @@ import {
 } from '@/features/billing/domain/billing-plan';
 import { setDossierTotalAmount, addDossierFunder, removeDossierFunder } from './actions';
 import { Trash2, Plus } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { can } from '@/shared/lib/auth/permissions';
+import { loadQuotesForDossier } from '@/features/billing/quotes/queries';
+import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
+import { QuoteCard } from '../../../devis/_components/quote-card.client';
+import { GenerateQuoteButton } from '../../../devis/_components/generate-quote-button.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,7 +102,7 @@ async function loadData(dossierId: string, organizationId: string) {
     sb
       .schema('app')
       .from('invoices')
-      .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id')
+      .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id, quote_id')
       .eq('dossier_id', dossierId)
       .eq('organization_id', organizationId)
       .is('deleted_at', null)
@@ -132,6 +139,7 @@ async function loadData(dossierId: string, organizationId: string) {
       total_cents: number;
       currency: string;
       funder_id: string | null;
+      quote_id: string | null;
     }>,
   };
 }
@@ -152,6 +160,30 @@ export default async function FacturationPage({
   const { dossier, funders, invoices, funderCatalog } = await loadData(params.id, me.organizationId);
   if (!dossier) notFound();
 
+  const quoteSb = supabaseAdmin() as unknown as SupabaseClient;
+  // Filet : établit le devis si le dossier est prêt (session + analyse du besoin)
+  // et qu'aucun événement ne l'a encore fait.
+  await tryEnsureQuoteForDossier(quoteSb, dossier.id);
+  const quotes = await loadQuotesForDossier(quoteSb, dossier.id, me.organizationId);
+  const canManageBilling = can(me.role, 'billing') === 'manage';
+
+  // La facture d'un devis entreprise est rattachée au 1er dossier du lot : elle
+  // se répartit sur chaque stagiaire couvert pour le plan de facturation.
+  const quoteShares = new Map(quotes.map((q) => [q.id, Math.max(1, q.learnerCount)]));
+  const knownInvoiceIds = new Set(invoices.map((i) => i.id));
+  const extraInvoiceIds = quotes
+    .map((q) => q.invoice?.id)
+    .filter((id): id is string => !!id && !knownInvoiceIds.has(id));
+  const { data: extraRows } = extraInvoiceIds.length
+    ? await quoteSb
+        .schema('app')
+        .from('invoices')
+        .select('id, reference, status, issued_at, due_at, paid_at, subtotal_cents, total_cents, currency, funder_id, quote_id')
+        .in('id', extraInvoiceIds)
+        .eq('organization_id', me.organizationId)
+    : { data: [] };
+  const allInvoices = [...invoices, ...((extraRows ?? []) as unknown as typeof invoices)];
+
   const currency = dossier.currency || 'EUR';
   const totalHt = dossier.total_amount_cents ?? 0;
   const amountMissing = dossier.total_amount_cents == null;
@@ -164,9 +196,12 @@ export default async function FacturationPage({
     allocatedHtCents: f.amount_cents,
     status: (f.status as FunderAllocationInput['status']) ?? 'pending',
   }));
-  const invoiceInputs: InvoiceInput[] = invoices.map((i) => ({
+  const invoiceInputs: InvoiceInput[] = allInvoices.map((i) => ({
     funderId: i.funder_id,
-    subtotalHtCents: i.subtotal_cents,
+    subtotalHtCents:
+      i.quote_id && quoteShares.has(i.quote_id)
+        ? Math.round(i.subtotal_cents / (quoteShares.get(i.quote_id) ?? 1))
+        : i.subtotal_cents,
     status: i.status,
   }));
   const plan = buildBillingPlan(totalHt, allocations, invoiceInputs);
@@ -187,6 +222,21 @@ export default async function FacturationPage({
           Restant {formatEuros(Math.max(0, plan.remainingHtCents), currency)} HT
         </p>
       </header>
+
+      <section className="space-y-3">
+        <SectionLabel>Devis</SectionLabel>
+        {quotes.length === 0 ? (
+          <div className="border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3">
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+              Le devis s’établit automatiquement, au tarif de la session, dès que la session est planifiée et que
+              l’analyse du besoin est reçue. Vous pourrez alors le relire, le modifier et l’envoyer au client.
+            </p>
+            {canManageBilling && editable && <GenerateQuoteButton dossierId={dossier.id} />}
+          </div>
+        ) : (
+          quotes.map((q) => <QuoteCard key={q.id} quote={q} canManage={canManageBilling} />)
+        )}
+      </section>
 
       {searchParams?.amountError && (
         <InfoCallout tone="danger">
@@ -477,7 +527,7 @@ export default async function FacturationPage({
       {/* Factures émises pour ce dossier */}
       <div className="space-y-2">
         <SectionLabel>Factures</SectionLabel>
-        {invoices.length === 0 ? (
+        {allInvoices.length === 0 ? (
           <InfoCallout tone="info">
             {dossier.status === 'closed'
               ? 'Aucune facture liée à ce dossier.'
@@ -487,12 +537,14 @@ export default async function FacturationPage({
           </InfoCallout>
         ) : (
           <ul className="border-y border-zinc-200/60 dark:border-zinc-800 divide-y divide-zinc-200/60 dark:divide-zinc-800">
-            {invoices.map((inv) => (
+            {allInvoices.map((inv) => (
               <li
                 key={inv.id}
                 className="grid grid-cols-[160px_1fr_140px_120px_120px_100px] gap-3 py-3 px-1 items-center text-[13px]"
               >
-                <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">{inv.reference}</span>
+                <span className="tabular-nums text-[11px] text-zinc-700 dark:text-zinc-300">
+                  {inv.reference.startsWith('PROV-') ? 'Brouillon (n° à l’émission)' : inv.reference}
+                </span>
                 <span className="text-zinc-500 dark:text-zinc-400">
                   {inv.issued_at
                     ? `Émise le ${format(parseISO(inv.issued_at), 'dd MMM yyyy', { locale: fr })}`

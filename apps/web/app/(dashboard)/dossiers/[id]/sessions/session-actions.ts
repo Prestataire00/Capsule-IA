@@ -8,6 +8,7 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -24,6 +25,8 @@ type CreateInput = {
   endsAt: string; // ISO
   location?: string;
   remoteUrl?: string;
+  /** Tarif HT par stagiaire ; null = tarif catalogue de la formation. */
+  priceCents?: number | null;
 };
 
 type CreateResult =
@@ -149,6 +152,7 @@ export async function createSession(input: CreateInput): Promise<CreateResult> {
     ends_at: input.endsAt,
     location: input.location?.trim() || null,
     remote_url: manualRemote,
+    price_cents: input.priceCents != null && input.priceCents >= 0 ? Math.round(input.priceCents) : null,
   } as never);
   if (insErr) return { ok: false, error: insErr.message };
 
@@ -161,6 +165,7 @@ export async function createSession(input: CreateInput): Promise<CreateResult> {
     );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (sb as any).rpc('materialize_session_participants', { p_session_id: sessionId });
+  await tryEnsureQuoteForDossier(sb, input.dossierId);
 
   let meet: 'created' | 'skipped' | 'failed' | 'manual' = 'skipped';
   if (manualRemote) {

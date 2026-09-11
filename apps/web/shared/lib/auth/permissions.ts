@@ -74,6 +74,7 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   ['/parametres', 'settings'],
   ['/audit', 'settings'],
   ['/factures', 'billing'],
+  ['/devis', 'billing'],
   ['/prospects', 'crm'],
   ['/entreprises', 'crm'],
   ['/formations', 'catalogue'],

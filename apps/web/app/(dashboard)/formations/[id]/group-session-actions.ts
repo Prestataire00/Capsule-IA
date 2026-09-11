@@ -7,6 +7,7 @@ import { env } from '@/env.mjs';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -22,6 +23,8 @@ type Input = {
   startsAt: string; // ISO
   endsAt: string; // ISO
   location?: string;
+  /** Tarif HT par stagiaire ; null = tarif catalogue de la formation. */
+  priceCents?: number | null;
 };
 
 type Result = { ok: true; sessionId: string } | { ok: false; error: string };
@@ -67,6 +70,7 @@ export async function createFormationSession(input: Input): Promise<Result> {
     starts_at: input.startsAt,
     ends_at: input.endsAt,
     location: input.location?.trim() || null,
+    price_cents: input.priceCents != null && input.priceCents >= 0 ? Math.round(input.priceCents) : null,
   } as never);
   if (insErr) return { ok: false, error: insErr.message };
 
@@ -87,6 +91,7 @@ export async function createFormationSession(input: Input): Promise<Result> {
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (sb as any).rpc('materialize_session_participants', { p_session_id: sessionId });
+    for (const d of dossiers) await tryEnsureQuoteForDossier(sb, d.id as string);
   }
 
   // Meet de groupe (best-effort) si distanciel/hybride et agenda Google connecté.

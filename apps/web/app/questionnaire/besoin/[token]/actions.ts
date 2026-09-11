@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { verifyNeedsAnalysisToken } from '@/shared/lib/needs-analysis-token';
+import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 
 const needsAnalysisSchema = z.object({
   token: z.string().min(20),
@@ -107,6 +108,9 @@ export async function submitNeedsAnalysis(formData: FormData): Promise<void> {
   if (statutErr) {
     console.error('[besoin] bascule du statut en « completed » échouée', statutErr);
   }
+
+  // Analyse du besoin reçue : si la session est déjà planifiée, le devis s'établit (étape 4).
+  if (dossierId) await tryEnsureQuoteForDossier(sb, dossierId);
 
   redirect(`/questionnaire/besoin/${data.token}/merci`);
 }

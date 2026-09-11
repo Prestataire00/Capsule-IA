@@ -13,6 +13,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { requiredDocs } from '@/features/prospect/funding';
 import { ProspectDetailActions, type DocChecklistItem } from './prospect-detail-actions';
 import { ConvertButton } from '../convert-button';
+import { QUOTE_STATUS_LABELS, type QuoteStatus } from '@/features/billing/domain/quote';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,18 +173,30 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     ]),
   );
 
-  // Devis établi à la validation : accessible directement depuis la demande.
-  const { data: devisRow } = await sb
+  // Devis du dossier issu de la demande (établi à l'étape 4 : session + analyse du besoin).
+  const { data: convRow } = await sb
     .schema('app')
-    .from('documents')
-    .select('id, title, created_at')
-    .eq('metadata->>prospect_id', params.id)
-    .eq('kind', 'devis')
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
+    .from('prospects')
+    .select('converted_dossier_id')
+    .eq('id', params.id)
     .maybeSingle();
-  const devis = devisRow as { id: string; title: string; created_at: string } | null;
+  const convertedDossierId = (convRow as { converted_dossier_id: string | null } | null)?.converted_dossier_id ?? null;
+  const { data: quoteLinks } = convertedDossierId
+    ? await sb.schema('app').from('quote_dossiers').select('quote_id').eq('dossier_id', convertedDossierId)
+    : { data: [] };
+  const quoteIds = ((quoteLinks ?? []) as Array<{ quote_id: string }>).map((l) => l.quote_id);
+  const { data: devisRow } = quoteIds.length
+    ? await sb
+        .schema('app')
+        .from('quotes')
+        .select('id, reference, status, created_at')
+        .in('id', quoteIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  const devis = devisRow as { id: string; reference: string; status: QuoteStatus; created_at: string } | null;
 
   const reviewByKey = new Map(reviews.map((r) => [r.doc_key, r]));
   const uploaded = prospect.documents ?? [];
@@ -488,21 +501,32 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
             </a>
           </section>
 
-          {devis && (
+          {convertedDossierId && (
             <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                 Devis
               </p>
-              <p className="text-[13px] text-zinc-900 dark:text-zinc-100">{devis.title}</p>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Établi le {new Date(devis.created_at).toLocaleDateString('fr-FR')} — à relire avant envoi.
-              </p>
-              <Link
-                href={`/documents/${devis.id}/apercu`}
-                className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-4 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
-              >
-                Prévisualiser et modifier
-              </Link>
+              {devis ? (
+                <>
+                  <p className="text-[13px] text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    {devis.reference} · {QUOTE_STATUS_LABELS[devis.status]}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Établi le {new Date(devis.created_at).toLocaleDateString('fr-FR')}
+                    {devis.status === 'draft' ? ' — à relire avant envoi.' : '.'}
+                  </p>
+                  <Link
+                    href={`/devis/${devis.id}`}
+                    className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/60 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] px-4 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-950 transition"
+                  >
+                    {devis.status === 'draft' ? 'Relire et envoyer' : 'Ouvrir le devis'}
+                  </Link>
+                </>
+              ) : (
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Il s’établira automatiquement dès que la session sera planifiée et l’analyse du besoin reçue.
+                </p>
+              )}
             </section>
           )}
 

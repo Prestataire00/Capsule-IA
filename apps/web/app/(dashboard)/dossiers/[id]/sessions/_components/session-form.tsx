@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CalendarPlus, Loader2, Video, Check } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { createSession, generateMeetForSession } from '../session-actions';
+import { parseEurosToCents } from '@/features/billing/domain/quote';
 
 const MODALITIES = [
   { v: 'presentiel', l: 'Présentiel' },
@@ -28,6 +29,7 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
     mEnd: '12:30',
     aStart: '14:00',
     aEnd: '17:30',
+    price: '',
   };
   const [form, setForm] = useState(initialForm);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -37,6 +39,8 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
     if (!form.title.trim()) return setError('Intitulé requis');
     if (!form.date) return setError('Date requise');
     if (!form.morning && !form.afternoon) return setError('Choisissez au moins le matin ou l’après-midi.');
+    const priceCents = form.price.trim() ? parseEurosToCents(form.price) : null;
+    if (form.price.trim() && priceCents == null) return setError('Tarif invalide (ex. 850 ou 850,50).');
 
     // Une session par demi-journée sélectionnée (matin et/ou après-midi).
     const blocks: { label: string; start: string; end: string }[] = [];
@@ -59,6 +63,7 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
           startsAt: new Date(`${form.date}T${b.start}`).toISOString(),
           endsAt: new Date(`${form.date}T${b.end}`).toISOString(),
           location: form.location,
+          priceCents,
         });
         if (!res.ok) {
           setError(res.error);
@@ -93,6 +98,15 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
       </FormField>
       <FormField label="Date" required>
         <input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} className={inputClass} />
+      </FormField>
+      <FormField label="Tarif de la session (€ HT par stagiaire)">
+        <input
+          value={form.price}
+          onChange={(e) => set('price', e.target.value)}
+          inputMode="decimal"
+          placeholder="Tarif catalogue de la formation"
+          className={inputClass}
+        />
       </FormField>
 
       <div className="space-y-2">

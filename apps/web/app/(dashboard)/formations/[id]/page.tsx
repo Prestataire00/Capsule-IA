@@ -505,7 +505,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         sessions={
           <Card title={`Sessions (${sessions.length})`}>
             <div className="mb-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
-              <GroupSessionForm formationId={id} />
+              <GroupSessionForm formationId={id} defaultPriceCents={f.default_price_cents} />
             </div>
             {sessions.length === 0 ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune session. Créez-en une ci-dessus.</p>

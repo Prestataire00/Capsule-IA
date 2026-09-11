@@ -43,6 +43,7 @@ export async function loadDossierProgress(
     { data: sheetRows },
     { data: invoiceRows },
     { data: emailRows },
+    { data: quoteLinkRows },
   ] = await Promise.all([
     sb.schema('app').from('dossiers').select('created_at, status').eq('id', dossierId).maybeSingle(),
     sb.schema('app').from('session_dossiers').select('created_at').eq('dossier_id', dossierId),
@@ -70,6 +71,7 @@ export async function loadDossierProgress(
       .select('kind, created_at')
       .eq('dossier_id', dossierId)
       .eq('status', 'sent'),
+    sb.schema('app').from('quote_dossiers').select('quote_id').eq('dossier_id', dossierId),
   ]);
 
   const dossier = dossierRow as { created_at: string; status: string } | null;
@@ -121,10 +123,29 @@ export async function loadDossierProgress(
 
   const [devisSig, conventionSig] = await Promise.all([signatures(devis), signatures(conventions)]);
 
+  // Devis structurés (un par client, entreprise ou particulier) : ils portent
+  // eux-mêmes leurs dates d'envoi et de signature, y compris pour les dossiers
+  // d'un lot entreprise dont le document est rattaché à un autre dossier.
+  const quoteIds = ((quoteLinkRows ?? []) as Array<{ quote_id: string }>).map((q) => q.quote_id);
+  const { data: quoteRows } = quoteIds.length
+    ? await sb
+        .schema('app')
+        .from('quotes')
+        .select('status, created_at, sent_at, signed_at')
+        .in('id', quoteIds)
+        .is('deleted_at', null)
+    : { data: [] };
+  const quotes = (
+    (quoteRows ?? []) as Array<{ status: string; created_at: string; sent_at: string | null; signed_at: string | null }>
+  ).filter((q) => !['cancelled', 'refused', 'expired'].includes(q.status));
+
   // Un devis peut aussi partir par e-mail sans demande de signature.
   const documentEmail = emails.find((e) => (e.kind ?? '') === 'document_email');
   const devisSentAt =
-    devisSig.requestedAt ?? (devis.length > 0 ? (documentEmail?.created_at ?? null) : null);
+    earliest(quotes.map((q) => q.sent_at)) ??
+    devisSig.requestedAt ??
+    (devis.length > 0 ? (documentEmail?.created_at ?? null) : null);
+  const devisSignedAt = earliest(quotes.map((q) => q.signed_at)) ?? devisSig.signedAt;
 
   // « Gagné » : devis signé, ou dossier engagé (planifié et au-delà) — beaucoup
   // d'accords se concluent par e-mail, sans signature électronique.
@@ -168,26 +189,26 @@ export async function loadDossierProgress(
     {
       key: 'devis',
       label: 'Devis préparé',
-      hint: 'Générez le devis depuis l’onglet Documents.',
-      done: devis.length > 0,
-      at: earliest(devis.map((d) => d.created_at)),
-      href: `${base}/documents`,
+      hint: 'Le devis s’établit automatiquement dès que la session est planifiée et l’analyse du besoin reçue.',
+      done: devis.length > 0 || quotes.length > 0,
+      at: earliest([...quotes.map((q) => q.created_at), ...devis.map((d) => d.created_at)]),
+      href: `${base}/facturation`,
     },
     {
       key: 'devis_sent',
       label: 'Devis envoyé',
-      hint: 'Le devis n’a pas encore été adressé au client.',
+      hint: 'Relisez le devis puis « Valider et envoyer au client ».',
       done: Boolean(devisSentAt),
       at: devisSentAt,
-      href: `${base}/documents`,
+      href: `${base}/facturation`,
     },
     {
       key: 'devis_signed',
       label: 'Devis signé / Gagné',
       hint: 'En attente de l’accord du client.',
-      done: Boolean(devisSig.signedAt) || engaged,
-      at: devisSig.signedAt,
-      href: `${base}/documents`,
+      done: Boolean(devisSignedAt) || engaged,
+      at: devisSignedAt,
+      href: `${base}/facturation`,
     },
     {
       key: 'convention',

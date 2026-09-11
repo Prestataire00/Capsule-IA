@@ -7,7 +7,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { requiredDocs } from '@/features/prospect/funding';
 import { convertProspectToDossier } from '@/features/crm/prospect-conversion/convert-core';
-import { createDevisForProspect } from '@/features/documents/create-devis-for-prospect';
+import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { can } from '@/shared/lib/auth/permissions';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
@@ -215,43 +215,23 @@ export const validateProspectDemande = authActionClient
     // Conversion systématique en dossier dès validation des pièces (best-effort,
     // idempotent ; les prospects sans formation sont simplement ignorés).
     let convertedCount = 0;
-    let firstDossierId: string | null = null;
+    const convertedIds: string[] = [];
     for (const id of targetIds.length ? targetIds : [parsedInput.prospectId]) {
       try {
         const r = await convertProspectToDossier(admin, rowOrg, id);
         if (r.ok) {
           convertedCount++;
-          firstDossierId ??= r.dossierId;
+          convertedIds.push(r.dossierId);
         }
       } catch (e) {
         console.error('[validateProspectDemande] conversion échouée', id, e);
       }
     }
 
-    // Devis établi dans la foulée : un seul pour toute la demande (l'effectif du
-    // lot entreprise devient la quantité), à relire et retoucher avant envoi.
-    // Best-effort : un échec ne remet pas en cause la validation.
-    let devisDocumentId: string | null = null;
-    try {
-      const devis = await createDevisForProspect(admin, rowOrg, {
-        prospectId: parsedInput.prospectId,
-        dossierId: firstDossierId,
-        quantity: targetIds.length || 1,
-      });
-      if (devis.ok) {
-        devisDocumentId = devis.documentId;
-        if (devis.created) {
-          await recordEvent(rowOrg, parsedInput.prospectId, 'comment', userId, {
-            channel: 'note',
-            text: `Devis établi automatiquement (${targetIds.length || 1} stagiaire${(targetIds.length || 1) > 1 ? 's' : ''}) — à relire avant envoi.`,
-          });
-        }
-      } else {
-        console.error('[validateProspectDemande] devis non généré', devis.reason, devis.details);
-      }
-    } catch (e) {
-      console.error('[validateProspectDemande] devis en échec', e);
-    }
+    // Le devis (un par client : l'entreprise pour tout son lot, ou le
+    // particulier) s'établit à l'étape 4 — session planifiée ET analyse du
+    // besoin reçue. Si c'est déjà le cas à la validation, il part d'ici.
+    for (const dossierId of convertedIds) await tryEnsureQuoteForDossier(admin, dossierId);
 
     revalidatePath(`/prospects/${parsedInput.prospectId}`);
     revalidatePath('/prospects/nouvelles');
@@ -260,7 +240,6 @@ export const validateProspectDemande = authActionClient
       ok: true as const,
       count: targetIds.length || 1,
       converted: convertedCount,
-      devisDocumentId,
     };
   });
 

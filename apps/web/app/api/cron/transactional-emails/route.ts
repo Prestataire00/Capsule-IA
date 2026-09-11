@@ -23,6 +23,8 @@ import {
   sendNeedsAnalysisForLearner,
 } from '@/features/questionnaire/needs-analysis';
 import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { expireOverdueQuotes, sweepMissingQuotes } from '@/features/billing/quotes/quote-service';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -1134,6 +1136,9 @@ export async function POST(req: Request) {
     runStartAttestation(),
     runCustomSchedules(),
   ]);
+  // Après la fiche besoin (qui peut compléter l'analyse depuis l'inscription) :
+  // devis des dossiers prêts, puis expiration des devis périmés.
+  const quotes = await runQuotesMaintenance();
   const durationMs = Date.now() - startedAt;
 
   return NextResponse.json({
@@ -1147,7 +1152,19 @@ export async function POST(req: Request) {
     needsAnalysisLearners,
     startAttestation,
     customSchedules,
+    quotes,
   });
+}
+
+async function runQuotesMaintenance(): Promise<{ created: number; expired: number; errors: string[] }> {
+  const sb = admin() as unknown as SupabaseClient;
+  try {
+    const sweep = await sweepMissingQuotes(sb);
+    const expired = await expireOverdueQuotes(sb);
+    return { created: sweep.created, expired, errors: sweep.errors };
+  } catch (e) {
+    return { created: 0, expired: 0, errors: [`devis: ${e instanceof Error ? e.message : 'échec'}`] };
+  }
 }
 
 // GET autorisé aussi pour faciliter le ping manuel / cron-job.org en GET
