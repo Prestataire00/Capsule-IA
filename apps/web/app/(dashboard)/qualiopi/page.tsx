@@ -15,6 +15,7 @@ import { StatCard } from '@/shared/ui/stat-card';
 import { dossierStatusLabel } from '@/shared/ui/status-pill';
 import { loadOrgEvidence, type Evidence } from '@/features/qualiopi/evidence';
 import { ORG_STATUS_LABELS, type OrgStatus } from '@/features/qualiopi/status';
+import { jourParis, versions, VERSION_LABELS } from '@/features/qualiopi/referentiel';
 import { IndicatorStatus, ProofUpload, RemoveProofButton } from './indicator-actions.client';
 
 export const dynamic = 'force-dynamic';
@@ -76,6 +77,9 @@ type Indicateur = {
   condition: string | null;
   new_entrant: boolean;
   minor_nc_possible: boolean;
+  referential_version: string;
+  effective_from: string | null;
+  effective_until: string | null;
 };
 
 type Preuve = { id: string; indicator_id: string; title: string; valid_until: string | null; created_at: string };
@@ -123,6 +127,13 @@ function categoriesVisees(appliesTo: string[] | null): string | null {
   return CATEGORIES.filter(([, code]) => appliesTo.includes(code)).map(([label]) => label).join(' · ') || null;
 }
 
+/** « 1er novembre 2026 » à partir de « 2026-11-01 ». */
+function dateLongue(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  const jour = d.getUTCDate();
+  return `${jour === 1 ? '1er' : jour} ${d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`;
+}
+
 function Badge({ children }: { children: React.ReactNode }) {
   return (
     <span className="text-[11px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
@@ -134,7 +145,7 @@ function Badge({ children }: { children: React.ReactNode }) {
 export default async function QualiopiPage({
   searchParams,
 }: {
-  searchParams: { onglet?: string; critere?: string; filter?: string };
+  searchParams: { onglet?: string; critere?: string; filter?: string; version?: string };
 }) {
   await requireAccess('qualiopi');
   const me = await getCurrentMember();
@@ -150,7 +161,7 @@ export default async function QualiopiPage({
       .schema('app')
       .from('qualiopi_indicators')
       .select(
-        'id, number, criterion, criterion_label, title, requirement, expected_proofs, scope, applies_to, certifying_only, condition, new_entrant, minor_nc_possible' as never,
+        'id, number, criterion, criterion_label, title, requirement, expected_proofs, scope, applies_to, certifying_only, condition, new_entrant, minor_nc_possible, referential_version, effective_from, effective_until' as never,
       )
       .eq('is_active', true)
       .neq('referential_version' as never, 'legacy' as never)
@@ -159,7 +170,7 @@ export default async function QualiopiPage({
       ? admin
           .schema('app')
           .from('qualiopi_org_indicator_status' as never)
-          .select('indicator_id, status, note')
+          .select('indicator_id, status, note, updated_at')
           .eq('organization_id' as never, me.organizationId as never)
       : Promise.resolve({ data: [], error: null }),
     me
@@ -185,17 +196,42 @@ export default async function QualiopiPage({
   // Référentiel en vigueur. Tant que la migration 0139 n'est pas appliquée, la
   // requête échoue : on le dit plutôt que d'afficher un référentiel vide.
   const referentielIndisponible = Boolean(refRes.error);
-  const indicateurs = ((refRes.data ?? []) as unknown as Indicateur[]).filter(Boolean);
-  const statuts = new Map(
-    (((statutsRes as { data: unknown }).data ?? []) as { indicator_id: string; status: OrgStatus; note: string | null }[]).map((s) => [
-      s.indicator_id,
-      s,
-    ]),
-  );
-  const preuvesParIndicateur = new Map<string, Preuve[]>();
-  for (const p of ((preuvesRes as { data: unknown }).data ?? []) as Preuve[]) {
-    preuvesParIndicateur.set(p.indicator_id, [...(preuvesParIndicateur.get(p.indicator_id) ?? []), p]);
+  const tous = ((refRes.data ?? []) as unknown as Indicateur[]).filter(Boolean);
+  const { courante, suivante } = versions(tous, jourParis());
+  const version =
+    searchParams.version && searchParams.version !== 'legacy' && tous.some((i) => i.referential_version === searchParams.version)
+      ? searchParams.version
+      : courante;
+  const indicateurs = tous.filter((i) => i.referential_version === version);
+  const apercu = version !== courante;
+  const suffixeVersion = apercu && version ? `&version=${version}` : '';
+
+  // Statuts et preuves suivent le numéro : le travail fait sous la V9 vaut sous la V10.
+  const numeroParId = new Map(tous.map((i) => [i.id, i.number]));
+  type Statut = { indicator_id: string; status: OrgStatus; note: string | null; updated_at: string };
+  const statuts = new Map<number, Statut>();
+  for (const s of ((statutsRes as { data: unknown }).data ?? []) as Statut[]) {
+    const n = numeroParId.get(s.indicator_id);
+    if (n === undefined) continue;
+    const prec = statuts.get(n);
+    if (!prec || s.updated_at > prec.updated_at) statuts.set(n, s);
   }
+  const preuvesParIndicateur = new Map<number, Preuve[]>();
+  for (const p of ((preuvesRes as { data: unknown }).data ?? []) as Preuve[]) {
+    const n = numeroParId.get(p.indicator_id);
+    if (n !== undefined) preuvesParIndicateur.set(n, [...(preuvesParIndicateur.get(n) ?? []), p]);
+  }
+
+  // Ce qui change au passage à la version suivante, au même numéro.
+  const evolutions = new Map<number, 'nouveau' | 'modifie'>();
+  if (suivante && courante) {
+    const avant = new Map(tous.filter((i) => i.referential_version === courante).map((i) => [i.number, i.requirement]));
+    for (const i of tous.filter((x) => x.referential_version === suivante.version)) {
+      if (!avant.has(i.number)) evolutions.set(i.number, 'nouveau');
+      else if (avant.get(i.number) !== i.requirement) evolutions.set(i.number, 'modifie');
+    }
+  }
+  const nbNouveaux = [...evolutions.values()].filter((e) => e === 'nouveau').length;
 
   const profil: Profil = {
     apprentissage: (profilRes?.[0].count ?? 0) > 0,
@@ -207,11 +243,11 @@ export default async function QualiopiPage({
 
   const evalues = indicateurs.map((ind) => {
     const preuvesAuto = (evidence as Record<number, Evidence[]>)[ind.number] ?? [];
-    const saisi = statuts.get(ind.id);
+    const saisi = statuts.get(ind.number);
     return {
       ind,
       preuvesAuto,
-      preuvesDeposees: preuvesParIndicateur.get(ind.id) ?? [],
+      preuvesDeposees: preuvesParIndicateur.get(ind.number) ?? [],
       note: saisi?.note ?? null,
       saisi: saisi?.status ?? null,
       ...statutEffectif(ind, saisi?.status, preuvesAuto, profil),
@@ -254,9 +290,34 @@ export default async function QualiopiPage({
         <SectionLabel className="mb-1">Conformité</SectionLabel>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Qualiopi</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-          Référentiel national qualité — 7 critères, 32 indicateurs (guide de lecture V9).
+          Référentiel national qualité — 7 critères, {indicateurs.length} indicateurs
+          {version ? ` (${VERSION_LABELS[version] ?? version})` : ''}.
         </p>
       </header>
+
+      {!referentielIndisponible && suivante && (
+        <div className="mb-6 flex items-start gap-2.5 p-3.5 bg-purple-50 dark:bg-purple-950/30 border border-purple-200/60 dark:border-purple-900/40 rounded-lg">
+          <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+          <p className="text-[13px] text-purple-900 dark:text-purple-200">
+            {apercu ? (
+              <>
+                Vous consultez le référentiel applicable au {dateLongue(suivante.from)}. Vos statuts et preuves y sont repris.{' '}
+                <Link href="/qualiopi" className="underline underline-offset-2">
+                  Revenir au référentiel en vigueur
+                </Link>
+              </>
+            ) : (
+              <>
+                Nouveau référentiel au {dateLongue(suivante.from)} : {evolutions.size} indicateurs évoluent, dont {nbNouveaux}{' '}
+                nouveau{nbNouveaux > 1 ? 'x' : ''}. Vos statuts et preuves sont conservés.{' '}
+                <Link href={`/qualiopi?version=${suivante.version}`} className="underline underline-offset-2">
+                  Consulter le nouveau référentiel
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {referentielIndisponible ? (
         <div className="mb-6 flex items-start gap-2.5 p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-lg">
@@ -310,7 +371,7 @@ export default async function QualiopiPage({
             {criteres.map((c) => (
               <Link
                 key={c.n}
-                href={`/qualiopi?critere=${c.n}`}
+                href={`/qualiopi?critere=${c.n}${suffixeVersion}`}
                 className={`flex-shrink-0 rounded-lg border px-3 py-2 transition ${
                   c.n === critere
                     ? 'border-purple-300 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/40'
@@ -339,6 +400,15 @@ export default async function QualiopiPage({
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
                         <Badge>{ind.scope === 'dossier' ? 'Par dossier' : 'Organisme'}</Badge>
                         {ind.new_entrant && <Badge>Nouvel entrant</Badge>}
+                        {suivante && evolutions.has(ind.number) && (
+                          <Badge>
+                            {apercu
+                              ? evolutions.get(ind.number) === 'nouveau'
+                                ? 'Nouveau'
+                                : 'Modifié'
+                              : `Évolue le ${dateLongue(suivante.from)}`}
+                          </Badge>
+                        )}
                         {ind.certifying_only && <Badge>Certifiant</Badge>}
                         {categoriesVisees(ind.applies_to) && <Badge>{categoriesVisees(ind.applies_to)}</Badge>}
                         {ind.condition === 'subcontracting' && <Badge>Sous-traitance</Badge>}

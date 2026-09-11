@@ -8,6 +8,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { InfoCallout } from '@/shared/ui/info-callout';
 import { guidanceFor } from '@/features/dossier/qualiopi-guidance';
+import { enVigueur, jourParis, type VersionRow } from '@/features/qualiopi/referentiel';
 import { startTraining, closeDossier, recomputeNow } from './actions';
 import { AssignTrainer } from './assign-trainer.client';
 import { AssignLearner } from '../questionnaires/assign-learner';
@@ -32,7 +33,7 @@ type DetailRow = {
   applicable?: boolean;
 };
 
-type RefRow = { number: number; title: string; criterion: number; criterion_label: string | null };
+type RefRow = VersionRow & { id: string; number: number; title: string; criterion: number; criterion_label: string | null };
 
 export default async function QualiopiPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -56,7 +57,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
   // « Indicateur N » — la page reste utilisable.
   const { data: indicators } = await sb
     .schema('app').from('qualiopi_indicators')
-    .select('number, title, criterion, criterion_label' as never)
+    .select('id, number, title, criterion, criterion_label, referential_version, effective_from, effective_until' as never)
     .eq('scope', 'dossier')
     .eq('is_active', true)
     .neq('referential_version' as never, 'legacy' as never);
@@ -66,12 +67,14 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
   const details: DetailRow[] = c.details ?? [];
   const entryBlockingMissing: number = c.entry_blocking_missing ?? 0;
   const closingBlockingMissing: number = c.closing_blocking_missing ?? 0;
-  const refByNumber = new Map<number, RefRow>(
-    ((indicators as unknown as RefRow[] | null) ?? []).map((i) => [i.number, i]),
-  );
+  const refs = (indicators as unknown as RefRow[] | null) ?? [];
+  // Libellés de la version qui a servi au calcul ; à défaut, de celle en vigueur.
+  const refById = new Map(refs.map((i) => [i.id, i]));
+  const jour = jourParis();
+  const refByNumber = new Map<number, RefRow>(refs.filter((i) => enVigueur(i, jour)).map((i) => [i.number, i]));
 
   const enriched = details.map((d) => {
-    const ref = refByNumber.get(d.number);
+    const ref = refById.get(d.indicator_id) ?? refByNumber.get(d.number);
     return {
       number: d.number,
       title: ref?.title ?? `Indicateur ${d.number}`,
