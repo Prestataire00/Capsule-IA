@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useAction } from 'next-safe-action/hooks';
-import { UploadCloud, Check } from 'lucide-react';
+import { UploadCloud, Check, Stamp } from 'lucide-react';
 import { updateOrgRepresentativeAction, uploadOrgAssetAction } from './branding-actions';
 
 export function SignatureStampSection(props: {
@@ -45,16 +45,21 @@ export function SignatureStampSection(props: {
 
   return (
     <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
-      <div>
+      <div className="flex items-start gap-3">
+        <span className="w-9 h-9 rounded-xl grid place-items-center text-white bg-purple-500 shadow-md shadow-purple-500/30 shrink-0">
+          <Stamp className="w-4 h-4" />
+        </span>
+        <div>
         <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Logo, signature & cachet</h2>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
           Le logo apparaît en en-tête de tous les documents ; signature et cachet sont apposés automatiquement
           (convention, attestation, certificat, facture).
         </p>
+        </div>
       </div>
 
       <label className="flex items-center gap-2 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-3 cursor-pointer hover:border-orange-300 dark:hover:border-orange-800 hover:bg-orange-50/40 dark:hover:bg-orange-950/20 transition">
-        <UploadCloud className="w-4 h-4 text-zinc-400" />
+        <UploadCloud className="w-4 h-4 text-orange-500 dark:text-orange-400" />
         <span>
           Logo de l&apos;organisme (PNG)
           {props.hasLogo && <Check className="inline w-3.5 h-3.5 text-emerald-500 ml-1" />}
@@ -78,7 +83,7 @@ export function SignatureStampSection(props: {
       <div className="grid grid-cols-2 gap-3">
         {(['signature', 'stamp'] as const).map((kind) => (
           <label key={kind} className="flex items-center gap-2 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-3 cursor-pointer hover:border-orange-300 dark:hover:border-orange-800 hover:bg-orange-50/40 dark:hover:bg-orange-950/20 transition">
-            <UploadCloud className="w-4 h-4 text-zinc-400" />
+            <UploadCloud className="w-4 h-4 text-orange-500 dark:text-orange-400" />
             <span>{kind === 'signature' ? 'Signature' : 'Cachet'} (PNG)
               {((kind === 'signature' && props.hasSignature) || (kind === 'stamp' && props.hasStamp)) && (
                 <Check className="inline w-3.5 h-3.5 text-emerald-500 ml-1" />

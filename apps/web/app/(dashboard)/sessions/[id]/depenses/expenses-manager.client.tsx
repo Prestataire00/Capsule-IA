@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useAction } from 'next-safe-action/hooks';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Receipt } from 'lucide-react';
+import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { Button } from '@/shared/ui/button';
 import { addSessionExpense, deleteSessionExpense } from './expense-actions';
@@ -24,6 +25,12 @@ const KINDS: { value: string; label: string }[] = [
   { value: 'autre', label: 'Autre' },
 ];
 const kindLabel = (k: string) => KINDS.find((x) => x.value === k)?.label ?? k;
+const KIND_ACCENT: Record<string, Accent> = {
+  salaire_formateur: 'teal',
+  sous_traitance_confiee: 'blue',
+  achat_formation: 'orange',
+  autre: 'amber',
+};
 const euros = (c: number) => `${(c / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
 
 export function ExpensesManager({ sessionId, expenses }: { sessionId: string; expenses: ExpenseRow[] }) {
@@ -57,7 +64,12 @@ export function ExpensesManager({ sessionId, expenses }: { sessionId: string; ex
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-4">Ajouter une dépense</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
+            <Plus className="w-4 h-4" />
+          </span>
+          Ajouter une dépense
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Type">
             <select className={inputClass} value={kind} onChange={(e) => setKind(e.target.value)}>
@@ -86,8 +98,14 @@ export function ExpensesManager({ sessionId, expenses }: { sessionId: string; ex
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Dépenses de la session</h2>
-          <span className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">Total : {euros(total)}</span>
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+            <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
+              <Receipt className="w-4 h-4" />
+            </span>
+            Dépenses de la session
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.emerald.soft}`}>{expenses.length}</span>
+          </h2>
+          <span className={`rounded-full px-3 py-1 text-[13px] font-bold tabular-nums ${ACCENTS.emerald.soft}`}>Total : {euros(total)}</span>
         </div>
         {expenses.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune dépense enregistrée pour cette session.</p>
@@ -95,15 +113,20 @@ export function ExpensesManager({ sessionId, expenses }: { sessionId: string; ex
           <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
             {expenses.map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
-                <div className="min-w-0">
-                  <p className="font-bold text-zinc-900 dark:text-zinc-100">{e.label}</p>
-                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                    {kindLabel(e.kind)}
-                    {e.supplier_name ? ` · ${e.supplier_name}` : ''}
-                  </p>
+                <div className="min-w-0 flex items-center gap-3">
+                  <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS[KIND_ACCENT[e.kind] ?? 'amber'].soft}`}>
+                    <Receipt className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold text-zinc-900 dark:text-zinc-100">{e.label}</p>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                      <span className={`font-semibold ${ACCENTS[KIND_ACCENT[e.kind] ?? 'amber'].text}`}>{kindLabel(e.kind)}</span>
+                      {e.supplier_name ? ` · ${e.supplier_name}` : ''}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(e.amount_cents ?? 0)}</span>
+                  <span className={`font-bold tabular-nums ${ACCENTS.emerald.value}`}>{euros(e.amount_cents ?? 0)}</span>
                   <button
                     type="button"
                     onClick={() => del.execute({ sessionId, id: e.id })}

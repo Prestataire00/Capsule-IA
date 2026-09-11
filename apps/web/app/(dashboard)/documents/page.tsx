@@ -2,9 +2,11 @@
 // Justification: page Documents org-wide — onglets dérivés du statut réel, table dense, recherche.
 
 import Link from 'next/link';
-import { FileText, Search, Eye, PenLine } from 'lucide-react';
+import { FileText, Search, Eye, PenLine, Sparkles, Archive } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
+import { KpiCard, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
+import { kindStyle } from './kind-style';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -14,11 +16,23 @@ import { StandaloneGenerateButton } from './standalone-generate';
 
 type TabId = 'a-signer' | 'generes' | 'archives';
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'a-signer', label: 'À signer' },
-  { id: 'generes', label: 'Générés' },
-  { id: 'archives', label: 'Archivés' },
+const TABS: { id: TabId; label: string; accent: Accent }[] = [
+  { id: 'a-signer', label: 'À signer', accent: 'amber' },
+  { id: 'generes', label: 'Générés', accent: 'orange' },
+  { id: 'archives', label: 'Archivés', accent: 'teal' },
 ];
+
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
+const avatarOf = (name: string) => ({
+  initials: name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase(),
+  palette: AVATARS[(name.charCodeAt(0) || 0) % AVATARS.length],
+});
 
 const KIND_LABELS: Record<string, string> = {
   convention: 'Convention',
@@ -154,6 +168,12 @@ export default async function DocumentsPage({
         </div>
       </header>
 
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7" aria-label="Synthèse">
+        <KpiCard href={tabHref('a-signer')} label="À signer" value={counts['a-signer']} hint="signatures en attente" icon={PenLine} accent="amber" />
+        <KpiCard href={tabHref('generes')} label="Générés" value={counts.generes} hint="depuis vos templates" icon={Sparkles} accent="orange" />
+        <KpiCard href={tabHref('archives')} label="Archivés" value={counts.archives} hint="conservés en preuve" icon={Archive} accent="teal" />
+      </section>
+
       <div className="mb-4 flex items-center gap-2 flex-wrap">
         <form action="/documents" method="get" className="relative">
           <input type="hidden" name="tab" value={activeTab} />
@@ -178,11 +198,12 @@ export default async function DocumentsPage({
                 aria-current={active ? 'page' : undefined}
                 className={
                   active
-                    ? 'px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-bold shadow-sm tabular-nums whitespace-nowrap'
-                    : 'px-3 py-1.5 rounded-md text-zinc-500 dark:text-zinc-400 font-medium hover:text-zinc-900 dark:hover:text-zinc-100 tabular-nums whitespace-nowrap'
+                    ? 'px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-bold shadow-sm tabular-nums whitespace-nowrap inline-flex items-center gap-1.5'
+                    : 'px-3 py-1.5 rounded-md text-zinc-500 dark:text-zinc-400 font-medium hover:text-zinc-900 dark:hover:text-zinc-100 tabular-nums whitespace-nowrap inline-flex items-center gap-1.5'
                 }
               >
-                {t.label} {counts[t.id]}
+                {t.label}{' '}
+                <span className={`text-[11px] font-bold px-1.5 rounded-full ${ACCENTS[t.accent].soft}`}>{counts[t.id]}</span>
               </Link>
             );
           })}
@@ -222,9 +243,17 @@ export default async function DocumentsPage({
                           : { label: 'En cours', tone: 'info' };
                 const action = activeTab === 'a-signer' && d.dossier ? 'Signer' : 'Voir';
                 const ActionIcon = action === 'Signer' ? PenLine : Eye;
+                const ks = kindStyle(d.kind);
+                const KindIcon = ks.icon;
+                const learner = d.dossier ? learnerName(d.dossier.learner ?? null) : '—';
+                const av = learner !== '—' ? avatarOf(learner) : null;
 
                 return (
                   <li key={d.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                    <div className="min-w-0 flex items-center gap-3">
+                    <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${ACCENTS[ks.accent].soft}`}>
+                      <KindIcon className="w-4 h-4" />
+                    </span>
                     <div className="min-w-0">
                       {d.dossier ? (
                         <Link href={href} className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
@@ -239,6 +268,7 @@ export default async function DocumentsPage({
                         </p>
                       )}
                     </div>
+                    </div>
                     <div className="min-w-0">
                       {d.dossier ? (
                         <IdPill>{d.dossier.reference}</IdPill>
@@ -247,10 +277,13 @@ export default async function DocumentsPage({
                         <AttachToDossier documentId={d.id} dossiers={dossiers} />
                       )}
                     </div>
-                    <span className={`truncate ${d.dossier ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400'}`}>
-                      {d.dossier ? learnerName(d.dossier.learner ?? null) : '—'}
+                    <span className={`min-w-0 flex items-center gap-2 ${av ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400'}`}>
+                      {av && (
+                        <span className={`w-7 h-7 rounded-full grid place-items-center text-[10px] font-bold shrink-0 ${av.palette}`}>{av.initials}</span>
+                      )}
+                      <span className="truncate">{learner}</span>
                     </span>
-                    <span className="text-zinc-500 dark:text-zinc-400 truncate">{kindLabel(d.kind)}</span>
+                    <span className={`truncate font-semibold ${ACCENTS[ks.accent].text}`}>{kindLabel(d.kind)}</span>
                     <div>
                       <StatusPill tone={statusPill.tone}>{statusPill.label}</StatusPill>
                     </div>

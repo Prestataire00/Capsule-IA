@@ -5,13 +5,14 @@
 // formation ; cette page centralise la diffusion.
 
 import Link from 'next/link';
-import { Globe, Pencil, ExternalLink, GraduationCap, MapPin, Video } from 'lucide-react';
+import { Globe, Pencil, ExternalLink, GraduationCap, MapPin, Video, Eye, EyeOff, BookOpen } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { CopyPublicLink } from '@/features/catalog/copy-public-link.client';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { formationColorMap, deepColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
+import { KpiCard, AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ type Row = { id: string; code: string; title: string; is_published: boolean; def
 
 const modalityLabel = (m: string | null) =>
   m === 'distanciel' ? 'Distanciel' : m === 'hybride' ? 'Hybride' : 'Présentiel';
+const modalityAccent = (m: string | null): Accent => (m === 'distanciel' ? 'sky' : m === 'hybride' ? 'teal' : 'blue');
 
 const ROW_GRID = 'grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_128px_minmax(0,1.4fr)] gap-4 px-5';
 const ICON_BTN =
@@ -55,13 +57,23 @@ export default async function CataloguePublicPage() {
         </p>
       </header>
 
-      <div className="mb-8 rounded-xl border border-zinc-200/70 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center gap-2 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
-          <Globe className="h-4 w-4 text-zinc-400" />
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" aria-label="Synthèse du catalogue">
+        <KpiCard icon={BookOpen} label="Formations au catalogue" value={all.length} accent="orange" />
+        <KpiCard icon={Eye} label="Publiées" value={published.length} accent="emerald">
+          <AccentBar value={published.length} max={all.length} accent={published.length === all.length ? 'emerald' : 'amber'} />
+        </KpiCard>
+        <KpiCard icon={EyeOff} label="Brouillons" value={drafts} accent="amber" hint={drafts > 0 ? 'non visibles en ligne' : 'tout est publié'} />
+      </section>
+
+      <div className="mb-8 rounded-xl border border-orange-100 bg-gradient-to-br from-orange-50 to-white p-5 shadow-sm dark:border-orange-900/40 dark:from-orange-950/40 dark:to-zinc-900">
+        <div className="flex items-center gap-2.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.orange.soft}`}>
+            <Globe className="h-4 w-4" />
+          </span>
           Lien public du catalogue
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <code className="rounded-lg bg-zinc-50 px-3 h-9 inline-flex items-center font-mono text-[13px] text-zinc-700 ring-1 ring-inset ring-zinc-200/80 dark:bg-zinc-950/40 dark:text-zinc-300 dark:ring-zinc-800">
+          <code className="rounded-lg bg-white px-3 h-9 inline-flex items-center font-mono text-[13px] text-zinc-700 ring-1 ring-inset ring-zinc-200/80 dark:bg-zinc-950/40 dark:text-zinc-300 dark:ring-zinc-800">
             /catalogue?org={orgId || '—'}
           </code>
           <CopyPublicLink path={catalogueLink} label="Copier le lien du catalogue" />
@@ -77,8 +89,12 @@ export default async function CataloguePublicPage() {
       </div>
 
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
-          Formations publiées <span className="tabular-nums text-zinc-500 dark:text-zinc-400">({published.length})</span>
+        <h2 className="flex items-center gap-2.5 text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
+            <GraduationCap className="w-4 h-4" />
+          </span>
+          Formations publiées
+          <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.emerald.soft}`}>{published.length}</span>
         </h2>
         {drafts > 0 && (
           <Link href="/formations" className="text-[12px] font-semibold text-orange-600 hover:underline dark:text-orange-400 tabular-nums">
@@ -125,7 +141,7 @@ export default async function CataloguePublicPage() {
                       <span className="block truncate font-mono text-[12px] text-zinc-500 dark:text-zinc-400">{f.code}</span>
                     </div>
                     <div>
-                      <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      <span className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS[modalityAccent(f.default_modality)].soft}`}>
                         <ModalityIcon className="w-3.5 h-3.5" />
                         {modalityLabel(f.default_modality)}
                       </span>

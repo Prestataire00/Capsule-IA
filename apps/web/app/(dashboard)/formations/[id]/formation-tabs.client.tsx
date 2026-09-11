@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/shared/lib/cn';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 
 type TabKey = 'overview' | 'sessions' | 'dossiers' | 'budget' | 'stats' | 'qualiopi';
 
@@ -59,7 +60,16 @@ export function FormationTabs({
               )}
             >
               {t.label}
-              {c != null ? <span className="text-zinc-400 font-medium tabular-nums"> ({c})</span> : null}
+              {c != null ? (
+                <span
+                  className={cn(
+                    'ml-1.5 rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums',
+                    isActive ? ACCENTS.orange.soft : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
+                  )}
+                >
+                  {c}
+                </span>
+              ) : null}
             </button>
           );
         })}

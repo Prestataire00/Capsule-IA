@@ -28,11 +28,14 @@ export default async function EspaceQuestionnairesPage({
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      <header className="mb-7">
-        <div>
+      <header className="mb-7 rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-orange-950/40 dark:via-zinc-900 dark:to-rose-950/30 px-6 py-5 flex items-center gap-4">
+        <span className="w-12 h-12 rounded-2xl grid place-items-center text-white shadow-md shrink-0 bg-purple-500 shadow-purple-500/30">
+          <ClipboardList className="w-6 h-6" />
+        </span>
+        <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Questionnaires</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
             {todo.length === 0 ? 'Tout est à jour, merci !' : `${todo.length} questionnaire${todo.length > 1 ? 's' : ''} à compléter.`}
           </p>
         </div>
@@ -47,7 +50,9 @@ export default async function EspaceQuestionnairesPage({
 
       {questionnaires.length === 0 ? (
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-10 text-center">
-          <ClipboardList className="w-6 h-6 text-zinc-400 dark:text-zinc-500 mx-auto mb-3" />
+          <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3 bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+            <ClipboardList className="w-6 h-6" />
+          </span>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun questionnaire ne vous est demandé pour le moment.</p>
         </section>
       ) : (
@@ -62,7 +67,9 @@ export default async function EspaceQuestionnairesPage({
                       href={`/espace/${params.token}/questionnaires/${q.assignmentId}`}
                       className="group bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-orange-200 dark:hover:border-orange-900/60 transition flex items-center gap-4"
                     >
-                      <ClipboardList className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      <span className="w-10 h-10 rounded-xl grid place-items-center flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                        <ClipboardList className="w-5 h-5" />
+                      </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{q.title}</p>
                         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 inline-flex items-center gap-1.5 tabular-nums">
@@ -94,7 +101,9 @@ export default async function EspaceQuestionnairesPage({
                     key={q.assignmentId}
                     className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex items-center gap-4 opacity-80"
                   >
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    <span className="w-10 h-10 rounded-xl grid place-items-center flex-shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{q.title}</p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">{QUESTIONNAIRE_KIND_LABEL[q.kind] ?? 'Questionnaire'} · complété</p>

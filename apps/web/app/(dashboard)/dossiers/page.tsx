@@ -11,6 +11,7 @@ import { dossierStatusLabel } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusFilter } from './status-filter.client';
 import { DossierStatusControl } from './[id]/dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
@@ -61,6 +62,22 @@ const fmtEuros = (cents: number | null) =>
   cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
 const learnerName = (d: Row) => [d.learner?.first_name, d.learner?.last_name].filter(Boolean).join(' ') || '—';
 
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
+
+function Avatar({ name }: { name: string }) {
+  const initials = name === '—' ? '?' : name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+  const palette = AVATARS[(name.charCodeAt(0) || 0) % AVATARS.length];
+  return (
+    <span className={`w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${palette}`}>{initials}</span>
+  );
+}
+
 function DossierCard({ d }: { d: Row }) {
   const accent = STATUS_ACCENT[d.status] ?? STATUS_ACCENT.draft!;
   return (
@@ -72,12 +89,15 @@ function DossierCard({ d }: { d: Row }) {
         <IdPill>{d.reference}</IdPill>
         <DossierStatusControl dossierId={d.id} status={d.status as DossierStatus} compact />
       </div>
-      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{learnerName(d)}</p>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Avatar name={learnerName(d)} />
+        <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{learnerName(d)}</p>
+      </div>
       <p className="text-[13px] font-bold text-zinc-700 dark:text-zinc-300 truncate mt-0.5">{d.formation?.title ?? '—'}</p>
       {d.company?.name && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{d.company.name}</p>}
       <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80">
-        <span className="tabular-nums text-[12px] text-zinc-500 dark:text-zinc-400">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
-        <span className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{fmtEuros(d.total_amount_cents)}</span>
+        <span className="tabular-nums text-[12px] font-semibold text-blue-700 dark:text-blue-300">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
+        <span className={`text-[13px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>{fmtEuros(d.total_amount_cents)}</span>
       </div>
     </Link>
   );
@@ -154,9 +174,13 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
         <div>
           <SectionLabel className="mb-2">Tous les dossiers</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Dossiers</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
-            {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
-            {filtered.length > 0 && <> · {fmtEuros(totalCents)}</>}
+          <p className="mt-3 flex items-center gap-2 flex-wrap tabular-nums">
+            <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${ACCENTS.orange.soft}`}>
+              {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+            </span>
+            {filtered.length > 0 && (
+              <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${ACCENTS.emerald.soft}`}>{fmtEuros(totalCents)}</span>
+            )}
           </p>
         </div>
         <ManageOnly section="dossiers">
@@ -234,7 +258,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
               <div key={s} className="w-72 shrink-0 flex flex-col">
                 <div className={`flex items-center justify-between px-3 h-9 rounded-t-xl text-[12px] font-bold ${accent.head}`}>
                   <span>{dossierStatusLabel(s)}</span>
-                  <span className="tabular-nums opacity-70">{col.length}</span>
+                  <span className="tabular-nums rounded-full px-2 py-0.5 text-[12px] font-bold bg-white/70 dark:bg-zinc-900/50">{col.length}</span>
                 </div>
                 <div className="flex-1 bg-zinc-100/60 dark:bg-zinc-950/40 rounded-b-xl p-2 space-y-2 min-h-[80px]">
                   {col.length === 0 ? (
@@ -267,13 +291,16 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
               {filtered.map((d) => (
                 <li key={d.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                  <div className="min-w-0">
-                    <Link href={`/dossiers/${d.id}`} className="block truncate text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100 hover:underline">
-                      {learnerName(d)}
-                    </Link>
-                    <div className="mt-1 flex items-center gap-2 min-w-0">
-                      <IdPill className="shrink-0">{d.reference}</IdPill>
-                      {d.company?.name && <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{d.company.name}</span>}
+                  <div className="min-w-0 flex items-center gap-3">
+                    <Avatar name={learnerName(d)} />
+                    <div className="min-w-0">
+                      <Link href={`/dossiers/${d.id}`} className="block truncate text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100 hover:underline">
+                        {learnerName(d)}
+                      </Link>
+                      <div className="mt-1 flex items-center gap-2 min-w-0">
+                        <IdPill className="shrink-0">{d.reference}</IdPill>
+                        {d.company?.name && <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{d.company.name}</span>}
+                      </div>
                     </div>
                   </div>
 
@@ -282,11 +309,11 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   </div>
 
                   <div className="text-[13px] tabular-nums leading-tight">
-                    <p className="font-bold text-zinc-900 dark:text-zinc-100">{fmtDate(d.start_date)}</p>
+                    <p className="font-bold text-blue-700 dark:text-blue-300">{fmtDate(d.start_date)}</p>
                     <p className="text-zinc-500 dark:text-zinc-400 mt-1">→ {fmtDate(d.end_date)}</p>
                   </div>
 
-                  <div className="text-right text-[14px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                  <div className={`text-right text-[14px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>
                     {fmtEuros(d.total_amount_cents)}
                   </div>
 

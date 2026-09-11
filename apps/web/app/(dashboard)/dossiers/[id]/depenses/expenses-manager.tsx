@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { Plus, Trash2, Loader2, Wallet } from 'lucide-react';
 import { addDossierExpense, deleteDossierExpense } from './actions';
 import { inputClass } from '@/shared/ui/form-field';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 
 export type ExpenseRow = {
   id: string;
@@ -59,7 +60,9 @@ export function ExpensesManager({ dossierId, initial }: { dossierId: string; ini
       <form action={onAdd} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
         <input type="hidden" name="dossierId" value={dossierId} />
         <div className="flex items-center gap-2 mb-3">
-          <Wallet className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
+            <Wallet className="w-4 h-4" />
+          </span>
           <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Ajouter une dépense</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

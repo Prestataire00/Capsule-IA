@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowUpRight, Clock, AlertTriangle } from 'lucide-react';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
+import { AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import type { LearnerDossier } from './summary';
 import { VoirEspaceButton } from './voir-espace-button';
 
@@ -25,7 +26,7 @@ export function DossierCard({ dossier }: { dossier: LearnerDossier }) {
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <StatusPill tone={dossierStatusTone(dossier.status)}>{dossierStatusLabel(dossier.status)}</StatusPill>
-        <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+        <span className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.blue.soft}`}>
           {modalityLabel(dossier.modality)}
         </span>
         {h?.at_risk && (
@@ -44,6 +45,7 @@ export function DossierCard({ dossier }: { dossier: LearnerDossier }) {
           </span>
         )}
       </div>
+      {h && <AccentBar value={Number(h.attendance_rate)} max={100} accent={h.at_risk ? 'amber' : 'emerald'} className="mt-2" />}
       </Link>
 
       <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">

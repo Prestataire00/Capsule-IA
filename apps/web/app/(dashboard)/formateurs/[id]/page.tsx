@@ -7,6 +7,7 @@ import { ArrowLeft, Mail, Phone, ShieldCheck, Video, FileSignature, Building, Br
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { libre } from '@/features/trainer-space/billing';
 import { ContractUpload } from './contract-upload';
 import { ContractGenerate } from './contract-generate';
@@ -33,6 +34,20 @@ type Trainer = {
   tarif_base: 'heure' | 'jour' | 'session' | null;
   tarif_cents: number | null;
 };
+
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+] as const;
+
+function avatarTone(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % AVATARS.length;
+  return AVATARS[h] ?? AVATARS[0];
+}
 
 function trainerPhotoUrl(path: string | null): string | null {
   if (!path) return null;
@@ -90,7 +105,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
 
   return (
     <div className="max-w-3xl w-full mx-auto px-8 py-9">
-      <header className="mb-7">
+      <header className="mb-7 rounded-2xl border bg-gradient-to-br from-teal-50 to-white border-teal-100 dark:from-teal-950/40 dark:to-zinc-900 dark:border-teal-900/40 px-7 py-6 shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           <Link
             href="/formateurs"
@@ -109,7 +124,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt="" className="w-14 h-14 rounded-full object-cover shadow-sm flex-shrink-0" />
           ) : (
-            <span className="w-14 h-14 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 flex items-center justify-center text-[17px] font-bold flex-shrink-0">
+            <span className={`w-14 h-14 rounded-full flex items-center justify-center text-[17px] font-bold flex-shrink-0 ${avatarTone(`${t.first_name} ${t.last_name}`)}`}>
               {initials}
             </span>
           )}
@@ -118,8 +133,8 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
               <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
                 {t.first_name} {t.last_name}
               </h1>
-              <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                {t.is_internal ? <Building className="w-3.5 h-3.5 text-zinc-400" /> : <Briefcase className="w-3.5 h-3.5 text-zinc-400" />}
+              <span className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold ${t.is_internal ? ACCENTS.blue.soft : ACCENTS.purple.soft}`}>
+                {t.is_internal ? <Building className="w-3.5 h-3.5" /> : <Briefcase className="w-3.5 h-3.5" />}
                 {t.is_internal ? 'Interne' : 'Externe'}
               </span>
             </div>
@@ -132,7 +147,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
                 {t.specialties.map((s) => (
                   <span
                     key={s}
-                    className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.teal.soft}`}
                   >
                     {s}
                   </span>
@@ -142,14 +157,14 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
           </div>
         </div>
         {t.bio && (
-          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-5 pt-5 border-t border-zinc-200/70 dark:border-zinc-800 whitespace-pre-line">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-5 pt-5 border-t border-teal-100 dark:border-teal-900/40 whitespace-pre-line">
             {t.bio}
           </p>
         )}
       </header>
 
       <div className="mb-6">
-        <Card title="Fiche formateur" icon={UserCog}>
+        <Card title="Fiche formateur" icon={UserCog} accent="teal">
           <TrainerIdentityEdit
             trainerId={t.id}
             initial={{
@@ -178,13 +193,13 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
       </div>
 
       <div className="mb-6">
-        <Card title="Profil public" icon={UserRound}>
+        <Card title="Profil public" icon={UserRound} accent="rose">
           <TrainerProfileEdit trainerId={t.id} photoUrl={photoUrl} initials={initials} bio={t.bio ?? ''} cvUrl={cvUrl} />
         </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card title="Infos contractuelles" icon={ShieldCheck}>
+        <Card title="Infos contractuelles" icon={ShieldCheck} accent="purple">
           <Row label="SIRET" value={t.siret} mono />
           <Row label="NDA" value={t.nda} mono />
           <Row
@@ -199,7 +214,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
           />
         </Card>
 
-        <Card title="Contrat de sous-traitance" icon={FileSignature}>
+        <Card title="Contrat de sous-traitance" icon={FileSignature} accent="blue">
           <ContractGenerate trainerId={t.id} existingDocumentId={contractDocId} />
           <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
           <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">
@@ -210,8 +225,11 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
       </div>
 
       <div className="mt-4">
-        <Card title="Factures & frais" icon={Receipt}>
-          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 tabular-nums">
+        <Card title="Factures & frais" icon={Receipt} accent="emerald">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 tabular-nums flex items-center gap-2 flex-wrap">
+            {aTraiter > 0 && (
+              <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${ACCENTS.amber.soft}`}>{aTraiter}</span>
+            )}
             {aTraiter > 0
               ? `${aTraiter} élément${aTraiter > 1 ? 's' : ''} à valider (factures d’honoraires, notes de frais).`
               : 'Aucune facture ni note de frais en attente.'}
@@ -228,11 +246,23 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
   );
 }
 
-function Card({ title, icon: Icon, children }: { title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+function Card({
+  title,
+  icon: Icon,
+  accent,
+  children,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accent: Accent;
+  children: React.ReactNode;
+}) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
-        <Icon className="w-4 h-4 text-zinc-400" />
+        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS[accent].soft}`}>
+          <Icon className="w-4 h-4" />
+        </span>
         <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{title}</p>
       </div>
       {children}

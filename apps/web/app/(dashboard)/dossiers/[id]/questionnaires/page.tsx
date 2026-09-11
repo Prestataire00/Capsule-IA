@@ -2,9 +2,10 @@
 // Justification: questionnaires du dossier — affectation apprenant, saisie manuelle, export PDF, financeur.
 
 import Link from 'next/link';
-import { ClipboardPen, FileText } from 'lucide-react';
+import { ClipboardPen, FileText, UserRound, Landmark } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { SendFunder } from './send-funder';
 import { AssignLearner } from './assign-learner';
@@ -76,9 +77,13 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
   return (
     <div className="space-y-8">
       <div className="space-y-3">
-        <SectionLabel>
-          Questionnaires apprenant (<span className="tabular-nums">{learnerAssignments.length}</span>)
-        </SectionLabel>
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.rose.soft}`}>
+            <UserRound className="w-4 h-4" />
+          </span>
+          <SectionLabel>Questionnaires apprenant</SectionLabel>
+          <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.rose.soft}`}>{learnerAssignments.length}</span>
+        </div>
         <AssignLearner dossierId={params.id} templates={templates} />
         {learnerAssignments.length > 0 && (
           <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
@@ -86,8 +91,13 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
               const done = q.status === 'completed';
               return (
                 <li key={q.id} className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
-                  <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
-                    {KIND_LABEL[q.template?.kind ?? ''] ?? q.template?.title ?? 'Questionnaire'}
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.rose.soft}`}>
+                      <ClipboardPen className="w-4 h-4" />
+                    </span>
+                    <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                      {KIND_LABEL[q.template?.kind ?? ''] ?? q.template?.title ?? 'Questionnaire'}
+                    </span>
                   </span>
                   <div className="flex items-center gap-3">
                     <StatusPill tone={done ? 'success' : 'neutral'}>{done ? 'rempli' : q.status}</StatusPill>
@@ -117,7 +127,15 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
       </div>
 
       <div className="space-y-3">
-        <SectionLabel>Questionnaires financeur</SectionLabel>
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
+            <Landmark className="w-4 h-4" />
+          </span>
+          <SectionLabel>Questionnaires financeur</SectionLabel>
+          {funderAssignments.length > 0 && (
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.emerald.soft}`}>{funderAssignments.length}</span>
+          )}
+        </div>
         <SendFunder dossierId={params.id} funders={funders} />
         {funderAssignments.length > 0 && (
           <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">

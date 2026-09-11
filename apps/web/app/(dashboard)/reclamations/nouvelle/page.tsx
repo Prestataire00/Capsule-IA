@@ -2,7 +2,8 @@
 // Justification: saisie manuelle d'une réclamation (Qualiopi I31) — formulaire focalisé.
 
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, MessageSquareWarning, User } from 'lucide-react';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { FormSubmit } from '@/shared/ui/form-submit';
@@ -41,6 +42,12 @@ export default function NouvelleReclamationPage({ searchParams }: { searchParams
 
         <form action={createComplaint} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
           <section className="p-6 space-y-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+              <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.amber.soft}`}>
+                <MessageSquareWarning className="w-3.5 h-3.5" />
+              </span>
+              Réclamation
+            </p>
             <FormField label="Objet" required>
               <input type="text" name="subject" required maxLength={200} placeholder="Résumé de la réclamation" className={inputClass} />
             </FormField>
@@ -69,7 +76,12 @@ export default function NouvelleReclamationPage({ searchParams }: { searchParams
           </section>
 
           <section className="p-6 space-y-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Réclamant (optionnel)</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+              <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.rose.soft}`}>
+                <User className="w-3.5 h-3.5" />
+              </span>
+              Réclamant (optionnel)
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Nom">
                 <input type="text" name="reporterName" maxLength={200} className={inputClass} />

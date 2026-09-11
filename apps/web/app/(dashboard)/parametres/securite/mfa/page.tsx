@@ -101,7 +101,12 @@ function Header() {
         <ArrowLeft className="w-3 h-3" />
         Sécurité
       </Link>
-      <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Authentification à 2 facteurs</h1>
+      <div className="flex items-center gap-3">
+        <span className="w-10 h-10 rounded-xl grid place-items-center text-white bg-purple-500 shadow-md shadow-purple-500/30 shrink-0">
+          <ShieldCheck className="w-5 h-5" />
+        </span>
+        <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Authentification à 2 facteurs</h1>
+      </div>
     </div>
   );
 }

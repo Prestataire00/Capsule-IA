@@ -2,7 +2,8 @@
 // Justification: pilotage org-wide du risque "heures sous le volume payé financeur" — vue de triage transverse complétant l'onglet par-dossier.
 
 import Link from 'next/link';
-import { AlertTriangle, Clock, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Clock, ShieldCheck, Hourglass } from 'lucide-react';
+import { ACCENTS, KpiCard } from '@/shared/ui/kpi-card';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -64,27 +65,17 @@ export default async function HeuresRisquePage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6" aria-label="Synthèse">
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-          <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-zinc-400" /> Dossiers à risque
-          </p>
-          <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{rows.length}</p>
-          <div className="mt-2">
-            <StatusPill tone={rows.length > 0 ? 'warning' : 'success'}>{rows.length > 0 ? 'à traiter' : 'aucun'}</StatusPill>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-          <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-zinc-400" /> Heures manquantes (cumul)
-          </p>
-          <p
-            className={`text-[26px] leading-none font-extrabold tabular-nums mt-3 ${
-              totalGap > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-zinc-100'
-            }`}
-          >
-            {fmtHours(totalGap)}
-          </p>
-        </div>
+        <KpiCard label="Dossiers à risque" value={rows.length} icon={AlertTriangle} accent={rows.length > 0 ? 'amber' : 'emerald'}>
+          <StatusPill tone={rows.length > 0 ? 'warning' : 'success'}>{rows.length > 0 ? 'à traiter' : 'aucun'}</StatusPill>
+        </KpiCard>
+        <KpiCard label="Heures manquantes (cumul)" value={fmtHours(totalGap)} icon={Hourglass} accent={totalGap > 0 ? 'amber' : 'emerald'} />
+        <KpiCard
+          label="Heures délivrées"
+          value={fmtHours(rows.reduce((acc, r) => acc + Number(r.hours_delivered), 0))}
+          icon={Clock}
+          accent="sky"
+          hint={`sur ${fmtHours(rows.reduce((acc, r) => acc + Number(r.hours_planned), 0))} payées`}
+        />
       </section>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
@@ -101,7 +92,9 @@ export default async function HeuresRisquePage() {
 
           {rows.length === 0 ? (
             <div className="px-5 py-10 text-center">
-              <ShieldCheck className="w-5 h-5 text-zinc-400 mx-auto mb-2" />
+              <span className={`w-10 h-10 rounded-xl grid place-items-center mx-auto mb-2 ${ACCENTS.emerald.soft}`}>
+                <ShieldCheck className="w-5 h-5" />
+              </span>
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun dossier à risque.</p>
             </div>
           ) : (
@@ -135,16 +128,16 @@ export default async function HeuresRisquePage() {
                         title={`Délivré ${fmtHours(r.hours_delivered)} · projeté ${fmtHours(r.projected_final_hours)} · payé ${fmtHours(r.hours_planned)}`}
                       >
                         <span className="block font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{fmtHours(r.projected_final_hours)}</span>
-                        <span className="relative mt-1.5 block h-1.5 w-full max-w-[160px] rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <span className="relative mt-1.5 block h-1.5 w-full max-w-[160px] rounded-full bg-sky-100 dark:bg-sky-950/60">
                           <span className="absolute inset-y-0 left-0 rounded-full bg-amber-300 dark:bg-amber-700" style={{ width: `${projectedPct}%` }} />
-                          <span className="absolute inset-y-0 left-0 rounded-full bg-orange-500" style={{ width: `${deliveredPct}%` }} />
+                          <span className="absolute inset-y-0 left-0 rounded-full bg-sky-500" style={{ width: `${deliveredPct}%` }} />
                         </span>
                       </span>
                       <span className="text-right font-bold text-red-600 dark:text-red-400 tabular-nums">−{fmtHours(gap)}</span>
                       <span className="text-right text-zinc-500 dark:text-zinc-400 tabular-nums">{Number(r.attendance_rate).toFixed(0)}%</span>
                       <span
                         aria-hidden="true"
-                        className="ml-auto w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 group-hover:bg-orange-50 group-hover:text-orange-600 dark:group-hover:bg-orange-950/40 dark:group-hover:text-orange-300 transition"
+                        className="ml-auto w-8 h-8 rounded-md grid place-items-center bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300 group-hover:bg-orange-50 group-hover:text-orange-600 dark:group-hover:bg-orange-950/40 dark:group-hover:text-orange-300 transition"
                       >
                         <Clock className="w-4 h-4" />
                       </span>

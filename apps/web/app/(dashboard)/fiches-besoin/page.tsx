@@ -8,6 +8,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,29 +118,27 @@ function Answer({ label, value }: { label: string; value: string | null | undefi
   if (!value) return null;
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500 mb-0.5">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-purple-600 dark:text-purple-400 mb-0.5">{label}</p>
       <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{value}</p>
     </div>
   );
 }
 
-function KeyFigure({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-}) {
+const AVATAR_PALETTE = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
+
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(' ').map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase() || '?';
+  const hash = Array.from(name).reduce((a, ch) => a + ch.charCodeAt(0), 0);
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-      <p className="flex items-center gap-2 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
-        <Icon className="w-4 h-4 text-zinc-400" />
-        {label}
-      </p>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-    </div>
+    <span className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${AVATAR_PALETTE[hash % AVATAR_PALETTE.length]}`}>
+      {initials}
+    </span>
   );
 }
 
@@ -170,10 +169,10 @@ export default async function FichesBesoinPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <KeyFigure icon={ClipboardList} label="Fiches besoin" value={fiches.length} />
-        <KeyFigure icon={User} label="Apprenants" value={learnerCount} />
-        <KeyFigure icon={Building2} label="Inscrits (prospects)" value={prospectCount} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <KpiCard icon={ClipboardList} label="Fiches besoin" value={fiches.length} accent="purple" />
+        <KpiCard icon={User} label="Apprenants" value={learnerCount} accent="rose" />
+        <KpiCard icon={Building2} label="Inscrits (prospects)" value={prospectCount} accent="amber" />
       </div>
 
       {fiches.length === 0 ? (
@@ -189,11 +188,13 @@ export default async function FichesBesoinPage() {
           {orderedGroups.map(([formationTitle, list]) => (
             <section key={formationTitle}>
               <div className="flex items-center gap-2 mb-3">
-                <GraduationCap className="w-4 h-4 text-zinc-400" />
+                <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
+                  <GraduationCap className="w-4 h-4" />
+                </span>
                 <h2 className="text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100">
                   {formationTitle}
                 </h2>
-                <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">{list.length}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.purple.soft}`}>{list.length}</span>
               </div>
 
               <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
@@ -202,14 +203,16 @@ export default async function FichesBesoinPage() {
                     <details className="group">
                       <summary className="flex items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors list-none">
                         <span className="text-[13px] flex-1 flex items-center gap-2 min-w-0">
+                          <Avatar name={f.name} />
                           <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{f.name}</span>
                           <StatusPill tone={f.source === 'learner' ? 'info' : 'warning'}>
                             {f.source === 'learner' ? 'apprenant' : 'inscrit'}
                           </StatusPill>
                         </span>
                         {f.answers.currentLevel != null && (
-                          <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                          <span className="flex items-center gap-2 text-[12px] font-semibold text-blue-700 dark:text-blue-300">
                             Niveau : {LEVEL_LABELS[f.answers.currentLevel] ?? f.answers.currentLevel}
+                            <AccentBar value={f.answers.currentLevel} max={5} accent="blue" className="w-14 h-1.5" />
                           </span>
                         )}
                         <span className="tabular-nums text-[12px] text-zinc-500 dark:text-zinc-400">

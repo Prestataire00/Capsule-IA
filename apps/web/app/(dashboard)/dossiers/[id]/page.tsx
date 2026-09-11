@@ -1,11 +1,11 @@
 // ARCHETYPE: command
 // Justification: vue d'ensemble réelle du dossier — compteurs + accès rapides aux onglets.
 
-import Link from 'next/link';
 import { Calendar, FileText, Users as UsersIcon } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { loadDossierProgress } from '@/features/dossier/load-progress';
 import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
 import { TagsEditor } from './tags-editor';
@@ -29,10 +29,10 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
   const actionType = (dossier.data?.action_type as string | null) ?? null;
   const traineeCategory = (dossier.data?.trainee_category as string | null) ?? null;
 
-  const cards = [
-    { icon: Calendar, label: 'Sessions', value: sessions, href: 'sessions' },
-    { icon: FileText, label: 'Documents', value: documents, href: 'documents' },
-    { icon: UsersIcon, label: 'Financeurs', value: funders, href: 'financeurs' },
+  const cards: { icon: typeof Calendar; label: string; value: number; href: string; accent: Accent }[] = [
+    { icon: Calendar, label: 'Sessions', value: sessions, href: 'sessions', accent: 'blue' },
+    { icon: FileText, label: 'Documents', value: documents, href: 'documents', accent: 'orange' },
+    { icon: UsersIcon, label: 'Financeurs', value: funders, href: 'financeurs', accent: 'emerald' },
   ];
 
   return (
@@ -40,18 +40,8 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
       <SectionLabel>Vue d'ensemble</SectionLabel>
       <DossierProgressTracker progress={progress} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {cards.map(({ icon: Icon, label, value, href }) => (
-          <Link
-            key={href}
-            href={`/dossiers/${id}/${href}`}
-            className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4 hover:border-orange-200 hover:shadow-md dark:hover:border-orange-900/60 transition"
-          >
-            <div className="flex items-center gap-2">
-              <Icon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
-              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{label}</p>
-            </div>
-            <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}</p>
-          </Link>
+        {cards.map(({ icon, label, value, href, accent }) => (
+          <KpiCard key={href} icon={icon} label={label} value={value} accent={accent} href={`/dossiers/${id}/${href}`} />
         ))}
       </div>
       <BpfFieldsEditor dossierId={id} initialActionType={actionType} initialTraineeCategory={traineeCategory} />

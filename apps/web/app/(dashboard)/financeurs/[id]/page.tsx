@@ -12,12 +12,15 @@ import {
   Trash2,
   FolderOpen,
   TrendingUp,
+  Wallet,
+  Pencil,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { InfoCallout } from '@/shared/ui/info-callout';
+import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { formatEurosCents } from '@/features/funders/funders-overview';
 import { updateFunder, deleteFunder } from './actions';
@@ -69,18 +72,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   no_kind: 'Sélectionnez au moins un type de financeur.',
   has_dossiers: 'Impossible d’archiver : ce financeur est rattaché à des dossiers.',
 };
-
-function KeyFigure({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon: React.ComponentType<{ className?: string }> }) {
-  return (
-    <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        <Icon className="w-4 h-4 text-zinc-400" />
-      </div>
-      <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 truncate">{value}</p>
-    </div>
-  );
-}
 
 type FunderRow = {
   id: string;
@@ -151,7 +142,7 @@ export default async function FinanceurDetailPage({
         </InfoCallout>
       )}
 
-      <header className="mb-7">
+      <header className="mb-7 rounded-2xl border bg-gradient-to-br from-emerald-50 to-white border-emerald-100 dark:from-emerald-950/40 dark:to-zinc-900 dark:border-emerald-900/40 px-7 py-6 shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           <Link
             href="/financeurs"
@@ -166,12 +157,15 @@ export default async function FinanceurDetailPage({
           <SectionLabel>Financeur</SectionLabel>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <span className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-md shrink-0 ${ACCENTS.emerald.chip}`}>
+            <Wallet className="w-5 h-5" />
+          </span>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{funder.name}</h1>
           <div className="flex items-center gap-1.5 flex-wrap">
             {kinds.map((k) => (
               <span
                 key={k}
-                className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.emerald.soft}`}
               >
                 {KIND_LABEL[k] ?? k}
               </span>
@@ -201,15 +195,19 @@ export default async function FinanceurDetailPage({
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <KeyFigure label="Dossiers financés" value={links.length} icon={FolderOpen} />
-        <KeyFigure label="Dossiers actifs" value={activeCount} icon={FolderOpen} />
-        <KeyFigure label="Total financé" value={formatEurosCents(totalCents)} icon={TrendingUp} />
+        <KpiCard label="Dossiers financés" value={links.length} icon={FolderOpen} accent="blue" />
+        <KpiCard label="Dossiers actifs" value={activeCount} icon={FolderOpen} accent="orange" />
+        <KpiCard label="Total financé" value={<span className="block truncate">{formatEurosCents(totalCents)}</span>} icon={TrendingUp} accent="emerald" />
       </section>
 
       {/* Dossiers financés */}
       <section className="mb-8">
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-3">
-          Dossiers financés <span className="text-zinc-400 font-semibold tabular-nums">({links.length})</span>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
+            <FolderOpen className="w-4 h-4" />
+          </span>
+          Dossiers financés
+          <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.blue.soft}`}>{links.length}</span>
         </h2>
         {links.length === 0 ? (
           <InfoCallout tone="info">
@@ -249,7 +247,7 @@ export default async function FinanceurDetailPage({
                         <StatusPill tone={ds.tone}>{ds.label}</StatusPill>
                         <StatusPill tone={fs.tone}>{fs.label}</StatusPill>
                       </div>
-                      <span className="tabular-nums text-right text-[14px] font-bold text-zinc-900 dark:text-zinc-100">
+                      <span className={`tabular-nums text-right text-[14px] font-bold ${ACCENTS.emerald.value}`}>
                         {formatEurosCents(l.amount_cents)}
                       </span>
                     </li>
@@ -265,7 +263,12 @@ export default async function FinanceurDetailPage({
       <ManageOnly section="catalogue">
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm">
           <div className="px-6 pt-5">
-            <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Modifier le financeur</h2>
+            <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+              <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.orange.soft}`}>
+                <Pencil className="w-4 h-4" />
+              </span>
+              Modifier le financeur
+            </h2>
           </div>
           <form action={updateFunder} className="p-6 space-y-4">
             <input type="hidden" name="id" value={funder.id} />

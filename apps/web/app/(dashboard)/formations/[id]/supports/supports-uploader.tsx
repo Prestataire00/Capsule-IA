@@ -21,7 +21,7 @@ const ACCEPT_ATTR =
 export function SupportsUploader({
   moduleId,
   organizationId,
-  formationId,
+  formationId: _formationId,
 }: {
   moduleId: string;
   organizationId: string;
@@ -107,7 +107,7 @@ export function SupportsUploader({
           type="file"
           accept={ACCEPT_ATTR}
           onChange={handleFileChange}
-          className="text-[12px] text-zinc-600 dark:text-zinc-400 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-[12px] file:bg-zinc-100 dark:file:bg-zinc-800 file:text-zinc-700 dark:file:text-zinc-300 file:cursor-pointer hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700 transition"
+          className="text-[12px] text-zinc-600 dark:text-zinc-400 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-[12px] file:font-semibold file:bg-orange-100 dark:file:bg-orange-950/60 file:text-orange-700 dark:file:text-orange-300 file:cursor-pointer hover:file:bg-orange-200 dark:hover:file:bg-orange-900/60 transition"
         />
         <input
           type="text"

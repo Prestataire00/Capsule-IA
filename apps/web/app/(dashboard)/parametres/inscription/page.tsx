@@ -23,7 +23,9 @@ export default async function ParametresInscriptionPage() {
   return (
     <div className="space-y-5 max-w-2xl">
       <div className="flex items-start gap-3">
-        <Link2 className="w-5 h-5 mt-0.5 text-zinc-400" />
+        <span className="w-10 h-10 rounded-xl grid place-items-center text-white bg-amber-500 shadow-md shadow-amber-500/30 shrink-0">
+          <Link2 className="w-5 h-5" />
+        </span>
         <div>
           <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Lien d'inscription</h1>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">

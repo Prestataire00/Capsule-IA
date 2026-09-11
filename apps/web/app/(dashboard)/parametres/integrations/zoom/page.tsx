@@ -62,7 +62,9 @@ export default async function ZoomIntegrationPage() {
       </Link>
 
       <div className="flex items-center gap-2 mb-1">
-        <Video className="w-3.5 h-3.5 text-zinc-400" />
+        <span className="w-9 h-9 rounded-xl grid place-items-center text-white bg-blue-500 shadow-md shadow-blue-500/30 shrink-0">
+          <Video className="w-4 h-4" />
+        </span>
         <SectionLabel>Zoom Server-to-Server</SectionLabel>
       </div>
 

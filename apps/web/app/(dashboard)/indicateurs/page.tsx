@@ -8,6 +8,7 @@ import type { ComponentType } from 'react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { loadIndicateurs } from '@/features/indicateurs/load-indicateurs';
 import { loadDeclared, fusionner } from '@/features/indicateurs/declared';
@@ -59,16 +60,17 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
   const colorOf = (id: string | null | undefined) => (id ? colors.get(id) ?? NEUTRAL_COLOR : NEUTRAL_COLOR);
   const couleurs = Object.fromEntries(colors);
 
-  const tiles: { label: string; value: string; hint: string; icon: ComponentType<{ className?: string }> }[] = [
-    { label: 'Apprenants formés', value: String(data.learnersTrained), hint: year === null ? 'toutes périodes' : `en ${year}`, icon: Users },
+  const tiles: { label: string; value: string; hint: string; icon: ComponentType<{ className?: string }>; accent: Accent }[] = [
+    { label: 'Apprenants formés', value: String(data.learnersTrained), hint: year === null ? 'toutes périodes' : `en ${year}`, icon: Users, accent: 'rose' },
     {
       label: 'Satisfaction globale',
       value: pct(data.satisfactionRate),
       hint: `${data.satisfactionResponses} réponse${data.satisfactionResponses > 1 ? 's' : ''}`,
       icon: Smile,
+      accent: 'emerald',
     },
-    { label: 'Taux de retour', value: pct(data.responseRate), hint: 'questionnaires renseignés', icon: MessageSquare },
-    { label: 'Formations dispensées', value: String(data.formationsDelivered), hint: 'au moins un dossier terminé', icon: BookOpen },
+    { label: 'Taux de retour', value: pct(data.responseRate), hint: 'questionnaires renseignés', icon: MessageSquare, accent: 'purple' },
+    { label: 'Formations dispensées', value: String(data.formationsDelivered), hint: 'au moins un dossier terminé', icon: BookOpen, accent: 'blue' },
   ];
 
   const periods: Array<{ value: string; label: string }> = [
@@ -112,18 +114,9 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((t) => {
-          const Icon = t.icon;
-          return (
-            <div key={t.label} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-              <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
-                <Icon className="w-3.5 h-3.5 text-zinc-400" /> {t.label}
-              </p>
-              <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{t.value}</p>
-              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-2 tabular-nums">{t.hint}</p>
-            </div>
-          );
-        })}
+        {tiles.map((t) => (
+          <KpiCard key={t.label} label={t.label} value={t.value} hint={t.hint} icon={t.icon} accent={t.accent} />
+        ))}
       </div>
 
       <DeclaredPanel
@@ -147,7 +140,13 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
 
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800">
-          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Par formation</h2>
+          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+            <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.blue.soft}`}>
+              <BookOpen className="w-4 h-4" />
+            </span>
+            Par formation
+            <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.blue.soft}`}>{data.byFormation.length}</span>
+          </h2>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
             Ces chiffres apparaissent sur la fiche publique de la formation concernée.
           </p>
@@ -189,7 +188,7 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
                           </Link>
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{f.learners}</td>
+                      <td className="px-5 py-3.5 text-right font-bold text-rose-700 dark:text-rose-300 tabular-nums">{f.learners}</td>
                       <td className="px-5 py-3.5" title={`Satisfaction · ${pct(f.satisfactionRate)}`}>
                         <span className="flex items-center gap-2.5">
                           <span className="w-10 text-right font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{pct(f.satisfactionRate)}</span>

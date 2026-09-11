@@ -6,6 +6,8 @@ import { FileText, Plus, Pencil } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ACCENTS } from '@/shared/ui/kpi-card';
+import { kindStyle } from '../kind-style';
 import { TEMPLATE_KIND_LABELS, type TemplateKind } from './schema';
 import { SeedButton } from './_components/seed-button';
 import { CategoryManager, type Category } from './_components/category-manager';
@@ -83,9 +85,14 @@ export default async function ModelesPage() {
         <div className="space-y-6">
           {groups.map((g) => (
             <section key={g.id ?? 'none'}>
-              <div className="flex items-baseline justify-between mb-2 px-1">
-                <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{g.name}</h2>
-                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+              <div className="flex items-center justify-between mb-2 px-1">
+                <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+                  <span className={`w-6 h-6 rounded-md grid place-items-center ${g.id ? ACCENTS.orange.soft : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                    <FileText className="w-3.5 h-3.5" />
+                  </span>
+                  {g.name}
+                </h2>
+                <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.orange.soft}`}>
                   {g.items.length} modèle{g.items.length > 1 ? 's' : ''}
                 </span>
               </div>
@@ -100,15 +107,23 @@ export default async function ModelesPage() {
                       <div className="text-right">Actions</div>
                     </div>
                     <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
-                      {g.items.map((t) => (
+                      {g.items.map((t) => {
+                        const ks = kindStyle(t.kind);
+                        const KindIcon = ks.icon;
+                        return (
                         <li key={t.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                          <Link
-                            href={`/documents/modeles/${t.id}`}
-                            className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
-                          >
-                            {t.title}
-                          </Link>
-                          <span className="text-zinc-500 dark:text-zinc-400 truncate">
+                          <div className="min-w-0 flex items-center gap-3">
+                            <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${ACCENTS[ks.accent].soft}`}>
+                              <KindIcon className="w-4 h-4" />
+                            </span>
+                            <Link
+                              href={`/documents/modeles/${t.id}`}
+                              className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                            >
+                              {t.title}
+                            </Link>
+                          </div>
+                          <span className={`truncate font-semibold ${ACCENTS[ks.accent].text}`}>
                             {TEMPLATE_KIND_LABELS[t.kind as TemplateKind] ?? t.kind}
                           </span>
                           <div className="flex items-center justify-end">
@@ -122,7 +137,8 @@ export default async function ModelesPage() {
                             </Link>
                           </div>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   </div>
                 </div>

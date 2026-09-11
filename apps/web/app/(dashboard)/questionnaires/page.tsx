@@ -4,9 +4,10 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { ClipboardList, ClipboardCheck, Star, Send, Plus, BarChart3, Eye, Target, Smile, GraduationCap, Landmark } from 'lucide-react';
 import type { ComponentType } from 'react';
-import { ClipboardList, Star, Send, Plus, BarChart3, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { KpiCard, AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -25,6 +26,23 @@ const labels: Record<string, string> = {
   evaluation_acquis: 'Évaluation des acquis',
   custom: 'Personnalisé',
 };
+
+const KIND_STYLE: Record<string, { icon: ComponentType<{ className?: string }>; accent: Accent }> = {
+  positionnement: { icon: Target, accent: 'blue' },
+  satisfaction_chaud: { icon: Smile, accent: 'amber' },
+  satisfaction_froid: { icon: Smile, accent: 'sky' },
+  opco: { icon: Landmark, accent: 'purple' },
+  evaluation_acquis: { icon: GraduationCap, accent: 'emerald' },
+};
+const kindStyle = (kind: string) => KIND_STYLE[kind] ?? { icon: ClipboardList, accent: 'blue' as Accent };
+
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
 
 const ROW_GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_130px_110px_70px_110px_56px] gap-4 px-5';
 
@@ -128,42 +146,49 @@ export default async function QuestionnairesPage({
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" aria-label="Synthèse">
-        <Kpi label="Questionnaires assignés" value={all.length} icon={ClipboardList} href="/questionnaires" />
-        <Kpi
+        <KpiCard label="Questionnaires assignés" value={all.length} icon={ClipboardList} accent="blue" href="/questionnaires" />
+        <KpiCard
           label="Complétés"
           value={completed}
-          icon={ClipboardList}
+          icon={ClipboardCheck}
+          accent="emerald"
           hint={`${Math.round((completed / Math.max(all.length, 1)) * 100)}% des envois`}
-          hintTone="success"
           href="/questionnaires?status=completed"
-        />
-        <Kpi
+        >
+          <AccentBar value={completed} max={all.length} accent="emerald" />
+        </KpiCard>
+        <KpiCard
           label="En attente"
           value={pending}
           icon={Send}
+          accent="amber"
           hint={pending > 0 ? 'à relancer si due_at proche' : '—'}
-          hintTone={pending > 0 ? 'warning' : 'neutral'}
           href="/questionnaires?status=pending"
         />
-        <Kpi
+        <KpiCard
           label="NPS moyen"
           value={
             <span>
               {npsAvg}
-              <span className="text-[15px] text-zinc-400 font-semibold">/10</span>
+              <span className="text-[15px] opacity-60 font-semibold">/10</span>
             </span>
           }
           icon={Star}
-          hint="↑ 0.4 vs trimestre"
-          hintTone="success"
+          accent="purple"
+          hint="moyenne des réponses reçues"
         />
       </section>
 
       {/* Modèles de questionnaires */}
       <section className="mb-8">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100">Modèles</h2>
-          <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+            <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
+              <ClipboardList className="w-4 h-4" />
+            </span>
+            Modèles
+          </h2>
+          <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.blue.soft}`}>
             {templates.length} modèle{templates.length > 1 ? 's' : ''}
           </span>
         </div>
@@ -181,9 +206,14 @@ export default async function QuestionnairesPage({
       </section>
 
       <div className="flex items-center justify-between gap-2 mb-4">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100">Envois</h2>
-          <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+        <div className="flex items-center gap-3">
+          <h2 className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+            <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.rose.soft}`}>
+              <Send className="w-4 h-4" />
+            </span>
+            Envois
+          </h2>
+          <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.rose.soft}`}>
             {rows.length} envoi{rows.length > 1 ? 's' : ''}
           </span>
         </div>
@@ -228,21 +258,32 @@ export default async function QuestionnairesPage({
                 const kind = q.template?.kind ?? '';
                 const submittedAt = q.response?.submitted_at ?? null;
                 const nps = q.response?.nps ?? null;
+                const ks = kindStyle(kind);
+                const KindIcon = ks.icon;
+                const who = q.recipient_name ?? q.recipient_email ?? '—';
+                const initials = who.split(/[\s@.]+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+                const palette = AVATARS[(who.charCodeAt(0) || 0) % AVATARS.length];
                 return (
                   <li key={q.id}>
                     <Link
                       href={`/dossiers/${q.dossier_id}/questionnaires`}
                       className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group`}
                     >
-                      <div className="min-w-0">
-                        <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">
-                          {q.recipient_name ?? q.recipient_email ?? '—'}
-                        </p>
-                        {q.recipient_name && q.recipient_email && (
-                          <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">{q.recipient_email}</p>
-                        )}
+                      <div className="min-w-0 flex items-center gap-3">
+                        <span className={`w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${palette}`}>{initials || '—'}</span>
+                        <div className="min-w-0">
+                          <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{who}</p>
+                          {q.recipient_name && q.recipient_email && (
+                            <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">{q.recipient_email}</p>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold truncate">{labels[kind] ?? q.template?.title ?? kind}</span>
+                      <span className="min-w-0 flex items-center gap-2">
+                        <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${ACCENTS[ks.accent].soft}`}>
+                          <KindIcon className="w-3.5 h-3.5" />
+                        </span>
+                        <span className={`font-semibold truncate ${ACCENTS[ks.accent].text}`}>{labels[kind] ?? q.template?.title ?? kind}</span>
+                      </span>
                       <div>
                         <IdPill>{q.dossier?.reference ?? '—'}</IdPill>
                       </div>
@@ -253,7 +294,7 @@ export default async function QuestionnairesPage({
                             ? `due ${format(parseISO(q.due_at), 'dd/MM', { locale: fr })}`
                             : '—'}
                       </span>
-                      <span className="tabular-nums font-bold text-zinc-900 dark:text-zinc-100">
+                      <span className={`tabular-nums font-bold ${nps == null ? '' : nps >= 9 ? ACCENTS.emerald.text : nps >= 7 ? ACCENTS.amber.text : ACCENTS.rose.text}`}>
                         {nps != null ? (
                           <>
                             {nps}
@@ -285,45 +326,5 @@ export default async function QuestionnairesPage({
         </div>
       </div>
     </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  hint,
-  hintTone = 'neutral',
-  icon: Icon,
-  href,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  hintTone?: 'neutral' | 'success' | 'warning';
-  icon: ComponentType<{ className?: string }>;
-  href?: string;
-}) {
-  const hintCls = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    warning: 'text-amber-700 dark:text-amber-400',
-  }[hintTone];
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        <Icon className="w-4 h-4 text-zinc-400" />
-      </div>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
-    </>
-  );
-  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
   );
 }

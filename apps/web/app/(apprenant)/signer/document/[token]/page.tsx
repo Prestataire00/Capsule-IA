@@ -1,4 +1,4 @@
-import { Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, PenLine } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifyDocumentSignatureToken } from '@/shared/lib/document-signature-token';
 import { SignForm } from './sign-form';
@@ -81,7 +81,10 @@ export default async function SignDocumentPage({ params }: { params: { token: st
 
   return (
     <Screen>
-      <div className="text-center">
+      <div className="text-center rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/40 dark:to-zinc-900 px-6 py-5">
+        <span className="w-11 h-11 rounded-xl grid place-items-center text-white bg-orange-500 shadow-md shadow-orange-500/30 mx-auto mb-3">
+          <PenLine className="w-5 h-5" />
+        </span>
         <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">{doc.title}</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           {sig.signer_name ? `${sig.signer_name}, veuillez` : 'Veuillez'} relire puis signer ce document.

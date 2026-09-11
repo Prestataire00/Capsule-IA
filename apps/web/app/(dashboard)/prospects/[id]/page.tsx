@@ -10,6 +10,7 @@ import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ProspectNoteForm } from './note-form.client';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { requiredDocs } from '@/features/prospect/funding';
 import { ProspectDetailActions, type DocChecklistItem } from './prospect-detail-actions';
 import { ConvertButton } from '../convert-button';
@@ -107,10 +108,26 @@ function admin() {
   });
 }
 
-function SectionTitle({ icon: Icon, children }: { icon: typeof ClipboardList; children: React.ReactNode }) {
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+] as const;
+
+function avatarTone(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % AVATARS.length;
+  return AVATARS[h] ?? AVATARS[0];
+}
+
+function SectionTitle({ icon: Icon, accent, children }: { icon: typeof ClipboardList; accent: Accent; children: React.ReactNode }) {
   return (
     <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-      <Icon className="h-4 w-4 text-zinc-400" />
+      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS[accent].soft}`}>
+        <Icon className="h-4 w-4" />
+      </span>
       {children}
     </h2>
   );
@@ -230,6 +247,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     .every((d) => reviewByKey.get(d.key)?.status === 'verified');
 
   const initials = `${prospect.first_name?.[0] ?? ''}${prospect.last_name?.[0] ?? ''}`.toUpperCase();
+  const avatar = avatarTone(`${prospect.first_name ?? ''} ${prospect.last_name ?? ''}`);
   const situationLabel = prospect.situation
     ? (SITUATION_LABELS[prospect.situation] ?? prospect.situation)
     : '—';
@@ -283,7 +301,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
   return (
     <div className="max-w-6xl w-full mx-auto px-6 pb-10">
       {/* En-tête collant : identité + les trois gestes principaux, toujours atteignables */}
-      <div className="sticky top-0 z-20 -mx-6 px-6 pt-6 pb-5 bg-white/85 dark:bg-zinc-950/85 backdrop-blur border-b border-zinc-200/70 dark:border-zinc-800">
+      <div className="sticky top-0 z-20 -mx-6 px-6 pt-6 pb-5 bg-rose-50/90 dark:bg-zinc-950/90 backdrop-blur border-b border-rose-100 dark:border-rose-900/40">
         <div className="flex flex-wrap items-end gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
@@ -299,7 +317,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               <SectionLabel className="tabular-nums">Demande {reference}</SectionLabel>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-[13px] font-bold">
+              <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${avatar}`}>
                 {initials || '?'}
               </span>
               <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">
@@ -352,15 +370,15 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
         <main className="space-y-5 min-w-0">
           <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <SectionTitle icon={ClipboardList}>Fiche besoin</SectionTitle>
+              <SectionTitle icon={ClipboardList} accent="blue">Fiche besoin</SectionTitle>
               <div className="ml-auto flex flex-wrap gap-1.5">
                 {n?.currentLevel != null && (
-                  <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.purple.soft}`}>
                     Niveau : {LEVEL_LABELS[n.currentLevel] ?? n.currentLevel}
                   </span>
                 )}
                 {funders.length > 0 && (
-                  <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.emerald.soft}`}>
                     {funders.join(', ').toUpperCase()}
                   </span>
                 )}
@@ -388,11 +406,16 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
 
           <section id="pieces" className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-3">
             <div className="flex items-center gap-2">
-              <SectionTitle icon={FileCheck2}>Pièces justificatives</SectionTitle>
-              <span className="ml-auto text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+              <SectionTitle icon={FileCheck2} accent={missingRequired === 0 ? 'emerald' : 'amber'}>Pièces justificatives</SectionTitle>
+              <span
+                className={`ml-auto rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${
+                  missingRequired === 0 ? ACCENTS.emerald.soft : ACCENTS.amber.soft
+                }`}
+              >
                 {providedCount} / {docs.length} fournie{docs.length > 1 ? 's' : ''}
               </span>
             </div>
+            <AccentBar value={providedCount} max={docs.length} accent={missingRequired === 0 ? 'emerald' : 'amber'} />
             <ProspectDetailActions
               prospectId={prospect.id}
               validationStatus={prospect.validation_status}
@@ -417,7 +440,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
           </section>
 
           <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-3">
-            <SectionTitle icon={History}>Suivi &amp; historique</SectionTitle>
+            <SectionTitle icon={History} accent="orange">Suivi &amp; historique</SectionTitle>
             <ProspectNoteForm prospectId={prospect.id} />
             {events.length === 0 ? (
               <p className="text-[13px] text-zinc-400">Aucune action enregistrée.</p>
@@ -464,7 +487,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
         <aside className="space-y-4 lg:sticky lg:top-24 self-start">
           <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-[15px] font-bold">
+              <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-[15px] font-bold ${avatar}`}>
                 {initials || '?'}
               </span>
               <div className="min-w-0">
@@ -488,8 +511,8 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
             </div>
           </section>
 
-          <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
+          <section className={`rounded-xl border bg-gradient-to-br p-4 shadow-sm space-y-3 ${ACCENTS.orange.card}`}>
+            <p className={`text-[11px] font-bold uppercase tracking-[0.06em] ${ACCENTS.orange.text}`}>
               Prochaine action
             </p>
             <div>

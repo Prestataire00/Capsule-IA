@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
 import { Loader2, Plus, Send, Trash2 } from 'lucide-react';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { requestSignatures } from '../signature-actions';
 import { SIGNER_KINDS, SIGNER_KIND_LABELS, type SignerKind } from '../signature-schema';
 
@@ -24,6 +25,14 @@ export type SignerSuggestion = {
 };
 
 type Row = { kind: SignerKind; name: string; email: string; learnerId: string | null };
+
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
 
 export function SignaturePanel({
   documentId,
@@ -81,22 +90,35 @@ export function SignaturePanel({
     <div className="space-y-5">
       {existing.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Signatures</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+            Signatures
+            <span className={`text-[11px] font-bold tabular-nums normal-case tracking-normal px-2 py-0.5 rounded-full ${ACCENTS.emerald.soft}`}>
+              {existing.filter((s) => s.status === 'signed').length}/{existing.length}
+            </span>
+          </p>
           <ul className="space-y-1.5">
-            {existing.map((s, i) => (
+            {existing.map((s, i) => {
+              const who = s.signerName ?? s.signerEmail ?? '—';
+              return (
               <li
                 key={i}
                 className="flex items-center justify-between gap-3 text-[13px] bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5"
               >
-                <span className="min-w-0 truncate font-bold text-zinc-900 dark:text-zinc-100">
-                  {s.signerName ?? s.signerEmail ?? '—'}{' '}
-                  <span className="text-[12px] font-normal text-zinc-500">
-                    · {SIGNER_KIND_LABELS[s.signerKind as SignerKind] ?? s.signerKind}
+                <span className="min-w-0 flex items-center gap-2.5">
+                  <span className={`w-7 h-7 rounded-full grid place-items-center text-[10px] font-bold shrink-0 ${AVATARS[(who.charCodeAt(0) || 0) % AVATARS.length]}`}>
+                    {who.split(/[\s@.]+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 truncate font-bold text-zinc-900 dark:text-zinc-100">
+                    {who}{' '}
+                    <span className="text-[12px] font-normal text-zinc-500">
+                      · {SIGNER_KIND_LABELS[s.signerKind as SignerKind] ?? s.signerKind}
+                    </span>
                   </span>
                 </span>
                 <StatusBadge status={s.status} />
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

@@ -3,11 +3,12 @@
 // validation des pièces (→ conversion auto en dossier) et conversion manuelle.
 
 import { createClient } from '@supabase/supabase-js';
-import { Inbox, UserPlus, FolderCheck, ClipboardCheck, ArrowUpRight, Eye, FolderOpen } from 'lucide-react';
+import { Inbox, UserPlus, FolderCheck, ClipboardCheck, ArrowUpRight, Eye, FolderOpen, Building2 } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { KpiCard } from '@/shared/ui/kpi-card';
 import { ConvertButton } from './convert-button';
 import { AnonymizeAction } from '../rgpd/anonymize-action';
 import { requireAccess } from '@/shared/lib/auth/require-access';
@@ -51,16 +52,18 @@ async function loadProspects(): Promise<ProspectRow[]> {
   return (data ?? []) as unknown as ProspectRow[];
 }
 
-function KeyFigure({ icon: Icon, label, value }: { icon: typeof Inbox; label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        <Icon className="h-4 w-4 text-zinc-400" />
-      </div>
-      <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}</p>
-    </div>
-  );
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+] as const;
+
+function avatarTone(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % AVATARS.length;
+  return AVATARS[h] ?? AVATARS[0];
 }
 
 export default async function ProspectsPage() {
@@ -104,9 +107,9 @@ export default async function ProspectsPage() {
       </header>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-7">
-        <KeyFigure icon={ClipboardCheck} label="À valider (pièces)" value={toValidate.length} />
-        <KeyFigure icon={UserPlus} label="À convertir" value={toConvert.length} />
-        <KeyFigure icon={FolderCheck} label="Converties en dossier" value={converted.length} />
+        <KpiCard icon={ClipboardCheck} label="À valider (pièces)" value={toValidate.length} accent="amber" />
+        <KpiCard icon={UserPlus} label="À convertir" value={toConvert.length} accent="rose" />
+        <KpiCard icon={FolderCheck} label="Converties en dossier" value={converted.length} accent="emerald" />
       </div>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
@@ -123,7 +126,9 @@ export default async function ProspectsPage() {
           </div>
           {prospects.length === 0 ? (
             <div className="px-5 py-16 text-center">
-              <Inbox className="mx-auto mb-3 h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+              <span className="mx-auto mb-3 w-12 h-12 rounded-xl grid place-items-center bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                <Inbox className="h-6 w-6" />
+              </span>
               <p className="text-[13px] text-zinc-400">Aucune demande pour le moment.</p>
             </div>
           ) : (
@@ -138,20 +143,34 @@ export default async function ProspectsPage() {
                       pendingValidation ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''
                     }`}
                   >
-                    <div className="min-w-0">
-                      <a
-                        href={`/prospects/${p.id}`}
-                        className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
-                      >
-                        {name}
-                      </a>
-                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{p.email}</p>
+                    <div className="min-w-0 flex items-center gap-3">
+                      <span className={`w-9 h-9 rounded-full grid place-items-center text-[12px] font-bold flex-shrink-0 ${avatarTone(name)}`}>
+                        {`${p.first_name[0] ?? ''}${p.last_name[0] ?? ''}`.toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <a
+                          href={`/prospects/${p.id}`}
+                          className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                        >
+                          {name}
+                        </a>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{p.email}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0 truncate text-zinc-700 dark:text-zinc-300">
-                      {p.company_name ?? <span className="text-zinc-400">—</span>}
+                    <div className="min-w-0 text-zinc-700 dark:text-zinc-300">
+                      {p.company_name ? (
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="w-6 h-6 rounded-md grid place-items-center shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                            <Building2 className="w-3.5 h-3.5" />
+                          </span>
+                          <span className="truncate">{p.company_name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
                     </div>
                     <div>
-                      <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold uppercase bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
                         {p.funder_kind}
                       </span>
                     </div>

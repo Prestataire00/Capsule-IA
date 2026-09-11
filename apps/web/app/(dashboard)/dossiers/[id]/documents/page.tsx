@@ -2,11 +2,12 @@
 // Justification: génération (modèles + IA + PDF) + liste réelle des documents du dossier.
 
 import Link from 'next/link';
-import { FileText, Download, Eye } from 'lucide-react';
+import { FileText, Download, Eye, Sparkles, FileDown, Files } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { GenerateFromTemplate, type TemplateChoice } from './_components/generate-from-template';
 import { GenerateWithAi } from './_components/generate-with-ai';
 import { EmailDocButton } from './_components/email-doc-button';
@@ -97,7 +98,12 @@ export default async function DocumentsPage({ params }: { params: { id: string }
     <div className="space-y-8">
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <SectionLabel>Générer depuis un modèle</SectionLabel>
+          <div className="flex items-center gap-2.5">
+            <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.purple.soft}`}>
+              <Sparkles className="w-4 h-4" />
+            </span>
+            <SectionLabel>Générer depuis un modèle</SectionLabel>
+          </div>
           <Link href="/documents/modeles" className="text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300">
             Gérer les modèles
           </Link>
@@ -110,7 +116,12 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       </section>
 
       <section className="space-y-3">
-        <SectionLabel>Générer un PDF standard</SectionLabel>
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
+            <FileDown className="w-4 h-4" />
+          </span>
+          <SectionLabel>Générer un PDF standard</SectionLabel>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <GenerateConventionsButton dossierId={params.id} />
           {GENERATORS.map((g) => (
@@ -121,7 +132,9 @@ export default async function DocumentsPage({ params }: { params: { id: string }
               rel="noopener noreferrer"
               className="group flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-4 h-11 hover:border-orange-300 dark:hover:border-orange-800 transition"
             >
-              <FileText className="w-4 h-4 text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
+              <span className={`w-7 h-7 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.blue.soft}`}>
+                <FileText className="w-3.5 h-3.5" />
+              </span>
               <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex-1 truncate">{g.label}</span>
               <Download className="w-3.5 h-3.5 text-zinc-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition" />
             </a>
@@ -133,9 +146,13 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       </section>
 
       <section className="space-y-3">
-        <SectionLabel>
-          Documents générés (<span className="tabular-nums">{rows.length}</span>)
-        </SectionLabel>
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.orange.soft}`}>
+            <Files className="w-4 h-4" />
+          </span>
+          <SectionLabel>Documents générés</SectionLabel>
+          <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.orange.soft}`}>{rows.length}</span>
+        </div>
         {rows.length === 0 ? (
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
             <EmptyState icon={FileText} title="Aucun document généré pour ce dossier." description="Utilisez les options ci-dessus." />
@@ -160,7 +177,12 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                     : null;
                   return (
                     <li key={d.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                      <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
+                      <span className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.orange.soft}`}>
+                          <FileText className="w-4 h-4" />
+                        </span>
+                        <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
+                      </span>
                       <span className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{d.kind}</span>
                       <span>
                         <StatusPill tone={d.status === 'ready' ? 'success' : 'neutral'}>{d.status}</StatusPill>

@@ -2,9 +2,10 @@
 // Justification: espace de programmation des envois d'emails — règles paramétrables
 // (rappel X jours avant/après une date du dossier), création/édition/activation.
 
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, Mail, Power } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { SchedulesManager, type ScheduleRow } from './schedules-manager';
 
 export const dynamic = 'force-dynamic';
@@ -35,8 +36,17 @@ export default async function ProgrammationPage() {
         </p>
       </header>
 
-      <div className="flex items-start gap-2 mb-6 text-[12px] text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-3">
-        <CalendarClock className="w-4 h-4 mt-0.5 shrink-0 text-zinc-400" />
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 max-w-2xl" aria-label="Synthèse">
+        <KpiCard label="Règles programmées" value={rules.length} icon={Mail} accent="sky" hint="emails automatiques" />
+        <KpiCard label="Actives" value={rules.filter((r) => r.enabled).length} icon={Power} accent="emerald">
+          <AccentBar value={rules.filter((r) => r.enabled).length} max={rules.length} accent="emerald" />
+        </KpiCard>
+      </section>
+
+      <div className="flex items-start gap-3 mb-6 text-[12px] text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-3">
+        <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
+          <CalendarClock className="w-4 h-4" />
+        </span>
         <span>
           Variables utilisables dans l'objet et le corps :{' '}
           <code className="font-mono text-[12px] text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 px-1 rounded">{'{prenom}'}</code>{' '}

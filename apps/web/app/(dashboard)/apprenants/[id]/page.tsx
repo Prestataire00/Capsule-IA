@@ -7,6 +7,7 @@ import { ArrowLeft, FolderOpen, Download } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { LearnerHeader } from './learner-header';
 import { DossierCard } from './dossier-card';
 import { buildLearnerSummary, normalizeOne, type LearnerDossier } from './summary';
@@ -110,8 +111,12 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
 
         <section className="mt-10">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-            <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
-              Formations &amp; dossiers <span className="text-zinc-400 font-semibold tabular-nums">({dossiers.length})</span>
+            <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+              <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.orange.soft}`}>
+                <FolderOpen className="w-4 h-4" />
+              </span>
+              Formations &amp; dossiers
+              <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.orange.soft}`}>{dossiers.length}</span>
             </h2>
             {/* Assiduité de cet apprenant, demi-journée par demi-journée,
                 absences et demi-journées non émargées comprises. */}

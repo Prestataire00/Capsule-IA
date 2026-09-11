@@ -3,7 +3,8 @@
 // on choisit la formation puis on réutilise le formulaire de session de groupe.
 
 import Link from 'next/link';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, GraduationCap } from 'lucide-react';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -46,6 +47,9 @@ export default async function NouvelleSessionPage() {
 
       {formations.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl px-5 py-10 text-center">
+          <span className={`w-12 h-12 rounded-xl grid place-items-center mx-auto mb-3 ${ACCENTS.blue.soft}`}>
+            <GraduationCap className="w-6 h-6" />
+          </span>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4">
             Aucune formation au catalogue. Créez d&apos;abord une formation pour pouvoir planifier ses
             sessions.

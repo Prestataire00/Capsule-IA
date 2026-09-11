@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { Wallet } from 'lucide-react';
+import { Wallet, Banknote } from 'lucide-react';
+import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession } from '@/features/sessions/load-session';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -58,18 +59,28 @@ export default async function SessionFundersTab({ params }: { params: { id: stri
         </div>
       ) : (
         <>
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 inline-block min-w-[200px]">
-            <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">Total financé</p>
-            <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{euros(total)}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <KpiCard icon={Banknote} accent="emerald" label="Total financé" value={euros(total)} />
+            <KpiCard icon={Wallet} accent="orange" label="Financeurs" value={rows.length} />
           </div>
           <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
             {rows.map((r, i) => (
               <li key={i} className="flex items-center justify-between gap-3 px-5 py-3.5">
-                <span className="min-w-0">
-                  <span className="block font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</span>
-                  <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{r.count} apprenant{r.count > 1 ? 's' : ''}</span>
+                <span className="min-w-0 flex items-center gap-3">
+                  <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.emerald.soft}`}>
+                    <Wallet className="w-4 h-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</span>
+                    <span className={`inline-block mt-0.5 rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.rose.soft}`}>
+                      {r.count} apprenant{r.count > 1 ? 's' : ''}
+                    </span>
+                  </span>
                 </span>
-                <span className="font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(r.total)}</span>
+                <span className="flex items-center gap-3 shrink-0">
+                  <AccentBar value={r.total} max={total} accent="emerald" className="w-24 hidden sm:block" />
+                  <span className={`font-bold tabular-nums ${ACCENTS.emerald.value}`}>{euros(r.total)}</span>
+                </span>
               </li>
             ))}
           </ul>

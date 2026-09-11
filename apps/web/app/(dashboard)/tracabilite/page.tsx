@@ -1,12 +1,11 @@
 // ARCHETYPE: command
 // Justification: traçabilité des accès aux documents (ouvertures / téléchargements) —
 // qui a consulté quoi, quand. Lecture de app.resource_access_log (RLS org).
-import Link from 'next/link';
-import type { ComponentType } from 'react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Eye, Download, FileSearch, FolderOpen } from 'lucide-react';
+import { Eye, Download, FileSearch, Users } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
@@ -33,6 +32,20 @@ const ACTOR_LABELS: Record<string, string> = {
   user: 'Staff',
   system: 'Système',
 };
+
+const ACTOR_PILLS: Record<string, string> = {
+  learner_token: ACCENTS.rose.soft,
+  user: ACCENTS.orange.soft,
+  system: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+};
+
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
 
 async function loadAccess(dossier?: string): Promise<AccessRow[]> {
   const sb = supabaseServer();
@@ -76,10 +89,16 @@ export default async function TracabilitePage({
       </header>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <Kpi label="Accès total" value={rows.length} icon={FileSearch} />
-        <Kpi label="Ouvertures" value={views} icon={Eye} />
-        <Kpi label="Téléchargements" value={downloads} icon={Download} />
-        <Kpi label="Par les apprenants" value={byLearner} icon={FolderOpen} />
+        <KpiCard label="Accès total" value={rows.length} icon={FileSearch} accent="purple" hint="preuve d'accès Qualiopi" />
+        <KpiCard label="Ouvertures" value={views} icon={Eye} accent="sky">
+          <AccentBar value={views} max={rows.length} accent="sky" />
+        </KpiCard>
+        <KpiCard label="Téléchargements" value={downloads} icon={Download} accent="emerald">
+          <AccentBar value={downloads} max={rows.length} accent="emerald" />
+        </KpiCard>
+        <KpiCard label="Par les apprenants" value={byLearner} icon={Users} accent="rose">
+          <AccentBar value={byLearner} max={rows.length} accent="rose" />
+        </KpiCard>
       </div>
 
       {searchParams.dossier && (
@@ -117,25 +136,38 @@ export default async function TracabilitePage({
                     <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
                       {format(parseISO(r.occurred_at), 'dd MMM HH:mm', { locale: fr })}
                     </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-bold text-zinc-900 dark:text-zinc-100">{who ?? r.dossier?.reference ?? '—'}</p>
-                      {who && r.dossier?.reference && (
-                        <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">{r.dossier.reference}</p>
+                    <div className="min-w-0 flex items-center gap-3">
+                      {who ? (
+                        <span className={`w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${AVATARS[(who.charCodeAt(0) || 0) % AVATARS.length]}`}>
+                          {who.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      ) : (
+                        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.orange.soft}`}>
+                          <FileSearch className="w-4 h-4" />
+                        </span>
                       )}
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-zinc-900 dark:text-zinc-100">{who ?? r.dossier?.reference ?? '—'}</p>
+                        {who && r.dossier?.reference && (
+                          <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">{r.dossier.reference}</p>
+                        )}
+                      </div>
                     </div>
                     <span>
                       {r.action === 'download' ? (
-                        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        <span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-2 py-0.5 rounded-full ${ACCENTS.emerald.soft}`}>
                           <Download className="w-3.5 h-3.5" /> Téléchargé
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-blue-700 dark:text-blue-400">
+                        <span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-2 py-0.5 rounded-full ${ACCENTS.sky.soft}`}>
                           <Eye className="w-3.5 h-3.5" /> Ouvert
                         </span>
                       )}
                     </span>
-                    <span className="text-zinc-600 dark:text-zinc-400 text-[12px]">
-                      {ACTOR_LABELS[r.actor_kind] ?? r.actor_kind}
+                    <span>
+                      <span className={`inline-flex items-center text-[12px] font-semibold px-2 py-0.5 rounded-full ${ACTOR_PILLS[r.actor_kind] ?? ACTOR_PILLS.system}`}>
+                        {ACTOR_LABELS[r.actor_kind] ?? r.actor_kind}
+                      </span>
                     </span>
                     <span className="min-w-0">
                       {r.dossier_id ? (
@@ -154,46 +186,5 @@ export default async function TracabilitePage({
         </div>
       </div>
     </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  hint,
-  hintTone = 'neutral',
-  icon: Icon,
-  href,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
-  icon?: ComponentType<{ className?: string }>;
-  href?: string;
-}) {
-  const hintCls = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    warning: 'text-amber-700 dark:text-amber-400',
-    danger: 'text-red-700 dark:text-red-400',
-  }[hintTone];
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
-      </div>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
-    </>
-  );
-  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
   );
 }

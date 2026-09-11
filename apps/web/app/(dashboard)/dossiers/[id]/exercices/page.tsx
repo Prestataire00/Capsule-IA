@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { PenLine, User, FileDown, Eye, EyeOff } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ExerciseForm } from './exercise-form';
@@ -109,12 +110,21 @@ export default async function ExercicesPage({ params }: { params: { id: string }
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between gap-4">
-        <div>
-          <SectionLabel className="mb-1">Exercices</SectionLabel>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-            {exercises.length} exercice{exercises.length > 1 ? 's' : ''} ·{' '}
-            {submissions.length} soumission{submissions.length > 1 ? 's' : ''}
-          </p>
+        <div className="flex items-start gap-3">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.orange.soft}`}>
+            <PenLine className="w-4 h-4" />
+          </span>
+          <div>
+            <SectionLabel className="mb-1.5">Exercices</SectionLabel>
+            <p className="flex items-center gap-2 flex-wrap tabular-nums">
+              <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${ACCENTS.orange.soft}`}>
+                {exercises.length} exercice{exercises.length > 1 ? 's' : ''}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${ACCENTS.rose.soft}`}>
+                {submissions.length} soumission{submissions.length > 1 ? 's' : ''}
+              </span>
+            </p>
+          </div>
         </div>
         <ExerciseForm dossierId={params.id} organizationId={dossier.organization_id} />
       </header>

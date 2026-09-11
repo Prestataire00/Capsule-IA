@@ -3,10 +3,11 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Eye } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import {
   SupportsUploader,
   TogglePublishButton,
@@ -91,7 +92,7 @@ export default async function FormationSupportsPage({
 
   // Supports par module (non supprimés, org courante)
   const moduleIds = moduleRows.map((r) => r.module_id);
-  let resourcesByModule: Record<string, ResourceRow[]> = {};
+  const resourcesByModule: Record<string, ResourceRow[]> = {};
 
   if (moduleIds.length > 0) {
     const { data: resources } = await sb
@@ -121,6 +122,7 @@ export default async function FormationSupportsPage({
   }));
 
   const totalResources = modulesWithResources.reduce((n, m) => n + m.resources.length, 0);
+  const publishedResources = modulesWithResources.reduce((n, m) => n + m.resources.filter((r) => r.is_published).length, 0);
 
   return (
     <div className="max-w-4xl w-full mx-auto px-8 py-9">
@@ -143,9 +145,17 @@ export default async function FormationSupportsPage({
         </p>
       </header>
 
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" aria-label="Synthèse des supports">
+        <KpiCard icon={BookOpen} label="Modules" value={modulesWithResources.length} accent="blue" />
+        <KpiCard icon={FileText} label="Supports" value={totalResources} accent="orange" />
+        <KpiCard icon={Eye} label="Publiés" value={publishedResources} accent="emerald" hint="visibles dans l'espace apprenant" />
+      </section>
+
       {modulesWithResources.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-8 text-center shadow-sm">
-          <BookOpen className="w-8 h-8 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
+          <span className={`w-12 h-12 rounded-xl grid place-items-center mx-auto mb-3 ${ACCENTS.blue.soft}`}>
+            <BookOpen className="w-6 h-6" />
+          </span>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
             Cette formation n&apos;a aucun module rattaché.
           </p>
@@ -158,16 +168,21 @@ export default async function FormationSupportsPage({
               className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden"
             >
               {/* En-tête du module */}
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-                <BookOpen className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-blue-100 dark:border-blue-900/40 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/40 dark:to-zinc-900">
+                <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.blue.soft}`}>
+                  <BookOpen className="w-4 h-4" />
+                </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                     {mod.moduleTitle}
                   </p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-                    Module {mod.position + 1} — {mod.resources.length} support{mod.resources.length !== 1 ? 's' : ''}
+                    Module {mod.position + 1}
                   </p>
                 </div>
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums flex-shrink-0 ${ACCENTS.orange.soft}`}>
+                  {mod.resources.length} support{mod.resources.length !== 1 ? 's' : ''}
+                </span>
               </div>
 
               <div className="px-5 py-4 space-y-3">
@@ -183,7 +198,9 @@ export default async function FormationSupportsPage({
                         key={res.id}
                         className="flex items-center gap-3 py-3 flex-wrap"
                       >
-                        <FileText className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                        <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.orange.soft}`}>
+                          <FileText className="w-4 h-4" />
+                        </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                             {res.title}

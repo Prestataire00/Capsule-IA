@@ -2,71 +2,31 @@
 // Justification: carnet financeurs — chiffres clés + une ligne par financeur, montants financés réels (dossier_funders).
 
 import Link from 'next/link';
-import { Plus, Wallet, Building2, CreditCard, Briefcase, Globe, TrendingUp, Eye, X, ArrowUpRight } from 'lucide-react';
+import { Plus, Wallet, Building2, CreditCard, Briefcase, Globe, TrendingUp, Eye, X } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { getFundersOverview } from '@/features/funders/funders-overview.query';
 import { formatEurosCents } from '@/features/funders/funders-overview';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { KpiCard, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 
 export const dynamic = 'force-dynamic';
 
-const kindStyles: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string }> = {
-  opco: { icon: Building2, label: 'OPCO' },
-  cpf: { icon: CreditCard, label: 'CPF' },
-  pole_emploi: { icon: Briefcase, label: 'France Travail' },
-  region: { icon: Globe, label: 'Région' },
-  faf_ca: { icon: Briefcase, label: 'FAF-CA' },
-  agefiph: { icon: Wallet, label: 'AGEFIPH' },
-  autofinancement: { icon: Wallet, label: 'Autofinancement' },
-  entreprise: { icon: Building2, label: 'Entreprise' },
-  autre: { icon: Wallet, label: 'Autre' },
+const kindStyles: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string; accent: Accent }> = {
+  opco: { icon: Building2, label: 'OPCO', accent: 'blue' },
+  cpf: { icon: CreditCard, label: 'CPF', accent: 'sky' },
+  pole_emploi: { icon: Briefcase, label: 'France Travail', accent: 'purple' },
+  region: { icon: Globe, label: 'Région', accent: 'teal' },
+  faf_ca: { icon: Briefcase, label: 'FAF-CA', accent: 'purple' },
+  agefiph: { icon: Wallet, label: 'AGEFIPH', accent: 'rose' },
+  autofinancement: { icon: Wallet, label: 'Autofinancement', accent: 'orange' },
+  entreprise: { icon: Building2, label: 'Entreprise', accent: 'blue' },
+  autre: { icon: Wallet, label: 'Autre', accent: 'emerald' },
 };
 
 const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_150px_120px_140px_72px] gap-4 px-5';
 
-function KeyFigure({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  href,
-  active,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  href?: string;
-  active?: boolean;
-}) {
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {href ? (
-          <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-600 transition" />
-        ) : (
-          <Icon className="w-4 h-4 text-zinc-400" />
-        )}
-      </div>
-      <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 truncate">{value}</p>
-      {hint && <p className="mt-2 text-[12px] text-zinc-500 dark:text-zinc-400">{hint}</p>}
-    </>
-  );
-  const cls = `group block rounded-xl border bg-white dark:bg-zinc-900 p-5 shadow-sm transition ${
-    active
-      ? 'border-orange-300 dark:border-orange-800 ring-4 ring-orange-500/10'
-      : 'border-zinc-200/70 dark:border-zinc-800'
-  }`;
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}
+const ACTIVE_RING = 'ring-4 ring-orange-500/15';
 
 export default async function FinanceursPage({
   searchParams,
@@ -103,24 +63,33 @@ export default async function FinanceursPage({
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <KeyFigure label="Total financeurs" value={overview.totalFunders} icon={Wallet} href="/financeurs" active={!activeKind} />
-        <KeyFigure
+        <KpiCard
+          label="Total financeurs"
+          value={overview.totalFunders}
+          icon={Wallet}
+          accent="emerald"
+          href="/financeurs"
+          className={!activeKind ? ACTIVE_RING : undefined}
+        />
+        <KpiCard
           label="OPCO"
           value={overview.byKind['opco'] ?? 0}
           icon={Building2}
+          accent="blue"
           hint="organismes paritaires"
           href="/financeurs?kind=opco"
-          active={activeKind === 'opco'}
+          className={activeKind === 'opco' ? ACTIVE_RING : undefined}
         />
-        <KeyFigure
+        <KpiCard
           label="CPF"
           value={overview.byKind['cpf'] ?? 0}
           icon={CreditCard}
+          accent="sky"
           hint="financement individuel"
           href="/financeurs?kind=cpf"
-          active={activeKind === 'cpf'}
+          className={activeKind === 'cpf' ? ACTIVE_RING : undefined}
         />
-        <KeyFigure label="Total financé" value={formatEurosCents(overview.grandTotalCents)} icon={TrendingUp} />
+        <KpiCard label="Total financé" value={<span className="block truncate">{formatEurosCents(overview.grandTotalCents)}</span>} icon={TrendingUp} accent="emerald" />
       </section>
 
       {activeKind && (
@@ -163,23 +132,36 @@ export default async function FinanceursPage({
                 const Icon = k.icon;
                 return (
                   <li key={f.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                    <div className="min-w-0">
-                      <Link
-                        href={`/financeurs/${f.id}`}
-                        className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
-                      >
-                        {f.name}
-                      </Link>
-                      {f.contactEmail && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{f.contactEmail}</p>}
+                    <div className="min-w-0 flex items-center gap-3">
+                      <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${ACCENTS.emerald.soft}`}>
+                        <Wallet className="w-4 h-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/financeurs/${f.id}`}
+                          className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                        >
+                          {f.name}
+                        </Link>
+                        {f.contactEmail && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{f.contactEmail}</p>}
+                      </div>
                     </div>
                     <div>
-                      <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                        <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                      <span className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS[k.accent].soft}`}>
+                        <Icon className="w-3.5 h-3.5" />
                         {k.label}
                       </span>
                     </div>
-                    <div className="text-right text-[14px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{f.dossierCount}</div>
-                    <div className="text-right text-[14px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100 truncate">
+                    <div className="text-right tabular-nums">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${
+                          f.dossierCount > 0 ? ACCENTS.blue.soft : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                        }`}
+                      >
+                        {f.dossierCount}
+                      </span>
+                    </div>
+                    <div className={`text-right text-[14px] font-bold tabular-nums truncate ${f.fundedCents > 0 ? ACCENTS.emerald.value : 'text-zinc-400'}`}>
                       {formatEurosCents(f.fundedCents)}
                     </div>
                     <div className="flex items-center justify-end">

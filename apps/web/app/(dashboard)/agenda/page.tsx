@@ -11,6 +11,7 @@ import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calenda
 import { listAgenda, type CalEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { AgendaTabs } from './agenda-tabs.client';
 import { AgendaNowLine } from './agenda-now-line.client';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,7 +99,7 @@ function AgendaListRow({ e, timeText }: { e: CalEvent; timeText: string }) {
         </span>
       )}
       {e.hangoutLink && (
-        <span className="h-6 w-6 rounded-md grid place-items-center flex-shrink-0 bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
+        <span className={`h-6 w-6 rounded-md grid place-items-center flex-shrink-0 ${ACCENTS.blue.soft}`} title="Visio">
           <Video className="w-3.5 h-3.5" />
         </span>
       )}
@@ -151,7 +152,9 @@ export default async function AgendaPage({
         <AgendaTabs />
         {header}
         <div className="border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-6 py-10 text-center bg-white dark:bg-zinc-900">
-          <CalendarDays className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
+          <span className={`w-14 h-14 rounded-2xl grid place-items-center mx-auto mb-3 ${ACCENTS.blue.soft}`}>
+            <CalendarDays className="w-7 h-7" />
+          </span>
           <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Aucun agenda connecté</p>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
             Connectez votre compte Google pour voir vos événements ici et créer automatiquement les liens Meet de vos sessions.
@@ -263,7 +266,7 @@ export default async function AgendaPage({
       <div className="flex items-end justify-between gap-4 flex-wrap">
         {header}
         <div className="flex items-center gap-3">
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+          <p className={`text-[12px] font-bold tabular-nums px-2.5 py-1 rounded-full ${ACCENTS.blue.soft}`}>
             {eventCount} événement{eventCount > 1 ? 's' : ''} cette semaine
           </p>
           <div className="inline-flex items-center p-0.5 rounded-lg bg-zinc-200/60 dark:bg-zinc-800/70">
@@ -307,8 +310,8 @@ export default async function AgendaPage({
                       {FULL_DAY_LABELS[i]} {d.dayNum}
                     </span>
                     {total > 0 && (
-                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-                        · {total} évt
+                      <span className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full ${d.isToday ? ACCENTS.orange.soft : ACCENTS.blue.soft}`}>
+                        {total} évt
                       </span>
                     )}
                   </div>
@@ -343,7 +346,7 @@ export default async function AgendaPage({
         <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
           <div className="border-r border-zinc-200/70 dark:border-zinc-800" />
           {days.map((d) => (
-            <div key={d.key} className="px-2 py-2 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800">
+            <div key={d.key} className={`px-2 py-2 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800 ${d.isToday ? 'bg-orange-50 dark:bg-orange-950/30' : ''}`}>
               <p className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
               <p className={`text-[17px] font-extrabold mt-0.5 tabular-nums ${d.isToday ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'}`}>{d.dayNum}</p>
             </div>
@@ -383,7 +386,11 @@ export default async function AgendaPage({
                   <p className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">{pad(h)}:00</p>
                 </div>
                 {days.map((d) => (
-                  <div key={`${h}-${d.key}`} className="border-b border-r last:border-r-0 border-zinc-100 dark:border-zinc-800/60" style={{ height: ROW_H }} />
+                  <div
+                    key={`${h}-${d.key}`}
+                    className={`border-b border-r last:border-r-0 border-zinc-100 dark:border-zinc-800/60 ${d.isToday ? 'bg-orange-50/40 dark:bg-orange-950/10' : ''}`}
+                    style={{ height: ROW_H }}
+                  />
                 ))}
               </div>
             ))}

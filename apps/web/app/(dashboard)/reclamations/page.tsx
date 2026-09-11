@@ -1,6 +1,6 @@
 // ARCHETYPE: command
 import Link from 'next/link';
-import { Plus, Inbox, Eye } from 'lucide-react';
+import { Plus, Inbox, Eye, MessageSquareWarning, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createClient } from '@supabase/supabase-js';
@@ -9,6 +9,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { KpiCard } from '@/shared/ui/kpi-card';
 import { notFound } from 'next/navigation';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
@@ -84,6 +85,25 @@ export default async function ReclamationsPage() {
         </Link>
       </header>
 
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <KpiCard label="Réclamations" value={complaints.length} icon={MessageSquareWarning} accent="purple" hint="indicateur Qualiopi I31" />
+        <KpiCard label="Ouvertes" value={open.length} icon={Inbox} accent="amber" hint="ouvertes ou en cours" />
+        <KpiCard
+          label="Gravité élevée"
+          value={open.filter((c) => c.severity === 'high' || c.severity === 'critical').length}
+          icon={AlertTriangle}
+          accent="amber"
+          hint="élevées ou critiques, non résolues"
+        />
+        <KpiCard
+          label="Résolues"
+          value={complaints.filter((c) => c.status === 'resolved' || c.status === 'closed').length}
+          icon={CheckCircle2}
+          accent="emerald"
+          hint="résolues ou clôturées"
+        />
+      </section>
+
       {complaints.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm">
           <EmptyState
@@ -114,7 +134,16 @@ export default async function ReclamationsPage() {
                     {c.subject}
                   </Link>
                   <span className="text-zinc-700 dark:text-zinc-300 truncate">
-                    {c.reporter_name ?? <span className="text-zinc-400">anonyme</span>}
+                    {c.reporter_name ? (
+                      <span className="inline-flex items-center gap-2 min-w-0">
+                        <span className="w-6 h-6 rounded-full grid place-items-center flex-shrink-0 text-[11px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                          {c.reporter_name.trim().charAt(0).toUpperCase()}
+                        </span>
+                        <span className="truncate">{c.reporter_name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400">anonyme</span>
+                    )}
                   </span>
                   <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
                     {format(parseISO(c.created_at), 'dd MMM yyyy', { locale: fr })}

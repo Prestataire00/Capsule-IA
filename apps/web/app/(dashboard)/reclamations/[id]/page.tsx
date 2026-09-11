@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, User as UserIcon, Mail } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Mail, MessageSquareText, History } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { ReplyForm } from './reply-form';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 
@@ -106,12 +107,25 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
       </header>
 
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm mb-6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2">Demande de l&apos;apprenant</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-3 flex items-center gap-2">
+          <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.rose.soft}`}>
+            <MessageSquareText className="w-3.5 h-3.5" />
+          </span>
+          Demande de l&apos;apprenant
+        </p>
         <p className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">{complaint.description}</p>
       </section>
 
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm mb-6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-4 tabular-nums">Suivi · {events.length} événement{events.length > 1 ? 's' : ''}</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-4 tabular-nums flex items-center gap-2">
+          <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
+            <History className="w-3.5 h-3.5" />
+          </span>
+          Suivi
+          <span className={`normal-case tracking-normal text-[12px] font-bold px-2 py-0.5 rounded-full ${ACCENTS.blue.soft}`}>
+            {events.length} événement{events.length > 1 ? 's' : ''}
+          </span>
+        </p>
         {events.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 italic">Aucun événement enregistré. Répondez ci-dessous pour démarrer le suivi.</p>
         ) : (

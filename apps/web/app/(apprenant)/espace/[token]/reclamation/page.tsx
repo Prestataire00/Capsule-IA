@@ -7,6 +7,7 @@ import {
   Hourglass,
   CheckCircle2,
   XCircle,
+  MessageSquareWarning,
 } from 'lucide-react';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { resolveApprenantContext } from '../_lib';
@@ -36,11 +37,14 @@ export default async function EspaceReclamationPage({ params }: { params: { toke
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-      <header className="mb-1">
-        <div>
+      <header className="mb-1 rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-orange-950/40 dark:via-zinc-900 dark:to-rose-950/30 px-6 py-5 flex items-center gap-4">
+        <span className="w-12 h-12 rounded-2xl grid place-items-center text-white shadow-md shrink-0 bg-rose-500 shadow-rose-500/30">
+          <MessageSquareWarning className="w-6 h-6" />
+        </span>
+        <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Réclamation</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3">
             Signalez tout dysfonctionnement — traitement confidentiel, réponse sous 15 j ouvrés.
           </p>
         </div>
@@ -88,7 +92,10 @@ export default async function EspaceReclamationPage({ params }: { params: { toke
 
       {/* Formulaire */}
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2.5">
+          <span className="w-8 h-8 rounded-lg grid place-items-center bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+            <MessageSquareWarning className="w-4 h-4" />
+          </span>
           Nouvelle réclamation
         </p>
 

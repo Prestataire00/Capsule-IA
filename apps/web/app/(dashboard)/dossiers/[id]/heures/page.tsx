@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { InfoCallout } from '@/shared/ui/info-callout';
+import { KpiCard, ACCENTS, AccentBar } from '@/shared/ui/kpi-card';
+import { Clock, CalendarCheck, UserCheck, TrendingUp } from 'lucide-react';
 import { markDossierAbandoned, recomputeHoursNow } from './actions';
 
 export default async function HeuresPage({ params }: { params: { id: string } }) {
@@ -25,12 +27,7 @@ export default async function HeuresPage({ params }: { params: { id: string } })
   const planned = Number(m.hours_planned ?? d.total_hours ?? 0);
   const abandoned = d.abandoned_at as string | null;
 
-  const Stat = ({ label, value }: { label: string; value: number }) => (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}h</p>
-    </div>
-  );
+  const rate = Number(m.attendance_rate ?? 0);
 
   return (
     <div className="space-y-6">
@@ -49,16 +46,28 @@ export default async function HeuresPage({ params }: { params: { id: string } })
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Prévu (financé)" value={planned} />
-        <Stat label="Dispensé (OF)" value={Number(m.hours_delivered ?? 0)} />
-        <Stat label="Suivi (apprenant)" value={Number(m.hours_attended ?? 0)} />
-        <Stat label="Projeté final" value={Number(m.projected_final_hours ?? 0)} />
+        <KpiCard icon={Clock} label="Prévu (financé)" accent="sky" value={`${planned}h`} />
+        <KpiCard icon={CalendarCheck} label="Dispensé (OF)" accent="blue" value={`${Number(m.hours_delivered ?? 0)}h`} />
+        <KpiCard icon={UserCheck} label="Suivi (apprenant)" accent="rose" value={`${Number(m.hours_attended ?? 0)}h`} />
+        <KpiCard icon={TrendingUp} label="Projeté final" accent={m.at_risk ? 'amber' : 'emerald'} value={`${Number(m.projected_final_hours ?? 0)}h`} />
       </div>
 
-      <div className="flex flex-wrap gap-6 text-[13px] text-zinc-600 dark:text-zinc-400 tabular-nums">
-        <span>Assiduité : {Number(m.attendance_rate ?? 0)}%</span>
-        <span>Absences : {Number(m.absences_count ?? 0)} (dont {Number(m.justified_absences_count ?? 0)} justifiées)</span>
-        <span>Sessions tenues : {Number(m.sessions_held ?? 0)}</span>
+      <div className="space-y-3">
+        <div className="max-w-md">
+          <div className="flex items-center justify-between text-[13px] mb-1.5 tabular-nums">
+            <span className="font-semibold text-zinc-700 dark:text-zinc-300">Assiduité</span>
+            <span className={`font-bold ${rate >= 100 ? ACCENTS.emerald.text : ACCENTS.amber.text}`}>{rate}%</span>
+          </div>
+          <AccentBar value={rate} max={100} accent={rate >= 100 ? 'emerald' : 'amber'} />
+        </div>
+        <div className="flex flex-wrap gap-2 text-[13px] tabular-nums">
+          <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${ACCENTS.amber.soft}`}>
+            Absences : {Number(m.absences_count ?? 0)} (dont {Number(m.justified_absences_count ?? 0)} justifiées)
+          </span>
+          <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${ACCENTS.blue.soft}`}>
+            Sessions tenues : {Number(m.sessions_held ?? 0)}
+          </span>
+        </div>
       </div>
 
       <section className="border-t border-zinc-200/70 dark:border-zinc-800 pt-5">

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
-import { Pencil, Trash2, Copy } from 'lucide-react';
+import { Pencil, Trash2, Copy, ClipboardList } from 'lucide-react';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { TEMPLATE_KINDS } from '@/features/questionnaire/template.schema';
 import { deleteQuestionnaireTemplate } from './actions';
 
@@ -38,20 +39,27 @@ export function TemplatesSection({ templates }: { templates: TemplateItem[] }) {
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
           {templates.map((t) => (
             <li key={t.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-              <Link href={`/questionnaires/${t.id}`} className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
-                {t.title}
-              </Link>
-              <span className="truncate text-zinc-600 dark:text-zinc-400">{KIND_LABEL[t.kind] ?? t.kind}</span>
-              <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
-                {t.questionCount} question{t.questionCount > 1 ? 's' : ''}
+              <div className="min-w-0 flex items-center gap-3">
+                <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
+                  <ClipboardList className="w-4 h-4" />
+                </span>
+                <Link href={`/questionnaires/${t.id}`} className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                  {t.title}
+                </Link>
+              </div>
+              <span className={`truncate font-semibold ${ACCENTS.blue.text}`}>{KIND_LABEL[t.kind] ?? t.kind}</span>
+              <span>
+                <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.blue.soft}`}>
+                  {t.questionCount} question{t.questionCount > 1 ? 's' : ''}
+                </span>
               </span>
               <div>
                 {t.isSystem ? (
-                  <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.purple.soft}`}>
                     système
                   </span>
                 ) : (
-                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Organisme</span>
+                  <span className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.orange.soft}`}>Organisme</span>
                 )}
               </div>
               <div className="flex items-center justify-end gap-0.5">

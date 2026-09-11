@@ -5,17 +5,18 @@ import { useAction } from 'next-safe-action/hooks';
 import { Loader2, Sparkles, Send, User, UserCog, Building2, AtSign, Mail, CheckCircle2 } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { Button } from '@/shared/ui/button';
+import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { generateEmailDraftAction, sendComposedEmailAction } from './actions';
 
 export type RecipientOption = { id: string; name: string; email: string; sub: string | null };
 type RecipientType = 'apprenant' | 'formateur' | 'entreprise' | 'libre';
 type CrmType = Exclude<RecipientType, 'libre'>;
 
-const TYPES: { key: RecipientType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: 'apprenant', label: 'Apprenant', icon: User },
-  { key: 'formateur', label: 'Formateur', icon: UserCog },
-  { key: 'entreprise', label: 'Entreprise', icon: Building2 },
-  { key: 'libre', label: 'Adresse libre', icon: AtSign },
+const TYPES: { key: RecipientType; label: string; icon: React.ComponentType<{ className?: string }>; accent: Accent }[] = [
+  { key: 'apprenant', label: 'Apprenant', icon: User, accent: 'rose' },
+  { key: 'formateur', label: 'Formateur', icon: UserCog, accent: 'blue' },
+  { key: 'entreprise', label: 'Entreprise', icon: Building2, accent: 'amber' },
+  { key: 'libre', label: 'Adresse libre', icon: AtSign, accent: 'sky' },
 ];
 
 // Objets fréquents proposés par type — l'utilisateur sélectionne ou saisit le sien.
@@ -165,7 +166,9 @@ export function ComposeForm({
                     : 'bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <span className={`w-5 h-5 rounded-md grid place-items-center ${ACCENTS[t.accent].soft}`}>
+                  <Icon className="w-3.5 h-3.5" />
+                </span>
                 {t.label}
               </button>
             );
@@ -217,7 +220,9 @@ export function ComposeForm({
       {/* Récapitulatif du destinataire */}
       {(selected || (isFree && isEmail(freeEmail))) && (
         <div className="flex items-center gap-2 -mt-3 text-[12px] text-zinc-500 dark:text-zinc-400">
-          <Mail className="w-3.5 h-3.5" />
+          <span className={`w-6 h-6 rounded-md grid place-items-center shrink-0 ${ACCENTS.sky.soft}`}>
+            <Mail className="w-3.5 h-3.5" />
+          </span>
           <span>
             L'email partira à{' '}
             <span className="text-zinc-900 dark:text-zinc-100 font-bold">

@@ -8,6 +8,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ACCENTS, AccentBar } from '@/shared/ui/kpi-card';
 import { unlinkDossierFromSession } from './actions';
 import { SessionForm, GenerateMeetButton } from './_components/session-form';
 
@@ -51,16 +52,24 @@ export default async function SessionsPage({ params }: { params: { id: string } 
   return (
     <div className="space-y-5">
       <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <SectionLabel className="mb-1">Sessions</SectionLabel>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-            {rows.length} session{rows.length > 1 ? 's' : ''} · volume couvert : {coveredHours} h / {totalHours} h
-          </p>
-          {totalHours > 0 && (
-            <div className="mt-2 h-1.5 w-56 rounded-full bg-orange-100 dark:bg-orange-950/50" title={`${Math.round(coverage * 100)} % du volume couvert`}>
-              <div className="h-full rounded-full bg-orange-500" style={{ width: `${coverage * 100}%` }} />
+        <div className="flex items-start gap-3">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
+            <CalendarClock className="w-4 h-4" />
+          </span>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <SectionLabel>Sessions</SectionLabel>
+              <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.blue.soft}`}>{rows.length}</span>
             </div>
-          )}
+            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+              {rows.length} session{rows.length > 1 ? 's' : ''} · volume couvert : <span className="font-bold text-sky-700 dark:text-sky-300">{coveredHours} h</span> / {totalHours} h
+            </p>
+            {totalHours > 0 && (
+              <div className="mt-2 w-56" title={`${Math.round(coverage * 100)} % du volume couvert`}>
+                <AccentBar value={coveredHours} max={totalHours} accent={coverage >= 1 ? 'emerald' : 'amber'} />
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -107,10 +116,10 @@ export default async function SessionsPage({ params }: { params: { id: string } 
                       </p>
                     </div>
 
-                    <div className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{Number(s.duration_hours)} h</div>
+                    <div className="text-[14px] font-bold text-sky-700 dark:text-sky-300 tabular-nums">{Number(s.duration_hours)} h</div>
 
                     <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      <span className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-full text-[12px] font-semibold ${ACCENTS.purple.soft}`}>
                         {isRemote && <Video className="w-3.5 h-3.5" />}
                         {MODALITY_LABEL[s.modality] ?? s.modality}
                       </span>

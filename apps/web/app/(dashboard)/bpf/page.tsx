@@ -4,7 +4,8 @@
 // en vue de la télédéclaration. Lecture seule + impression.
 import Link from 'next/link';
 import type { ComponentType } from 'react';
-import { TrendingUp, Users, Clock, UserCog } from 'lucide-react';
+import { TrendingUp, Users, Clock, UserCog, Banknote, GraduationCap } from 'lucide-react';
+import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { BPF_LINES } from '@/features/bpf/bpf';
@@ -60,15 +61,17 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
 
       {/* KPI de synthèse de l'année */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi
+        <KpiCard
+          accent="emerald"
           label="Produits HT"
           value={eur(financial.totalCents)}
           icon={TrendingUp}
           hint={`${pedago.dossiers} dossier${pedago.dossiers > 1 ? 's' : ''} · ${pedago.actions} action${pedago.actions > 1 ? 's' : ''}`}
         />
-        <Kpi label="Stagiaires" value={pedago.stagiaires} icon={Users} hint="distincts sur l'année" />
-        <Kpi label="Heures dispensées" value={`${pedago.heures} h`} icon={Clock} hint="total heures des dossiers" />
-        <Kpi
+        <KpiCard accent="rose" label="Stagiaires" value={pedago.stagiaires} icon={Users} hint="distincts sur l'année" />
+        <KpiCard accent="sky" label="Heures dispensées" value={`${pedago.heures} h`} icon={Clock} hint="total heures des dossiers" />
+        <KpiCard
+          accent="teal"
           label="Formateurs intervenus"
           value={formateurs.total}
           icon={UserCog}
@@ -79,9 +82,9 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
       {/* Cadre B — Bilan financier (produits) */}
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+          <CadreTitre icon={Banknote} accent="emerald">
             Cadre B — Bilan financier (origine des produits, HT)
-          </h2>
+          </CadreTitre>
         </div>
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
           {BPF_LINES.map((l) => {
@@ -90,16 +93,16 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
               <li key={l.key} className="grid grid-cols-[48px_minmax(0,1fr)_minmax(0,160px)_120px] gap-4 items-center px-5 py-3 text-[13px]">
                 <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{l.code}</span>
                 <span className="text-zinc-700 dark:text-zinc-300">{l.label}</span>
-                <div className="h-2 rounded-full bg-orange-100 dark:bg-orange-950/50 print:hidden" aria-hidden>
-                  <div className="h-full rounded-full bg-orange-500" style={{ width: `${lineMax > 0 ? (v / lineMax) * 100 : 0}%` }} />
+                <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-950/50 print:hidden" aria-hidden>
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${lineMax > 0 ? (v / lineMax) * 100 : 0}%` }} />
                 </div>
                 <span className={`text-right tabular-nums ${v > 0 ? 'font-bold text-zinc-900 dark:text-zinc-100' : 'text-zinc-400'}`}>{eur(v)}</span>
               </li>
             );
           })}
-          <li className="flex items-center gap-3 px-5 py-3.5 bg-zinc-50 dark:bg-zinc-950/40">
+          <li className="flex items-center gap-3 px-5 py-3.5 bg-emerald-50/60 dark:bg-emerald-950/20">
             <span className="flex-1 text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Total des produits</span>
-            <span className="text-[17px] font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{eur(financial.totalCents)}</span>
+            <span className={`text-[17px] font-extrabold tabular-nums ${ACCENTS.emerald.value}`}>{eur(financial.totalCents)}</span>
           </li>
         </ul>
       </section>
@@ -107,7 +110,9 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
       {/* Cadre C — Bilan pédagogique */}
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Cadre C — Bilan pédagogique</h2>
+          <CadreTitre icon={GraduationCap} accent="blue">
+            Cadre C — Bilan pédagogique
+          </CadreTitre>
         </div>
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
           <Row label="Nombre de stagiaires" value={String(pedago.stagiaires)} />
@@ -120,9 +125,9 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
       {/* Cadre D — Formateurs */}
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+          <CadreTitre icon={UserCog} accent="rose">
             Cadre D — Personnes dispensant les formations
-          </h2>
+          </CadreTitre>
         </div>
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
           <Row label="Formateurs internes (salariés)" value={String(formateurs.internes)} />
@@ -149,43 +154,21 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Kpi({
-  label,
-  value,
-  hint,
-  hintTone = 'neutral',
+function CadreTitre({
   icon: Icon,
-  href,
+  accent,
+  children,
 }: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
-  icon?: ComponentType<{ className?: string }>;
-  href?: string;
+  icon: ComponentType<{ className?: string }>;
+  accent: Accent;
+  children: React.ReactNode;
 }) {
-  const hintCls = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    warning: 'text-amber-700 dark:text-amber-400',
-    danger: 'text-red-700 dark:text-red-400',
-  }[hintTone];
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
-      </div>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
-    </>
-  );
-  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
+  return (
+    <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+      <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS[accent].soft}`}>
+        <Icon className="w-4 h-4" />
+      </span>
+      {children}
+    </h2>
   );
 }

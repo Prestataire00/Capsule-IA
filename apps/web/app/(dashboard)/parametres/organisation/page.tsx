@@ -96,7 +96,9 @@ export default async function ParametresOrganisationPage() {
 
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <Award className="w-3.5 h-3.5 text-zinc-400" />
+          <span className="w-7 h-7 rounded-lg grid place-items-center bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <Award className="w-3.5 h-3.5" />
+          </span>
           <SectionLabel>Certification Qualiopi</SectionLabel>
         </div>
         <DataList>
@@ -104,7 +106,7 @@ export default async function ParametresOrganisationPage() {
             left="Statut"
             right={
               org.qualiopi_certified_at ? (
-                <span className="text-emerald-600 dark:text-emerald-400">Certifié</span>
+                <span className="text-[12px] font-semibold h-6 inline-flex items-center px-2.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">Certifié</span>
               ) : (
                 <span className="text-zinc-500 dark:text-zinc-400">Non renseigné</span>
               )

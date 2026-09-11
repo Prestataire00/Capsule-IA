@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { ACCENTS, AccentBar, KpiCard, type Accent } from '@/shared/ui/kpi-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,20 +65,14 @@ export default async function ReportingPage() {
         <div className="space-y-4">
           {/* Activité */}
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Activité">
-            <div className="rounded-xl p-5 bg-zinc-900 dark:bg-zinc-800/60 text-white">
-              <p className="text-[12px] font-semibold text-white/60 inline-flex items-center gap-1.5">
-                <FolderOpen className="w-3.5 h-3.5" /> Dossiers en formation
-              </p>
-              <p className="text-[26px] leading-none font-extrabold tabular-nums mt-3">{r.dossiers_active}</p>
-              <p className="text-[12px] text-white/60 mt-2">actifs / planifiés</p>
-            </div>
-            <Kpi icon={UsersIcon} label="Pipeline pré-inscription" value={r.pipeline_prospects} hint="demandes en cours" />
-            <Kpi
+            <KpiCard icon={FolderOpen} accent="orange" label="Dossiers en formation" value={r.dossiers_active} hint="actifs / planifiés" />
+            <KpiCard icon={UsersIcon} accent="rose" label="Pipeline pré-inscription" value={r.pipeline_prospects} hint="demandes en cours" />
+            <KpiCard
               icon={MessageSquareWarning}
+              accent={r.complaints_open > 0 ? 'amber' : 'emerald'}
               label="Réclamations ouvertes"
               value={r.complaints_open}
               hint="à traiter"
-              alert={r.complaints_open > 0}
             />
           </section>
 
@@ -85,8 +80,8 @@ export default async function ReportingPage() {
             {/* Ventilation pipeline */}
             <div className={`${CARD} p-5`}>
               <div className="flex items-baseline justify-between gap-3 mb-4">
-                <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Pipeline par financeur</p>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                <CardTitle icon={UsersIcon} accent="orange">Pipeline par financeur</CardTitle>
+                <p className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.orange.soft}`}>
                   {r.pipeline_prospects} demande{r.pipeline_prospects > 1 ? 's' : ''}
                 </p>
               </div>
@@ -114,10 +109,10 @@ export default async function ReportingPage() {
 
             {/* Conformité et questionnaires */}
             <div className={`${CARD} p-5`}>
-              <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 mb-4">Qualité</p>
+              <CardTitle icon={ShieldCheck} accent="purple" className="mb-4">Qualité</CardTitle>
               <ul className="grid gap-5">
-                <RateRow icon={ShieldCheck} label="Conformité Qualiopi" value={r.qualiopi_conformity_pct} hint="dossiers prêts" />
-                <RateRow icon={ClipboardList} label="Retour questionnaires" value={r.questionnaire_return_rate_pct} hint="satisfaction remplis" />
+                <RateRow icon={ShieldCheck} accent="purple" label="Conformité Qualiopi" value={r.qualiopi_conformity_pct} hint="dossiers prêts" />
+                <RateRow icon={ClipboardList} accent="teal" label="Retour questionnaires" value={r.questionnaire_return_rate_pct} hint="satisfaction remplis" />
               </ul>
             </div>
           </section>
@@ -125,20 +120,15 @@ export default async function ReportingPage() {
           <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
             {/* Heures */}
             <div className={`${CARD} p-5`}>
-              <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-zinc-400" /> Heures réalisées
-              </p>
-              <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-4">
+              <CardTitle icon={Clock} accent="sky">Heures réalisées</CardTitle>
+              <p className={`text-[28px] leading-none font-extrabold tabular-nums mt-4 ${ACCENTS.sky.value}`}>
                 {hrs(r.hours_delivered)}
               </p>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-2 tabular-nums">
                 sur {hrs(r.hours_planned)} prévues{hoursRatio != null ? ` · ${hoursRatio}%` : ''}
               </p>
-              <div
-                className="mt-4 h-2 rounded-full bg-orange-100 dark:bg-orange-950/50"
-                title={`${hrs(r.hours_delivered)} réalisées sur ${hrs(r.hours_planned)} prévues`}
-              >
-                <div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, hoursRatio ?? 0)}%` }} />
+              <div title={`${hrs(r.hours_delivered)} réalisées sur ${hrs(r.hours_planned)} prévues`}>
+                <AccentBar value={Math.min(100, hoursRatio ?? 0)} max={100} accent="sky" className="mt-4" />
               </div>
               <div className="mt-1.5 flex justify-between text-[11px] text-zinc-400 tabular-nums">
                 <span>0 h</span>
@@ -148,14 +138,12 @@ export default async function ReportingPage() {
 
             {/* Finances */}
             <div className={`${CARD} p-5 min-w-0`}>
-              <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5 mb-4">
-                <Banknote className="w-3.5 h-3.5 text-zinc-400" /> Finances
-              </p>
+              <CardTitle icon={Banknote} accent="emerald" className="mb-4">Finances</CardTitle>
               <FinanceChart
                 rows={[
-                  { label: 'CA facturé (mois)', hint: 'ce mois-ci', cents: r.ca_invoiced_month_cents },
-                  { label: 'Encaissé (mois)', hint: 'ce mois-ci', cents: r.ca_collected_month_cents },
-                  { label: 'À encaisser', hint: 'restant dû', cents: r.ca_outstanding_cents },
+                  { label: 'CA facturé (mois)', hint: 'ce mois-ci', cents: r.ca_invoiced_month_cents, fill: 'fill-emerald-500' },
+                  { label: 'Encaissé (mois)', hint: 'ce mois-ci', cents: r.ca_collected_month_cents, fill: 'fill-blue-500' },
+                  { label: 'À encaisser', hint: 'restant dû', cents: r.ca_outstanding_cents, fill: 'fill-amber-500' },
                 ]}
               />
             </div>
@@ -166,36 +154,29 @@ export default async function ReportingPage() {
   );
 }
 
-function Kpi({
-  icon: Icon, label, value, hint, alert,
+function CardTitle({
+  icon: Icon, accent, className, children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string | number;
-  hint?: string;
-  alert?: boolean;
+  accent: Accent;
+  className?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className={`${CARD} p-5`}>
-      <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
-        <Icon className="w-3.5 h-3.5 text-zinc-400" /> {label}
-      </p>
-      <p
-        className={`text-[26px] leading-none font-extrabold tabular-nums mt-3 ${
-          alert ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-zinc-100'
-        }`}
-      >
-        {value}
-      </p>
-      {hint && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-2">{hint}</p>}
-    </div>
+    <p className={`text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5 ${className ?? ''}`}>
+      <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS[accent].soft}`}>
+        <Icon className="w-4 h-4" />
+      </span>
+      {children}
+    </p>
   );
 }
 
 function RateRow({
-  icon: Icon, label, value, hint,
+  icon: Icon, accent, label, value, hint,
 }: {
   icon: React.ComponentType<{ className?: string }>;
+  accent: Accent;
   label: string;
   value: number | null;
   hint: string;
@@ -204,20 +185,21 @@ function RateRow({
   return (
     <li title={`${label} · ${pct(value)}`}>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5">
-          <Icon className="w-3.5 h-3.5 text-zinc-400" /> {label}
+        <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+          <span className={`w-7 h-7 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS[accent].soft}`}>
+            <Icon className="w-3.5 h-3.5" />
+          </span>
+          {label}
         </span>
-        <span className="text-[20px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{pct(value)}</span>
+        <span className={`text-[20px] leading-none font-extrabold tabular-nums ${ACCENTS[accent].value}`}>{pct(value)}</span>
       </div>
-      <div className="mt-2 h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
-        {v != null && <div className="h-full rounded-full bg-orange-500" style={{ width: `${v}%` }} />}
-      </div>
+      <AccentBar value={v ?? 0} max={100} accent={accent} className="mt-2" />
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1.5">{hint}</p>
     </li>
   );
 }
 
-function FinanceChart({ rows }: { rows: { label: string; hint: string; cents: number | null }[] }) {
+function FinanceChart({ rows }: { rows: { label: string; hint: string; cents: number | null; fill: string }[] }) {
   const w = 520;
   const rowH = 44;
   const labelW = 136;
@@ -253,7 +235,7 @@ function FinanceChart({ rows }: { rows: { label: string; hint: string; cents: nu
               {r.hint}
             </text>
             {bw > 0 ? (
-              <rect x={labelW} y={y} width={bw} height={bh} rx={4} className="fill-orange-500">
+              <rect x={labelW} y={y} width={bw} height={bh} rx={4} className={r.fill}>
                 <title>{`${r.label} · ${euros(r.cents)}`}</title>
               </rect>
             ) : (

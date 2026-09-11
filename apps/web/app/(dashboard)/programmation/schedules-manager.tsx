@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useAction } from 'next-safe-action/hooks';
-import { Loader2, Plus, Pencil, Trash2, Power, X } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Power, X, CalendarClock, User, UserCog } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { Button } from '@/shared/ui/button';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { createSchedule, updateSchedule, toggleSchedule, deleteSchedule } from './actions';
@@ -328,15 +329,25 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
               {rules.map((r) => (
                 <li key={r.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</p>
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                      {timingLabel(r.offset_days, r.anchor)}
-                      {attachmentLabel(r.attachment_kind) ? ` · pièce jointe : ${attachmentLabel(r.attachment_kind)}` : ''} ·{' '}
-                      <span className="italic">{r.subject}</span>
-                    </p>
+                  <div className="min-w-0 flex items-center gap-3">
+                    <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${r.enabled ? ACCENTS.sky.soft : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'}`}>
+                      <CalendarClock className="w-4 h-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</p>
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                        <span className={`font-semibold ${ACCENTS.blue.text}`}>{timingLabel(r.offset_days, r.anchor)}</span>
+                        {attachmentLabel(r.attachment_kind) ? ` · pièce jointe : ${attachmentLabel(r.attachment_kind)}` : ''} ·{' '}
+                        <span className="italic">{r.subject}</span>
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-zinc-700 dark:text-zinc-300">{RECIPIENT_LABELS[r.recipient_kind]}</span>
+                  <span>
+                    <span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-2 py-0.5 rounded-full ${r.recipient_kind === 'learner' ? ACCENTS.rose.soft : ACCENTS.blue.soft}`}>
+                      {r.recipient_kind === 'learner' ? <User className="w-3.5 h-3.5" /> : <UserCog className="w-3.5 h-3.5" />}
+                      {RECIPIENT_LABELS[r.recipient_kind]}
+                    </span>
+                  </span>
                   <div>
                     <StatusPill tone={r.enabled ? 'success' : 'neutral'}>{r.enabled ? 'active' : 'inactive'}</StatusPill>
                   </div>

@@ -8,6 +8,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
+import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { DossierStatusControl } from './dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -66,22 +67,18 @@ export default async function DossierLayout({
         </header>
 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8" aria-label="Chiffres clés du dossier">
-          <MiniStat icon={Calendar} label="Période">
-            <span className="text-[17px] font-bold">
-              {fmtDate(d.start_date)} <span className="text-zinc-400 font-semibold">→</span> {fmtDate(d.end_date)}
+          <KpiCard icon={Calendar} label="Période" accent="blue">
+            <span className="text-[17px] font-extrabold tabular-nums text-blue-700 dark:text-blue-300">
+              {fmtDate(d.start_date)} <span className="text-blue-400 dark:text-blue-500 font-semibold">→</span> {fmtDate(d.end_date)}
             </span>
-          </MiniStat>
-          <MiniStat icon={Clock} label="Heures totales">
-            {Number(d.total_hours ?? 0)} h
-          </MiniStat>
-          <MiniStat icon={UsersIcon} label="Modalité">
-            <span className="inline-flex items-center h-6 px-2.5 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+          </KpiCard>
+          <KpiCard icon={Clock} label="Heures totales" accent="sky" value={`${Number(d.total_hours ?? 0)} h`} />
+          <KpiCard icon={UsersIcon} label="Modalité" accent="purple">
+            <span className={`inline-flex items-center h-6 px-2.5 rounded-full text-[12px] font-bold ${ACCENTS.purple.soft}`}>
               {modalityLabel(d.modality)}
             </span>
-          </MiniStat>
-          <MiniStat icon={Banknote} label="Montant">
-            {fmtEuros(d.total_amount_cents)}
-          </MiniStat>
+          </KpiCard>
+          <KpiCard icon={Banknote} label="Montant" accent="emerald" value={fmtEuros(d.total_amount_cents)} />
         </section>
 
         <TabsNav baseHref={`/dossiers/${params.id}`} />
@@ -92,24 +89,3 @@ export default async function DossierLayout({
   );
 }
 
-function MiniStat({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4">
-      <div className="flex items-center gap-2">
-        <Icon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
-        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{label}</p>
-      </div>
-      <div className="mt-2 min-h-[32px] flex items-end text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">
-        {children}
-      </div>
-    </div>
-  );
-}

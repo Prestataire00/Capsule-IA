@@ -3,7 +3,8 @@
 
 import { AgendaNowLine } from '../agenda/agenda-now-line.client';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Filter, CalendarDays, PlayCircle, CalendarClock, UsersRound } from 'lucide-react';
+import { KpiCard } from '@/shared/ui/kpi-card';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { AgendaTabs } from '../agenda/agenda-tabs.client';
@@ -19,16 +20,16 @@ const MONTHS = [
 type SessionStatus = 'planned' | 'in_progress' | 'done' | 'cancelled';
 
 const toneByStatus: Record<SessionStatus, string> = {
-  planned: 'bg-orange-50 dark:bg-orange-950/40 border-orange-200/70 dark:border-orange-900/50 text-orange-900 dark:text-orange-200',
-  in_progress: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/70 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200',
-  done: 'bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200/70 dark:border-zinc-700/60 text-zinc-700 dark:text-zinc-300',
-  cancelled: 'bg-red-50 dark:bg-red-950/40 border-red-200/70 dark:border-red-900/50 text-red-900 dark:text-red-200 line-through',
+  planned: 'bg-orange-50 dark:bg-orange-950/40 border-orange-200/70 dark:border-orange-900/50 border-l-orange-500 text-orange-900 dark:text-orange-200',
+  in_progress: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/70 dark:border-emerald-900/50 border-l-emerald-500 text-emerald-900 dark:text-emerald-200',
+  done: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200/70 dark:border-blue-900/50 border-l-blue-400 text-blue-900 dark:text-blue-200',
+  cancelled: 'bg-red-50 dark:bg-red-950/40 border-red-200/70 dark:border-red-900/50 border-l-red-500 text-red-900 dark:text-red-200 line-through',
 };
 
 const legend = [
   { label: 'En cours', dot: 'bg-emerald-500' },
   { label: 'Planifiée', dot: 'bg-orange-500' },
-  { label: 'Terminée', dot: 'bg-zinc-400' },
+  { label: 'Terminée', dot: 'bg-blue-400' },
   { label: 'Annulée', dot: 'bg-red-500' },
 ];
 
@@ -78,7 +79,7 @@ export default async function PlanningPage({
   const days = DAY_LABELS.map((label, i) => {
     const date = new Date(weekStart);
     date.setDate(weekStart.getDate() + i);
-    return { label, dayNum: date.getDate() };
+    return { label, dayNum: date.getDate(), isToday: date.toDateString() === new Date().toDateString() };
   });
 
   const gridHeight = HOURS.length * ROW_H;
@@ -141,6 +142,13 @@ export default async function PlanningPage({
         </div>
       </header>
 
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" aria-label="Synthèse de la semaine">
+        <KpiCard label="Sessions de la semaine" value={sessions.length} icon={CalendarDays} accent="blue" />
+        <KpiCard label="En cours" value={sessions.filter((s) => s.status === 'in_progress').length} icon={PlayCircle} accent="emerald" />
+        <KpiCard label="Planifiées" value={sessions.filter((s) => s.status === 'planned').length} icon={CalendarClock} accent="orange" />
+        <KpiCard label="Sessions de groupe" value={sessions.filter((s) => !s.dossier_id).length} icon={UsersRound} accent="rose" />
+      </section>
+
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800">
           <div className="flex items-center gap-3">
@@ -174,9 +182,20 @@ export default async function PlanningPage({
         <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
           <div className="border-r border-zinc-200/70 dark:border-zinc-800" />
           {days.map((d) => (
-            <div key={d.label} className="px-3 py-3 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800">
+            <div
+              key={d.label}
+              className={`px-3 py-3 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800 ${
+                d.isToday && weekOffset === 0 ? 'bg-orange-50 dark:bg-orange-950/30' : ''
+              }`}
+            >
               <p className="text-[11px] font-bold tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400">{d.label}</p>
-              <p className="text-[17px] font-extrabold text-zinc-900 dark:text-zinc-100 mt-0.5 tabular-nums">{d.dayNum}</p>
+              <p
+                className={`text-[17px] font-extrabold mt-0.5 tabular-nums ${
+                  d.isToday && weekOffset === 0 ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'
+                }`}
+              >
+                {d.dayNum}
+              </p>
             </div>
           ))}
         </div>
@@ -216,7 +235,7 @@ export default async function PlanningPage({
                       <Link
                         key={e.id}
                         href={href}
-                        className={`absolute left-1.5 right-1.5 rounded-md border px-2.5 py-1.5 pointer-events-auto cursor-pointer hover:shadow-md transition block overflow-hidden ${toneByStatus[e.status]}`}
+                        className={`absolute left-1.5 right-1.5 rounded-md border border-l-4 px-2.5 py-1.5 pointer-events-auto cursor-pointer hover:shadow-md transition block overflow-hidden ${toneByStatus[e.status]}`}
                         style={{ top, height }}
                       >
                         <p className="text-[12px] font-bold leading-tight truncate">{e.title}</p>

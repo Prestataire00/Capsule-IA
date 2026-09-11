@@ -33,7 +33,7 @@ export default async function SessionAccessTab({ params }: { params: { id: strin
         {learners.map((l) => (
           <li key={l.id} className="flex items-center justify-between gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
             <div className="flex items-center gap-3 min-w-0">
-              <KeyRound className="w-4 h-4 text-zinc-400 shrink-0" />
+              <Avatar name={`${l.first_name} ${l.last_name}`} />
               <div className="min-w-0">
                 <p className="font-bold text-zinc-900 dark:text-zinc-100">{l.first_name} {l.last_name}</p>
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{l.email}</p>
@@ -49,5 +49,24 @@ export default async function SessionAccessTab({ params }: { params: { id: strin
         ))}
       </ul>
     </div>
+  );
+}
+
+const AVATAR_PALETTE = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
+
+/** Initiales sur une couleur tirée du nom. */
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(' ').map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase() || '?';
+  const hash = Array.from(name).reduce((a, ch) => a + ch.charCodeAt(0), 0);
+  return (
+    <span className={`w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${AVATAR_PALETTE[hash % AVATAR_PALETTE.length]}`}>
+      {initials}
+    </span>
   );
 }

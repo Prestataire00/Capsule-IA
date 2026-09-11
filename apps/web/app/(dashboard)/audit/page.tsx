@@ -10,6 +10,8 @@ import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { InfoCallout } from '@/shared/ui/info-callout';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { KpiCard } from '@/shared/ui/kpi-card';
+import { ScrollText, FilePlus2, FilePen, FileX2 } from 'lucide-react';
 
 const actionLabel = { insert: 'création', update: 'modification', delete: 'suppression' };
 const actionTone = { insert: 'success', update: 'info', delete: 'danger' } as const;
@@ -59,6 +61,13 @@ export default async function AuditPage() {
         </p>
       </header>
 
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <KpiCard label="Traces récentes" value={lignes.length} icon={ScrollText} accent="purple" hint="100 dernières au plus" />
+        <KpiCard label="Créations" value={lignes.filter((l) => l.action === 'insert').length} icon={FilePlus2} accent="emerald" />
+        <KpiCard label="Modifications" value={lignes.filter((l) => l.action === 'update').length} icon={FilePen} accent="blue" />
+        <KpiCard label="Suppressions" value={lignes.filter((l) => l.action === 'delete').length} icon={FileX2} accent="amber" />
+      </section>
+
       <InfoCallout tone="info" className="mb-6">
         Le log d'audit est <strong>append-only</strong>. Conservation 10 ans pour les tables Qualiopi-critiques.
       </InfoCallout>
@@ -86,7 +95,7 @@ export default async function AuditPage() {
                   <div>
                     <StatusPill tone={actionTone[a.action]}>{actionLabel[a.action]}</StatusPill>
                   </div>
-                  <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                  <span className="font-mono text-[12px] font-semibold text-purple-700 dark:text-purple-300 truncate">
                     {a.schema_name}.{a.table_name}
                   </span>
                   <span className="text-zinc-700 dark:text-zinc-300 truncate">

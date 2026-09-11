@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Route, BookOpen, PenLine, Check, Download, ClipboardList, Video } from 'lucide-react';
 import { AccordionSection } from '@/shared/ui/accordion-section';
+import { AccentBar } from '@/shared/ui/kpi-card';
 import { resolveApprenantContext } from '../_lib';
 import { resolveApprenantResources, loadConsultedResourceIds } from '../resources';
 import { resolveApprenantExercises } from '../exercises';
@@ -21,12 +22,7 @@ const EX_STATUS: Record<string, { label: string; cls: string }> = {
 
 function ProgressBar({ pct }: { pct: number }) {
   return (
-    <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-      <div
-        className="h-full rounded-full bg-orange-500 transition-all"
-        style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
-      />
-    </div>
+    <AccentBar value={pct} max={100} accent="emerald" />
   );
 }
 
@@ -64,17 +60,19 @@ export default async function ParcoursPage({ params }: { params: { token: string
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* En-tête : progression globale */}
-      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-4">
+      <section className="rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-orange-950/40 dark:via-zinc-900 dark:to-rose-950/30 shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <Route className="w-5 h-5 text-zinc-400 flex-shrink-0" />
+          <span className="w-12 h-12 rounded-2xl grid place-items-center text-white shadow-md shrink-0 bg-orange-500 shadow-orange-500/30">
+            <Route className="w-6 h-6" />
+          </span>
           <div>
             <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Mon parcours</h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+            <p className="text-[13px] font-semibold text-[color:var(--sess)] mt-0.5">
               {ctx.formation?.title ?? 'Votre formation'}
             </p>
           </div>
           <span className="ml-auto text-right">
-            <span className="block text-[26px] font-extrabold text-orange-600 dark:text-orange-400 leading-none tabular-nums">
+            <span className="block text-[26px] font-extrabold text-emerald-700 dark:text-emerald-300 leading-none tabular-nums">
               {parcours.overall.pct}%
             </span>
             <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-1 tabular-nums">
@@ -100,7 +98,7 @@ export default async function ParcoursPage({ params }: { params: { token: string
             <AccordionSection
               key={m.id}
               defaultOpen={i === 0}
-              icon={m.completed ? <Check className="w-4 h-4 text-emerald-500" /> : <BookOpen className="w-4 h-4" />}
+              icon={m.completed ? <Check className="w-4 h-4 text-emerald-500" /> : <BookOpen className="w-4 h-4 text-blue-500 dark:text-blue-400" />}
               title={`Module ${m.position} · ${m.title}`}
               description={
                 m.pct === null

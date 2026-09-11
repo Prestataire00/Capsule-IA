@@ -1,15 +1,16 @@
 // ARCHETYPE: workflow
 // Justification: génération IA + validation des documents juridiques de l'OF.
 
+import { Scale, ScrollText, Receipt, BookOpen } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { generateLegalDocDraft, saveLegalDocEdit, validateLegalDoc } from './actions';
 import type { LegalKind } from '@/shared/lib/legifrance/mapping';
 
-const DOCS: { kind: LegalKind; label: string }[] = [
-  { kind: 'reglement_interieur', label: 'Règlement intérieur' },
-  { kind: 'cgv', label: 'Conditions générales de vente' },
-  { kind: 'livret_accueil', label: "Livret d'accueil" },
+const DOCS: { kind: LegalKind; label: string; icon: typeof Scale; tone: string }[] = [
+  { kind: 'reglement_interieur', label: 'Règlement intérieur', icon: ScrollText, tone: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' },
+  { kind: 'cgv', label: 'Conditions générales de vente', icon: Receipt, tone: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300' },
+  { kind: 'livret_accueil', label: "Livret d'accueil", icon: BookOpen, tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300' },
 ];
 
 export default async function DocumentsLegauxPage() {
@@ -27,21 +28,31 @@ export default async function DocumentsLegauxPage() {
 
   return (
     <div className="space-y-8">
-      <header>
+      <header className="flex items-start gap-3">
+        <span className="w-10 h-10 rounded-xl grid place-items-center text-white bg-emerald-500 shadow-md shadow-emerald-500/30 shrink-0">
+          <Scale className="w-5 h-5" />
+        </span>
+        <div>
         <SectionLabel>Documents juridiques (assistés par IA)</SectionLabel>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
           Génération à partir des sources officielles (Légifrance) —{' '}
           <strong>aide à la rédaction, pas un conseil juridique</strong> : relisez et validez avant usage.
         </p>
+        </div>
       </header>
 
-      {DOCS.map(({ kind, label }) => {
+      {DOCS.map(({ kind, label, icon: DocIcon, tone }) => {
         const d = byKind.get(kind);
         const sources = (d?.sources_used as Array<{ ref: string }> | undefined) ?? [];
         return (
           <section key={kind} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200/70 dark:border-zinc-800 shadow-sm p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-[15px] text-zinc-900 dark:text-zinc-100">{label}</h3>
+              <h3 className="font-bold text-[15px] text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2.5">
+                <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${tone}`}>
+                  <DocIcon className="w-4 h-4" />
+                </span>
+                {label}
+              </h3>
               <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                 {d
                   ? d.status === 'validated'

@@ -7,6 +7,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { prepareFunderTaskDraft, sendFunderTask } from './actions';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -37,9 +38,13 @@ export default async function FinanceursPage({ params }: { params: { id: string 
 
   return (
     <div className="space-y-5">
-      <SectionLabel>
-        Financeurs — documents à transmettre (<span className="tabular-nums">{rows.length}</span>)
-      </SectionLabel>
+      <div className="flex items-center gap-2.5">
+        <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
+          <Landmark className="w-4 h-4" />
+        </span>
+        <SectionLabel>Financeurs — documents à transmettre</SectionLabel>
+        <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.emerald.soft}`}>{rows.length}</span>
+      </div>
 
       {rows.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
@@ -65,17 +70,26 @@ export default async function FinanceursPage({ params }: { params: { id: string 
                 const canPrepare = t.status !== 'sent' && t.status !== 'done';
                 return (
                   <li key={t.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                    <div className="min-w-0">
-                      <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{t.funders?.name ?? 'Financeur'}</p>
-                      {t.draft_subject && (
-                        <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Objet : {t.draft_subject}</p>
-                      )}
+                    <div className="min-w-0 flex items-center gap-3">
+                      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.emerald.soft}`}>
+                        <Landmark className="w-4 h-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{t.funders?.name ?? 'Financeur'}</p>
+                        {t.draft_subject && (
+                          <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Objet : {t.draft_subject}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    <div className="text-[13px] font-bold text-blue-700 dark:text-blue-300 tabular-nums">
                       {t.due_date ? new Date(t.due_date).toLocaleDateString('fr-FR') : <span className="font-normal text-zinc-400">—</span>}
                     </div>
                     <div className="text-[13px] text-zinc-700 dark:text-zinc-300 tabular-nums">
-                      {atts.length ? `${atts.length} pièce(s)` : <span className="text-zinc-400">—</span>}
+                      {atts.length ? (
+                        <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${ACCENTS.orange.soft}`}>{`${atts.length} pièce(s)`}</span>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
                     </div>
                     <div>
                       {t.status === 'sent' || t.status === 'done' ? (

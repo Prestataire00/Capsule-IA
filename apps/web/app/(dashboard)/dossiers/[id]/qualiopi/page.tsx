@@ -7,6 +7,7 @@ import { Check, X, ShieldCheck, ShieldAlert, ArrowRight, Minus } from 'lucide-re
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { InfoCallout } from '@/shared/ui/info-callout';
+import { ACCENTS, AccentBar } from '@/shared/ui/kpi-card';
 import { guidanceFor } from '@/features/dossier/qualiopi-guidance';
 import { enVigueur, jourParis, type VersionRow } from '@/features/qualiopi/referentiel';
 import { startTraining, closeDossier, recomputeNow } from './actions';
@@ -124,15 +125,13 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
     <div className="space-y-6">
       <header>
         <SectionLabel className="mb-2">Conformité Qualiopi</SectionLabel>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-5 py-4 flex items-center gap-4">
-          {ready ? (
-            <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-          ) : (
-            <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          )}
+        <div className={`bg-gradient-to-br border rounded-xl shadow-sm px-5 py-4 flex items-center gap-4 ${ACCENTS.purple.card}`}>
+          <span className={`w-10 h-10 rounded-xl grid place-items-center text-white shadow-md flex-shrink-0 ${ready ? ACCENTS.emerald.chip : ACCENTS.amber.chip}`}>
+            {ready ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+          </span>
           <div className="flex-1">
             <p className="text-zinc-900 dark:text-zinc-100">
-              <span className="text-[26px] leading-none font-extrabold tabular-nums">{satisfied} / {totalCount}</span>
+              <span className={`text-[26px] leading-none font-extrabold tabular-nums ${ACCENTS.purple.value}`}>{satisfied} / {totalCount}</span>
               <span className="ml-2 text-[14px] font-semibold text-zinc-600 dark:text-zinc-400">indicateurs satisfaits</span>
             </p>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1.5 tabular-nums">
@@ -143,6 +142,14 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                   : `${entryBlockers.length} bloquant(s) d'entrée, ${closingBlockers.length} bloquant(s) de clôture.`}
               {notApplicable > 0 && ` ${notApplicable} indicateur(s) non applicable(s) à ce dossier.`}
             </p>
+            {Number(totalCount) > 0 && (
+              <AccentBar
+                value={Number(satisfied)}
+                max={Number(totalCount)}
+                accent={Number(satisfied) >= Number(totalCount) ? 'emerald' : 'amber'}
+                className="mt-2.5 max-w-sm"
+              />
+            )}
           </div>
           <form action={async () => { 'use server'; await recomputeNow(params.id); }}>
             <button type="submit" className="h-9 border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition">

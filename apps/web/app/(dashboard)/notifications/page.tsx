@@ -35,7 +35,9 @@ function NotifRow({ n }: { n: Notif }) {
   return (
     <NotifItem id={n.id} href={href}>
       <div className="flex items-start gap-3 px-5 py-3.5">
-        <Icon className="w-4 h-4 mt-0.5 flex-shrink-0 text-zinc-400" />
+        <span className={`w-9 h-9 rounded-lg grid place-items-center flex-shrink-0 ${meta.tone}`}>
+          <Icon className="w-4 h-4" />
+        </span>
         <div className="min-w-0 flex-1">
           <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{n.subject ?? meta.label}</p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
@@ -50,7 +52,19 @@ function NotifRow({ n }: { n: Notif }) {
   );
 }
 
-function FilterChip({ href, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
+function FilterChip({
+  href,
+  active,
+  label,
+  count,
+  tone,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  count: number;
+  tone?: string;
+}) {
   return (
     <Link
       href={href}
@@ -62,7 +76,13 @@ function FilterChip({ href, active, label, count }: { href: string; active: bool
       }`}
     >
       {label}
-      <span className={`tabular-nums ${active ? 'text-white/80' : 'text-zinc-400 dark:text-zinc-500'}`}>{count}</span>
+      <span
+        className={`tabular-nums text-[11px] font-bold px-1.5 rounded-full ${
+          active ? 'bg-white/20 text-white' : tone ?? 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+        }`}
+      >
+        {count}
+      </span>
     </Link>
   );
 }
@@ -128,6 +148,7 @@ export default async function NotificationsPage({
                     active={selectedType === code}
                     label={meta.label}
                     count={counts.get(code)!}
+                    tone={meta.tone}
                   />
                 );
               })}
@@ -141,8 +162,8 @@ export default async function NotificationsPage({
               <section key={key}>
                 <h2 className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-2">
                   {label}
-                  <span className="text-zinc-400 dark:text-zinc-500 font-semibold normal-case tabular-nums">
-                    · {items.length}
+                  <span className="font-bold normal-case tracking-normal tabular-nums text-[12px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
+                    {items.length}
                   </span>
                 </h2>
                 <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">

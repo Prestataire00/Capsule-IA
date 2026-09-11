@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, ClipboardCheck } from 'lucide-react';
 import { setAttendanceAutoSend, setAttendanceLunch } from './attendance-settings-actions';
 
 const champ =
@@ -34,9 +34,14 @@ export function AttendanceSettings({
 
   return (
     <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-4">
-      <div>
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Émargement</h2>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">Une feuille par demi-journée, signée à l’entrée et à la sortie.</p>
+      <div className="flex items-start gap-3">
+        <span className="w-9 h-9 rounded-xl grid place-items-center text-white bg-blue-500 shadow-md shadow-blue-500/30 shrink-0">
+          <ClipboardCheck className="w-4 h-4" />
+        </span>
+        <div>
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Émargement</h2>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">Une feuille par demi-journée, signée à l’entrée et à la sortie.</p>
+        </div>
       </div>
       {!available ? (
         <p className="text-[12px] text-amber-700 dark:text-amber-400">Réglages disponibles une fois les migrations 0145 à 0147 appliquées.</p>

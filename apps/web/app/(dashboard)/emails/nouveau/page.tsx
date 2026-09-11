@@ -3,9 +3,10 @@
 // (apprenant/formateur/entreprise), auto-remplissage, génération et envoi.
 
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Mail } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { ComposeForm, type RecipientOption } from './compose-form';
 
 export const dynamic = 'force-dynamic';
@@ -58,13 +59,18 @@ export default async function ComposeEmailPage() {
         <ArrowLeft className="w-3.5 h-3.5" /> Historique des envois
       </Link>
 
-      <header className="mb-7">
+      <header className="mb-7 flex items-start gap-4">
+        <span className={`w-12 h-12 rounded-xl grid place-items-center text-white shadow-md shrink-0 ${ACCENTS.sky.chip}`}>
+          <Mail className="w-6 h-6" />
+        </span>
+        <div>
         <SectionLabel className="mb-2">Communication</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Rédiger un email</h1>
         <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
           Choisissez un destinataire, saisissez un objet : l'IA propose un email pré-rempli avec les
           informations de sa fiche. L'envoi part de votre boîte connectée.
         </p>
+        </div>
       </header>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">

@@ -6,6 +6,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession } from '@/features/sessions/load-session';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,12 +53,18 @@ export default async function SessionActivityTab({ params }: { params: { id: str
     <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
       {rows.map((r) => (
         <li key={r.id} className="flex items-center gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
-          <Mail className="w-4 h-4 text-zinc-400 shrink-0" />
+          <span
+            className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${
+              r.status === 'sent' ? ACCENTS.orange.soft : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+          </span>
           <div className="min-w-0 flex-1">
             <p className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.subject ?? '—'}</p>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{r.recipient}</p>
           </div>
-          <span className="tabular-nums text-[12px] text-zinc-500 dark:text-zinc-400 shrink-0">
+          <span className={`tabular-nums text-[12px] font-semibold shrink-0 ${ACCENTS.blue.text}`}>
             {format(parseISO(r.sent_at), 'dd MMM HH:mm', { locale: fr })}
           </span>
           <StatusPill tone={r.status === 'sent' ? 'success' : 'danger'}>

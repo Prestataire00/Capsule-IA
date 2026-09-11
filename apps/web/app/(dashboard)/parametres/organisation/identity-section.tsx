@@ -102,8 +102,10 @@ export function IdentitySection(props: { org: IdentityProps }) {
 
   return (
     <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-zinc-400" />
+      <div className="flex items-center gap-3">
+        <span className="w-9 h-9 rounded-xl grid place-items-center text-white bg-orange-500 shadow-md shadow-orange-500/30 shrink-0">
+          <Building2 className="w-4 h-4" />
+        </span>
         <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Identité légale</h2>
       </div>
 

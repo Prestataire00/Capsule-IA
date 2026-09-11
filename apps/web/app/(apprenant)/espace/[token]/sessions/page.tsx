@@ -80,11 +80,14 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      <header className="mb-7">
-        <div>
+      <header className="mb-7 rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-orange-950/40 dark:via-zinc-900 dark:to-rose-950/30 px-6 py-5 flex items-center gap-4">
+        <span className="w-12 h-12 rounded-2xl grid place-items-center text-white shadow-md shrink-0 bg-blue-500 shadow-blue-500/30">
+          <Video className="w-6 h-6" />
+        </span>
+        <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Sessions & replays</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
             {ctx.sessions.length} séance{ctx.sessions.length > 1 ? 's' : ''} planifiée{ctx.sessions.length > 1 ? 's' : ''} sur votre parcours.
           </p>
         </div>
@@ -159,18 +162,18 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
                   <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span
-                      className={`w-5 flex items-center justify-center flex-shrink-0 ${
+                      className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${
                         isDone
-                          ? 'text-emerald-600 dark:text-emerald-400'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                           : isLive
-                          ? 'text-orange-500 animate-pulse'
-                          : 'text-zinc-400'
+                          ? 'text-white bg-orange-500 shadow-md shadow-orange-500/30 animate-pulse'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
                       }`}
                     >
                       {isDone ? <CheckCircle2 className="w-4 h-4" /> : isLive ? <Play className="w-4 h-4" /> : <CircleDashed className="w-4 h-4" />}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 capitalize truncate tabular-nums">
+                      <p className="text-[13px] font-bold text-[color:var(--sess)] capitalize truncate tabular-nums">
                         {formatSessionDate(s.startsAt)}
                       </p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">

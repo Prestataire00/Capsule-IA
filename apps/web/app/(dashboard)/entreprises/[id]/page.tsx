@@ -3,11 +3,12 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, Globe, Hash, MapPin, User, Users, FolderOpen, Download } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Globe, Hash, MapPin, User, Users, FolderOpen, Download, Building2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
+import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 
 export const dynamic = 'force-dynamic';
@@ -18,23 +19,24 @@ const TABLE_HEAD =
 function Line({ icon: Icon, children }: { icon: typeof Mail; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300">
-      <Icon className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+      <Icon className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
       <span className="truncate">{children}</span>
     </div>
   );
 }
 
-function KeyFigure({ label, value, hint, icon: Icon }: { label: string; value: number; hint: string; icon: typeof Mail }) {
-  return (
-    <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        <Icon className="w-4 h-4 text-zinc-400" />
-      </div>
-      <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}</p>
-      <p className="mt-2 text-[12px] text-zinc-500 dark:text-zinc-400">{hint}</p>
-    </div>
-  );
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+] as const;
+
+function avatarTone(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % AVATARS.length;
+  return AVATARS[h] ?? AVATARS[0];
 }
 
 export default async function EntrepriseDetailPage({ params }: { params: { id: string } }) {
@@ -72,7 +74,7 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
 
   return (
     <div className="max-w-5xl w-full mx-auto px-8 py-9 space-y-6">
-      <header>
+      <header className="rounded-2xl border bg-gradient-to-br from-blue-50 to-white border-blue-100 dark:from-blue-950/40 dark:to-zinc-900 dark:border-blue-900/40 px-7 py-6 shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           <Link
             href="/entreprises"
@@ -85,7 +87,12 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
           </span>
           <SectionLabel>Entreprise</SectionLabel>
         </div>
-        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{c.name}</h1>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-md shrink-0 ${ACCENTS.blue.chip}`}>
+            <Building2 className="w-5 h-5" />
+          </span>
+          <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{c.name}</h1>
+        </div>
         <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
           {c.legal_name && c.legal_name !== c.name && <>{c.legal_name} · </>}
           <span className="tabular-nums">
@@ -95,8 +102,8 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
       </header>
 
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KeyFigure label="Apprenants" value={learners.length} icon={Users} hint="rattachés" />
-        <KeyFigure label="Dossiers" value={dossiers.length} icon={FolderOpen} hint="liés" />
+        <KpiCard label="Apprenants" value={learners.length} icon={Users} accent="rose" hint="rattachés" />
+        <KpiCard label="Dossiers" value={dossiers.length} icon={FolderOpen} accent="orange" hint="liés" />
       </section>
 
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -134,8 +141,12 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
-          Apprenants rattachés <span className="text-zinc-400 font-semibold tabular-nums">({learners.length})</span>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.rose.soft}`}>
+            <Users className="w-4 h-4" />
+          </span>
+          Apprenants rattachés
+          <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.rose.soft}`}>{learners.length}</span>
         </h2>
         {learners.length === 0 ? (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -159,7 +170,7 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
                         className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 px-5 py-3 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors"
                       >
                         <span className="flex items-center gap-3 min-w-0">
-                          <span className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold flex-shrink-0 bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                          <span className={`w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold flex-shrink-0 ${avatarTone(name)}`}>
                             {initials || '?'}
                           </span>
                           <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{name || '—'}</span>
@@ -177,8 +188,12 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
-            Dossiers <span className="text-zinc-400 font-semibold tabular-nums">({dossiers.length})</span>
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.orange.soft}`}>
+              <FolderOpen className="w-4 h-4" />
+            </span>
+            Dossiers
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.orange.soft}`}>{dossiers.length}</span>
           </h2>
           {/* Un financeur ou un auditeur demande l'assiduité de tous les salariés
               d'une entreprise : l'export la produit, absents compris. */}

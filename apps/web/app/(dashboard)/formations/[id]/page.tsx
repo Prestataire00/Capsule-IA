@@ -7,27 +7,28 @@ import { notFound } from 'next/navigation';
 import {
   ArrowLeft, Clock, Video, MapPin, GraduationCap, Eye, EyeOff,
   Users as UsersIcon, Banknote, FileText, ExternalLink, Award, Pencil, FolderOpen,
+  BookOpen, CalendarDays, BarChart3, ShieldCheck, ImageIcon, Link2, Percent,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill, dossierStatusTone } from '@/shared/ui/status-pill';
-import { formationColorMap, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
+import { formationColorMap, deepColor, tintColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
+import { KpiCard, AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { FormationCover } from './cover-upload.client';
 import { FormationTabs } from './formation-tabs.client';
 import { env } from '@/env.mjs';
 
 const modalityStyles = {
-  presentiel: { icon: MapPin, label: 'Présentiel' },
-  distanciel: { icon: Video, label: 'Distanciel' },
-  hybride: { icon: GraduationCap, label: 'Hybride' },
+  presentiel: { icon: MapPin, label: 'Présentiel', accent: 'blue' as Accent },
+  distanciel: { icon: Video, label: 'Distanciel', accent: 'sky' as Accent },
+  hybride: { icon: GraduationCap, label: 'Hybride', accent: 'teal' as Accent },
 };
 type ModalityKey = keyof typeof modalityStyles;
 
 const PILL = 'text-[12px] font-semibold h-6 px-2 rounded-md inline-flex items-center gap-1.5';
-const NEUTRAL_PILL = `${PILL} bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300`;
 const SECONDARY_BTN =
-  'text-[13px] font-semibold px-3 h-9 rounded-lg border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition inline-flex items-center gap-1.5';
+  'text-[13px] font-semibold px-3 h-9 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 text-zinc-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800/60 transition inline-flex items-center gap-1.5';
 const LINK = 'text-orange-600 dark:text-orange-400 hover:underline';
 
 const statusLabel: Record<string, string> = {
@@ -241,29 +242,36 @@ export default async function FormationDetailPage({ params }: { params: { id: st
 
       {/* En-tête : identité + badges + KPIs + actions */}
       <header className="mb-7">
-        <div className="flex items-start justify-between gap-6 flex-wrap">
+        {/* Bandeau teinté à la couleur de la formation, relevé d'une touche d'orange Capsule. */}
+        <div
+          className="rounded-2xl border px-7 py-6 flex items-start justify-between gap-6 flex-wrap"
+          style={{
+            background: `linear-gradient(135deg, ${tintColor(color, 16)} 0%, ${tintColor('#f97316', 9)} 100%)`,
+            borderColor: tintColor(color, 30),
+          }}
+        >
           <div className="min-w-0">
             <SectionLabel className="mb-2">
               Formation · <span className="font-mono normal-case tracking-normal">{f.code}</span>
             </SectionLabel>
-            <h1 className="flex items-center gap-3 text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
+            <h1 className="flex items-center gap-3 text-[30px] leading-none font-extrabold" style={{ color: deepColor(color) }}>
               <span className="w-3.5 h-3.5 rounded-[4px] shrink-0" style={{ background: color }} aria-hidden />
               <span className="min-w-0">{f.title}</span>
             </h1>
             <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-              <span className={NEUTRAL_PILL}>
+              <span className={`${PILL} ${ACCENTS[m.accent].soft}`}>
                 <Icon className="w-3.5 h-3.5" /> {m.label}
               </span>
-              <span className={`${NEUTRAL_PILL} tabular-nums`}>
+              <span className={`${PILL} ${ACCENTS.sky.soft} tabular-nums`}>
                 <Clock className="w-3.5 h-3.5" /> {Number(f.default_duration_hours)} h
               </span>
               {f.default_price_cents > 0 && (
-                <span className={`${NEUTRAL_PILL} tabular-nums`}>
+                <span className={`${PILL} ${ACCENTS.emerald.soft} tabular-nums`}>
                   <Banknote className="w-3.5 h-3.5" /> {formatEuros(f.default_price_cents)} HT
                 </span>
               )}
               {isCertifiante && (
-                <span className={`${PILL} bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300`}>
+                <span className={`${PILL} ${ACCENTS.purple.soft}`}>
                   <Award className="w-3.5 h-3.5" /> {f.rncp_code ? `RNCP ${f.rncp_code}` : `RS ${f.rs_code}`}
                 </span>
               )}
@@ -290,10 +298,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-              <Stat icon={UsersIcon} label="Apprenants actifs" value={activeCount} />
-              <Stat icon={Banknote} label="CA généré" value={formatEuros(totalRevenue)} />
-              <Stat icon={FileText} label="Dossiers" value={relatedDossiers.length} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+          <KpiCard icon={UsersIcon} label="Apprenants actifs" value={activeCount} accent="rose" hint="dossiers en cours ou planifiés" />
+          <KpiCard icon={Banknote} label="CA généré" value={formatEuros(totalRevenue)} accent="emerald" hint="dossiers en cours et terminés" />
+          <KpiCard icon={FileText} label="Dossiers" value={relatedDossiers.length} accent="orange" hint="rattachés à la formation" />
         </div>
       </header>
 
@@ -301,7 +309,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         counts={{ sessions: sessions.length, dossiers: relatedDossiers.length }}
         overview={
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <Card title="Programme pédagogique" className="lg:col-span-2">
+        <Card title="Programme pédagogique" icon={BookOpen} accent="orange" className="lg:col-span-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             {description && (
               <Section label="Description" className="sm:col-span-2">
@@ -313,7 +321,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                 <ul className="space-y-1">
                   {objectives.map((o, i) => (
                     <li key={i} className="flex items-start gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
-                      <span className="text-zinc-400 font-bold tabular-nums flex-shrink-0">{i + 1}.</span> {o}
+                      <span className={`w-5 h-5 rounded-md grid place-items-center text-[11px] font-bold tabular-nums flex-shrink-0 ${ACCENTS.orange.soft}`}>{i + 1}</span> {o}
                     </li>
                   ))}
                 </ul>
@@ -328,7 +336,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                   <ul className="mt-1.5 space-y-1">
                     {prerequisites.map((p, i) => (
                       <li key={i} className="flex items-start gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
-                        <span className="text-zinc-400 mt-0.5">•</span> {p}
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-[7px] flex-shrink-0" /> {p}
                       </li>
                     ))}
                   </ul>
@@ -346,10 +354,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         {/* Colonne actions — inscription, dossiers, sessions */}
         <div className="space-y-4">
           {(trainer || referents.length > 0) && (
-            <Card title="Équipe pédagogique & contacts">
+            <Card title="Équipe pédagogique & contacts" icon={UsersIcon} accent="teal">
               {trainer && (
                 <div className="flex items-start gap-3 pb-3 mb-3 border-b border-zinc-100 dark:border-zinc-800">
-                  <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-[15px] font-medium text-emerald-700 dark:text-emerald-300">
+                  <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100 dark:bg-teal-950/60 text-[15px] font-bold text-teal-700 dark:text-teal-300 ring-2 ring-teal-200/70 dark:ring-teal-900/60">
                     {trainerPhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={trainerPhotoUrl} alt="" className="h-full w-full object-cover" />
@@ -364,7 +372,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                     >
                       {`${trainer.first_name ?? ''} ${trainer.last_name ?? ''}`.trim() || 'Formateur'}
                     </Link>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Formateur par défaut</p>
+                    <p className={`text-[11px] font-semibold ${ACCENTS.teal.text}`}>Formateur par défaut</p>
                     {trainer.bio ? (
                       <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-400 whitespace-pre-line">
                         {trainer.bio}
@@ -379,7 +387,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               )}
               {referents.map((r) => (
                 <div key={r.role} className="text-[12px] py-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
+                  <p className={`text-[11px] font-bold uppercase tracking-[0.06em] ${r.role === 'Référent handicap' ? ACCENTS.purple.text : ACCENTS.blue.text}`}>
                     {r.role}
                   </p>
                   <p className="font-semibold text-zinc-900 dark:text-zinc-100">{r.name || '—'}</p>
@@ -391,11 +399,11 @@ export default async function FormationDetailPage({ params }: { params: { id: st
             </Card>
           )}
 
-          <Card title="Image de couverture (catalogue)">
+          <Card title="Image de couverture (catalogue)" icon={ImageIcon} accent="sky">
             <FormationCover formationId={f.id} coverUrl={coverUrl} />
           </Card>
 
-          <Card title="Lien d'inscription">
+          <Card title="Lien d'inscription" icon={Link2} accent="orange">
             <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-2.5 h-9 mb-2">
               <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400 truncate flex-1">/inscription?formation={f.id}</span>
               <Link href={`/inscription?formation=${f.id}`} target="_blank" title="Ouvrir" className="text-zinc-400 hover:text-orange-600 dark:hover:text-orange-300 flex-shrink-0">
@@ -408,7 +416,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           </div>
         }
         dossiers={
-          <Card title={`Dossiers (${relatedDossiers.length})`}>
+          <Card title="Dossiers" count={relatedDossiers.length} icon={FolderOpen} accent="rose">
             {relatedDossiers.length === 0 ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun dossier rattaché.</p>
             ) : (
@@ -418,7 +426,10 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                   return (
                     <li key={d.id}>
                       <Link href={`/dossiers/${d.id}`} className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
-                        <span className={`text-[13px] text-zinc-900 dark:text-zinc-100 truncate ${learner ? 'font-bold' : 'font-mono'}`}>{learner ?? d.reference}</span>
+                        <span className="min-w-0 flex items-center gap-2.5">
+                          <Avatar name={learner ?? d.reference ?? '?'} />
+                          <span className={`text-[13px] text-zinc-900 dark:text-zinc-100 truncate ${learner ? 'font-bold' : 'font-mono'}`}>{learner ?? d.reference}</span>
+                        </span>
                         <StatusPill tone={dossierStatusTone(d.status)} className="flex-shrink-0">
                           {statusLabel[d.status] ?? d.status}
                         </StatusPill>
@@ -434,17 +445,20 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           </Card>
         }
         budget={
-          <Card title="Budget & charges">
+          <Card title="Budget & charges" icon={Banknote} accent="emerald">
             <div className="flex items-baseline justify-between mb-3">
               <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Total des charges</span>
-              <span className="text-[26px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">{formatEuros(totalExpenses)}</span>
+              <span className={`text-[26px] leading-none font-extrabold tabular-nums ${ACCENTS.emerald.value}`}>{formatEuros(totalExpenses)}</span>
             </div>
             {Object.keys(expenseByKind).length > 0 ? (
-              <ul className="space-y-1 mb-3">
+              <ul className="space-y-2.5 mb-3">
                 {Object.entries(expenseByKind).map(([k, v]) => (
-                  <li key={k} className="flex items-center justify-between text-[12px]">
-                    <span className="text-zinc-600 dark:text-zinc-400">{EXPENSE_KIND_LABEL[k] ?? k}</span>
-                    <span className="text-zinc-800 dark:text-zinc-200 tabular-nums">{formatEuros(v)}</span>
+                  <li key={k} className="text-[12px]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-zinc-600 dark:text-zinc-400">{EXPENSE_KIND_LABEL[k] ?? k}</span>
+                      <span className="font-semibold text-zinc-800 dark:text-zinc-200 tabular-nums">{formatEuros(v)}</span>
+                    </div>
+                    <AccentBar value={v} max={totalExpenses} accent="emerald" className="h-1.5" />
                   </li>
                 ))}
               </ul>
@@ -462,39 +476,51 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           </Card>
         }
         stats={
-          <Card title="Statistiques">
-            <div className="grid grid-cols-2 gap-3">
-              <MiniKpi label="Sessions" value={sessions.length} />
-              <MiniKpi label="Apprenants" value={relatedDossiers.length} />
-              <MiniKpi label="Heures dispensées" value={`${Math.round(heuresDispensees)} h`} />
-              <MiniKpi label="CA généré" value={formatEuros(totalRevenue)} />
-              <MiniKpi label="Taux de présence" value={presenceRate == null ? '—' : `${presenceRate} %`} />
-              <MiniKpi label="Budget charges" value={formatEuros(totalExpenses)} />
+          <Card title="Statistiques" icon={BarChart3} accent="blue">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <KpiCard icon={CalendarDays} label="Sessions" value={sessions.length} accent="blue" />
+              <KpiCard icon={UsersIcon} label="Apprenants" value={relatedDossiers.length} accent="rose" />
+              <KpiCard icon={Clock} label="Heures dispensées" value={`${Math.round(heuresDispensees)} h`} accent="sky" />
+              <KpiCard icon={Banknote} label="CA généré" value={formatEuros(totalRevenue)} accent="emerald" />
+              <KpiCard
+                icon={Percent}
+                label="Taux de présence"
+                value={presenceRate == null ? '—' : `${presenceRate} %`}
+                accent={presenceRate == null || presenceRate >= 80 ? 'emerald' : 'amber'}
+              >
+                {presenceRate != null && (
+                  <AccentBar value={presenceRate} max={100} accent={presenceRate >= 80 ? 'emerald' : 'amber'} />
+                )}
+              </KpiCard>
+              <KpiCard icon={FileText} label="Budget charges" value={formatEuros(totalExpenses)} accent="orange" />
             </div>
           </Card>
         }
         qualiopi={
-          <Card title="Qualiopi">
+          <Card title="Qualiopi" icon={ShieldCheck} accent="purple">
             {checklists.length === 0 ? (
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                 Conformité non encore calculée. Elle s'alimente depuis les émargements et questionnaires des dossiers.
               </p>
             ) : (
-              <div className="flex items-baseline justify-between">
-                <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Dossiers conformes</span>
-                <span
-                  className={`text-[26px] leading-none font-extrabold tabular-nums ${
-                    conformes === checklists.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                  }`}
-                >
-                  {conformes}/{checklists.length}
-                </span>
+              <div>
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Dossiers conformes</span>
+                  <span
+                    className={`text-[26px] leading-none font-extrabold tabular-nums ${
+                      conformes === checklists.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    {conformes}/{checklists.length}
+                  </span>
+                </div>
+                <AccentBar value={conformes} max={checklists.length} accent={conformes === checklists.length ? 'emerald' : 'amber'} />
               </div>
             )}
           </Card>
         }
         sessions={
-          <Card title={`Sessions (${sessions.length})`}>
+          <Card title="Sessions" count={sessions.length} icon={CalendarDays} accent="blue">
             <div className="mb-3 pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
               <GroupSessionForm formationId={id} defaultPriceCents={f.default_price_cents} />
             </div>
@@ -506,13 +532,16 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                   const isGroup = !s.dossier_id;
                   const row = (
                     <div className="flex items-center justify-between gap-3">
-                      <span className="min-w-0 flex items-center gap-2">
+                      <span className="min-w-0 flex items-center gap-2.5">
+                        <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
+                          <CalendarDays className="w-3.5 h-3.5" />
+                        </span>
                         <span className="truncate text-[13px] font-semibold text-[color:var(--sess)]">{s.title || 'Session'}</span>
                         {isGroup && (
-                          <span className="shrink-0 inline-flex items-center h-5 px-1.5 rounded-md text-[11px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">groupe</span>
+                          <span className={`shrink-0 inline-flex items-center h-5 px-1.5 rounded-md text-[11px] font-semibold ${ACCENTS.rose.soft}`}>groupe</span>
                         )}
                       </span>
-                      <span className="tabular-nums text-[12px] text-zinc-500 dark:text-zinc-400 shrink-0">
+                      <span className={`tabular-nums text-[12px] font-semibold shrink-0 ${ACCENTS.blue.text}`}>
                         {new Date(s.starts_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </span>
                     </div>
@@ -542,31 +571,21 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   );
 }
 
-// Chiffre clé de l'en-tête.
-function Stat({
-  icon: Icon, label, value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string | number;
-}) {
+// Initiales sur une couleur tirée du nom.
+const AVATAR_PALETTE = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(' ').map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase() || '?';
+  const hash = Array.from(name).reduce((a, ch) => a + ch.charCodeAt(0), 0);
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-      <p className="flex items-center gap-2 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
-        <Icon className="w-4 h-4 text-zinc-400" /> {label}
-      </p>
-      <p className="text-[26px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums mt-3">{value}</p>
-    </div>
-  );
-}
-
-// Petit KPI dans une carte (statistiques formation).
-function MiniKpi({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="bg-zinc-50 dark:bg-zinc-950/40 rounded-lg px-4 py-3">
-      <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className="text-[26px] font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none mt-2">{value}</p>
-    </div>
+    <span className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${AVATAR_PALETTE[hash % AVATAR_PALETTE.length]}`}>
+      {initials}
+    </span>
   );
 }
 
@@ -580,10 +599,34 @@ function Section({ label, children, className = '' }: { label: string; children:
   );
 }
 
-function Card({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
+function Card({
+  title,
+  children,
+  className = '',
+  icon: Icon,
+  accent = 'orange',
+  count,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  accent?: Accent;
+  count?: number;
+}) {
   return (
     <div className={`bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-4 shadow-sm overflow-hidden ${className}`}>
-      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 mb-3">{title}</p>
+      <div className="flex items-center gap-2.5 mb-3">
+        {Icon && (
+          <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS[accent].soft}`}>
+            <Icon className="w-4 h-4" />
+          </span>
+        )}
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-600 dark:text-zinc-300">{title}</p>
+        {count != null && (
+          <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS[accent].soft}`}>{count}</span>
+        )}
+      </div>
       {children}
     </div>
   );

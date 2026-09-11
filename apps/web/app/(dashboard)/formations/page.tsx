@@ -11,11 +11,12 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 import { formationColorMap, deepColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
+import { KpiCard, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 
 const modalityStyles = {
-  presentiel: { icon: MapPin, label: 'Présentiel' },
-  distanciel: { icon: Video, label: 'Distanciel' },
-  hybride: { icon: GraduationCap, label: 'Hybride' },
+  presentiel: { icon: MapPin, label: 'Présentiel', accent: 'blue' as Accent },
+  distanciel: { icon: Video, label: 'Distanciel', accent: 'sky' as Accent },
+  hybride: { icon: GraduationCap, label: 'Hybride', accent: 'teal' as Accent },
 };
 type ModalityKey = keyof typeof modalityStyles;
 
@@ -98,10 +99,10 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6" aria-label="Synthèse">
-        <KeyFigure label="Total formations" value={all.length} icon={BookOpen} />
-        <KeyFigure label="Publiées" value={published} icon={Eye} hint="visibles au catalogue" hintTone="success" />
-        <KeyFigure label="Brouillons" value={draft} icon={EyeOff} hint={draft > 0 ? 'à publier' : '—'} hintTone={draft > 0 ? 'warning' : 'neutral'} />
-        <KeyFigure label="Apprenants actifs" value={totalActive} icon={UsersIcon} hint="dossiers en cours" />
+        <KpiCard label="Total formations" value={all.length} icon={BookOpen} accent="orange" hint="au catalogue de l'OF" />
+        <KpiCard label="Publiées" value={published} icon={Eye} accent="emerald" hint="visibles au catalogue" />
+        <KpiCard label="Brouillons" value={draft} icon={EyeOff} accent="amber" hint={draft > 0 ? 'à publier' : '—'} />
+        <KpiCard label="Apprenants actifs" value={totalActive} icon={UsersIcon} accent="rose" hint="dossiers en cours" />
       </section>
 
       <div className="mb-4 flex items-center gap-2 flex-wrap">
@@ -202,21 +203,22 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                     </div>
 
                     <div>
-                      <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      <span className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS[m.accent].soft}`}>
                         <Icon className="w-3.5 h-3.5" />
                         {m.label}
                       </span>
                     </div>
 
-                    <div className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    <div className={`text-[13px] font-bold tabular-nums ${ACCENTS.sky.text}`}>
                       {hoursFmt.format(Number(f.default_duration_hours))} h
                     </div>
 
                     <div className="text-[13px] tabular-nums">
                       {enrolled > 0 ? (
-                        <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-bold ${ACCENTS.rose.soft}`}>
+                          <UsersIcon className="w-3 h-3" />
                           {enrolled}
-                          <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400"> actif{enrolled > 1 ? 's' : ''}</span>
+                          <span className="font-medium"> actif{enrolled > 1 ? 's' : ''}</span>
                         </span>
                       ) : (
                         <span className="text-zinc-400">—</span>
@@ -245,37 +247,6 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-const HINT_TONE = {
-  neutral: 'text-zinc-500 dark:text-zinc-400',
-  success: 'text-emerald-600 dark:text-emerald-400',
-  warning: 'text-amber-600 dark:text-amber-400',
-} as const;
-
-function KeyFigure({
-  label,
-  value,
-  icon: Icon,
-  hint,
-  hintTone = 'neutral',
-}: {
-  label: string;
-  value: number;
-  icon: React.ComponentType<{ className?: string }>;
-  hint?: string;
-  hintTone?: keyof typeof HINT_TONE;
-}) {
-  return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-      <p className="flex items-center gap-2 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
-        <Icon className="w-4 h-4 text-zinc-400" />
-        {label}
-      </p>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 ${HINT_TONE[hintTone]}`}>{hint}</p>}
     </div>
   );
 }

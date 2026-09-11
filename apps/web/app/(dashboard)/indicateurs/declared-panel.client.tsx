@@ -4,6 +4,7 @@
 import { useState, useTransition } from 'react';
 import { Plus, Pencil, Trash2, Loader2, AlertCircle, PenLine } from 'lucide-react';
 import { deepColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { saveDeclaredIndicator, deleteDeclaredIndicator } from './actions';
 
 export type LigneDeclaree = {
@@ -86,7 +87,13 @@ export function DeclaredPanel({
       <div className="px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800 flex items-start justify-between gap-4">
         <div>
           <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <PenLine className="w-4 h-4 text-zinc-400" /> Chiffres déclarés
+            <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.purple.soft}`}>
+              <PenLine className="w-4 h-4" />
+            </span>
+            Chiffres déclarés
+            {lignes.length > 0 && (
+              <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.purple.soft}`}>{lignes.length}</span>
+            )}
           </h2>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 max-w-2xl">
             Pour vos résultats antérieurs à Capsule, ou obtenus hors plateforme. Ils s&apos;ajoutent aux
@@ -241,9 +248,9 @@ export function DeclaredPanel({
                           l.formationTitle ?? <span className="font-semibold text-zinc-500 dark:text-zinc-400">Tout l&apos;organisme</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-right font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{l.learnersTrained ?? '—'}</td>
+                      <td className="px-5 py-3.5 text-right font-semibold text-rose-700 dark:text-rose-300 tabular-nums">{l.learnersTrained ?? '—'}</td>
                       <td className="px-5 py-3.5 text-right tabular-nums">
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">
                           {l.satisfactionRate === null ? '—' : `${l.satisfactionRate} %`}
                         </span>
                         {l.satisfactionResponses !== null && (

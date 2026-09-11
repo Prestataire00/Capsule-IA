@@ -37,13 +37,15 @@ export function FormationCover({
 
   return (
     <div>
-      <label className="relative block w-full aspect-[16/6] rounded-lg overflow-hidden cursor-pointer group border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950">
+      <label className="relative block w-full aspect-[16/6] rounded-lg overflow-hidden cursor-pointer group border border-dashed border-sky-200 dark:border-sky-900/60 bg-sky-50/60 dark:bg-sky-950/30">
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="w-full h-full flex flex-col items-center justify-center gap-1 text-zinc-400 text-[12px]">
-            <ImagePlus className="w-5 h-5" />
+          <span className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-sky-700 dark:text-sky-300 text-[12px] font-semibold">
+            <span className="w-9 h-9 rounded-lg grid place-items-center bg-sky-100 dark:bg-sky-950/60">
+              <ImagePlus className="w-5 h-5" />
+            </span>
             Ajouter une image de couverture
           </span>
         )}

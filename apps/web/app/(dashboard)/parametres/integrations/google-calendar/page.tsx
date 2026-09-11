@@ -49,7 +49,9 @@ export default async function GoogleCalendarIntegrationPage({
       </Link>
 
       <div className="flex items-center gap-2 mb-1">
-        <CalendarDays className="w-3.5 h-3.5 text-zinc-400" />
+        <span className="w-9 h-9 rounded-xl grid place-items-center text-white bg-emerald-500 shadow-md shadow-emerald-500/30 shrink-0">
+          <CalendarDays className="w-4 h-4" />
+        </span>
         <SectionLabel>Google Agenda / Meet</SectionLabel>
       </div>
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 -mt-2">

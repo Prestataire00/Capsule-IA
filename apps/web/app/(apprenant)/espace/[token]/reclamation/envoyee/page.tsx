@@ -14,7 +14,9 @@ export default function ReclamationEnvoyeePage({
   return (
     <div className="bg-zinc-50 dark:bg-zinc-950 min-h-[calc(100vh-3rem)]">
       <main className="max-w-xl mx-auto px-6 py-20 text-center">
-        <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400 mx-auto mb-6" />
+        <span className="w-16 h-16 rounded-2xl grid place-items-center mx-auto mb-6 text-white bg-emerald-500 shadow-emerald-500/30 shadow-md">
+          <CheckCircle2 className="w-8 h-8" />
+        </span>
 
         <h1 className="text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 mb-3">
           Réclamation envoyée
@@ -35,14 +37,14 @@ export default function ReclamationEnvoyeePage({
           )}
           <div className="px-5 py-3 flex items-center justify-between gap-3">
             <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Statut</span>
-            <span className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
+            <span className="text-[12px] font-semibold h-6 inline-flex items-center px-2.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
               À traiter
             </span>
           </div>
           <div className="px-5 py-3 flex items-center justify-between gap-3">
             <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Délai de réponse</span>
             <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5 tabular-nums">
-              <Clock className="w-3.5 h-3.5 text-zinc-400" /> 15 jours ouvrés
+              <Clock className="w-3.5 h-3.5 text-orange-500" /> 15 jours ouvrés
             </span>
           </div>
         </div>

@@ -2,10 +2,11 @@
 // Justification: carnet entreprises réel (RLS-scopé) — une ligne par entreprise avec contact + compteur apprenants.
 
 import Link from 'next/link';
-import { Plus, Building2, MapPin, Eye } from 'lucide-react';
+import { Plus, Building2, MapPin, Eye, Users, UserCheck } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 
@@ -32,6 +33,9 @@ export default async function EntreprisesPage() {
     if (l.company_id) learnerCount.set(l.company_id, (learnerCount.get(l.company_id) ?? 0) + 1);
   }
 
+  const withLearners = companies.filter((c) => (learnerCount.get(c.id) ?? 0) > 0).length;
+  const totalAttached = Array.from(learnerCount.values()).reduce((s, n) => s + n, 0);
+
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-9">
       <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
@@ -55,6 +59,14 @@ export default async function EntreprisesPage() {
           </Link>
         </ManageOnly>
       </header>
+
+      {companies.length > 0 && (
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <KpiCard label="Entreprises" value={companies.length} icon={Building2} accent="blue" hint="dans le carnet" />
+          <KpiCard label="Avec apprenants" value={withLearners} icon={UserCheck} accent="emerald" hint="au moins un apprenant rattaché" />
+          <KpiCard label="Apprenants rattachés" value={totalAttached} icon={Users} accent="rose" hint="toutes entreprises confondues" />
+        </section>
+      )}
 
       {companies.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
@@ -90,19 +102,24 @@ export default async function EntreprisesPage() {
                 const count = learnerCount.get(c.id) ?? 0;
                 return (
                   <li key={c.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                    <div className="min-w-0">
-                      <Link
-                        href={`/entreprises/${c.id}`}
-                        className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
-                      >
-                        {c.name}
-                      </Link>
-                      {city && (
-                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1 truncate">
-                          <MapPin className="w-3 h-3 shrink-0" />
-                          {city}
-                        </p>
-                      )}
+                    <div className="min-w-0 flex items-center gap-3">
+                      <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
+                        <Building2 className="w-4 h-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/entreprises/${c.id}`}
+                          className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                        >
+                          {c.name}
+                        </Link>
+                        {city && (
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            {city}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="min-w-0">
                       {c.contact_name || c.contact_email ? (
@@ -127,7 +144,13 @@ export default async function EntreprisesPage() {
                       className="tabular-nums"
                       title={`${count} apprenant${count > 1 ? 's' : ''} rattaché${count > 1 ? 's' : ''}`}
                     >
-                      <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{count}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${
+                          count > 0 ? ACCENTS.rose.soft : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                        }`}
+                      >
+                        {count}
+                      </span>
                       <span className="text-[12px] text-zinc-500 dark:text-zinc-400"> rattaché{count > 1 ? 's' : ''}</span>
                     </div>
                     <div className="flex items-center justify-end">

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { GraduationCap } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { GroupSessionForm } from '../../formations/[id]/group-session-form.client';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 
 /**
  * Planifier une session sans passer par un dossier : on choisit d'abord la
@@ -14,7 +15,7 @@ export function NewSessionPicker({ formations }: { formations: { id: string; tit
   const [formationId, setFormationId] = useState('');
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-5">
+    <div className="border border-blue-100 bg-gradient-to-br from-blue-50 to-white dark:border-blue-900/40 dark:from-blue-950/40 dark:to-zinc-900 rounded-xl shadow-sm p-6 space-y-5">
       <FormField label="Formation" required>
         <select
           value={formationId}
@@ -31,13 +32,15 @@ export function NewSessionPicker({ formations }: { formations: { id: string; tit
       </FormField>
 
       {formationId ? (
-        <div className="border-t border-zinc-100 dark:border-zinc-800/80 pt-5">
+        <div className="border-t border-blue-100 dark:border-blue-900/40 pt-5">
           {/* key = remonte le formulaire à chaque changement de formation */}
           <GroupSessionForm key={formationId} formationId={formationId} defaultOpen redirectTo="/sessions" />
         </div>
       ) : (
-        <p className="text-[12px] text-zinc-400 dark:text-zinc-500 inline-flex items-center gap-1.5">
-          <GraduationCap className="w-3.5 h-3.5" />
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-2">
+          <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
+            <GraduationCap className="w-3.5 h-3.5" />
+          </span>
           Sélectionnez une formation pour planifier sa session.
         </p>
       )}

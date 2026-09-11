@@ -33,7 +33,7 @@ export default function QuestionnairePage() {
   return (
     <div className="flex-1 flex flex-col items-center px-4 py-12">
       <div className="w-full max-w-[480px]">
-        <div className="text-center mb-7">
+        <div className="text-center mb-7 rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-orange-950/40 dark:via-zinc-900 dark:to-rose-950/30 px-6 py-6">
           <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-orange-600 dark:text-orange-400 mb-2">
             Questionnaire de positionnement
           </p>

@@ -1,9 +1,10 @@
 // ARCHETYPE: command
 // Justification: timeline des accès aux ressources du dossier — preuve Qualiopi.
 
-import { Download, Clock, Eye, FileDown, AlertCircle } from 'lucide-react';
+import { Download, Clock, Eye, FileDown, AlertCircle, ShieldCheck } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 
@@ -118,8 +119,17 @@ export default async function TracabilitePage({
   return (
     <div className="space-y-5">
       <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="min-w-0">
-          <SectionLabel className="mb-1">Traçabilité des accès</SectionLabel>
+        <div className="min-w-0 flex items-start gap-3">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.purple.soft}`}>
+            <ShieldCheck className="w-4 h-4" />
+          </span>
+          <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <SectionLabel>Traçabilité des accès</SectionLabel>
+            {rows.length > 0 && (
+              <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.purple.soft}`}>{rows.length}</span>
+            )}
+          </div>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
             {error
               ? 'Erreur lors du chargement des données.'
@@ -127,6 +137,7 @@ export default async function TracabilitePage({
                 ? 'Aucun accès enregistré pour le moment.'
                 : `${rows.length} entrée${rows.length > 1 ? 's' : ''} · preuve Qualiopi`}
           </p>
+          </div>
         </div>
         {rows.length > 0 && (
           <a

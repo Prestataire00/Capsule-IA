@@ -2,12 +2,11 @@
 // Justification: journal d'audit append-only des envois email — densité, filtres,
 // traces horodatées, drill-down par dossier/statut.
 
-import Link from 'next/link';
-import type { ComponentType } from 'react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Mail, MailX, MailOpen, Inbox, MousePointerClick, CheckCheck } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -67,6 +66,14 @@ const KIND_LABELS: Record<string, string> = {
   autre: 'Autre',
 };
 
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+];
+
 export default async function EmailsPage({
   searchParams,
 }: {
@@ -96,22 +103,30 @@ export default async function EmailsPage({
         </p>
       </header>
 
-      <div className="grid grid-cols-3 gap-4 mb-6 max-w-3xl">
-        <Kpi label="Envoyés" value={sentCount} icon={Mail} href="/emails?status=sent" />
-        <Kpi label="Ouverts" value={openedCount} icon={MailOpen} />
-        <Kpi label="Échecs" value={failedCount} icon={MailX} href="/emails?status=failed" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 max-w-4xl">
+        <KpiCard label="Envoyés" value={sentCount} icon={Mail} accent="sky" href="/emails?status=sent" />
+        <KpiCard
+          label="Ouverts"
+          value={openedCount}
+          icon={MailOpen}
+          accent="emerald"
+          hint={`${sentCount > 0 ? Math.round((openedCount / sentCount) * 100) : 0}% des envoyés`}
+        >
+          <AccentBar value={openedCount} max={sentCount} accent="emerald" />
+        </KpiCard>
+        <KpiCard label="Échecs" value={failedCount} icon={MailX} accent={failedCount > 0 ? 'rose' : 'sky'} href="/emails?status=failed" />
       </div>
 
       {(activeDossier || activeStatus) && (
         <div className="mb-4 flex items-center gap-2 text-[12px]">
           <span className="text-zinc-500 dark:text-zinc-400">Filtres :</span>
           {activeStatus && (
-            <span className="inline-flex items-center h-6 px-2 rounded-md font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+            <span className={`inline-flex items-center h-6 px-2 rounded-md font-semibold ${activeStatus === 'failed' ? ACCENTS.rose.soft : ACCENTS.sky.soft}`}>
               statut = {activeStatus}
             </span>
           )}
           {activeDossier && (
-            <span className="inline-flex items-center h-6 px-2 rounded-md font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+            <span className={`inline-flex items-center h-6 px-2 rounded-md font-semibold ${ACCENTS.orange.soft}`}>
               dossier = <span className="font-mono ml-1">{activeDossier.slice(0, 8)}</span>
             </span>
           )}
@@ -146,14 +161,28 @@ export default async function EmailsPage({
                   <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
                     {format(parseISO(r.sent_at), 'dd MMM HH:mm', { locale: fr })}
                   </span>
-                  <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate" title={r.recipient}>
-                    {r.recipient}
+                  <span className="min-w-0 flex items-center gap-2.5" title={r.recipient}>
+                    <span
+                      className={`w-7 h-7 rounded-full grid place-items-center text-[10px] font-bold shrink-0 ${AVATARS[(r.recipient.charCodeAt(0) || 0) % AVATARS.length]}`}
+                    >
+                      {r.recipient.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.recipient}</span>
                   </span>
-                  <span className="text-zinc-600 dark:text-zinc-400 truncate" title={r.subject ?? undefined}>
-                    {r.subject ?? '—'}
+                  <span className="min-w-0 flex items-center gap-2" title={r.subject ?? undefined}>
+                    <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${ACCENTS.sky.soft}`}>
+                      <Mail className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="text-zinc-600 dark:text-zinc-400 truncate">{r.subject ?? '—'}</span>
                   </span>
-                  <span className="text-zinc-500 dark:text-zinc-400 text-[12px] truncate">
-                    {r.kind ? (KIND_LABELS[r.kind] ?? r.kind) : '—'}
+                  <span className="min-w-0">
+                    {r.kind ? (
+                      <span className={`inline-block max-w-full truncate align-middle text-[12px] font-semibold px-2 py-0.5 rounded-full ${ACCENTS.sky.soft}`}>
+                        {KIND_LABELS[r.kind] ?? r.kind}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400 text-[12px]">—</span>
+                    )}
                   </span>
                   <span>
                     <StatusPill tone={r.status === 'sent' ? 'success' : 'danger'}>
@@ -217,46 +246,5 @@ export default async function EmailsPage({
         </div>
       </div>
     </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  hint,
-  hintTone = 'neutral',
-  icon: Icon,
-  href,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
-  icon?: ComponentType<{ className?: string }>;
-  href?: string;
-}) {
-  const hintCls = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    warning: 'text-amber-700 dark:text-amber-400',
-    danger: 'text-red-700 dark:text-red-400',
-  }[hintTone];
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
-      </div>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
-    </>
-  );
-  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
   );
 }

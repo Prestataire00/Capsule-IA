@@ -44,8 +44,10 @@ export default async function FillQuestionnairePage({
         <ArrowLeft className="w-3.5 h-3.5" /> Mes questionnaires
       </Link>
 
-      <header className="mb-6 flex items-center gap-3">
-        <ClipboardList className="w-5 h-5 text-zinc-400 flex-shrink-0" />
+      <header className="mb-6 rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/40 dark:to-zinc-900 px-5 py-4 flex items-center gap-3">
+        <span className="w-10 h-10 rounded-xl grid place-items-center text-white shadow-md shrink-0 bg-purple-500 shadow-purple-500/30">
+          <ClipboardList className="w-5 h-5" />
+        </span>
         <div>
           <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">{loaded.title}</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">Quelques minutes · vos réponses sont confidentielles.</p>

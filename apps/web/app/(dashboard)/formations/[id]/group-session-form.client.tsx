@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarPlus, Loader2, Check, Users } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
+import { ACCENTS } from '@/shared/ui/kpi-card';
 import { createFormationSession } from './group-session-actions';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
 
@@ -108,7 +109,10 @@ export function GroupSessionForm({
   return (
     <div className="space-y-4">
       <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
-        <Users className="w-4 h-4 text-zinc-400" /> Session de groupe
+        <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
+          <Users className="w-4 h-4" />
+        </span>
+        Session de groupe
       </p>
       <FormField label="Intitulé" required>
         <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Séance 1 — …" className={inputClass} />

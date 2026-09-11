@@ -2,9 +2,9 @@
 // Justification: statistiques agrégées des questionnaires — taux de retour, NPS, satisfaction par type.
 
 import Link from 'next/link';
-import type { ComponentType } from 'react';
-import { ArrowLeft, BarChart3, TrendingUp, Users } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, ClipboardList, Star, Smile } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { SectionLabel } from '@/shared/ui/section-label';
 
 export const dynamic = 'force-dynamic';
@@ -86,35 +86,45 @@ export default async function QuestionnaireAnalyticsPage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" aria-label="Synthèse">
-        <Kpi label="Questionnaires" value={total} icon={Users} />
-        <Kpi
+        <KpiCard label="Questionnaires" value={total} icon={ClipboardList} accent="blue" />
+        <KpiCard
           label="Taux de retour"
           value={
             <span>
               {responseRate}
-              <span className="text-[15px] text-zinc-400 font-semibold">%</span>
+              <span className="text-[15px] opacity-60 font-semibold">%</span>
             </span>
           }
           icon={TrendingUp}
+          accent="emerald"
           hint={`${completed}/${total} complétés`}
-          hintTone="success"
-        />
-        <Kpi label="NPS global" value={globalNps ?? '—'} icon={TrendingUp} hint={`${allNps.length} réponse${allNps.length > 1 ? 's' : ''}`} />
-        <Kpi
+        >
+          <AccentBar value={completed} max={total} accent="emerald" />
+        </KpiCard>
+        <KpiCard label="NPS global" value={globalNps ?? '—'} icon={Star} accent="purple" hint={`${allNps.length} réponse${allNps.length > 1 ? 's' : ''}`} />
+        <KpiCard
           label="Satisfaction"
           value={
             <span>
               {avgSatisfaction ?? '—'}
-              {avgSatisfaction != null && <span className="text-[15px] text-zinc-400 font-semibold">/100</span>}
+              {avgSatisfaction != null && <span className="text-[15px] opacity-60 font-semibold">/100</span>}
             </span>
           }
-          icon={BarChart3}
-        />
+          icon={Smile}
+          accent="teal"
+        >
+          {avgSatisfaction != null && <AccentBar value={avgSatisfaction} max={100} accent="teal" />}
+        </KpiCard>
       </section>
 
       {allNps.length > 0 && (
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 mb-8">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 mb-3">Répartition NPS</p>
+          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 mb-3 inline-flex items-center gap-2">
+            <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.purple.soft}`}>
+              <BarChart3 className="w-4 h-4" />
+            </span>
+            Répartition NPS
+          </p>
           <div className="flex h-3 gap-[2px] rounded-full overflow-hidden mb-3">
             <div className="bg-rose-400" style={{ width: `${(detractors / npsTotal) * 100}%` }} title={`Détracteurs : ${detractors}`} />
             <div className="bg-amber-300" style={{ width: `${(passives / npsTotal) * 100}%` }} title={`Passifs : ${passives}`} />
@@ -147,15 +157,20 @@ export default async function QuestionnaireAnalyticsPage() {
                 const sat = b.scores.length ? Math.round(b.scores.reduce((s, n) => s + n, 0) / b.scores.length) : null;
                 return (
                   <li key={kind} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
-                    <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{KIND_LABEL[kind] ?? kind}</span>
-                    <span className="text-right text-zinc-700 dark:text-zinc-300 tabular-nums">{b.total}</span>
+                    <span className="min-w-0 flex items-center gap-3">
+                      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
+                        <ClipboardList className="w-4 h-4" />
+                      </span>
+                      <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{KIND_LABEL[kind] ?? kind}</span>
+                    </span>
+                    <span className="text-right">
+                      <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.blue.soft}`}>{b.total}</span>
+                    </span>
                     <div className="flex items-center gap-3" title={`${b.completed}/${b.total} complétés`}>
-                      <div className="flex-1 h-2 rounded-full bg-orange-100 dark:bg-orange-950/50">
-                        <div className="h-full rounded-full bg-orange-500" style={{ width: `${rate}%` }} />
-                      </div>
+                      <AccentBar value={b.completed} max={b.total} accent={rate >= 70 ? 'emerald' : rate >= 40 ? 'blue' : 'amber'} className="flex-1" />
                       <span className="w-10 text-right text-zinc-700 dark:text-zinc-300 tabular-nums">{rate}%</span>
                     </div>
-                    <span className="text-right font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{nps ?? '—'}</span>
+                    <span className={`text-right font-bold tabular-nums ${nps == null ? 'text-zinc-900 dark:text-zinc-100' : nps >= 30 ? ACCENTS.emerald.text : nps >= 0 ? ACCENTS.amber.text : ACCENTS.rose.text}`}>{nps ?? '—'}</span>
                     <span className="text-right text-zinc-700 dark:text-zinc-300 tabular-nums">{sat != null ? `${sat}/100` : '—'}</span>
                   </li>
                 );
@@ -165,46 +180,5 @@ export default async function QuestionnaireAnalyticsPage() {
         </div>
       </section>
     </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  hint,
-  hintTone = 'neutral',
-  icon: Icon,
-  href,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
-  icon?: ComponentType<{ className?: string }>;
-  href?: string;
-}) {
-  const hintCls = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    warning: 'text-amber-700 dark:text-amber-400',
-    danger: 'text-red-700 dark:text-red-400',
-  }[hintTone];
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
-      </div>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
-    </>
-  );
-  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
   );
 }

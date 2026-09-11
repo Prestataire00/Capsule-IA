@@ -19,15 +19,17 @@ type NavItem = {
   exact?: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** Carré de couleur douce du pictogramme (charte v4 « vivante »). */
+  tone: string;
 };
 
 const NAV: NavItem[] = [
-  { href: (t) => `/espace/${t}`, exact: true, label: 'Accueil', icon: Home },
-  { href: (t) => `/espace/${t}/parcours`, label: 'Mon parcours', icon: Route },
-  { href: (t) => `/espace/${t}/sessions`, label: 'Sessions & replays', icon: Video },
-  { href: (t) => `/espace/${t}/documents`, label: 'Documents', icon: FileText },
-  { href: (t) => `/espace/${t}/exercices`, label: 'Exercices', icon: PenLine },
-  { href: (t) => `/espace/${t}/reclamation`, label: 'Réclamation', icon: MessageSquareWarning },
+  { href: (t) => `/espace/${t}`, exact: true, label: 'Accueil', icon: Home, tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300' },
+  { href: (t) => `/espace/${t}/parcours`, label: 'Mon parcours', icon: Route, tone: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' },
+  { href: (t) => `/espace/${t}/sessions`, label: 'Sessions & replays', icon: Video, tone: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300' },
+  { href: (t) => `/espace/${t}/documents`, label: 'Documents', icon: FileText, tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300' },
+  { href: (t) => `/espace/${t}/exercices`, label: 'Exercices', icon: PenLine, tone: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300' },
+  { href: (t) => `/espace/${t}/reclamation`, label: 'Réclamation', icon: MessageSquareWarning, tone: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300' },
 ];
 
 export function EspaceSidebar({
@@ -71,7 +73,7 @@ export function EspaceSidebar({
 
   const identity = (
     <div className="flex items-center gap-3">
-      <span className="w-9 h-9 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 ring-1 ring-inset ring-orange-200/70 dark:ring-orange-900/50 flex items-center justify-center text-[12px] font-bold flex-shrink-0">
+      <span className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white shadow-md shadow-orange-500/30 flex items-center justify-center text-[12px] font-bold flex-shrink-0">
         {initials}
       </span>
       <div className="min-w-0">
@@ -95,7 +97,7 @@ export function EspaceSidebar({
           <li key={href}>
             <Link
               href={href}
-              className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] transition group ${
+              className={`relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition group ${
                 active
                   ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 font-bold'
                   : 'text-zinc-600 dark:text-zinc-400 font-medium hover:bg-zinc-100/70 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100'
@@ -104,7 +106,13 @@ export function EspaceSidebar({
               {active && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 bg-orange-500 dark:bg-orange-400 rounded-full" />
               )}
-              <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-400'}`} />
+              <span
+                className={`w-7 h-7 rounded-lg grid place-items-center flex-shrink-0 transition ${
+                  active ? 'text-white bg-orange-500 shadow-md shadow-orange-500/30' : item.tone
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+              </span>
               {item.label}
             </Link>
           </li>
@@ -120,12 +128,12 @@ export function EspaceSidebar({
         <div className="px-4 py-5 border-b border-zinc-200/70 dark:border-zinc-800">
           {brand}
         </div>
-        <div className="px-4 py-4 border-b border-zinc-200/70 dark:border-zinc-800">{identity}</div>
+        <div className="px-4 py-4 border-b border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/30 dark:to-zinc-900">{identity}</div>
         <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin">{nav}</nav>
         <div className="px-4 py-4 border-t border-zinc-200/70 dark:border-zinc-800">
           <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
             Espace propulsé par<br />
-            <span className="font-bold text-zinc-600 dark:text-zinc-400">Capsule IA</span>
+            <span className="font-bold text-orange-600 dark:text-orange-400">Capsule IA</span>
           </p>
         </div>
       </aside>
@@ -133,7 +141,7 @@ export function EspaceSidebar({
       {/* ── Barre mobile (< lg) ───────────────────────────────────────────── */}
       <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 px-4 h-14 border-b border-zinc-200/70 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 ring-1 ring-inset ring-orange-200/70 dark:ring-orange-900/50 flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+          <span className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white shadow-md shadow-orange-500/30 flex items-center justify-center text-[11px] font-bold flex-shrink-0">
             {initials}
           </span>
           <div className="min-w-0">
@@ -176,12 +184,12 @@ export function EspaceSidebar({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="px-4 py-4 border-b border-zinc-200/70 dark:border-zinc-800">{identity}</div>
+            <div className="px-4 py-4 border-b border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/30 dark:to-zinc-900">{identity}</div>
             <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin">{nav}</nav>
             <div className="px-4 py-4 border-t border-zinc-200/70 dark:border-zinc-800">
               <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
                 Espace propulsé par<br />
-                <span className="font-bold text-zinc-600 dark:text-zinc-400">Capsule IA</span>
+                <span className="font-bold text-orange-600 dark:text-orange-400">Capsule IA</span>
               </p>
             </div>
           </aside>

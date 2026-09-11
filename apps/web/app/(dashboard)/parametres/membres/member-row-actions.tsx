@@ -14,6 +14,15 @@ const ROLE_LABEL: Record<MemberRole, string> = {
   formateur: 'Formateur',
 };
 
+// Pastille de rôle colorée (charte v4 « vivante »).
+const ROLE_TONE: Record<MemberRole, string> = {
+  owner: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300',
+  admin: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+  gestionnaire: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  comptable: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  formateur: 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
+};
+
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Action non autorisée.',
   last_owner: 'Impossible : dernier propriétaire.',
@@ -59,7 +68,7 @@ export function MemberRowActions(props: {
 
   if (!props.editable) {
     return (
-      <span className="text-[12px] font-semibold h-6 inline-flex items-center px-2.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 flex-shrink-0">
+      <span className={`text-[12px] font-semibold h-6 inline-flex items-center px-2.5 rounded-full flex-shrink-0 ${ROLE_TONE[props.role]}`}>
         {ROLE_LABEL[props.role]}
       </span>
     );
@@ -97,7 +106,7 @@ export function MemberRowActions(props: {
           value={role}
           disabled={pending}
           onChange={(e) => onRoleChange(e.target.value as MemberRole)}
-          className="h-8 text-[12px] font-medium bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-2 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition disabled:opacity-50"
+          className={`h-8 text-[12px] font-semibold border border-transparent rounded-lg px-2 ${ROLE_TONE[role]} focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition disabled:opacity-50`}
         >
           {MEMBER_ROLES.map((r) => (
             <option key={r} value={r}>

@@ -2,7 +2,6 @@
 // Justification: amélioration continue façon Digiforma — axes d'amélioration suivis en trois
 // temps, incidents (aléas, difficultés, abandons), actions correctives, registre de veille.
 import Link from 'next/link';
-import type { ComponentType } from 'react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -20,6 +19,7 @@ import {
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
+import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import {
   ACTION_ORIGIN_LABELS,
@@ -66,6 +66,9 @@ const ERREURS: Record<string, string> = {
   url_invalide: 'L’adresse de la source n’est pas valide.',
   date_invalide: 'Date invalide.',
 };
+
+// Une couleur par colonne du suivi des axes (à lancer → en cours → optimisé).
+const AXE_ACCENTS: Accent[] = ['blue', 'amber', 'emerald'];
 
 type Onglet = 'axes' | 'incidents' | 'actions' | 'veille';
 
@@ -167,10 +170,10 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Kpi label="Axes en cours" value={axes.filter((a) => a.status === 'en_cours').length} icon={Target} />
-        <Kpi label="Incidents ouverts" value={incidentsOuverts.length} icon={TriangleAlert} />
-        <Kpi label="Réclamations ouvertes" value={complaints.length} icon={MessageSquareWarning} href="/reclamations" />
-        <Kpi label="Actions ouvertes" value={actions.filter((a) => a.status !== 'done').length} icon={ClipboardCheck} />
+        <KpiCard label="Axes en cours" value={axes.filter((a) => a.status === 'en_cours').length} icon={Target} accent="purple" />
+        <KpiCard label="Incidents ouverts" value={incidentsOuverts.length} icon={TriangleAlert} accent="amber" />
+        <KpiCard label="Réclamations ouvertes" value={complaints.length} icon={MessageSquareWarning} accent="amber" href="/reclamations" />
+        <KpiCard label="Actions ouvertes" value={actions.filter((a) => a.status !== 'done').length} icon={ClipboardCheck} accent="emerald" />
       </div>
 
       <nav className="flex items-center gap-1 border-b border-zinc-200/70 dark:border-zinc-800 overflow-x-auto">
@@ -201,11 +204,15 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {AXIS_STATUSES.map((statut, i) => {
               const duStatut = axes.filter((a) => a.status === statut);
+              const accent = AXE_ACCENTS[i] ?? 'purple';
               return (
-                <div key={statut} className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-3">
-                  <div className="flex items-baseline justify-between mb-3 px-1">
-                    <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{AXIS_STATUS_LABELS[statut]}</h2>
-                    <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">{duStatut.length}</span>
+                <div key={statut} className={`bg-gradient-to-br border rounded-xl p-3 ${ACCENTS[accent].card}`}>
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${ACCENTS[accent].bar}`} aria-hidden />
+                      {AXIS_STATUS_LABELS[statut]}
+                    </h2>
+                    <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS[accent].soft}`}>{duStatut.length}</span>
                   </div>
                   {duStatut.length === 0 ? (
                     <p className="text-[12px] text-zinc-400 px-1 py-2">Aucun axe.</p>
@@ -263,7 +270,9 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
               <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
                 {reclamationsSansAction.map((c) => (
                   <li key={c.id} className="flex items-center gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
-                    <MessageSquareWarning className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                    <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.amber.soft}`}>
+                      <MessageSquareWarning className="w-4 h-4" />
+                    </span>
                     <Link href={`/reclamations/${c.id}`} className="font-mono text-[11px] text-zinc-500 hover:underline">{c.reference}</Link>
                     <span className="flex-1 font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</span>
                     <ActionCorrective
@@ -276,7 +285,9 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                 ))}
                 {incidentsSansAction.map((i) => (
                   <li key={i.id} className="flex items-center gap-3 px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
-                    <TriangleAlert className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                    <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.amber.soft}`}>
+                      <TriangleAlert className="w-4 h-4" />
+                    </span>
                     <span className="text-[12px] text-zinc-500 dark:text-zinc-400">{INCIDENT_KIND_LABELS[i.kind]}</span>
                     <span className="flex-1 font-bold text-zinc-900 dark:text-zinc-100 truncate">{i.title}</span>
                     <ActionCorrective origin="incident" lien={{ incidentId: i.id }} titre={`Suite à l’incident — ${i.title}`} priorite={i.severity === 'elevee' ? 'high' : 'medium'} />
@@ -300,7 +311,10 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                 {incidents.map((i) => (
                   <li key={i.id} className="px-5 py-3.5 text-[13px] space-y-2 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{INCIDENT_KIND_LABELS[i.kind]}</span>
+                      <span className={`inline-flex items-center gap-1 h-6 px-2 rounded-md text-[12px] font-semibold ${ACCENTS.amber.soft}`}>
+                        <TriangleAlert className="w-3 h-3" />
+                        {INCIDENT_KIND_LABELS[i.kind]}
+                      </span>
                       <span className="flex-1 text-[14px] font-bold text-zinc-900 dark:text-zinc-100 min-w-0">{i.title}</span>
                       <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{format(parseISO(i.occurred_on), 'dd MMM yyyy', { locale: fr })}</span>
                       <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Gravité {SEVERITY_LABELS[i.severity].toLowerCase()}</span>
@@ -341,7 +355,11 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                 const axe = a.axis_id ? axeDe.get(a.axis_id) : undefined;
                 return (
                   <li key={a.id} className="grid grid-cols-1 sm:grid-cols-[1fr_110px_110px_170px] gap-2 sm:gap-4 px-5 py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex items-start gap-3">
+                      <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS[a.status === 'done' ? 'emerald' : a.status === 'in_progress' ? 'amber' : 'orange'].soft}`}>
+                        {a.status === 'done' ? <CheckCircle2 className="w-4 h-4" /> : <ClipboardCheck className="w-4 h-4" />}
+                      </span>
+                      <span className="min-w-0">
                       <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{a.title}</span>
                       <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                         {ACTION_ORIGIN_LABELS[a.origin] ?? a.origin}
@@ -354,6 +372,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                         {axe ? ` · axe « ${axe.title} »` : ''}
                         {a.owner ? ` · ${a.owner}` : ''}
                         {a.due_date ? ` · échéance ${format(parseISO(a.due_date), 'dd/MM/yy')}` : ''}
+                      </span>
                       </span>
                     </span>
                     <StatusPill tone={st.tone}>{st.label}</StatusPill>
@@ -383,8 +402,10 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
               {veille.map((v) => (
                 <li key={v.id} className="px-5 py-3.5 text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                   <div className="flex items-center gap-2">
-                    <Telescope className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                    <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 whitespace-nowrap">
+                    <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.purple.soft}`}>
+                      <Telescope className="w-4 h-4" />
+                    </span>
+                    <span className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold whitespace-nowrap ${ACCENTS.purple.soft}`}>
                       {VEILLE_CAT_LABELS[v.category] ?? v.category}
                     </span>
                     <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex-1 truncate">{v.title}</span>
@@ -640,43 +661,3 @@ function NewVeilleForm() {
   );
 }
 
-function Kpi({
-  label,
-  value,
-  hint,
-  hintTone = 'neutral',
-  icon: Icon,
-  href,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
-  icon?: ComponentType<{ className?: string }>;
-  href?: string;
-}) {
-  const hintCls = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    warning: 'text-amber-700 dark:text-amber-400',
-    danger: 'text-red-700 dark:text-red-400',
-  }[hintTone];
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
-      </div>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
-    </>
-  );
-  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}

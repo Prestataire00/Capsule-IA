@@ -4,8 +4,7 @@
 // et l'auto-évaluation ; plus le suivi de conformité des dossiers.
 
 import Link from 'next/link';
-import type { ComponentType } from 'react';
-import { ShieldCheck, ShieldAlert, Check, Circle, FileText, ArrowUpRight, Info, Download, Eye } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, Circle, FileText, ArrowUpRight, Info, Download, Eye, ListChecks } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireAccess } from '@/shared/lib/auth/require-access';
@@ -14,6 +13,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
+import { ACCENTS, AccentBar, KpiCard } from '@/shared/ui/kpi-card';
 import { loadOrgEvidence, type Evidence } from '@/features/qualiopi/evidence';
 import { ORG_STATUS_LABELS, type OrgStatus } from '@/features/qualiopi/status';
 import { jourParis, versions, VERSION_LABELS } from '@/features/qualiopi/referentiel';
@@ -309,23 +309,30 @@ export default async function QualiopiPage({
           </p>
         </div>
       ) : (
-        <section className="mb-6 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+        <section className="mb-6 rounded-xl border bg-gradient-to-br p-5 shadow-sm from-purple-50 to-white border-purple-100 dark:from-purple-950/40 dark:to-zinc-900 dark:border-purple-900/40">
           <div className="flex items-end justify-between gap-4 flex-wrap mb-3">
-            <div>
-              <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Préparation de l&apos;audit</p>
-              <p className="text-[26px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums mt-3">
-                {conformes}/{applicables.length}
-                <span className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 ml-2">indicateurs conformes · {pct} %</span>
-              </p>
+            <div className="flex items-start gap-3">
+              <span className={`w-10 h-10 rounded-xl grid place-items-center text-white shadow-md shrink-0 ${ACCENTS.purple.chip}`}>
+                <ShieldCheck className="w-5 h-5" />
+              </span>
+              <div>
+                <p className="text-[13px] font-semibold text-zinc-600 dark:text-zinc-400">Préparation de l&apos;audit</p>
+                <p className={`text-[28px] leading-none font-extrabold tabular-nums mt-1.5 ${ACCENTS.purple.value}`}>
+                  {conformes}/{applicables.length}
+                  <span className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 ml-2">indicateurs conformes · {pct} %</span>
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-4 text-[12px] text-zinc-600 dark:text-zinc-400 tabular-nums">
-              <span>{enCours} en cours</span>
-              <span>{aTraiter} à traiter</span>
-              <span>{evalues.length - applicables.length} non applicables</span>
+            <div className="flex items-center gap-2 text-[12px] font-bold tabular-nums flex-wrap">
+              <span className={`px-2 py-0.5 rounded-full ${ACCENTS.blue.soft}`}>{enCours} en cours</span>
+              <span className={`px-2 py-0.5 rounded-full ${ACCENTS.amber.soft}`}>{aTraiter} à traiter</span>
+              <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                {evalues.length - applicables.length} non applicables
+              </span>
             </div>
           </div>
-          <div className="h-2 rounded-full bg-purple-100 dark:bg-purple-950/50 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-            <div className="h-full rounded-full bg-purple-500 transition-all" style={{ width: `${pct}%` }} />
+          <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+            <AccentBar value={pct} max={100} accent="purple" />
           </div>
         </section>
       )}
@@ -362,8 +369,8 @@ export default async function QualiopiPage({
                 }`}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">Critère {c.n}</p>
-                  <p className="text-[12px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
+                  <p className={`text-[11px] font-bold ${ACCENTS.purple.text}`}>Critère {c.n}</p>
+                  <p className={`text-[11px] font-bold tabular-nums px-1.5 rounded-full ${c.total > 0 && c.ok === c.total ? ACCENTS.emerald.soft : ACCENTS.purple.soft}`}>
                     {c.ok}/{c.total}
                   </p>
                 </div>
@@ -472,7 +479,7 @@ export default async function QualiopiPage({
                               const expiree = p.valid_until !== null && p.valid_until < new Date().toISOString().slice(0, 10);
                               return (
                                 <li key={p.id} className="flex items-center gap-2 py-2 text-[13px]">
-                                  <FileText className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                                  <FileText className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400 flex-shrink-0" />
                                   <a href={`/api/qualiopi/proofs?id=${p.id}`} className="flex-1 min-w-0 truncate text-zinc-800 dark:text-zinc-200 hover:underline">
                                     {p.title}
                                   </a>
@@ -501,9 +508,9 @@ export default async function QualiopiPage({
       {onglet === 'dossiers' && (
         <>
           <section className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            <Kpi label="Dossiers prêts" value={`${pretsDossiers}/${dossiers.length}`} icon={ShieldCheck} hint={dossiers.length > 0 && pretsDossiers === dossiers.length ? 'tous prêts' : '—'} href="/qualiopi?filter=ready" />
-            <Kpi label="Dossiers bloquants" value={bloquantsDossiers} icon={ShieldAlert} hint={bloquantsDossiers > 0 ? 'à traiter' : 'aucun'} hintTone={bloquantsDossiers > 0 ? 'warning' : 'neutral'} href="/qualiopi?filter=blocking" />
-            <Kpi label="Indicateurs de dossier satisfaits" value={`${dossiers.reduce((n, d) => n + d.satisfied, 0)}`} hint={`/ ${dossiers.reduce((n, d) => n + d.total, 0)}`} />
+            <KpiCard label="Dossiers prêts" value={`${pretsDossiers}/${dossiers.length}`} icon={ShieldCheck} accent="emerald" hint={dossiers.length > 0 && pretsDossiers === dossiers.length ? 'tous prêts' : '—'} href="/qualiopi?filter=ready" />
+            <KpiCard label="Dossiers bloquants" value={bloquantsDossiers} icon={ShieldAlert} accent={bloquantsDossiers > 0 ? 'amber' : 'emerald'} hint={bloquantsDossiers > 0 ? 'à traiter' : 'aucun'} href="/qualiopi?filter=blocking" />
+            <KpiCard label="Indicateurs de dossier satisfaits" value={`${dossiers.reduce((n, d) => n + d.satisfied, 0)}`} icon={ListChecks} accent="purple" hint={`/ ${dossiers.reduce((n, d) => n + d.total, 0)}`} />
           </section>
 
           {filtre && (
@@ -585,43 +592,3 @@ export default async function QualiopiPage({
   );
 }
 
-function Kpi({
-  label,
-  value,
-  hint,
-  hintTone = 'neutral',
-  icon: Icon,
-  href,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  hintTone?: 'neutral' | 'success' | 'warning' | 'danger';
-  icon?: ComponentType<{ className?: string }>;
-  href?: string;
-}) {
-  const hintCls = {
-    neutral: 'text-zinc-500 dark:text-zinc-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    warning: 'text-amber-700 dark:text-amber-400',
-    danger: 'text-red-700 dark:text-red-400',
-  }[hintTone];
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {Icon && <Icon className="w-4 h-4 text-zinc-400" />}
-      </div>
-      <p className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 mt-3">{value}</p>
-      {hint && <p className={`text-[12px] mt-2 tabular-nums ${hintCls}`}>{hint}</p>}
-    </>
-  );
-  const cls = 'block bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5';
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60 transition`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}

@@ -2,11 +2,12 @@
 // Justification: vue carnet apprenants — chiffres clés, recherche, une ligne par apprenant avec ses infos clés.
 
 import Link from 'next/link';
-import { Plus, Search, Users, Accessibility, GraduationCap, TrendingUp, Eye, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, Users, Accessibility, GraduationCap, TrendingUp, Eye, Building2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { KpiCard } from '@/shared/ui/kpi-card';
 import { AnonymizeAction } from '../rgpd/anonymize-action';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
@@ -37,50 +38,21 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 
 const ROW_GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1.5fr)_minmax(0,1.3fr)_minmax(150px,0.9fr)] gap-4 px-5';
 
-function KeyFigure({
-  label,
-  value,
-  hint,
-  hintClassName,
-  icon: Icon,
-  href,
-  active,
-}: {
-  label: string;
-  value: number;
-  hint: string;
-  hintClassName?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  href?: string;
-  active?: boolean;
-}) {
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</p>
-        {href ? (
-          <ArrowUpRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-600 transition" />
-        ) : (
-          <Icon className="w-4 h-4 text-zinc-400" />
-        )}
-      </div>
-      <p className="mt-2 text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{value}</p>
-      <p className={`mt-2 text-[12px] ${hintClassName ?? 'text-zinc-500 dark:text-zinc-400'}`}>{hint}</p>
-    </>
-  );
-  const cls = `group block rounded-xl border bg-white dark:bg-zinc-900 p-5 shadow-sm transition ${
-    active
-      ? 'border-orange-300 dark:border-orange-800 ring-4 ring-orange-500/10'
-      : 'border-zinc-200/70 dark:border-zinc-800'
-  }`;
-  return href ? (
-    <Link href={href} className={`${cls} hover:border-orange-200 dark:hover:border-orange-900/60`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
+const AVATARS = [
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+] as const;
+
+function avatarTone(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % AVATARS.length;
+  return AVATARS[h] ?? AVATARS[0];
 }
+
+const ACTIVE_RING = 'ring-4 ring-orange-500/15';
 
 export default async function ApprenantsPage({
   searchParams,
@@ -179,23 +151,34 @@ export default async function ApprenantsPage({
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <KeyFigure label="Total apprenants" value={learners.length} icon={Users} hint="dans le carnet" href={filterHref('all')} active={activeFilter === 'all'} />
-        <KeyFigure
+        <KpiCard
+          label="Total apprenants"
+          value={learners.length}
+          icon={Users}
+          accent="rose"
+          hint="dans le carnet"
+          href={filterHref('all')}
+          className={activeFilter === 'all' ? ACTIVE_RING : undefined}
+        />
+        <KpiCard
           label="En formation"
           value={inFormation.length}
           icon={GraduationCap}
+          accent="emerald"
           hint="dossiers actifs/planifiés"
           href={filterHref('in_formation')}
-          active={activeFilter === 'in_formation'}
+          className={activeFilter === 'in_formation' ? ACTIVE_RING : undefined}
         />
-        <KeyFigure label="RQTH" value={rqthCount} icon={Accessibility} hint="adaptations à prévoir" href={filterHref('rqth')} active={activeFilter === 'rqth'} />
-        <KeyFigure
-          label="Nouveaux ce mois"
-          value={newThisMonth}
-          icon={TrendingUp}
-          hint="↑ 1 vs mois dernier"
-          hintClassName="text-emerald-600 dark:text-emerald-500 tabular-nums"
+        <KpiCard
+          label="RQTH"
+          value={rqthCount}
+          icon={Accessibility}
+          accent="amber"
+          hint="adaptations à prévoir"
+          href={filterHref('rqth')}
+          className={activeFilter === 'rqth' ? ACTIVE_RING : undefined}
         />
+        <KpiCard label="Nouveaux ce mois" value={newThisMonth} icon={TrendingUp} accent="orange" />
       </section>
 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -285,7 +268,7 @@ export default async function ApprenantsPage({
                 return (
                   <li key={l.id} className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
                     <div className="min-w-0 flex items-center gap-3">
-                      <span className="w-9 h-9 rounded-full grid place-items-center text-[12px] font-bold flex-shrink-0 bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                      <span className={`w-9 h-9 rounded-full grid place-items-center text-[12px] font-bold flex-shrink-0 ${avatarTone(name)}`}>
                         {initials}
                       </span>
                       <div className="min-w-0">
@@ -300,7 +283,12 @@ export default async function ApprenantsPage({
                     </div>
                     <div className="min-w-0">
                       {company ? (
-                        <span className="block truncate text-zinc-700 dark:text-zinc-300">{company.name}</span>
+                        <span className="flex items-center gap-2 min-w-0 text-zinc-700 dark:text-zinc-300">
+                          <span className="w-6 h-6 rounded-md grid place-items-center shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                            <Building2 className="w-3.5 h-3.5" />
+                          </span>
+                          <span className="truncate">{company.name}</span>
+                        </span>
                       ) : !l.company_id ? (
                         <span className="inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                           indép.

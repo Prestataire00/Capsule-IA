@@ -6,8 +6,8 @@ import { CalendarDays, CalendarClock } from 'lucide-react';
 
 // Onglets partagés : Agenda général (Google) + Planning des sessions.
 const TABS = [
-  { href: '/agenda', label: 'Agenda général', icon: CalendarDays },
-  { href: '/planning', label: 'Sessions', icon: CalendarClock },
+  { href: '/agenda', label: 'Agenda général', icon: CalendarDays, iconCls: 'text-blue-500 dark:text-blue-400' },
+  { href: '/planning', label: 'Sessions', icon: CalendarClock, iconCls: 'text-orange-500 dark:text-orange-400' },
 ];
 
 export function AgendaTabs() {
@@ -27,7 +27,7 @@ export function AgendaTabs() {
                 : 'inline-flex items-center gap-2 text-[13px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 py-2.5 transition'
             }
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className={`w-3.5 h-3.5 ${t.iconCls}`} />
             {t.label}
           </Link>
         );

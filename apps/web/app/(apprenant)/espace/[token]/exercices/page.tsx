@@ -18,11 +18,14 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      <header className="mb-7">
-        <div>
+      <header className="mb-7 rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-orange-950/40 dark:via-zinc-900 dark:to-rose-950/30 px-6 py-5 flex items-center gap-4">
+        <span className="w-12 h-12 rounded-2xl grid place-items-center text-white shadow-md shrink-0 bg-amber-500 shadow-amber-500/30">
+          <PenLine className="w-6 h-6" />
+        </span>
+        <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Exercices & devoirs</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
             {submitted}/{total} rendu{submitted > 1 ? 's' : ''} sur l&apos;ensemble du parcours.
           </p>
         </div>
@@ -30,7 +33,9 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
 
       {exercises.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-dashed border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-12 text-center">
-          <PenLine className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+          <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3 bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+            <PenLine className="w-6 h-6" />
+          </span>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucun exercice pour l&apos;instant.</p>
         </div>
       ) : (
@@ -45,10 +50,10 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
 
             const Icon = isGraded ? Award : isSubmitted ? CheckCircle2 : CircleDashed;
             const iconTone = isGraded
-              ? 'text-emerald-600 dark:text-emerald-400'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
               : isSubmitted
-              ? 'text-blue-600 dark:text-blue-400'
-              : 'text-amber-600 dark:text-amber-400';
+              ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+              : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300';
 
             return (
               <article
@@ -57,7 +62,7 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
               >
                 {/* Header exercice */}
                 <div className="flex items-start gap-3 mb-3">
-                  <span className={`w-9 h-6 flex items-center justify-center flex-shrink-0 ${iconTone}`}>
+                  <span className={`w-9 h-9 rounded-xl grid place-items-center flex-shrink-0 ${iconTone}`}>
                     <Icon className="w-4 h-4" />
                   </span>
                   <div className="flex-1 min-w-0">
