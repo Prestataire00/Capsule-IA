@@ -17,10 +17,3 @@ export function LiveRefresh({ everyMs = 15_000 }: { everyMs?: number }) {
   }, [router, everyMs]);
   return null;
 }
-
-/** Vrai entre une heure avant la première demi-journée ouverte et deux heures après la dernière. */
-export function emargementEnCours(sheets: readonly { windowStart: string; windowEnd: string; finalized: boolean }[], now = Date.now()): boolean {
-  return sheets.some(
-    (s) => !s.finalized && now >= new Date(s.windowStart).getTime() - 60 * 60_000 && now <= new Date(s.windowEnd).getTime() + 120 * 60_000,
-  );
-}
