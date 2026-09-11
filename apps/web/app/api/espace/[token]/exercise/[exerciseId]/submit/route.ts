@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { publicOrigin } from '@/shared/lib/http/public-origin';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,7 +141,7 @@ export async function POST(
 
   // ── 6. Redirect vers la page exercices ──────────────────────────────────
   return NextResponse.redirect(
-    new URL(`/espace/${params.token}/exercices`, req.url),
+    new URL(`/espace/${params.token}/exercices`, publicOrigin(req)),
     303,
   );
 }

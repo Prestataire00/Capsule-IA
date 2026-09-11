@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { publicOrigin } from '@/shared/lib/http/public-origin';
 
 /** N'autorise qu'une redirection interne (même origine). */
 function safeNext(target: string | null): string {
@@ -35,6 +36,6 @@ export async function GET(req: NextRequest) {
     failed = true;
   }
 
-  const dest = new URL(failed ? '/auth/reset-password?error=1' : next, url.origin);
+  const dest = new URL(failed ? '/auth/reset-password?error=1' : next, publicOrigin(req));
   return NextResponse.redirect(dest);
 }
