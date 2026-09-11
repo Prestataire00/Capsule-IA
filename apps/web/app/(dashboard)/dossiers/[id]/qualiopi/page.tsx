@@ -153,9 +153,11 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
         <form action={async () => { 'use server'; await startTraining(params.id); }}>
           <button
             type="submit"
-            disabled={status === 'active' || entryBlockingMissing > 0}
+            // Le démarrage n'est plus bloqué par les indicateurs d'entrée (0120) :
+            // ils restent signalés, sans empêcher de lancer la formation.
+            disabled={status === 'active' || status === 'closed'}
             className="border border-zinc-200/60 dark:border-zinc-800 text-[13px] px-3 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
-            title={entryBlockingMissing > 0 ? `${entryBlockingMissing} indicateur(s) d'entrée bloquant(s)` : ''}
+            title={entryBlockingMissing > 0 ? `${entryBlockingMissing} point(s) d'entrée à compléter — n'empêche pas le démarrage` : ''}
           >
             Démarrer la formation
           </button>

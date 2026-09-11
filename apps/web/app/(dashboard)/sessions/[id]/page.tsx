@@ -1,8 +1,14 @@
+// ARCHETYPE: command
+// Justification: vue d'une session — tableau de bord en quatre temps (configuration, gestion,
+// espace apprenant, suivi) lu sur l'activité réelle, puis apprenants et émargements.
+
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Users, ClipboardCheck, FileText, ClipboardList } from 'lucide-react';
+import { Check, Clock, Circle, ArrowUpRight } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession } from '@/features/sessions/load-session';
+import { loadBoardFacts } from '@/features/sessions/load-session-board';
+import { buildBoard, type BoardStep } from '@/features/sessions/session-board';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +20,33 @@ export default async function SessionOverview({ params }: { params: { id: string
   if (!loaded) notFound();
   const { learners, sheets } = loaded;
   const base = `/sessions/${params.id}`;
+  const board = buildBoard(await loadBoardFacts(sb, loaded), base);
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Tile href={`${base}/apprenants`} icon={Users} label="Apprenants" value={learners.length} />
-        <Tile href={`${base}/emargements`} icon={ClipboardCheck} label="Feuilles d'émargement" value={sheets.length} />
-        <Tile href={`${base}/documents`} icon={FileText} label="Documents" value="Envoyer" />
-        <Tile href={`${base}/questionnaires`} icon={ClipboardList} label="Questionnaires" value="Assigner" />
-      </div>
+      <section aria-label="Tableau de bord de la session" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        {board.map((col) => {
+          const faites = col.steps.filter((s) => s.state === 'fait').length;
+          return (
+            <div
+              key={col.title}
+              className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg shadow-sm p-4"
+            >
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{col.title}</h2>
+                <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums">
+                  {faites}/{col.steps.length}
+                </span>
+              </div>
+              <ul className="space-y-1">
+                {col.steps.map((s) => (
+                  <Etape key={s.key} step={s} />
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </section>
 
       <section>
         <h2 className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 mb-3">Apprenants de la session</h2>
@@ -63,27 +87,43 @@ export default async function SessionOverview({ params }: { params: { id: string
   );
 }
 
-function Tile({
-  href,
-  icon: Icon,
-  label,
-  value,
-}: {
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string | number;
-}) {
+const ICONE = { fait: Check, en_cours: Clock, a_faire: Circle } as const;
+const TON = {
+  fait: 'text-emerald-600 dark:text-emerald-400',
+  en_cours: 'text-amber-600 dark:text-amber-400',
+  a_faire: 'text-zinc-300 dark:text-zinc-600',
+} as const;
+const ETAT_LU = { fait: 'fait', en_cours: 'en cours', a_faire: 'à faire' } as const;
+
+function Etape({ step }: { step: BoardStep }) {
+  const Icone = ICONE[step.state];
+  const contenu = (
+    <>
+      <Icone className={`w-4 h-4 flex-shrink-0 ${TON[step.state]}`} aria-hidden />
+      <span className="flex-1 text-[13px] text-zinc-700 dark:text-zinc-300">
+        {step.label}
+        <span className="sr-only"> — {ETAT_LU[step.state]}</span>
+      </span>
+      {step.compte && (
+        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tabular-nums">
+          {step.total === 0 ? '—' : `${step.done}/${step.total}`}
+        </span>
+      )}
+      {step.href && <ArrowUpRight className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition" aria-hidden />}
+    </>
+  );
   return (
-    <Link
-      href={href}
-      className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-4 py-3 hover:border-violet-300 dark:hover:border-violet-800 transition"
-    >
-      <div className="flex items-center gap-2 mb-1">
-        <Icon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
-        <p className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">{label}</p>
-      </div>
-      <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{value}</p>
-    </Link>
+    <li>
+      {step.href ? (
+        <Link
+          href={step.href}
+          className="group flex items-center gap-2 -mx-2 px-2 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+        >
+          {contenu}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-2 py-1.5">{contenu}</div>
+      )}
+    </li>
   );
 }
