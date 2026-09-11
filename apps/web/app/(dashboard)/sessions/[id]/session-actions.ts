@@ -11,6 +11,7 @@ import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { env } from '@/env.mjs';
 import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
 import { buildGroupConventions } from '@/features/documents/build-group-convention';
+import { buildConventionInput } from '@/features/documents/build-convention-input';
 import { generateConventionPDF } from '@/features/documents/generate-convention-pdf';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
@@ -176,12 +177,10 @@ export const sendSessionConvocationsRecap = authActionClient
   });
 
 /**
- * Une convention groupée par entreprise cliente de la séance.
- *
- * Chaque société qui a inscrit au moins deux salariés reçoit un document unique
- * les listant tous, au lieu d'une convention par dossier. Les particuliers et
- * les entreprises n'ayant qu'un inscrit gardent leur convention individuelle,
- * qui reste la bonne réponse dans leur cas (audit CAP-32).
+ * Documents contractuels de la séance, un par client (comme RFC) : une
+ * convention par entreprise listant tous ses salariés et signée par son
+ * responsable ; un contrat de formation professionnelle par particulier
+ * (art. L.6353-3 à L.6353-7, délai de rétractation).
  */
 export const generateGroupConventions = authActionClient
   .schema(z.object({ sessionId: z.string().uuid() }))
@@ -190,12 +189,26 @@ export const generateGroupConventions = authActionClient
     if (!loaded) return { ok: false as const, error: 'session_not_found' };
 
     const conventions = await buildGroupConventions(parsedInput.sessionId);
-    if (conventions.length === 0) {
-      return { ok: true as const, count: 0, entreprises: [] as string[] };
-    }
-
     const admin = supabaseAdmin();
     const entreprises: string[] = [];
+    const particuliers: string[] = [];
+
+    for (const l of loaded.learners.filter((x) => !x.companyId)) {
+      const built = await buildConventionInput(admin as never, l.dossierId, null);
+      if (!built) continue;
+      const input = { ...built.input, contractKind: 'contrat' as const };
+      const bytes = await generateConventionPDF(input);
+      await persistGeneratedDocument(admin as never, {
+        organizationId: built.organizationId,
+        dossierId: l.dossierId,
+        kind: 'convention',
+        title: `Contrat de formation professionnelle — ${l.first_name} ${l.last_name}`,
+        bytes,
+        generationInput: input,
+        metadata: { contract: true, session_id: parsedInput.sessionId },
+      });
+      particuliers.push(`${l.first_name} ${l.last_name}`);
+    }
 
     for (const c of conventions) {
       const bytes = await generateConventionPDF(c.input);
@@ -203,7 +216,7 @@ export const generateGroupConventions = authActionClient
         organizationId: c.organizationId,
         dossierId: c.anchorDossierId,
         kind: 'convention',
-        title: `Convention de formation — ${c.companyName} (${c.dossierIds.length} participants)`,
+        title: `Convention de formation — ${c.companyName} (${c.dossierIds.length} participant${c.dossierIds.length > 1 ? 's' : ''})`,
         bytes,
         generationInput: c.input,
         metadata: {
@@ -217,5 +230,5 @@ export const generateGroupConventions = authActionClient
     }
 
     revalidatePath(`/sessions/${parsedInput.sessionId}/documents`);
-    return { ok: true as const, count: conventions.length, entreprises };
+    return { ok: true as const, count: conventions.length + particuliers.length, entreprises, particuliers };
   });

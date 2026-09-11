@@ -68,12 +68,10 @@ async function dossiersDeLaSeance(sessionId: string): Promise<{ organizationId: 
 }
 
 /**
- * Une convention par entreprise cliente de la séance.
- *
- * Les particuliers sont écartés : ils n'ont pas d'entreprise, et leur convention
- * individuelle reste la bonne réponse. Une entreprise n'ayant qu'un seul salarié
- * inscrit est écartée aussi — sa convention individuelle suffit, un document
- * « groupé » à un participant n'apporterait rien.
+ * Une convention par entreprise cliente de la séance, comme RFC : le client
+ * est l'entreprise, qu'elle inscrive un salarié ou dix, et c'est son
+ * responsable qui signe. Les particuliers sont écartés : ils reçoivent un
+ * contrat de formation professionnelle à leur nom.
  */
 export async function buildGroupConventions(sessionId: string): Promise<GroupConvention[]> {
   const seance = await dossiersDeLaSeance(sessionId);
@@ -103,8 +101,6 @@ export async function buildGroupConventions(sessionId: string): Promise<GroupCon
   const conventions: GroupConvention[] = [];
 
   for (const [companyId, lignes] of parEntreprise) {
-    if (lignes.length < 2) continue;
-
     const socle = lignes[0]!;
     const built = await buildConventionInput(sb as never, socle.id, null);
     if (!built) continue;

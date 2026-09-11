@@ -11,6 +11,9 @@ export type SessionLearner = {
   email: string;
   dossierId: string;
   dossierReference: string;
+  /** Entreprise cliente du dossier ; null = particulier. */
+  companyId: string | null;
+  companyName: string | null;
 };
 
 export type SessionSheet = {
@@ -73,10 +76,25 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
   ] as string[];
 
   const { data: dosData } = dossierIds.length
-    ? await sb.schema('app').from('dossiers').select('id, reference, learner_id, formation_id').in('id', dossierIds)
+    ? await sb
+        .schema('app')
+        .from('dossiers')
+        .select('id, reference, learner_id, formation_id, company_id')
+        .in('id', dossierIds)
     : { data: [] as unknown[] };
   const dossiers =
-    (dosData as { id: string; reference: string; learner_id: string | null; formation_id: string | null }[]) ?? [];
+    (dosData as {
+      id: string;
+      reference: string;
+      learner_id: string | null;
+      formation_id: string | null;
+      company_id: string | null;
+    }[]) ?? [];
+  const companyIds = [...new Set(dossiers.map((d) => d.company_id).filter((v): v is string => !!v))];
+  const { data: cData } = companyIds.length
+    ? await sb.schema('app').from('companies').select('id, name').in('id', companyIds)
+    : { data: [] as unknown[] };
+  const companyNames = new Map(((cData as { id: string; name: string }[]) ?? []).map((c) => [c.id, c.name]));
 
   // Formation : formation_id de la session, sinon celle du 1er dossier.
   const formationId = session.formation_id ?? dossiers.find((d) => d.formation_id)?.formation_id ?? null;
@@ -92,10 +110,10 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
   }
 
   // Apprenants (via les dossiers).
-  const learnerToDossier = new Map<string, { id: string; reference: string }>();
+  const learnerToDossier = new Map<string, { id: string; reference: string; companyId: string | null }>();
   for (const d of dossiers) {
     if (d.learner_id && !learnerToDossier.has(d.learner_id)) {
-      learnerToDossier.set(d.learner_id, { id: d.id, reference: d.reference });
+      learnerToDossier.set(d.learner_id, { id: d.id, reference: d.reference, companyId: d.company_id });
     }
   }
   const learnerIds = [...learnerToDossier.keys()];
@@ -113,6 +131,8 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
       email: l.email,
       dossierId: dref.id,
       dossierReference: dref.reference,
+      companyId: dref.companyId,
+      companyName: dref.companyId ? (companyNames.get(dref.companyId) ?? null) : null,
     };
   });
 

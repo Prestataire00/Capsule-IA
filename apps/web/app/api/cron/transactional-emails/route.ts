@@ -172,7 +172,7 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
   const { data: sessions, error: sErr } = await sb
     .schema('app')
     .from('sessions')
-    .select('id, starts_at, ends_at, modality, location, remote_url, dossier_id')
+    .select('id, starts_at, ends_at, modality, location, remote_url, dossier_id, organization_id, formation_id')
     .gte('starts_at', j7Start.toISOString())
     .lte('starts_at', j7End.toISOString())
     .eq('status', 'planned');
@@ -207,22 +207,32 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
 
     if (learnerIds.length === 0) continue;
 
-    // Dossier + formation
-    const { data: dossierRow } = await sb
+    // Dossiers de la séance : rattachement direct, ou table de liaison pour une
+    // séance de groupe (sans dossier propriétaire — elle ne convoquait personne).
+    // Chaque convocation part avec le dossier de SON apprenant (preuve indicateur 9).
+    const extra = session as unknown as { organization_id: string; formation_id: string | null };
+    const { data: links } = await sb
       .schema('app')
-      .from('dossiers')
-      .select('id, formation_id, organization_id')
-      .eq('id', session.dossier_id)
-      .maybeSingle();
-    const dossier = dossierRow as { id: string; formation_id: string; organization_id: string } | null;
-    if (!dossier) continue;
+      .from('session_dossiers')
+      .select('dossier_id')
+      .eq('session_id', session.id);
+    const sessionDossierIds = [
+      ...new Set(
+        [session.dossier_id, ...((links ?? []) as Array<{ dossier_id: string }>).map((l) => l.dossier_id)].filter(
+          (v): v is string => Boolean(v),
+        ),
+      ),
+    ];
+    const { data: dRows } = sessionDossierIds.length
+      ? await sb.schema('app').from('dossiers').select('id, learner_id, formation_id').in('id', sessionDossierIds)
+      : { data: [] };
+    const sessionDossiers = (dRows ?? []) as Array<{ id: string; learner_id: string; formation_id: string | null }>;
+    const dossierByLearner = new Map(sessionDossiers.map((d) => [d.learner_id, d.id]));
+    const formationId = extra.formation_id ?? sessionDossiers.find((d) => d.formation_id)?.formation_id ?? null;
 
-    const { data: formationRow } = await sb
-      .schema('app')
-      .from('formations')
-      .select('title')
-      .eq('id', dossier.formation_id)
-      .maybeSingle();
+    const { data: formationRow } = formationId
+      ? await sb.schema('app').from('formations').select('title').eq('id', formationId).maybeSingle()
+      : { data: null };
     const formationTitle = (formationRow as { title: string } | null)?.title ?? 'Votre formation';
 
     // Formateur (1er du dossier)
@@ -265,8 +275,8 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
           to: learner.email,
           subject: tpl.subject,
           html: tpl.html,
-          organizationId: dossier.organization_id,
-          dossierId: dossier.id,
+          organizationId: extra.organization_id,
+          dossierId: dossierByLearner.get(learner.id),
           kind: 'convocation_j7',
         });
         if (r.ok) sent++;
@@ -1137,8 +1147,8 @@ export async function POST(req: Request) {
     runCustomSchedules(),
   ]);
   // Après la fiche besoin (qui peut compléter l'analyse depuis l'inscription) :
-  // devis des dossiers prêts, puis expiration des devis périmés.
-  const quotes = await runQuotesMaintenance();
+  // devis des dossiers prêts, expiration des devis périmés, factures en retard.
+  const quotes = await runBillingMaintenance();
   const durationMs = Date.now() - startedAt;
 
   return NextResponse.json({
@@ -1156,14 +1166,29 @@ export async function POST(req: Request) {
   });
 }
 
-async function runQuotesMaintenance(): Promise<{ created: number; expired: number; errors: string[] }> {
+async function runBillingMaintenance(): Promise<{
+  created: number;
+  expired: number;
+  invoicesOverdue: number;
+  errors: string[];
+}> {
   const sb = admin() as unknown as SupabaseClient;
   try {
     const sweep = await sweepMissingQuotes(sb);
     const expired = await expireOverdueQuotes(sb);
-    return { created: sweep.created, expired, errors: sweep.errors };
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+    const { data: late, error } = await sb
+      .schema('app')
+      .from('invoices')
+      .update({ status: 'overdue', updated_at: new Date().toISOString() } as never)
+      .in('status', ['issued', 'partially_paid'])
+      .lt('due_at', today)
+      .is('deleted_at', null)
+      .select('id');
+    const errors = [...sweep.errors, ...(error ? [`factures en retard: ${error.message}`] : [])];
+    return { created: sweep.created, expired, invoicesOverdue: (late ?? []).length, errors };
   } catch (e) {
-    return { created: 0, expired: 0, errors: [`devis: ${e instanceof Error ? e.message : 'échec'}`] };
+    return { created: 0, expired: 0, invoicesOverdue: 0, errors: [`facturation: ${e instanceof Error ? e.message : 'échec'}`] };
   }
 }
 

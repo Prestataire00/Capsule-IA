@@ -1,4 +1,5 @@
 import 'server-only';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { convocationsRecapEmail } from '@/shared/lib/email/templates';
@@ -95,9 +96,23 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
 
   let envoyes = 0;
 
-  for (const [, lignes] of parEntreprise) {
+  for (const [companyId, lignes] of parEntreprise) {
     const entreprise = un(lignes[0]?.company ?? null);
-    const destinataire = entreprise?.contact_email?.trim();
+    // Responsable de l'entreprise ; à défaut, le destinataire de son dernier devis.
+    let destinataire = entreprise?.contact_email?.trim();
+    if (!destinataire) {
+      const { data: devis } = await (sb as unknown as SupabaseClient)
+        .schema('app')
+        .from('quotes')
+        .select('recipient_email')
+        .eq('company_id', companyId)
+        .not('recipient_email', 'is', null)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      destinataire = (devis as { recipient_email: string | null } | null)?.recipient_email?.trim();
+    }
     if (!entreprise || !destinataire) {
       erreurs.push(`${entreprise?.name ?? 'entreprise'} : aucune adresse de contact`);
       continue;
@@ -122,7 +137,14 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
       }),
     });
 
-    const envoi = await sendEmail({ to: destinataire, subject: tpl.subject, html: tpl.html });
+    const envoi = await sendEmail({
+      to: destinataire,
+      subject: tpl.subject,
+      html: tpl.html,
+      organizationId: session.organization_id,
+      kind: 'convocation_recap_entreprise',
+      metadata: { session_id: session.id, company_id: companyId },
+    });
     if (envoi.ok) envoyes += 1;
     else erreurs.push(`${entreprise.name} : ${envoi.reason}`);
   }

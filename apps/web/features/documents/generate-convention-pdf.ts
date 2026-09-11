@@ -39,6 +39,8 @@ export type ConventionInput = {
     name: string;
     siret: string | null;
     address: string | null;
+    /** Responsable qui signe pour l'entreprise cliente. */
+    representative?: string | null;
   } | null;
   funder: {
     /** Nom du financeur, ou « Entreprise / apprenant » pour le reste à charge. */
@@ -70,6 +72,12 @@ export type ConventionInput = {
     currency: string;
     accessibilityNotes: string | null;
   };
+  /**
+   * « contrat » : particulier qui finance lui-même sa formation — contrat de
+   * formation professionnelle (art. L.6353-3 à L.6353-7), avec délai de
+   * rétractation. « convention » (défaut) : entreprise ou financeur.
+   */
+  contractKind?: 'convention' | 'contrat';
   generatedAt: Date;
 };
 
@@ -185,11 +193,12 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   // Header
   c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });
   c = { ...c, y: c.y - 24 };
-  c.page.drawText('CONVENTION DE FORMATION PROFESSIONNELLE', {
+  const contrat = input.contractKind === 'contrat';
+  c.page.drawText(contrat ? 'CONTRAT DE FORMATION PROFESSIONNELLE' : 'CONVENTION DE FORMATION PROFESSIONNELLE', {
     x: MARGIN, y: c.y, size: 14, font: fontBold, color: COLOR_BODY,
   });
   c = { ...c, y: c.y - 14 };
-  c.page.drawText('Article L.6353-1 et suivants du Code du Travail', {
+  c.page.drawText(contrat ? 'Articles L.6353-3 à L.6353-7 du Code du travail' : 'Article L.6353-1 et suivants du Code du Travail', {
     x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED,
   });
   c = { ...c, y: c.y - 18 };
@@ -236,6 +245,7 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   if (input.company) {
     c = drawKeyValue(doc, c, font, fontBold, 'Entreprise', input.company.name);
     if (input.company.siret) c = drawKeyValue(doc, c, font, fontBold, 'SIRET entreprise', input.company.siret);
+    if (input.company.representative) c = drawKeyValue(doc, c, font, fontBold, 'Représentée par', input.company.representative);
   }
   if (input.funder) c = drawKeyValue(doc, c, font, fontBold, 'Financeur', `${input.funder.name} (${input.funder.modeLabel})`);
   c = { ...c, y: c.y - 12 };
@@ -300,22 +310,38 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   );
   c = { ...c, y: c.y - 16 };
 
-  // Section 5 — Signatures
+  let signatureSection = 5;
+  if (contrat) {
+    c = drawHeading(doc, c, fontBold, '5. Délai de rétractation et modalités de paiement');
+    for (const paragraph of [
+      "Le stagiaire dispose d'un délai de 10 jours à compter de la signature du présent contrat pour se rétracter, par lettre recommandée avec avis de réception (art. L.6353-5 du Code du travail). Aucune somme ne peut être exigée avant l'expiration de ce délai.",
+      "À l'expiration du délai de rétractation, il ne peut être exigé plus de 30 % du prix convenu ; le solde est échelonné au fur et à mesure du déroulement de la formation (art. L.6353-6).",
+      "Si, par suite de force majeure dûment reconnue, le stagiaire est empêché de suivre la formation, il peut rompre le contrat : seules les prestations effectivement dispensées sont dues, au prorata de leur valeur prévue au contrat (art. L.6353-7).",
+    ]) {
+      c = drawText(doc, c, font, paragraph, { size: 10 });
+      c = { ...c, y: c.y - 4 };
+    }
+    c = { ...c, y: c.y - 12 };
+    signatureSection = 6;
+  }
+
+  // Signatures
   c = ensureRoom(doc, c, 120);
-  c = drawHeading(doc, c, fontBold, '5. Signatures des parties');
+  c = drawHeading(doc, c, fontBold, `${signatureSection}. Signatures des parties`);
   c = { ...c, y: c.y - 24 };
 
   const colW = (COL - 24) / 2;
   c.page.drawRectangle({ x: MARGIN, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
   c.page.drawRectangle({ x: MARGIN + colW + 24, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
-  // Sur une convention groupée, le signataire est l'entreprise cliente : ses
-  // salariés ne signent pas individuellement un document qui les concerne tous.
-  c.page.drawText(groupe ? 'Le client' : 'Le bénéficiaire', {
+  // Client entreprise : c'est l'entreprise (son responsable) qui signe, jamais
+  // le salarié — même pour un seul inscrit. Particulier : le stagiaire signe.
+  const entrepriseSigne = !!input.company && !contrat;
+  c.page.drawText(entrepriseSigne ? "Le client (l'entreprise)" : contrat ? 'Le stagiaire' : 'Le bénéficiaire', {
     x: MARGIN + colW + 32, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED,
   });
   c.page.drawText(
-    groupe
-      ? (input.company?.name ?? 'Le client')
+    entrepriseSigne
+      ? `${input.company!.name}${input.company!.representative ? ` — ${input.company!.representative}` : ''}`
       : `${input.learner.firstName} ${input.learner.lastName}`,
     { x: MARGIN + colW + 32, y: c.y - 70, size: 8, font, color: COLOR_BODY },
   );

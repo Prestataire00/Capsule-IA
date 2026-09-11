@@ -11,6 +11,8 @@ import { Document, Page, Text, View, StyleSheet, renderToBuffer } from '@react-p
 export type PaperSheetInput = {
   readonly organizationName: string;
   readonly formationTitle: string;
+  /** Feuille d'une entreprise cliente : son nom en tête, ses salariés seulement. */
+  readonly companyName?: string | null;
   readonly slotLabel: string;
   readonly learners: readonly string[];
   readonly trainers: readonly string[];
@@ -57,6 +59,7 @@ export async function renderPaperSheet(input: PaperSheetInput): Promise<Buffer> 
         <Text style={styles.title}>Feuille d’émargement</Text>
         <Text style={styles.meta}>
           {input.organizationName} · {input.formationTitle} · {input.slotLabel}
+          {input.companyName ? ` · Société : ${input.companyName}` : ''}
         </Text>
 
         <View style={styles.head}>

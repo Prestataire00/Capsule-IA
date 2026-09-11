@@ -31,7 +31,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, formation_id, preferred_modality, preferred_start_date, company_name, funder_kind, converted_dossier_id',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -49,6 +49,12 @@ export async function convertProspectToDossier(
     preferred_modality: string | null;
     preferred_start_date: string | null;
     company_name: string | null;
+    company_siret: string | null;
+    company_address: unknown;
+    referent_name: string | null;
+    referent_email: string | null;
+    referent_phone: string | null;
+    situation: string | null;
     funder_kind: string;
     converted_dossier_id: string | null;
   };
@@ -106,6 +112,7 @@ export async function convertProspectToDossier(
         phone: prospect.phone,
         birth_date: prospect.birthDate,
         rqth: prospect.rqth,
+        statut: p.situation === 'salarie' ? 'salarie' : p.situation === 'independant' ? 'independant' : null,
       })
       .select('id')
       .single();
@@ -123,24 +130,69 @@ export async function convertProspectToDossier(
   const companies = ((companiesData ?? []) as Array<{ id: string; name: string; siret: string | null }>).map<CompanyCandidate>(
     (c) => ({ id: c.id, name: c.name, siret: c.siret }),
   );
+  // Entreprise cliente = celle qui commande et paie (comme RFC). Un particulier
+  // ou un demandeur d'emploi s'inscrit à titre individuel, même s'il cite un
+  // employeur : ses documents (devis, contrat, facture) sont à son nom.
+  const individual = p.situation === 'particulier' || p.situation === 'demandeur';
+  const siret = (p.company_siret ?? '').replace(/\s+/g, '');
+  const validSiret = /^\d{14}$/.test(siret) ? siret : null;
+  const referent = {
+    contact_name: p.referent_name?.trim() || null,
+    contact_email: p.referent_email?.trim() || null,
+    contact_phone: p.referent_phone?.trim() || null,
+  };
   let companyId: string | null = null;
   let companyOutcome: 'reused' | 'created' | 'none' = 'none';
-  if (prospect.companyName) {
-    const cm = matchCompany(null, prospect.companyName, companies);
+  if (prospect.companyName && !individual) {
+    const cm = matchCompany(validSiret, prospect.companyName, companies);
     if (cm.action === 'reuse') {
       companyId = cm.id;
       companyOutcome = 'reused';
+      // Complète la fiche (SIRET, adresse, responsable) sans écraser une saisie manuelle.
+      const { data: existingRow } = await sb
+        .schema('app')
+        .from('companies')
+        .select('siret, address, contact_name, contact_email, contact_phone')
+        .eq('id', cm.id)
+        .maybeSingle();
+      const existing = (existingRow ?? {}) as {
+        siret?: string | null;
+        address?: unknown;
+        contact_name?: string | null;
+        contact_email?: string | null;
+        contact_phone?: string | null;
+      };
+      const patch: Record<string, unknown> = {};
+      if (!existing.siret && validSiret) patch.siret = validSiret;
+      if (isEmptyAddress(existing.address) && !isEmptyAddress(p.company_address)) patch.address = p.company_address;
+      if (!existing.contact_name && referent.contact_name) patch.contact_name = referent.contact_name;
+      if (!existing.contact_email && referent.contact_email) patch.contact_email = referent.contact_email;
+      if (!existing.contact_phone && referent.contact_phone) patch.contact_phone = referent.contact_phone;
+      if (Object.keys(patch).length > 0) {
+        const { error } = await sb.schema('app').from('companies').update(patch).eq('id', cm.id);
+        if (error) console.error('[conversion] fiche entreprise non complétée', cm.id, error.message);
+      }
     } else {
       const { data: ins, error } = await sb
         .schema('app')
         .from('companies')
-        .insert({ organization_id: orgId, name: prospect.companyName })
+        .insert({
+          organization_id: orgId,
+          name: prospect.companyName,
+          siret: validSiret,
+          address: isEmptyAddress(p.company_address) ? {} : p.company_address,
+          ...referent,
+        })
         .select('id')
         .single();
       if (error || !ins) return { ok: false, error: 'company_create_failed' };
       companyId = (ins as { id: string }).id;
       companyOutcome = 'created';
     }
+
+    // Le salarié est rattaché à son entreprise (fiche entreprise, récap des
+    // convocations, catégorie BPF) — sans écraser un rattachement existant.
+    await sb.schema('app').from('learners').update({ company_id: companyId }).eq('id', learnerId).is('company_id', null);
   }
 
   const signals = detectPotentialDuplicates(prospect, learners, companies);
@@ -177,4 +229,10 @@ export async function convertProspectToDossier(
     .eq('id', prospect.id);
 
   return { ok: true, dossierId, report: { learner: learnerOutcome, company: companyOutcome, signals } };
+}
+
+function isEmptyAddress(raw: unknown): boolean {
+  if (!raw) return true;
+  if (typeof raw === 'string') return raw.trim().length === 0;
+  return typeof raw === 'object' && Object.values(raw as Record<string, unknown>).every((v) => !v);
 }

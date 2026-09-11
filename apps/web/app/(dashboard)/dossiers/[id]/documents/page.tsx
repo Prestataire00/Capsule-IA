@@ -32,15 +32,18 @@ export default async function DocumentsPage({ params }: { params: { id: string }
   const { data: dRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select('formation_id, learner:learners(email)')
+    .select('formation_id, learner:learners(email), company:companies(contact_email)')
     .eq('id', params.id)
     .maybeSingle();
   const dossier = dRow as unknown as {
     formation_id: string | null;
     learner: { email: string } | { email: string }[] | null;
+    company: { contact_email: string | null } | { contact_email: string | null }[] | null;
   } | null;
   const learner = dossier ? (Array.isArray(dossier.learner) ? dossier.learner[0] : dossier.learner) : null;
-  const learnerEmail = learner?.email ?? '';
+  const company = dossier ? (Array.isArray(dossier.company) ? dossier.company[0] : dossier.company) : null;
+  // Client entreprise : conventions, devis et factures vont à son responsable, pas au salarié.
+  const learnerEmail = company?.contact_email ?? learner?.email ?? '';
   const formationId = dossier?.formation_id ?? null;
 
   const [docsRes, tplRes] = await Promise.all([

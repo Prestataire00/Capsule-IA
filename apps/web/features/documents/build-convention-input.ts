@@ -39,7 +39,7 @@ export async function buildConventionInput(
       reference, start_date, end_date, total_hours, modality, modalities, total_amount_cents, currency, accessibility_notes,
       organization_id, learner_id, company_id,
       learner:learners(first_name, last_name, email, birth_date, address),
-      company:companies(name, siret, address),
+      company:companies(name, siret, address, contact_name),
       formation:formations(title, description, objectives, prerequisites, target_audience, evaluation_method, pedagogical_method)
     `)
     .eq('id', dossierId)
@@ -61,7 +61,7 @@ export async function buildConventionInput(
     learner_id: string | null;
     company_id: string | null;
     learner: { first_name: string; last_name: string; email: string; birth_date: string | null; address: AddressJson | null } | null;
-    company: { name: string; siret: string | null; address: AddressJson | null } | null;
+    company: { name: string; siret: string | null; address: AddressJson | null; contact_name: string | null } | null;
     formation: { title: string; description: string | null; objectives: string[] | null; prerequisites: string[] | null; target_audience: string | null; evaluation_method: string | null; pedagogical_method: string | null } | null;
   };
 
@@ -107,6 +107,7 @@ export async function buildConventionInput(
           name: d.company.name,
           siret: d.company.siret,
           address: composeAddress(d.company.address),
+          representative: d.company.contact_name,
         }
       : null,
     funder: payer
@@ -137,6 +138,9 @@ export async function buildConventionInput(
       currency: d.currency,
       accessibilityNotes: d.accessibility_notes,
     },
+    // Particulier qui paie lui-même (pas d'entreprise, pas de financeur) :
+    // contrat de formation professionnelle, avec délai de rétractation.
+    contractKind: !d.company && (!payer || payer.payer === 'reste') ? 'contrat' : 'convention',
     generatedAt: new Date(),
   };
 
