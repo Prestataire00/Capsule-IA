@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, ClipboardList, FileBadge, Home, UserRound } from 'lucide-react';
+import { CalendarDays, ClipboardList, FileBadge, Home, Star, UserRound } from 'lucide-react';
 
 const LIENS = [
   { href: '/formateur', label: 'Accueil', icon: Home, prefixes: [] as string[] },
   { href: '/mon-planning', label: 'Planning', icon: CalendarDays, prefixes: ['/mon-planning'] },
-  { href: '/mes-sessions', label: 'Sessions & émargement', icon: ClipboardList, prefixes: ['/mes-sessions', '/emarger'] },
+  { href: '/mes-sessions', label: 'Sessions & émargement', icon: ClipboardList, prefixes: ['/mes-sessions', '/emarger', '/seance'] },
+  { href: '/mes-evaluations', label: 'Évaluations', icon: Star, prefixes: ['/mes-evaluations'] },
   { href: '/profil', label: 'Profil', icon: UserRound, prefixes: ['/profil'] },
   { href: '/cv', label: 'CV & compétences', icon: FileBadge, prefixes: ['/cv'] },
 ];

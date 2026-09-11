@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ClipboardList, MapPin, Video } from 'lucide-react';
+import { ClipboardList, ListChecks, MapPin, Video } from 'lucide-react';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { heure, jourRelatif } from '@/features/trainer-space/dates';
 import type { MySession } from '@/features/trainer-space/my-sessions';
@@ -44,6 +44,12 @@ export function SessionCard({ s, organizationName, emphasize = false }: { s: MyS
               <Video className="w-3.5 h-3.5" /> Visio
             </a>
           )}
+          <Link
+            href={`/seance/${s.id}/questionnaires`}
+            className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <ListChecks className="w-3.5 h-3.5" /> Questionnaires
+          </Link>
           <Link
             href={`/emarger/${s.id}`}
             className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:opacity-90"
