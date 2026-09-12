@@ -378,6 +378,8 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
       organization_id: ref.organization_id,
       dossier_id: ref.dossier_id,
       kind: 'feuille_emargement_signee',
+      // Une entrée par feuille : une nouvelle clôture versionne, sans doublon.
+      source_key: `emargement:${ref.id}`,
       title: `Émargement ${ctx?.dossiers?.reference ?? vue.session.title ?? ''} — ${feuille.halfDay}`.trim(),
       status: 'ready',
       storage_path: chemin,

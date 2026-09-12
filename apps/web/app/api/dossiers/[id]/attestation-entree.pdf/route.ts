@@ -124,6 +124,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       title: "Attestation d'entrée en formation",
       bytes: pdfBytes,
       generationInput: input,
+      sourceKey: `attestation_entree:${params.id}`,
+      sourceUrl: `/api/dossiers/${params.id}/attestation-entree.pdf`,
     });
   } catch (e) {
     console.error('[attestation-entree] persist failed', e);

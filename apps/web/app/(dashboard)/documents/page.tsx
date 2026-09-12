@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { FileText, Search, Eye, PenLine, Sparkles, Archive } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
@@ -88,15 +89,20 @@ export default async function DocumentsPage({
 
   const sb = supabaseServer();
   // Prod-safe : si app.documents n'est pas migrée → data=null → liste vide.
-  let query = sb
+  // Client non typé : `is_current` et `source_url` (0158) ne sont pas encore
+  // dans les types générés (`pnpm db:types` après déploiement).
+  let query = (sb as unknown as SupabaseClient)
     .schema('app')
     .from('documents')
     .select(
-      'id, title, kind, status, created_at, ' +
+      'id, title, kind, status, created_at, version, source_url, ' +
         'dossier:dossiers(id, reference, learner:learners(first_name, last_name)), ' +
         'signatures:document_signatures(status)',
     )
     .is('deleted_at', null)
+    // Une entrée par document : les versions précédentes restent en historique
+    // sur la fiche du document, pas dans la bibliothèque.
+    .eq('is_current', true)
     .order('created_at', { ascending: false })
     .limit(300);
   if (q) query = query.ilike('title', `%${q}%`);

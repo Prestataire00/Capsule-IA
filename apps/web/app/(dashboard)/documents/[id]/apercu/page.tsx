@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Download } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { PrintButton } from './_components/print-button';
@@ -19,10 +20,15 @@ export const dynamic = 'force-dynamic';
 
 export default async function DocumentPreviewPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
-  const { data } = await sb
+  // Client non typé pour les colonnes de versionnage (0158), absentes des
+  // types générés tant que `pnpm db:types` n'a pas été rejoué.
+  const sbDocs = sb as unknown as SupabaseClient;
+  const { data } = await sbDocs
     .schema('app')
     .from('documents')
-    .select('id, title, content_html, dossier_id, storage_path, mime_type, organization_id')
+    .select(
+      'id, title, content_html, dossier_id, storage_path, mime_type, organization_id, version, parent_document_id, source_key, source_url, created_at',
+    )
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -35,8 +41,30 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     storage_path: string | null;
     mime_type: string | null;
     organization_id: string | null;
+    version: number | null;
+    parent_document_id: string | null;
+    source_key: string | null;
+    source_url: string | null;
+    created_at: string | null;
   } | null;
   if (!doc) notFound();
+
+  // Historique : les versions précédentes du même document (même source).
+  const { data: versionRows } = doc.source_key
+    ? await sbDocs
+        .schema('app')
+        .from('documents')
+        .select('id, version, created_at, is_current')
+        .eq('source_key', doc.source_key)
+        .is('deleted_at', null)
+        .order('version', { ascending: false })
+    : { data: [] };
+  const versions = ((versionRows ?? []) as Array<{
+    id: string;
+    version: number | null;
+    created_at: string | null;
+    is_current: boolean | null;
+  }>).filter((v) => v.id !== doc.id);
 
   // Fichier PDF (pas de HTML inline) → aperçu embarqué dans le navigateur.
   const isPdf = !doc.content_html && !!doc.storage_path;
@@ -140,6 +168,41 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
           <PrintButton />
         )}
       </div>
+
+      {(doc.source_url || versions.length > 0) && (
+        <div
+          className={`no-print mx-auto mb-4 rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 text-[12px] text-zinc-600 dark:text-zinc-400 ${
+            isPdf ? 'max-w-[900px]' : 'max-w-[760px]'
+          }`}
+        >
+          <p className="text-zinc-900 dark:text-zinc-100 font-semibold">
+            Version {doc.version ?? 1}
+            {doc.source_url && ' · document tenu à jour'}
+          </p>
+          {doc.source_url && (
+            <p className="mt-0.5">
+              Ce document est régénéré à l’ouverture, à partir des données du jour. La copie archivée reste
+              consultable :{' '}
+              <a href={`/api/documents/${doc.id}?fige=1`} target="_blank" rel="noopener noreferrer" className="font-semibold text-orange-600 dark:text-orange-400 hover:underline">
+                voir la version archivée
+              </a>
+              .
+            </p>
+          )}
+          {versions.length > 0 && (
+            <ul className="mt-2 space-y-0.5">
+              {versions.map((v) => (
+                <li key={v.id}>
+                  <Link href={`/documents/${v.id}/apercu`} className="hover:underline">
+                    Version {v.version ?? 1}
+                    {v.created_at ? ` — ${new Date(v.created_at).toLocaleDateString('fr-FR')}` : ''}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {isPdf ? (
         <div className="max-w-[900px] mx-auto">

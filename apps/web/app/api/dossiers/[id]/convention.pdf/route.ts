@@ -51,6 +51,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       title: `Convention de formation${titleSuffix}`,
       bytes: pdfBytes,
       generationInput: input,
+      // Une entrée par convention (dossier + payeur), versionnée à chaque régénération.
+      sourceKey: `convention:${params.id}:${selected?.payer ?? 'reste'}`,
       metadata: selected
         ? { payer: selected.payer, funder_name: selected.funderName, mode_label: selected.modeLabel }
         : { payer: null },

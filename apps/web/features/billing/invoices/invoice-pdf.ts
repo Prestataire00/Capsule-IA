@@ -242,6 +242,9 @@ export async function buildInvoicePdf(
         title: `${inv.kind === 'credit_note' ? 'Avoir' : 'Facture'} ${inv.reference}`,
         bytes,
         generationInput: input,
+        // Une entrée par facture dans la GED ; une pièce comptable ne se
+        // régénère pas à l'ouverture (pas de source_url) mais se versionne.
+        sourceKey: `invoice:${inv.id}`,
       });
     } catch (e) {
       console.error('[facture] archivage impossible', inv.id, e);

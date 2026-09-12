@@ -86,6 +86,9 @@ export const generateConventions = authActionClient
         title: `Convention de formation${titleSuffix}`,
         bytes: pdfBytes,
         generationInput: built.input,
+        // Une entrée par convention (dossier + payeur) : régénérer remplace la
+        // version affichée, l'ancienne reste en historique. Pièce signée : figée.
+        sourceKey: `convention:${parsedInput.dossierId}:${payer?.payer ?? 'reste'}`,
         metadata: payer
           ? { payer: payer.payer, funder_name: payer.funderName, mode_label: payer.modeLabel }
           : { payer: null },

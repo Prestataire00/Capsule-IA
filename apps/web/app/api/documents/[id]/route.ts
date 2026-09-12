@@ -28,13 +28,30 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const { data: doc } = await sb
     .schema('app')
     .from('documents')
-    .select('id, title, storage_path, mime_type')
+    .select('id, title, storage_path, mime_type, source_url')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
 
-  const row = doc as { id: string; title: string | null; storage_path: string | null; mime_type: string | null } | null;
-  if (!row || !row.storage_path) {
+  const row = doc as {
+    id: string;
+    title: string | null;
+    storage_path: string | null;
+    mime_type: string | null;
+    source_url: string | null;
+  } | null;
+  if (!row) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+
+  // Document « vivant » : on régénère depuis les données à jour plutôt que de
+  // servir la copie archivée, qui peut dater d'avant une signature ou un
+  // changement de montant. `?fige=1` force la copie telle qu'elle a été
+  // archivée (utile pour une preuve). Les pièces figées n'ont pas de source_url.
+  if (row.source_url && req.nextUrl.searchParams.get('fige') !== '1') {
+    return NextResponse.redirect(new URL(row.source_url, req.nextUrl.origin));
+  }
+  if (!row.storage_path) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 

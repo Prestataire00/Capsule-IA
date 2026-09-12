@@ -127,6 +127,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       title: 'Attestation de fin de formation',
       bytes: pdfBytes,
       generationInput: input,
+      // Document vivant : heures suivies et résultats évoluent jusqu'à la clôture.
+      sourceKey: `attestation_fin:${params.id}`,
+      sourceUrl: `/api/dossiers/${params.id}/attestation.pdf`,
     });
   } catch (e) {
     console.error('[attestation] persist failed', e);

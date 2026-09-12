@@ -139,6 +139,9 @@ export async function buildCertificatPdf(
         title: 'Certificat de réalisation',
         bytes,
         generationInput: input,
+        // Document vivant : les heures réalisées évoluent jusqu'à la clôture.
+        sourceKey: `certificat:${dossierId}`,
+        sourceUrl: `/api/dossiers/${dossierId}/certificat.pdf`,
       });
     } catch (e) {
       console.error('[certificat] persist failed', e);
