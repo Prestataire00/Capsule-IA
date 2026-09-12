@@ -41,13 +41,15 @@ export function buildLegalPrompt(kind: LegalKind, org: OrgInfo, sources: LegalSo
     '',
     `Renseigne l'identité ci-dessus dans l'en-tête et dans le corps du document (aux endroits qui citent l'organisme), en reprenant EXACTEMENT ces valeurs. Ne laisse un champ vide ou marqué [À COMPLÉTER PAR L'OF : …] que si l'information n'est PAS fournie ci-dessus.`,
     '',
-    `Tu dois t'appuyer UNIQUEMENT sur les extraits légaux officiels ci-dessous.`,
-    `N'invente AUCUN article ni référence. Cite les numéros d'articles tels que fournis.`,
+    sources.length > 0
+      ? `Tu dois t'appuyer UNIQUEMENT sur les extraits légaux officiels ci-dessous.\nN'invente AUCUN article ni référence. Cite les numéros d'articles tels que fournis.`
+      : // Sans extraits Légifrance : on rédige à partir du droit de la formation
+        // professionnelle, en signalant que les références sont à vérifier.
+        `Les extraits officiels ne sont pas disponibles : appuie-toi sur le droit français de la formation professionnelle (Code du travail, livre III de la sixième partie) que tu connais.\nCite les numéros d'articles applicables, mais ouvre le document par un avertissement : « Références légales à vérifier : ce brouillon a été rédigé sans extraits officiels Légifrance. »`,
     `Signale entre crochets [À COMPLÉTER PAR L'OF : …] tout élément manquant NON fourni ci-dessus.`,
     `Rends le document en Markdown structuré (titres, articles numérotés).`,
     '',
-    `## Extraits légaux officiels (Légifrance)`,
-    extraits,
+    ...(sources.length > 0 ? [`## Extraits légaux officiels (Légifrance)`, extraits] : []),
   ]
     .filter(Boolean)
     .join('\n');

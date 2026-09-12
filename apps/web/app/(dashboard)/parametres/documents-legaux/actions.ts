@@ -16,7 +16,7 @@ const admin = () =>
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-type ActionResult = { ok: true } | { ok: false; error: string };
+type ActionResult = { ok: true; warning?: string } | { ok: false; error: string };
 
 /**
  * `orgId` arrive du composant client : sans cette garde, il suffisait de le
@@ -25,8 +25,16 @@ type ActionResult = { ok: true } | { ok: false; error: string };
  */
 async function guardOrg(orgId: string): Promise<{ ok: false; error: string } | null> {
   const guard = await guardAction('settings');
-  if (!guard.ok) return { ok: false, error: guard.error };
-  if (guard.member.organizationId !== orgId) return { ok: false, error: 'forbidden' };
+  if (!guard.ok) {
+    return {
+      ok: false,
+      error:
+        guard.error === 'unauthenticated'
+          ? 'Session expirée : reconnectez-vous.'
+          : "Réservé aux administrateurs et propriétaires de l'organisme.",
+    };
+  }
+  if (guard.member.organizationId !== orgId) return { ok: false, error: 'Organisme non autorisé.' };
   return null;
 }
 
@@ -99,14 +107,23 @@ export async function generateLegalDocDraft(orgId: string, kind: LegalKind): Pro
   if (guard) return guard;
   const sb = admin();
   const refs = articlesFor(kind);
-  const fetched = await Promise.all(refs.map((r) => fetchArticle(r)));
+  const fetched = await Promise.all(refs.map((r) => fetchArticle(r).catch(() => null)));
   const sources = fetched.filter((x): x is NonNullable<typeof x> => x !== null);
-  if (sources.length === 0) return { ok: false, error: 'Légifrance indisponible (clés PISTE ?)' };
 
+  // Légifrance absent (clés PISTE non configurées, API en panne) : on rédige
+  // quand même, sans extraits officiels. Le document le signale et la page
+  // affiche l'avertissement — mieux vaut un brouillon à vérifier que rien.
   const org = await orgInfo(sb, orgId);
   const gen = await generateLegalDoc(kind, org, sources);
   if (!gen.ok) {
-    return { ok: false, error: gen.reason === 'no_api_key' ? 'Clé Anthropic manquante' : 'Génération échouée' };
+    console.error('[documents-legaux] génération échouée', kind, gen.reason, gen.error);
+    return {
+      ok: false,
+      error:
+        gen.reason === 'no_api_key'
+          ? "Clé ANTHROPIC_API_KEY absente : la génération par IA est indisponible. Renseignez-la dans les variables d'environnement."
+          : `La génération a échoué${gen.error instanceof Error ? ` (${gen.error.message})` : ''}. Réessayez ; si cela persiste, vérifiez la clé ANTHROPIC_API_KEY.`,
+    };
   }
 
   const { error } = await sb.schema('app').from('org_legal_documents').upsert(
@@ -124,7 +141,13 @@ export async function generateLegalDocDraft(orgId: string, kind: LegalKind): Pro
   );
   if (error) return { ok: false, error: error.message };
   revalidatePath('/parametres/documents-legaux');
-  return { ok: true };
+  return {
+    ok: true,
+    warning:
+      sources.length === 0
+        ? "Sources officielles Légifrance indisponibles : le texte a été rédigé sans extraits de loi. Vérifiez chaque article cité avant de valider."
+        : undefined,
+  };
 }
 
 export async function saveLegalDocEdit(orgId: string, kind: LegalKind, contentMd: string): Promise<ActionResult> {

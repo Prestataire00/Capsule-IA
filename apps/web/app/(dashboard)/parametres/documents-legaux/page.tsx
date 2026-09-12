@@ -4,7 +4,8 @@
 import { Scale, ScrollText, Receipt, BookOpen } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { generateLegalDocDraft, saveLegalDocEdit, validateLegalDoc } from './actions';
+import { saveLegalDocEdit } from './actions';
+import { LegalDocButtons } from './legal-doc-buttons.client';
 import type { LegalKind } from '@/shared/lib/legifrance/mapping';
 
 const DOCS: { kind: LegalKind; label: string; icon: typeof Scale; tone: string }[] = [
@@ -62,19 +63,8 @@ export default async function DocumentsLegauxPage() {
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <form action={async () => { 'use server'; await generateLegalDocDraft(orgId, kind); }}>
-                <button type="submit" className="h-8 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[12px] font-semibold px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition">
-                  {d ? 'Régénérer (IA)' : 'Générer (IA)'}
-                </button>
-              </form>
-              {d?.status === 'draft' && (
-                <form action={async () => { 'use server'; await validateLegalDoc(orgId, kind); }}>
-                  <button type="submit" className="h-8 bg-orange-500 text-white text-[12px] font-semibold px-3 rounded-lg shadow-sm shadow-orange-600/30 hover:bg-orange-600 transition">
-                    Valider
-                  </button>
-                </form>
-              )}
+            <div className="flex flex-wrap items-start gap-3">
+              <LegalDocButtons orgId={orgId} kind={kind} hasDraft={Boolean(d)} isDraft={d?.status === 'draft'} />
               {d?.pdf_storage_path && <span className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400 self-center">PDF généré</span>}
             </div>
 
