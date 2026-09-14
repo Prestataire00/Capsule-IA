@@ -303,6 +303,21 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     cat.priceIndependantCents ? { label: 'Indépendant', value: formatEuros(cat.priceIndependantCents) } : null,
   ].filter((x): x is { label: string; value: string } => x !== null);
 
+  /**
+   * Le tarif de base d'une formation importée n'est pas écrit dans la
+   * convention : celle-ci ne donne qu'un montant global. Il est déduit en
+   * divisant ce montant par l'effectif annoncé. Le dire à l'écran, sinon on
+   * prend un chiffre calculé pour un engagement contractuel — et un forfait
+   * de groupe facturé à la tête sous-facture dès qu'un stagiaire manque.
+   */
+  // `importedFrom` est écrit par l'import mais absent de `CatalogMeta` (type
+  // partagé, hors de cette zone) : lu ici sans l'élargir.
+  const origineCatalogue = (f.metadata?.catalog as { importedFrom?: string } | undefined)?.importedFrom;
+  const tarifDeduitDe =
+    origineCatalogue === 'convention' && cat.priceEntrepriseCents && cat.effectifMax
+      ? `Déduit de la convention : ${formatEuros(cat.priceEntrepriseCents)} ÷ ${cat.effectifMax} participants annoncés. Le montant contractuel est le forfait global.`
+      : null;
+
   const contenus = [
     { label: 'Programme détaillé', value: texte(cat.programContent) },
     { label: 'Méthodes pédagogiques', value: texte(f.pedagogical_method) },
@@ -435,7 +450,13 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                   chiffre
                 />
                 <Info label="Effectif" icon={UsersIcon} value={effectif} chiffre />
-                <Info label="Tarif de base" icon={Banknote} value={`${formatEuros(f.default_price_cents)} HT`} chiffre />
+                <Info
+                  label="Tarif de base"
+                  icon={Banknote}
+                  value={`${formatEuros(f.default_price_cents)} HT`}
+                  chiffre
+                  precision={tarifDeduitDe}
+                />
                 {tarifs.map((t) => (
                   <Info key={t.label} label={`Tarif ${t.label.toLowerCase()}`} icon={Banknote} value={`${t.value} HT`} chiffre />
                 ))}
@@ -790,15 +811,18 @@ function Info({
   value,
   icon: RowIcon,
   chiffre = false,
+  precision,
 }: {
   label: string;
   value: string | null | undefined;
   icon?: React.ComponentType<{ className?: string }>;
   chiffre?: boolean;
+  /** D'où sort le chiffre, quand il est déduit et non saisi. */
+  precision?: string | null;
 }) {
   if (!value) return null;
   return (
-    <div className="flex items-baseline justify-between gap-3 py-2">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 py-2">
       <dt className="text-[13px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5 shrink-0">
         {RowIcon && <RowIcon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />}
         {label}
@@ -806,6 +830,9 @@ function Info({
       <dd className={`text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 text-right ${chiffre ? 'tabular-nums' : ''}`}>
         {value}
       </dd>
+      {precision && (
+        <dd className="text-[11px] text-zinc-400 dark:text-zinc-500 text-right basis-full">{precision}</dd>
+      )}
     </div>
   );
 }
