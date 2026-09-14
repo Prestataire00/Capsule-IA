@@ -29,12 +29,24 @@ export default async function SessionsPage({ params }: { params: { id: string } 
     .select('id, total_hours').eq('id', params.id).maybeSingle();
   if (!dossier) notFound();
 
-  // Sessions où CE dossier est lié (primaire ou partagé). Prod-safe : si
-  // session_dossiers n'est pas encore migrée, data=null → liste vide.
-  const { data: links } = await sb.schema('app').from('session_dossiers')
-    .select('session_id').eq('dossier_id', params.id);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sessionIds = ((links as any[]) ?? []).map((l) => l.session_id);
+  // Une séance tient à son dossier par deux chemins, et les deux comptent :
+  // la table de liaison `session_dossiers` (séance partagée entre plusieurs
+  // dossiers) et la colonne `sessions.dossier_id` (séance propre au dossier,
+  // ce que pose l'import d'une convention). N'en lire qu'un seul affichait
+  // « Aucune session » sur des dossiers qui en avaient six.
+  const [{ data: links }, { data: directes }] = await Promise.all([
+    // Prod-safe : si session_dossiers n'est pas encore migrée, data=null.
+    sb.schema('app').from('session_dossiers').select('session_id').eq('dossier_id', params.id),
+    sb.schema('app').from('sessions').select('id').eq('dossier_id', params.id),
+  ]);
+  const sessionIds = [
+    ...new Set([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...((links as any[]) ?? []).map((l) => l.session_id as string),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...((directes as any[]) ?? []).map((s) => s.id as string),
+    ]),
+  ];
 
   const { data: sessions } = sessionIds.length
     ? await sb.schema('app').from('sessions')

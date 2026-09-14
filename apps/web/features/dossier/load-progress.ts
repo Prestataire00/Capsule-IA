@@ -46,7 +46,16 @@ export async function loadDossierProgress(
     { data: quoteLinkRows },
   ] = await Promise.all([
     sb.schema('app').from('dossiers').select('created_at, status').eq('id', dossierId).maybeSingle(),
-    sb.schema('app').from('session_dossiers').select('created_at').eq('dossier_id', dossierId),
+    // Deux chemins mènent une séance à son dossier : la table de liaison
+    // (séance partagée) et `sessions.dossier_id` (séance propre, ce que pose
+    // l'import d'une convention). N'en lire qu'un laissait l'étape « Session
+    // planifiée » grise sur un dossier qui avait déjà six séances.
+    Promise.all([
+      sb.schema('app').from('session_dossiers').select('created_at').eq('dossier_id', dossierId),
+      sb.schema('app').from('sessions').select('created_at').eq('dossier_id', dossierId),
+    ]).then(([liens, directes]) => ({
+      data: [...((liens.data ?? []) as Array<{ created_at: string | null }>), ...((directes.data ?? []) as Array<{ created_at: string | null }>)],
+    })),
     sb
       .schema('app')
       .from('documents')

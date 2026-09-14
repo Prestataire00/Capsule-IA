@@ -8,6 +8,8 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { loadDossierProgress } from '@/features/dossier/load-progress';
 import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { ReferentCard, type ContactOption } from './referent-card.client';
 import { TagsEditor } from './tags-editor';
 import { BpfFieldsEditor } from './bpf-fields-editor';
 
@@ -18,16 +20,74 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
     const { count } = await sb.schema('app').from(table).select('*', { count: 'exact', head: true }).eq(col, id);
     return count ?? 0;
   };
+  /**
+   * Séances du dossier : liaison (séance partagée) + `sessions.dossier_id`
+   * (séance propre, posée par l'import d'une convention). Le compteur ne
+   * lisait que la liaison et affichait 0 sur un dossier qui en avait six.
+   */
+  const compteSessions = async (): Promise<number> => {
+    const [liens, directes] = await Promise.all([
+      sb.schema('app').from('session_dossiers').select('session_id').eq('dossier_id', id),
+      sb.schema('app').from('sessions').select('id').eq('dossier_id', id),
+    ]);
+    const ids = new Set<string>([
+      ...(((liens.data ?? []) as Array<{ session_id: string }>).map((l) => l.session_id)),
+      ...(((directes.data ?? []) as Array<{ id: string }>).map((s) => s.id)),
+    ]);
+    return ids.size;
+  };
+
   const [sessions, documents, funders, dossier, progress] = await Promise.all([
-    count('session_dossiers'),
+    compteSessions(),
     count('documents'),
     count('dossier_funders'),
-    sb.schema('app').from('dossiers').select('tags, action_type, trainee_category').eq('id', id).maybeSingle(),
+    sb.schema('app').from('dossiers').select('tags, action_type, trainee_category, company_id, contact_id').eq('id', id).maybeSingle(),
     loadDossierProgress(sb, id),
   ]);
   const tags = ((dossier.data?.tags as string[] | null) ?? []);
   const actionType = (dossier.data?.action_type as string | null) ?? null;
   const traineeCategory = (dossier.data?.trainee_category as string | null) ?? null;
+
+  // Référent du client (0167) : les contacts de l'entreprise cliente, pour
+  // pouvoir le désigner ici — jusqu'ici seul l'import d'une convention en
+  // posait un, et un dossier saisi autrement restait sans interlocuteur.
+  const companyId = (dossier.data?.company_id as string | null) ?? null;
+  const contactId = (dossier.data?.contact_id as string | null) ?? null;
+  const [{ data: contactRows }, { data: companyRow }, peutModifier] = await Promise.all([
+    companyId
+      ? sb
+          .schema('app')
+          .from('contacts')
+          .select('id, first_name, last_name, position, email, phone')
+          .eq('company_id', companyId)
+          .is('deleted_at', null)
+          .order('is_primary', { ascending: false })
+          .order('last_name', { ascending: true })
+      : Promise.resolve({ data: [] }),
+    companyId
+      ? sb.schema('app').from('companies').select('name').eq('id', companyId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    canManageSection('dossiers'),
+  ]);
+  const contacts: ContactOption[] = (
+    (contactRows ?? []) as Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      position: string | null;
+      email: string | null;
+      phone: string | null;
+    }>
+  ).map((c) => ({
+    id: c.id,
+    firstName: c.first_name,
+    lastName: c.last_name,
+    position: c.position,
+    email: c.email,
+    phone: c.phone,
+  }));
+  const referent = contacts.find((c) => c.id === contactId) ?? null;
+  const companyName = (companyRow as { name?: string } | null)?.name ?? null;
 
   const cards: { icon: typeof Calendar; label: string; value: number; href: string; accent: Accent }[] = [
     { icon: Calendar, label: 'Sessions', value: sessions, href: 'sessions', accent: 'blue' },
@@ -44,6 +104,13 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
           <KpiCard key={href} icon={icon} label={label} value={value} accent={accent} href={`/dossiers/${id}/${href}`} />
         ))}
       </div>
+      <ReferentCard
+        dossierId={id}
+        referent={referent}
+        contacts={contacts}
+        companyName={companyName}
+        peutModifier={peutModifier}
+      />
       <BpfFieldsEditor dossierId={id} initialActionType={actionType} initialTraineeCategory={traineeCategory} />
       <TagsEditor dossierId={id} initialTags={tags} />
 
