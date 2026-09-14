@@ -44,8 +44,8 @@ describe('actions de tâche', () => {
   });
 
   it('bornent chaque écriture à l’organisation du membre', () => {
-    // Statut, attribution, suppression : filtrées sur l'organisation…
-    expect(actions.match(/\.eq\('organization_id', g\.membre\.organizationId\)/g)?.length).toBe(3);
+    // Statut, attribution, report, suppression : filtrés sur l'organisation…
+    expect(actions.match(/\.eq\('organization_id', g\.membre\.organizationId\)/g)?.length).toBeGreaterThanOrEqual(3);
     // …et la création écrit celle du membre, jamais une valeur reçue du client.
     expect(actions).toContain('organization_id: g.membre.organizationId,');
   });

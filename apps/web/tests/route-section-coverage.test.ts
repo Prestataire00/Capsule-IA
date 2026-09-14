@@ -17,6 +17,7 @@ const DASHBOARD = path.resolve(__dirname, '../app/(dashboard)');
 const OUVERT_A_TOUS = new Set([
   'notifications', // personnelles : chaque membre voit les siennes
   'recherche', // recherche globale, résultats déjà filtrés par la RLS
+  'taches', // travail d'équipe : chaque rôle connu suit et prend des tâches (RLS bornée à l'organisation)
 ]);
 
 describe('cloisonnement des racines du dashboard', () => {
