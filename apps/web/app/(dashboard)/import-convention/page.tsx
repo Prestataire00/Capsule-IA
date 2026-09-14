@@ -44,9 +44,9 @@ export default async function ImportConventionPage() {
         </p>
         <p className="mt-1">
           L’entreprise cliente et le contact de son signataire · la formation sur mesure, hors catalogue, avec son programme
-          et son tarif · une séance par date de la convention, rattachée au client · une tâche pour récupérer la liste
-          nominative si les stagiaires ne sont pas nommés · les PDF d’origine archivés dans vos documents. Aucun devis ni
-          facture n’est émis.
+          et son tarif · <strong>le dossier du client</strong>, qui rassemble tout · une séance par date de la convention ·
+          la convention et les programmes rattachés aux documents du dossier · une tâche pour récupérer la liste nominative
+          si les stagiaires ne sont pas nommés. Aucun devis ni facture n’est émis.
         </p>
       </div>
 

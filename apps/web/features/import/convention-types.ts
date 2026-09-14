@@ -85,6 +85,9 @@ export type ImportSummary = {
   companyId: string | null;
   companyCreated: boolean;
   contactCreated: boolean;
+  /** Dossier du client : la vue qui rassemble formation, séances et documents. */
+  dossierId: string | null;
+  dossierReference: string | null;
   formations: Array<{ id: string; title: string }>;
   sessions: number;
   learners: number;

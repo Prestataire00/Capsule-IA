@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CheckCircle2,
   FileUp,
+  FolderOpen,
   GraduationCap,
   ListChecks,
   Loader2,
@@ -126,7 +127,25 @@ export function ImportConventionClient() {
               ))}
             </ul>
           )}
+          {resume.dossierId && (
+            <p className="mt-3 text-[13px] text-zinc-700 dark:text-zinc-300">
+              Tout est rassemblé dans le dossier{' '}
+              <Link href={`/dossiers/${resume.dossierId}`} className="font-semibold text-orange-600 dark:text-orange-400 hover:underline">
+                {resume.dossierReference ?? 'du client'}
+              </Link>{' '}
+              : la formation, les séances, la convention et les programmes importés.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center gap-2 mt-4">
+            {resume.dossierId && (
+              <Link
+                href={`/dossiers/${resume.dossierId}`}
+                className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-9 rounded-lg inline-flex items-center gap-1.5 shadow-sm shadow-orange-600/30"
+              >
+                <FolderOpen className="w-3.5 h-3.5" /> Ouvrir le dossier
+              </Link>
+            )}
             {resume.formations.map((f) => (
               <Link
                 key={f.id}

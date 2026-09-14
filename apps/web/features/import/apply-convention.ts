@@ -1,5 +1,7 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { generateDossierReference } from '@/features/crm/prospect-conversion/dossier-reference';
 import { slugify } from '@/features/formations/mapping';
 import { DEFAULT_THEME, type Programme, type ProgrammeSection } from '@/features/formations/programme/types';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
@@ -141,6 +143,8 @@ export async function applyConventionImport(
     companyId: null,
     companyCreated: false,
     contactCreated: false,
+    dossierId: null,
+    dossierReference: null,
     formations: [],
     sessions: 0,
     learners: 0,
@@ -344,6 +348,88 @@ export async function applyConventionImport(
     learnerIds.push(trouve.id);
   }
 
+  // ── Dossier du client ─────────────────────────────────────────────────────
+  // Le dossier est la vue qui rassemble tout : formation, séances, documents,
+  // Qualiopi, facturation. Il exige un titulaire (`learner_id NOT NULL`) : sans
+  // liste nominative, on pose un titulaire provisoire, sur une adresse en
+  // `.invalid` (RFC 2606) pour qu'aucun envoi automatique ne parte vers un
+  // destinataire inventé.
+  if (formationId) {
+    const dates = payload.sessions.map((s) => s.date).sort();
+    const debut = dates[0] ?? new Date().toISOString().slice(0, 10);
+    const fin = dates[dates.length - 1] ?? debut;
+
+    let titulaire = learnerIds[0] ?? null;
+    if (!titulaire) {
+      const emailProvisoire = `liste-a-venir.${(resume.companyId ?? organizationId).slice(0, 8)}@import.invalid`;
+      const { data: dejaLa } = await sb
+        .schema('app')
+        .from('learners')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('email', emailProvisoire)
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (dejaLa) titulaire = (dejaLa as { id: string }).id;
+      else {
+        const { data, error } = await sb
+          .schema('app')
+          .from('learners')
+          .insert({
+            organization_id: organizationId,
+            company_id: resume.companyId,
+            first_name: 'Stagiaires',
+            last_name: 'à désigner',
+            email: emailProvisoire,
+            notes: 'Titulaire provisoire créé à l’import de la convention — à remplacer par la liste nominative.',
+          } as never)
+          .select('id')
+          .single();
+        if (error) resume.warnings.push('Titulaire provisoire du dossier non créé : le dossier n’a pas pu être ouvert.');
+        else titulaire = (data as { id: string }).id;
+      }
+    }
+
+    if (titulaire) {
+      const dossierId = randomUUID();
+      const reference = generateDossierReference(dossierId, Number(debut.slice(0, 4)));
+      const heures = Number(payload.formations[0]?.durationHours || 0) || 1;
+      const p = {
+        p_dossier: {
+          id: dossierId,
+          organization_id: organizationId,
+          reference,
+          learner_id: titulaire,
+          company_id: resume.companyId,
+          formation_id: formationId,
+          status: 'draft',
+          modality: payload.formations[0]?.modality ?? 'presentiel',
+          start_date: debut,
+          end_date: fin,
+          total_hours: heures,
+          total_amount_cents: payload.pricing.totalHtCents,
+          currency: 'EUR',
+          metadata: { imported_from: 'convention', payment_terms: payload.pricing.paymentTerms },
+          // Les modules lus ne sont pas au catalogue : ils vivent dans le
+          // programme de la formation, pas en lignes de dossier.
+          modules: [],
+          trainers: [],
+          funders: [],
+        },
+        p_events: [],
+      };
+      // Le wrapper public est celui qu'utilise la création manuelle ; repli sur
+      // le schéma `app` si l'exposition diffère sur cette base.
+      let erreur = (await sb.rpc('save_dossier', p as never)).error;
+      if (erreur) erreur = (await sb.schema('app').rpc('save_dossier', p as never)).error;
+      if (erreur) resume.warnings.push(`Dossier non créé : ${erreur.message}`);
+      else {
+        resume.dossierId = dossierId;
+        resume.dossierReference = reference;
+      }
+    }
+  }
+
   // ── Séances ───────────────────────────────────────────────────────────────
   for (const s of payload.sessions) {
     const debut = parisIso(s.date, s.startTime);
@@ -352,7 +438,9 @@ export async function applyConventionImport(
 
     const ligne: Record<string, unknown> = {
       organization_id: organizationId,
-      dossier_id: null,
+      // Rattachée au dossier : c'est lui qui porte les heures, l'émargement et
+      // la conformité de l'affaire.
+      dossier_id: resume.dossierId,
       formation_id: formationId,
       title: s.label || null,
       modality: s.modality,
@@ -433,7 +521,9 @@ export async function applyConventionImport(
     try {
       await persistGeneratedDocument(sb as never, {
         organizationId,
-        dossierId: null,
+        // Rattaché au dossier : la convention doit se retrouver dans l'onglet
+        // Documents de l'affaire, pas seulement dans la GED de l'organisme.
+        dossierId: resume.dossierId,
         kind: convention ? 'convention' : 'programme',
         title: pdf.name.replace(/\.pdf$/i, '').slice(0, 200),
         bytes: pdf.bytes,
