@@ -2,13 +2,14 @@
 // Justification: catalogue formations en données réelles — KPIs, recherche + filtre modalité fonctionnels, grille.
 
 import Link from 'next/link';
-import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Video, MapPin, Users as UsersIcon } from 'lucide-react';
+import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Video, MapPin, Users as UsersIcon, Trash2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { FormationDeleteButton, FormationRestoreButton } from './formation-delete.client';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 import { formationColorMap, deepColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
 import { KpiCard, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
@@ -36,35 +37,57 @@ type FormationRow = {
   created_at: string | null;
 };
 
-type SearchParams = { q?: string; modality?: string };
+type SearchParams = { q?: string; modality?: string; corbeille?: string };
 
 export default async function FormationsPage({ searchParams }: { searchParams: SearchParams }) {
   const q = (searchParams.q ?? '').trim().toLowerCase();
   const modality = MODALITIES.includes(searchParams.modality as (typeof MODALITIES)[number]) ? searchParams.modality! : '';
+  const corbeille = searchParams.corbeille === '1';
 
   const sb = supabaseServer();
-  const { data } = await sb
+  const listeBase = sb
     .schema('app')
     .from('formations')
-    .select('id, code, title, default_modality, default_duration_hours, is_published, created_at')
-    .is('deleted_at', null)
-    .order('code', { ascending: true });
+    .select('id, code, title, default_modality, default_duration_hours, is_published, created_at');
+  const { data } = await (corbeille ? listeBase.not('deleted_at', 'is', null) : listeBase.is('deleted_at', null)).order(
+    'code',
+    { ascending: true },
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const all = ((data as any[]) ?? []) as FormationRow[];
   const colors = formationColorMap(all);
 
-  // Compteurs d'apprenants actifs par formation (dossiers actifs/planifiés).
+  // Nombre de formations à la corbeille : l'accès s'affiche seulement s'il y en a.
+  const { count: supprimees } = await sb
+    .schema('app')
+    .from('formations')
+    .select('id', { count: 'exact', head: true })
+    .not('deleted_at', 'is', null);
+
+  // Compteurs par formation : apprenants actifs (colonne), et usage total
+  // (dossiers, sessions) annoncé avant une suppression.
   const { data: dossierRows } = await sb
     .schema('app')
     .from('dossiers')
     .select('formation_id, status')
     .is('deleted_at', null);
   const activeByFormation = new Map<string, number>();
+  const dossiersByFormation = new Map<string, number>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const d of ((dossierRows as any[]) ?? [])) {
+    if (!d.formation_id) continue;
+    dossiersByFormation.set(d.formation_id, (dossiersByFormation.get(d.formation_id) ?? 0) + 1);
     if (d.status === 'active' || d.status === 'scheduled') {
       activeByFormation.set(d.formation_id, (activeByFormation.get(d.formation_id) ?? 0) + 1);
     }
+  }
+
+  const { data: sessionRows } = await sb.schema('app').from('sessions').select('formation_id').neq('status', 'cancelled');
+  const sessionsByFormation = new Map<string, number>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const s of ((sessionRows as any[]) ?? [])) {
+    if (!s.formation_id) continue;
+    sessionsByFormation.set(s.formation_id, (sessionsByFormation.get(s.formation_id) ?? 0) + 1);
   }
 
   const published = all.filter((f) => f.is_published).length;
@@ -84,7 +107,17 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
           <SectionLabel className="mb-2">Catalogue</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Formations</h1>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
-            Catalogue de <span className="tabular-nums">{all.length}</span> formation{all.length > 1 ? 's' : ''} dans votre OF.
+            {corbeille ? (
+              <>
+                <span className="tabular-nums">{all.length}</span> formation{all.length > 1 ? 's' : ''} à la corbeille. Elles ne
+                sont plus au catalogue ; les dossiers et sessions existants gardent la leur.
+              </>
+            ) : (
+              <>
+                Catalogue de <span className="tabular-nums">{all.length}</span> formation{all.length > 1 ? 's' : ''} dans votre
+                OF.
+              </>
+            )}
           </p>
         </div>
         <ManageOnly section="catalogue">
@@ -132,6 +165,24 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
           >
             Réinitialiser
           </Link>
+        )}
+        {corbeille ? (
+          <Link
+            href="/formations"
+            className="ml-auto text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 px-3 h-9 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
+          >
+            ← Retour au catalogue
+          </Link>
+        ) : (
+          (supprimees ?? 0) > 0 && (
+            <Link
+              href="/formations?corbeille=1"
+              className="ml-auto text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-3 h-9 inline-flex items-center gap-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+            >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden /> Corbeille
+              <span className="tabular-nums">({supprimees})</span>
+            </Link>
+          )
         )}
       </div>
 
@@ -189,13 +240,20 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                   <li key={f.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
                     <div className="min-w-0 flex gap-3">
                       <span className="mt-[5px] w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: color }} />
-                      <Link
-                        href={`/formations/${f.id}`}
-                        className="min-w-0 block truncate text-[14px] font-extrabold hover:underline"
-                        style={{ color: deepColor(color) }}
-                      >
-                        {f.title}
-                      </Link>
+                      {corbeille ? (
+                        // La fiche d'une formation supprimée n'est plus consultable : pas de lien mort.
+                        <span className="min-w-0 block truncate text-[14px] font-extrabold" style={{ color: deepColor(color) }}>
+                          {f.title}
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/formations/${f.id}`}
+                          className="min-w-0 block truncate text-[14px] font-extrabold hover:underline"
+                          style={{ color: deepColor(color) }}
+                        >
+                          {f.title}
+                        </Link>
+                      )}
                     </div>
 
                     <div className="min-w-0">
@@ -230,15 +288,31 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                     </div>
 
                     <div className="flex items-center justify-end gap-0.5">
-                      <CopyInscriptionLink formationId={f.id} />
-                      <Link
-                        href={`/formations/${f.id}`}
-                        aria-label={`Ouvrir la formation — ${f.title}`}
-                        title="Ouvrir la formation"
-                        className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
+                      {corbeille ? (
+                        <ManageOnly section="catalogue">
+                          <FormationRestoreButton formationId={f.id} title={f.title} />
+                        </ManageOnly>
+                      ) : (
+                        <>
+                          <CopyInscriptionLink formationId={f.id} />
+                          <Link
+                            href={`/formations/${f.id}`}
+                            aria-label={`Ouvrir la formation — ${f.title}`}
+                            title="Ouvrir la formation"
+                            className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                          <ManageOnly section="catalogue">
+                            <FormationDeleteButton
+                              formationId={f.id}
+                              title={f.title}
+                              dossiers={dossiersByFormation.get(f.id) ?? 0}
+                              sessions={sessionsByFormation.get(f.id) ?? 0}
+                            />
+                          </ManageOnly>
+                        </>
+                      )}
                     </div>
                   </li>
                 );

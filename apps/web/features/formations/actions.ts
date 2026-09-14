@@ -64,6 +64,87 @@ export async function createFormation(values: unknown): Promise<FormationActionR
   return { ok: true, id: data.id as string };
 }
 
+/**
+ * Suppression d'une formation : mise à la corbeille (`deleted_at`), jamais
+ * effacement. Les dossiers et séances déjà montés gardent leur formation —
+ * c'est le même enregistrement qui porte leur intitulé, et un effacement réel
+ * viderait leur historique (et refuserait de partir, clés étrangères obligent).
+ *
+ * On la dépublie au passage : une formation supprimée ne doit plus apparaître
+ * au catalogue public ni sur le lien d'inscription.
+ */
+export async function deleteFormation(id: string): Promise<FormationActionResult> {
+  const supabase = supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+
+  const orgId = await resolveAdminOrgId(user.id);
+  if (!orgId) return { ok: false, error: 'forbidden_not_admin' };
+
+  const admin = supabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (admin as any)
+    .schema('app')
+    .from('formations')
+    .select('id')
+    .eq('id', id)
+    .eq('organization_id', orgId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (!existing) return { ok: false, error: 'not_found' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any)
+    .schema('app')
+    .from('formations')
+    .update({ deleted_at: new Date().toISOString(), is_published: false, updated_by: user.id })
+    .eq('id', id)
+    .eq('organization_id', orgId);
+  if (error) return { ok: false, error: 'db_delete_failed', details: error.message };
+
+  revalidatePath('/formations');
+  revalidatePath('/catalogue-public');
+  return { ok: true, id };
+}
+
+/** Sortie de corbeille. La formation revient en brouillon, à republier sciemment. */
+export async function restoreFormation(id: string): Promise<FormationActionResult> {
+  const supabase = supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+
+  const orgId = await resolveAdminOrgId(user.id);
+  if (!orgId) return { ok: false, error: 'forbidden_not_admin' };
+
+  const admin = supabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (admin as any)
+    .schema('app')
+    .from('formations')
+    .select('id')
+    .eq('id', id)
+    .eq('organization_id', orgId)
+    .not('deleted_at', 'is', null)
+    .maybeSingle();
+  if (!existing) return { ok: false, error: 'not_found' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any)
+    .schema('app')
+    .from('formations')
+    .update({ deleted_at: null, updated_by: user.id })
+    .eq('id', id)
+    .eq('organization_id', orgId);
+  if (error) return { ok: false, error: 'db_restore_failed', details: error.message };
+
+  revalidatePath('/formations');
+  return { ok: true, id };
+}
+
 export async function updateFormation(id: string, values: unknown): Promise<FormationActionResult> {
   const supabase = supabaseServer();
   const {

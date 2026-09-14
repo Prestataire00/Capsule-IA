@@ -17,6 +17,8 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill, dossierStatusTone } from '@/shared/ui/status-pill';
 import { formationColorMap, deepColor, tintColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
 import { KpiCard, AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { FormationDeleteButton } from '../formation-delete.client';
 import { FormationCover } from './cover-upload.client';
 import { FormationTabs } from './formation-tabs.client';
 import { env } from '@/env.mjs';
@@ -342,6 +344,15 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               <Pencil className="w-3.5 h-3.5" /> Modifier
             </Link>
             <CopyInscriptionLink formationId={f.id} variant="full" />
+            <ManageOnly section="catalogue">
+              <FormationDeleteButton
+                formationId={f.id}
+                title={f.title}
+                dossiers={relatedDossiers.length}
+                sessions={sessions.length}
+                variant="button"
+              />
+            </ManageOnly>
           </div>
         </div>
 
