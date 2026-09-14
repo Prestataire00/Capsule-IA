@@ -114,6 +114,8 @@ export function ImportConventionClient() {
               {resume.formations.length} formation{resume.formations.length > 1 ? 's' : ''} sur mesure ·{' '}
               {resume.sessions} séance{resume.sessions > 1 ? 's' : ''} planifiée{resume.sessions > 1 ? 's' : ''}
               {resume.learners > 0 ? ` · ${resume.learners} apprenant(s)` : ''}
+              {resume.funders > 0 ? ` · ${resume.funders} financeur(s)` : ''}
+              {resume.trainers > 0 ? ` · ${resume.trainers} formateur(s) rattaché(s)` : ''}
             </li>
             <li>{resume.taskCreated ? 'Une tâche a été créée pour récupérer la liste nominative.' : 'Aucune tâche nécessaire.'}</li>
             <li className="tabular-nums">{resume.documents} document(s) source archivé(s).</li>
@@ -379,6 +381,45 @@ export function ImportConventionClient() {
             {payload.participants.named.length > 0
               ? `${payload.participants.named.length} stagiaire(s) nommé(s) : ils seront créés et inscrits aux séances.`
               : 'Aucun stagiaire nommé dans les documents : une tâche sera créée pour récupérer la liste nominative.'}
+          </p>
+        </section>
+
+        <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-2">
+          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+            <FolderOpen className="w-4 h-4 text-zinc-400" aria-hidden /> L’affaire
+          </p>
+          <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">
+            {[
+              ['Objet', payload.dossier.objective],
+              ['Type d’action (BPF)', payload.dossier.actionType.replace(/_/g, ' ')],
+              ['Stagiaires', payload.dossier.traineeCategory.replace(/_/g, ' ')],
+              ['Lieu', payload.dossier.place],
+              ['Sanction', payload.dossier.sanction],
+              ['Règlement', payload.dossier.paymentMethod],
+              [
+                'Signée le',
+                payload.dossier.signedOn
+                  ? `${payload.dossier.signedOn}${payload.dossier.signedPlace ? ` à ${payload.dossier.signedPlace}` : ''}`
+                  : '',
+              ],
+              [
+                'Rétractation',
+                payload.dossier.retractationDays != null ? `${payload.dossier.retractationDays} jours` : '',
+              ],
+              ['Financeurs', payload.dossier.funders.map((f) => `${f.name} (${f.kind})`).join(', ')],
+              ['Formateurs', payload.dossier.trainerNames.join(', ')],
+            ]
+              .filter(([, v]) => typeof v === 'string' && v.trim() !== '')
+              .map(([label, valeur]) => (
+                <div key={label as string} className="min-w-0">
+                  <dt className={etiquette}>{label}</dt>
+                  <dd className="text-zinc-800 dark:text-zinc-200 whitespace-pre-line">{valeur}</dd>
+                </div>
+              ))}
+          </dl>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+            Ces éléments alimentent le dossier : cadre BPF, notes, règlement, financeurs et rattachement du formateur.
+            Un formateur non reconnu dans vos fiches n’est jamais créé — il vous est signalé.
           </p>
         </section>
 

@@ -148,6 +148,8 @@ export async function applyConventionImport(
     formations: [],
     sessions: 0,
     learners: 0,
+    funders: 0,
+    trainers: 0,
     taskCreated: false,
     documents: 0,
     warnings: [],
@@ -441,14 +443,40 @@ export async function applyConventionImport(
           contact_id: contactId,
           formation_id: formationId,
           formation_snapshot: {},
-          status: 'draft',
+          // Une convention signée n'est plus un brouillon : l'affaire est engagée.
+          status: payload.dossier.signedOn ? 'scheduled' : 'draft',
           modality: payload.formations[0]?.modality ?? 'presentiel',
           start_date: debut,
           end_date: fin,
           total_hours: heures,
           total_amount_cents: payload.pricing.totalHtCents,
           currency: 'EUR',
-          metadata: { imported_from: 'convention', payment_terms: payload.pricing.paymentTerms },
+          // Cadre C du BPF, déduit de la convention quand elle le cite.
+          action_type: payload.dossier.actionType || null,
+          trainee_category: payload.dossier.traineeCategory || null,
+          notes:
+            [
+              payload.dossier.objective ? `Objet : ${payload.dossier.objective}` : null,
+              payload.dossier.sanction ? `Sanction : ${payload.dossier.sanction}` : null,
+              payload.dossier.place ? `Lieu : ${payload.dossier.place}` : null,
+            ]
+              .filter(Boolean)
+              .join('\n') || null,
+          // Tout ce que la convention dit et que le modèle ne range pas ailleurs
+          // reste consultable, plutôt que perdu.
+          metadata: {
+            imported_from: 'convention',
+            payment_terms: payload.pricing.paymentTerms,
+            payment_method: payload.dossier.paymentMethod || null,
+            retractation_days: payload.dossier.retractationDays,
+            signed_on: payload.dossier.signedOn || null,
+            signed_place: payload.dossier.signedPlace || null,
+            total_ttc_cents: payload.dossier.totalTtcCents,
+            annex_fees_cents: payload.dossier.annexFeesCents,
+            vat_rate: payload.pricing.vatRate,
+            participants_announced: payload.participants.count,
+            participants_groups: payload.participants.groups || null,
+          },
           created_by: userId,
         } as never);
       if (erreur) resume.warnings.push(`Dossier non créé : ${erreur.message}`);
@@ -459,7 +487,84 @@ export async function applyConventionImport(
     }
   }
 
+  // ── Financeurs nommés par la convention ───────────────────────────────────
+  if (resume.dossierId) {
+    for (const f of payload.dossier.funders) {
+      const { data: existant } = await sb
+        .schema('app')
+        .from('funders')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .ilike('name', f.name)
+        .is('deleted_at', null)
+        .maybeSingle();
+      let funderId = (existant as { id: string } | null)?.id ?? null;
+      if (!funderId) {
+        const { data: cree } = await sb
+          .schema('app')
+          .from('funders')
+          .insert({ organization_id: organizationId, kind: f.kind, name: f.name } as never)
+          .select('id')
+          .single();
+        funderId = (cree as { id: string } | null)?.id ?? null;
+      }
+      if (!funderId) continue;
+      const { error } = await sb
+        .schema('app')
+        .from('dossier_funders')
+        .upsert(
+          {
+            organization_id: organizationId,
+            dossier_id: resume.dossierId,
+            funder_id: funderId,
+            amount_cents: f.amountCents ?? 0,
+            external_file_number: f.fileNumber || null,
+          } as never,
+          { onConflict: 'dossier_id,funder_id' },
+        );
+      if (!error) resume.funders += 1;
+    }
+  }
+
+  // ── Formateurs nommés, rapprochés de vos fiches ───────────────────────────
+  // On ne crée pas de formateur : un homonyme inventé serait pire qu'un manque.
+  const trainerIds: string[] = [];
+  for (const nom of payload.dossier.trainerNames) {
+    const mots = nom.trim().split(/\s+/).filter(Boolean);
+    const patronyme = mots[mots.length - 1];
+    if (!patronyme || patronyme.length < 2) continue;
+    const { data: candidats } = await sb
+      .schema('app')
+      .from('trainers')
+      .select('id, first_name, last_name')
+      .eq('organization_id', organizationId)
+      .ilike('last_name', patronyme)
+      .is('deleted_at', null)
+      .limit(5);
+    const liste = (candidats ?? []) as { id: string; first_name: string | null; last_name: string | null }[];
+    const exact = liste.find((t) => mots.some((m) => (t.first_name ?? '').toLowerCase() === m.toLowerCase()));
+    const choisi = exact ?? (liste.length === 1 ? liste[0] : undefined);
+    if (choisi && !trainerIds.includes(choisi.id)) trainerIds.push(choisi.id);
+    else if (!choisi) resume.warnings.push(`Formateur « ${nom} » non reconnu : rattachez-le à la main.`);
+  }
+  if (resume.dossierId && trainerIds.length > 0) {
+    const { error } = await sb
+      .schema('app')
+      .from('dossier_trainers')
+      .upsert(
+        trainerIds.map((id, i) => ({
+          dossier_id: resume.dossierId,
+          trainer_id: id,
+          organization_id: organizationId,
+          is_lead: i === 0,
+        })) as never,
+        { onConflict: 'dossier_id,trainer_id' },
+      );
+    if (!error) resume.trainers = trainerIds.length;
+  }
+
   // ── Séances ───────────────────────────────────────────────────────────────
+  const sessionIds: string[] = [];
   for (const s of payload.sessions) {
     const debut = parisIso(s.date, s.startTime);
     const fin = parisIso(s.date, s.endTime);
@@ -494,6 +599,7 @@ export async function applyConventionImport(
       continue;
     }
     resume.sessions += 1;
+    sessionIds.push(sessionId);
 
     if (learnerIds.length > 0) {
       await sb
@@ -510,6 +616,40 @@ export async function applyConventionImport(
           { onConflict: 'session_id,participant_kind,participant_id' },
         );
     }
+  }
+
+  // Formateur sur chaque séance : c'est ce qui lui ouvre son espace et son
+  // émargement, et ce qui alimente le coût formateur de la séance.
+  if (trainerIds.length > 0 && sessionIds.length > 0) {
+    await sb
+      .schema('app')
+      .from('session_trainers')
+      .upsert(
+        sessionIds.flatMap((sid) =>
+          trainerIds.map((tid, i) => ({
+            session_id: sid,
+            organization_id: organizationId,
+            trainer_id: tid,
+            is_lead: i === 0,
+          })),
+        ) as never,
+        { onConflict: 'session_id,trainer_id' },
+      );
+    await sb
+      .schema('app')
+      .from('session_participants')
+      .upsert(
+        sessionIds.flatMap((sid) =>
+          trainerIds.map((tid) => ({
+            session_id: sid,
+            organization_id: organizationId,
+            participant_kind: 'trainer',
+            trainer_id: tid,
+            source: 'manual',
+          })),
+        ) as never,
+        { onConflict: 'session_id,participant_kind,participant_id' },
+      );
   }
 
   // ── Liste nominative manquante → tâche ────────────────────────────────────

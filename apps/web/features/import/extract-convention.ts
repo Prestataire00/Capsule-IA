@@ -148,9 +148,65 @@ const SCHEMA = {
       },
       required: ['count', 'groups', 'named'],
     },
+    dossier: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        objective: TEXTE,
+        actionType: {
+          type: 'string',
+          enum: ['action_formation', 'bilan_competences', 'vae', 'apprentissage', 'formation_continue', 'formation_initiale', ''],
+        },
+        traineeCategory: {
+          type: 'string',
+          enum: ['salarie', 'demandeur_emploi', 'particulier', 'apprenti', 'autre', ''],
+        },
+        place: TEXTE,
+        paymentMethod: TEXTE,
+        retractationDays: { type: ['integer', 'null'] },
+        signedOn: TEXTE,
+        signedPlace: TEXTE,
+        annexFeesCents: { type: ['integer', 'null'] },
+        totalTtcCents: { type: ['integer', 'null'] },
+        sanction: TEXTE,
+        funders: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              name: TEXTE,
+              kind: {
+                type: 'string',
+                enum: ['opco', 'cpf', 'pole_emploi', 'region', 'autofinancement', 'entreprise', 'autre'],
+              },
+              amountCents: { type: ['integer', 'null'] },
+              fileNumber: TEXTE,
+            },
+            required: ['name', 'kind', 'amountCents', 'fileNumber'],
+          },
+        },
+        trainerNames: LISTE,
+      },
+      required: [
+        'objective',
+        'actionType',
+        'traineeCategory',
+        'place',
+        'paymentMethod',
+        'retractationDays',
+        'signedOn',
+        'signedPlace',
+        'annexFeesCents',
+        'totalTtcCents',
+        'sanction',
+        'funders',
+        'trainerNames',
+      ],
+    },
     notes: TEXTE,
   },
-  required: ['client', 'formations', 'sessions', 'pricing', 'participants', 'notes'],
+  required: ['client', 'formations', 'sessions', 'pricing', 'participants', 'dossier', 'notes'],
 } as const;
 
 const PROMPT = `Tu lis une convention de formation professionnelle française et, s'ils sont joints, les programmes de formation annexés. Tu remplis une fiche destinée à créer le client, la formation et les séances dans un logiciel de gestion d'organisme de formation.
@@ -166,7 +222,20 @@ Règles impératives :
 - objectives, prerequisites, contenu, objectifs : listes de phrases sans puce ni numérotation.
 - pricing.totalHtCents : le montant HT total en CENTIMES (1 440 € → 144000). vatRate en pourcentage entier (20). paymentTerms reprend l'échéancier tel qu'écrit.
 - participants.count : nombre de stagiaires prévu par la convention. groups : la répartition telle qu'écrite. named : uniquement les participants réellement nommés dans les documents (souvent aucun, la liste étant annexée plus tard).
-- notes : ce que tu as lu d'important sans savoir où le ranger (financement, mentions particulières, incohérences entre les documents).`;
+- notes : ce que tu as lu d'important sans savoir où le ranger (mentions particulières, incohérences entre les documents).
+
+Le bloc "dossier" décrit l'affaire elle-même. Relève tout ce que les documents permettent :
+- objective : l'objet de la formation tel qu'écrit ("Objectif de la formation : …").
+- actionType : la nomenclature du code du travail quand la convention la cite (art. L6313-1). "Action de formation" → action_formation. Chaîne vide si absent.
+- traineeCategory : qui suit la formation. Des salariés d'une entreprise cliente → salarie. Un particulier à ses frais → particulier. Demandeur d'emploi, apprenti → les valeurs correspondantes. Chaîne vide si on ne peut pas trancher.
+- place : le lieu tel qu'écrit ("dans les locaux de l'entreprise", adresse, "classe virtuelle").
+- paymentMethod : le mode de règlement ("par virement", "chèque", "prélèvement").
+- retractationDays : le délai de rétractation en jours, s'il est chiffré.
+- signedOn / signedPlace : la date (AAAA-MM-JJ) et la ville de signature ("Document réalisé en 2 exemplaires à Orléans, le 18/08/2026").
+- annexFeesCents et totalTtcCents : frais annexes et total TTC en CENTIMES.
+- sanction : ce qui est remis au stagiaire à l'issue (attestation, certificat), tel qu'écrit.
+- funders : les financeurs NOMMÉS comme prenant en charge tout ou partie du coût, avec leur nature (opco, cpf, pole_emploi, region, entreprise, autofinancement, autre), le montant en centimes s'il est indiqué, et le numéro de dossier externe s'il figure. Attention : une clause qui EXCLUT une prise en charge ("le coût ne pourra faire l'objet d'une demande de prise en charge par l'OPCO") n'est pas un financeur — n'en crée aucun dans ce cas. Une entreprise qui paie elle-même la formation de ses salariés n'est pas non plus à lister ici : c'est le client.
+- trainerNames : les formateurs nommés dans la convention ou ses annexes ("Formateur : Prénom NOM"), sans leur biographie.`;
 
 export type ExtractConventionResult =
   | { ok: true; data: ConventionImport }

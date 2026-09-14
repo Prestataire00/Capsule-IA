@@ -47,6 +47,25 @@ describe('normalisation de ce qui a été lu', () => {
     const out = normalizeImport(null);
     expect(out.formations).toEqual([]);
     expect(out.pricing.totalHtCents).toBeNull();
+    expect(out.dossier.funders).toEqual([]);
+    expect(out.dossier.actionType).toBe('');
+  });
+
+  it('borne le cadre BPF aux nomenclatures de l’application', () => {
+    const out = normalizeImport({
+      dossier: { actionType: 'formation_pro', traineeCategory: 'salarie', signedOn: '18/08/2026' },
+    });
+    expect(out.dossier.actionType).toBe('');
+    expect(out.dossier.traineeCategory).toBe('salarie');
+    // Une date au format français n'est pas exploitable : on préfère vide à faux.
+    expect(out.dossier.signedOn).toBe('');
+  });
+
+  it('écarte un financeur sans nom et retombe sur « autre » si la nature est inconnue', () => {
+    const out = normalizeImport({
+      dossier: { funders: [{ name: '', kind: 'opco' }, { name: 'OPCO EP', kind: 'inconnu', amountCents: 50000 }] },
+    });
+    expect(out.dossier.funders).toEqual([{ name: 'OPCO EP', kind: 'autre', amountCents: 50000, fileNumber: '' }]);
   });
 });
 
@@ -104,6 +123,33 @@ describe('création dans le CRM', () => {
   it('reprend les modules dans un programme imprimable', () => {
     expect(apply).toContain("type: 'modules'");
     expect(apply).toContain('programmeDepuisImport');
+  });
+
+  it('renseigne le cadre BPF et conserve ce que le modèle ne range pas', () => {
+    expect(apply).toContain('action_type: payload.dossier.actionType || null');
+    expect(apply).toContain('trainee_category: payload.dossier.traineeCategory || null');
+    expect(apply).toContain('retractation_days');
+    expect(apply).toContain('signed_on');
+  });
+
+  it('une convention signée ouvre un dossier engagé, pas un brouillon', () => {
+    expect(apply).toContain("payload.dossier.signedOn ? 'scheduled' : 'draft'");
+  });
+
+  it('rattache les financeurs nommés, en réutilisant ceux qui existent', () => {
+    expect(apply).toContain("from('dossier_funders')");
+    expect(apply).toContain(".ilike('name', f.name)");
+  });
+
+  it('ne crée jamais un formateur : il est reconnu ou signalé', () => {
+    expect(apply).toContain("from('trainers')");
+    expect(apply).toContain('non reconnu : rattachez-le à la main');
+    expect(apply).not.toMatch(/from\('trainers'\)\s*\.insert/);
+  });
+
+  it('pose le formateur reconnu sur le dossier et sur chaque séance', () => {
+    expect(apply).toContain("from('dossier_trainers')");
+    expect(apply).toContain("from('session_trainers')");
   });
 });
 

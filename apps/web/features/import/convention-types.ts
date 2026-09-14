@@ -70,12 +70,54 @@ export type ImportParticipants = {
   named: Array<{ firstName: string; lastName: string; email: string }>;
 };
 
+/** Nomenclatures de l'application, sur lesquelles la lecture doit retomber. */
+export const ACTION_TYPES = [
+  'action_formation',
+  'bilan_competences',
+  'vae',
+  'apprentissage',
+  'formation_continue',
+  'formation_initiale',
+] as const;
+export const TRAINEE_CATEGORIES = ['salarie', 'demandeur_emploi', 'particulier', 'apprenti', 'autre'] as const;
+export const FUNDER_KINDS = ['opco', 'cpf', 'pole_emploi', 'region', 'autofinancement', 'entreprise', 'autre'] as const;
+
+export type ImportFunder = {
+  name: string;
+  kind: (typeof FUNDER_KINDS)[number];
+  amountCents: number | null;
+  fileNumber: string;
+};
+
+/** Ce que la convention dit de l'affaire elle-même, au-delà du client et du prix. */
+export type ImportDossier = {
+  /** Objet de la formation, tel qu'écrit dans la convention. */
+  objective: string;
+  /** Type d'action (nomenclature BPF) ; vide si la convention ne le dit pas. */
+  actionType: (typeof ACTION_TYPES)[number] | '';
+  traineeCategory: (typeof TRAINEE_CATEGORIES)[number] | '';
+  place: string;
+  paymentMethod: string;
+  retractationDays: number | null;
+  /** Date et lieu de signature (AAAA-MM-JJ). */
+  signedOn: string;
+  signedPlace: string;
+  annexFeesCents: number | null;
+  totalTtcCents: number | null;
+  /** Sanction de la formation (attestation, certificat…). */
+  sanction: string;
+  funders: ImportFunder[];
+  /** Formateurs nommés dans la convention ou ses annexes. */
+  trainerNames: string[];
+};
+
 export type ConventionImport = {
   client: ImportClient;
   formations: ImportFormation[];
   sessions: ImportSession[];
   pricing: ImportPricing;
   participants: ImportParticipants;
+  dossier: ImportDossier;
   /** Ce que le lecteur n'a pas su rattacher, à l'attention de l'utilisateur. */
   notes: string;
 };
@@ -91,6 +133,10 @@ export type ImportSummary = {
   formations: Array<{ id: string; title: string }>;
   sessions: number;
   learners: number;
+  /** Financeurs rattachés au dossier. */
+  funders: number;
+  /** Formateurs reconnus et rattachés (dossier et séances). */
+  trainers: number;
   taskCreated: boolean;
   documents: number;
   warnings: string[];
@@ -125,6 +171,10 @@ export function normalizeImport(raw: unknown): ConventionImport {
   const c = (r.client ?? {}) as Record<string, unknown>;
   const p = (r.pricing ?? {}) as Record<string, unknown>;
   const part = (r.participants ?? {}) as Record<string, unknown>;
+  const dos = (r.dossier ?? {}) as Record<string, unknown>;
+
+  const dansListe = <T extends string>(liste: readonly T[], v: unknown): T | '' =>
+    (liste as readonly string[]).includes(String(v)) ? (v as T) : '';
 
   const formations = (Array.isArray(r.formations) ? r.formations : []).slice(0, 10).map((f) => {
     const o = (f ?? {}) as Record<string, unknown>;
@@ -202,6 +252,33 @@ export function normalizeImport(raw: unknown): ConventionImport {
           email: texte(o.email, 200).toLowerCase(),
         };
       }),
+    },
+    dossier: {
+      objective: texte(dos.objective, 4000),
+      actionType: dansListe(ACTION_TYPES, dos.actionType),
+      traineeCategory: dansListe(TRAINEE_CATEGORIES, dos.traineeCategory),
+      place: texte(dos.place, 300),
+      paymentMethod: texte(dos.paymentMethod, 200),
+      retractationDays: entier(dos.retractationDays),
+      signedOn: DATE_RE.test(texte(dos.signedOn, 10)) ? texte(dos.signedOn, 10) : '',
+      signedPlace: texte(dos.signedPlace, 120),
+      annexFeesCents: entier(dos.annexFeesCents),
+      totalTtcCents: entier(dos.totalTtcCents),
+      sanction: texte(dos.sanction, 1000),
+      funders: (Array.isArray(dos.funders) ? dos.funders : []).slice(0, 10).flatMap((f) => {
+        const o = (f ?? {}) as Record<string, unknown>;
+        const name = texte(o.name, 200);
+        if (!name) return [];
+        return [
+          {
+            name,
+            kind: (dansListe(FUNDER_KINDS, o.kind) || 'autre') as ImportFunder['kind'],
+            amountCents: entier(o.amountCents),
+            fileNumber: texte(o.fileNumber, 120),
+          },
+        ];
+      }),
+      trainerNames: liste(dos.trainerNames, 10),
     },
     notes: texte(r.notes, 4000),
   };
