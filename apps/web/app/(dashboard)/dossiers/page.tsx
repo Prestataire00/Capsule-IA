@@ -5,7 +5,9 @@ import Link from 'next/link';
 import type { ComponentType } from 'react';
 import { Plus, Search, FolderOpen, List, LayoutGrid, Columns3, Eye, CalendarClock, FileText } from 'lucide-react';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { nomDuDossier, type Referent } from '@/features/dossier/referent';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { dossierStatusLabel } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
@@ -61,6 +63,7 @@ type Row = {
 const fmtDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 const fmtEuros = (cents: number | null) =>
   cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
+/** Repli quand le référent n'est pas encore chargé (cartes de la vue grille). */
 const learnerName = (d: Row) => [d.learner?.first_name, d.learner?.last_name].filter(Boolean).join(' ') || '—';
 
 const AVATARS = [
@@ -79,7 +82,7 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function DossierCard({ d }: { d: Row }) {
+function DossierCard({ d, nom = learnerName(d) }: { d: Row; nom?: string }) {
   const accent = STATUS_ACCENT[d.status] ?? STATUS_ACCENT.draft!;
   return (
     <Link
@@ -91,8 +94,8 @@ function DossierCard({ d }: { d: Row }) {
         <DossierStatusControl dossierId={d.id} status={d.status as DossierStatus} compact />
       </div>
       <div className="flex items-center gap-2.5 min-w-0">
-        <Avatar name={learnerName(d)} />
-        <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{learnerName(d)}</p>
+        <Avatar name={nom} />
+        <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{nom}</p>
       </div>
       <p className="text-[13px] font-bold text-zinc-700 dark:text-zinc-300 truncate mt-0.5">{d.formation?.title ?? '—'}</p>
       {d.company?.name && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{d.company.name}</p>}
@@ -120,7 +123,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
     .from('dossiers')
     .select(
       'id, reference, start_date, end_date, total_amount_cents, status, qualiopi_ready, ' +
-        'learner:learners(first_name, last_name), company:companies(name), formation:formations(title)',
+        'learner:learners(first_name, last_name, email), company:companies(name), formation:formations(title)',
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -130,6 +133,39 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
 
   const { data } = await query;
   const rows = (data as Row[] | null) ?? [];
+
+  // Référents (0167), en requête séparée et tolérante : la colonne n'existe pas
+  // sur une base où la migration n'est pas encore appliquée, et la liste des
+  // dossiers ne doit pas tomber pour autant.
+  const referents = new Map<string, Referent>();
+  if (rows.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const libre = sb as unknown as SupabaseClient<any, any, any>;
+    const { data: liens } = await libre
+      .schema('app')
+      .from('dossiers')
+      .select('id, contact:contacts(first_name, last_name, position)')
+      .in('id', rows.map((d) => d.id))
+      .not('contact_id', 'is', null);
+    type Lien = {
+      id: string;
+      // PostgREST renvoie parfois l'embed en tableau selon ce qu'il déduit de la relation.
+      contact:
+        | { first_name: string | null; last_name: string | null; position: string | null }
+        | Array<{ first_name: string | null; last_name: string | null; position: string | null }>
+        | null;
+    };
+    for (const l of (liens ?? []) as unknown as Lien[]) {
+      const c = Array.isArray(l.contact) ? l.contact[0] : l.contact;
+      if (c) referents.set(l.id, { firstName: c.first_name, lastName: c.last_name, position: c.position });
+    }
+  }
+  const titre = (d: Row) =>
+    nomDuDossier({
+      learner: { firstName: d.learner?.first_name, lastName: d.learner?.last_name, email: d.learner?.email },
+      referent: referents.get(d.id) ?? null,
+      companyName: d.company?.name ?? null,
+    });
 
   // Filtre apprenant/formation côté serveur (les embeds ne sont pas filtrables en ilike).
   const filtered = q
@@ -265,7 +301,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   {col.length === 0 ? (
                     <p className="text-[12px] text-zinc-400 dark:text-zinc-600 text-center py-4">—</p>
                   ) : (
-                    col.map((d) => <DossierCard key={d.id} d={d} />)
+                    col.map((d) => <DossierCard key={d.id} d={d} nom={titre(d).nom} />)
                   )}
                 </div>
               </div>
@@ -275,7 +311,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((d) => (
-            <DossierCard key={d.id} d={d} />
+            <DossierCard key={d.id} d={d} nom={titre(d).nom} />
           ))}
         </div>
       ) : (
@@ -293,10 +329,15 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
               {filtered.map((d) => (
                 <li key={d.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
                   <div className="min-w-0 flex items-center gap-3">
-                    <Avatar name={learnerName(d)} />
+                    <Avatar name={titre(d).nom} />
                     <div className="min-w-0">
                       <Link href={`/dossiers/${d.id}`} className="block truncate text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100 hover:underline">
-                        {learnerName(d)}
+                        {titre(d).nom}
+                        {titre(d).estReferent && (
+                          <span className="ml-1.5 align-middle text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                            référent
+                          </span>
+                        )}
                       </Link>
                       <div className="mt-1 flex items-center gap-2 min-w-0">
                         <IdPill className="shrink-0">{d.reference}</IdPill>

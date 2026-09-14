@@ -213,7 +213,9 @@ export async function applyConventionImport(
     resume.warnings.push('Aucun client identifié dans les documents.');
   }
 
-  // Représentant signataire → contact de l'entreprise.
+  // Représentant signataire → contact de l'entreprise, et référent du dossier
+  // (destinataire de la convention, des devis et des factures).
+  let contactId: string | null = null;
   if (resume.companyId && payload.client.representativeLastName.trim() !== '') {
     const { data: dejaLa } = await sb
       .schema('app')
@@ -223,8 +225,9 @@ export async function applyConventionImport(
       .ilike('last_name', payload.client.representativeLastName.trim())
       .is('deleted_at', null)
       .maybeSingle();
-    if (!dejaLa) {
-      const { error } = await sb
+    if (dejaLa) contactId = (dejaLa as { id: string }).id;
+    else {
+      const { data: cree, error } = await sb
         .schema('app')
         .from('contacts')
         .insert({
@@ -236,8 +239,33 @@ export async function applyConventionImport(
           phone: payload.client.contactPhone || null,
           position: payload.client.representativeRole.trim() || 'Représentant légal',
           is_primary: true,
-        } as never);
-      if (!error) resume.contactCreated = true;
+        } as never)
+        .select('id')
+        .single();
+      if (!error && cree) {
+        contactId = (cree as { id: string }).id;
+        resume.contactCreated = true;
+      }
+    }
+
+    // Les documents existants (convention, devis, factures) s'adressent au
+    // contact de la fiche entreprise : on le renseigne s'il est vide, pour que
+    // le signataire soit destinataire même hors du chemin « référent ».
+    if (contactId) {
+      const nomReferent = `${payload.client.representativeFirstName} ${payload.client.representativeLastName}`.trim();
+      const { data: entreprise } = await sb
+        .schema('app')
+        .from('companies')
+        .select('contact_name, contact_email')
+        .eq('id', resume.companyId)
+        .maybeSingle();
+      const actuel = entreprise as { contact_name: string | null; contact_email: string | null } | null;
+      const maj: Record<string, unknown> = {};
+      if (!actuel?.contact_name && nomReferent) maj.contact_name = nomReferent;
+      if (!actuel?.contact_email && payload.client.contactEmail) maj.contact_email = payload.client.contactEmail;
+      if (Object.keys(maj).length > 0) {
+        await sb.schema('app').from('companies').update(maj as never).eq('id', resume.companyId);
+      }
     }
   }
 
@@ -408,6 +436,9 @@ export async function applyConventionImport(
           reference,
           learner_id: titulaire,
           company_id: resume.companyId,
+          // Référent : destinataire des documents, et personne affichée tant
+          // que la liste nominative n'est pas arrivée (0167).
+          contact_id: contactId,
           formation_id: formationId,
           formation_snapshot: {},
           status: 'draft',

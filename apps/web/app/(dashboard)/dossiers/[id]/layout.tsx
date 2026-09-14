@@ -4,7 +4,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Calendar, Clock, Users as UsersIcon, Banknote } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { nomDuDossier } from '@/features/dossier/referent';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
@@ -33,14 +35,41 @@ export default async function DossierLayout({
     .from('dossiers')
     .select(
       'reference, status, modality, start_date, end_date, total_hours, total_amount_cents, ' +
-        'learner:learners(first_name, last_name), company:companies(name), formation:formations(title)',
+        'learner:learners(first_name, last_name, email), company:companies(name), formation:formations(title)',
     )
     .eq('id', params.id)
     .maybeSingle();
   if (!data) notFound();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d = data as any;
-  const learner = [d.learner?.first_name, d.learner?.last_name].filter(Boolean).join(' ') || '—';
+
+  // Référent du client (0167), lu à part et sans faire tomber la fiche si la
+  // colonne n'existe pas encore sur cette base.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const libre = sb as unknown as SupabaseClient<any, any, any>;
+  const { data: lien } = await libre
+    .schema('app')
+    .from('dossiers')
+    .select('contact:contacts(first_name, last_name, position, email, phone)')
+    .eq('id', params.id)
+    .maybeSingle();
+  type ContactLu = { first_name: string | null; last_name: string | null; position: string | null; email: string | null; phone: string | null };
+  const brut = (lien as unknown as { contact: ContactLu | ContactLu[] | null } | null)?.contact ?? null;
+  const contact = Array.isArray(brut) ? (brut[0] ?? null) : brut;
+  const referent = contact
+    ? {
+        firstName: contact.first_name,
+        lastName: contact.last_name,
+        position: contact.position,
+        email: contact.email,
+        phone: contact.phone,
+      }
+    : null;
+  const { nom: learner, estReferent } = nomDuDossier({
+    learner: { firstName: d.learner?.first_name, lastName: d.learner?.last_name, email: d.learner?.email },
+    referent,
+    companyName: d.company?.name ?? null,
+  });
 
   return (
     <div className="min-h-[calc(100vh-3rem)]">
@@ -64,6 +93,21 @@ export default async function DossierLayout({
               <span className="font-bold text-zinc-800 dark:text-zinc-200">{d.formation?.title ?? '—'}</span>
               {d.company?.name && <span>{' · '}{d.company.name}</span>}
             </p>
+            {referent && (
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+                {estReferent ? 'Référent du dossier' : 'Référent'} :{' '}
+                <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                  {[referent.firstName, referent.lastName].filter(Boolean).join(' ')}
+                </span>
+                {referent.position ? ` · ${referent.position}` : ''}
+                {referent.email ? ` · ${referent.email}` : ''}
+                {referent.phone ? ` · ${referent.phone}` : ''}
+                <span className="block text-[12px] text-zinc-400 dark:text-zinc-500">
+                  Destinataire de la convention, des devis et des factures.
+                  {estReferent ? ' La liste nominative des stagiaires n’est pas encore arrivée.' : ''}
+                </span>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <DossierStatusControl dossierId={params.id} status={d.status as DossierStatus} />
