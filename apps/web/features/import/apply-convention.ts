@@ -273,11 +273,15 @@ export async function applyConventionImport(
 
   // ── Formations sur mesure ─────────────────────────────────────────────────
   const nbParticipants = payload.participants.count && payload.participants.count > 0 ? payload.participants.count : null;
-  // Le tarif d'une convention est global ; l'application raisonne par stagiaire.
-  const tarifParStagiaire =
-    payload.pricing.totalHtCents != null && nbParticipants
-      ? Math.round(payload.pricing.totalHtCents / nbParticipants)
-      : payload.pricing.totalHtCents;
+
+  // L'import ne déduit aucun montant : il enregistre ce que la convention dit,
+  // rien d'autre (consigne d'Ismael). Le tarif y est global — un forfait de
+  // groupe — et il est conservé tel quel sur le dossier et sur la fiche
+  // (`priceEntrepriseCents`). Le tarif par stagiaire était auparavant calculé
+  // en divisant ce forfait par l'effectif annoncé : un chiffre inventé, qui
+  // s'affichait comme un tarif contractuel et sous-facturait dès qu'un
+  // stagiaire manquait à l'appel (10 × 90 € = 900 €, au lieu des 1 440 €
+  // signés). Tant que personne ne le renseigne, ce tarif reste à zéro.
 
   for (const f of payload.formations) {
     if (f.title.trim() === '') continue;
@@ -315,7 +319,8 @@ export async function applyConventionImport(
       pedagogical_method: f.pedagogicalMethod || null,
       default_modality: f.modality,
       default_duration_hours: Number(f.durationHours || 0) || 0,
-      default_price_cents: tarifParStagiaire ?? 0,
+      // Non renseigné : la convention donne un forfait, pas un prix unitaire.
+      default_price_cents: 0,
       is_published: false,
       metadata: { catalog },
       created_by: userId,
@@ -582,7 +587,9 @@ export async function applyConventionImport(
       starts_at: debut,
       ends_at: fin,
       location: s.location || null,
-      price_cents: tarifParStagiaire ?? null,
+      // Idem pour la séance : répartir le forfait entre les séances serait
+      // encore une invention.
+      price_cents: null,
     };
     const avecClient = resume.companyId ? { ...ligne, company_id: resume.companyId } : ligne;
 

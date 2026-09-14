@@ -304,19 +304,23 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   ].filter((x): x is { label: string; value: string } => x !== null);
 
   /**
-   * Le tarif de base d'une formation importée n'est pas écrit dans la
-   * convention : celle-ci ne donne qu'un montant global. Il est déduit en
-   * divisant ce montant par l'effectif annoncé. Le dire à l'écran, sinon on
-   * prend un chiffre calculé pour un engagement contractuel — et un forfait
-   * de groupe facturé à la tête sous-facture dès qu'un stagiaire manque.
+   * Une convention ne donne pas de tarif par stagiaire, seulement un forfait
+   * de groupe : la fiche le dit au lieu de laisser un zéro muet. Et si un
+   * chiffre s'y trouve malgré tout (import d'avant le 15/09/2026, qui divisait
+   * le forfait par l'effectif annoncé), elle signale qu'il a été déduit — un
+   * forfait facturé à la tête sous-facture dès qu'un stagiaire manque.
    */
   // `importedFrom` est écrit par l'import mais absent de `CatalogMeta` (type
   // partagé, hors de cette zone) : lu ici sans l'élargir.
   const origineCatalogue = (f.metadata?.catalog as { importedFrom?: string } | undefined)?.importedFrom;
   const tarifDeduitDe =
-    origineCatalogue === 'convention' && cat.priceEntrepriseCents && cat.effectifMax
-      ? `Déduit de la convention : ${formatEuros(cat.priceEntrepriseCents)} ÷ ${cat.effectifMax} participants annoncés. Le montant contractuel est le forfait global.`
-      : null;
+    origineCatalogue !== 'convention'
+      ? null
+      : Number(f.default_price_cents ?? 0) === 0
+        ? `Non renseigné : la convention donne un forfait global${cat.priceEntrepriseCents ? ` de ${formatEuros(cat.priceEntrepriseCents)} HT` : ''}, pas un prix par stagiaire.`
+        : // Donnée antérieure au 15/09/2026 : l'import divisait alors le forfait
+          // par l'effectif annoncé. Le chiffre est resté, il ne vient pas de la convention.
+          `Chiffre déduit à l'import, absent de la convention${cat.priceEntrepriseCents ? ` (forfait : ${formatEuros(cat.priceEntrepriseCents)} HT)` : ''}. À corriger ou à remettre à zéro.`;
 
   const contenus = [
     { label: 'Programme détaillé', value: texte(cat.programContent) },

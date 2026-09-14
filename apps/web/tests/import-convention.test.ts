@@ -106,8 +106,20 @@ describe('création dans le CRM', () => {
     expect(apply).toContain('const repli = await sb.schema(\'app\').from(\'formations\').insert(ligne as never)');
   });
 
-  it('ramène le tarif global de la convention à un tarif par stagiaire', () => {
-    expect(apply).toContain('Math.round(payload.pricing.totalHtCents / nbParticipants)');
+  // Règle posée par Ismael le 15/09/2026 : l'import ne calcule rien, il
+  // enregistre ce que la convention dit. Le tarif par stagiaire était obtenu en
+  // divisant le forfait de groupe par l'effectif annoncé — un chiffre inventé,
+  // qui s'affichait comme un tarif contractuel et sous-facturait dès qu'un
+  // stagiaire manquait.
+  it('n’invente aucun tarif par stagiaire à partir du forfait', () => {
+    expect(apply).not.toContain('payload.pricing.totalHtCents / nbParticipants');
+    expect(apply).toContain('default_price_cents: 0');
+    expect(apply).toContain('price_cents: null');
+  });
+
+  it('conserve le forfait global de la convention, tel quel', () => {
+    expect(apply).toContain('total_amount_cents: payload.pricing.totalHtCents');
+    expect(apply).toContain('priceEntrepriseCents: payload.pricing.totalHtCents');
   });
 
   it('crée la tâche de liste nominative seulement si personne n’est nommé', () => {
