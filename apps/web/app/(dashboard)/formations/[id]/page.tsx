@@ -15,6 +15,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill, dossierStatusTone } from '@/shared/ui/status-pill';
+import { estTitulaireProvisoire } from '@/features/dossier/referent';
 import { formationColorMap, deepColor, tintColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
 import { KpiCard, AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
@@ -45,6 +46,8 @@ const formatEuros = (cents: number | null) =>
 
 const ACTIVE = ['active', 'scheduled'];
 const REVENUE = ['active', 'completed', 'closed'];
+// Signé mais pas encore réalisé : le carnet de commandes, montré à part du CA.
+const PLANIFIE = ['draft', 'pending_validation', 'scheduled'];
 
 const EXPENSE_KIND_LABEL: Record<string, string> = {
   salaire_formateur: 'Rémunération formateur',
@@ -127,7 +130,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   const { data: dossierData } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, status, total_amount_cents, learner:learners(first_name, last_name)')
+    .select('id, reference, status, total_amount_cents, learner_id, learner:learners(first_name, last_name, email)')
     .eq('formation_id', id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
@@ -221,10 +224,46 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     }
   }
 
-  const activeCount = relatedDossiers.filter((d) => ACTIVE.includes(d.status)).length;
+  const dossiersActifs = relatedDossiers.filter((d) => ACTIVE.includes(d.status));
   const totalRevenue = relatedDossiers
     .filter((d) => REVENUE.includes(d.status))
     .reduce((acc, d) => acc + (d.total_amount_cents ?? 0), 0);
+  // Signé, pas encore réalisé. L'afficher évite la question « pourquoi le CA
+  // ne bouge pas » sur une formation dont les dossiers sont tous planifiés.
+  const revenuPlanifie = relatedDossiers
+    .filter((d) => PLANIFIE.includes(d.status))
+    .reduce((acc, d) => acc + (d.total_amount_cents ?? 0), 0);
+
+  /**
+   * Apprenants réellement inscrits.
+   *
+   * La carte comptait des DOSSIERS sous l'intitulé « Apprenants actifs » : une
+   * session de groupe de seize salariés, portée par un seul dossier, affichait
+   * donc 1. On compte ici les personnes — titulaires des dossiers actifs et
+   * participants nommés des séances — sans le titulaire provisoire que pose
+   * l'import d'une convention tant que la liste nominative n'est pas arrivée.
+   */
+  const { data: participantRows } = sessionIds.length
+    ? await sb
+        .schema('app')
+        .from('session_participants')
+        .select('learner_id')
+        .in('session_id', sessionIds)
+        .eq('participant_kind', 'learner')
+    : { data: [] };
+
+  const idsApprenants = new Set<string>();
+  for (const d of dossiersActifs) if (d.learner_id) idsApprenants.add(d.learner_id as string);
+  for (const p of ((participantRows ?? []) as Array<{ learner_id: string | null }>)) {
+    if (p.learner_id) idsApprenants.add(p.learner_id);
+  }
+
+  const { data: apprenantRows } = idsApprenants.size
+    ? await sb.schema('app').from('learners').select('id, email').in('id', [...idsApprenants]).is('deleted_at', null)
+    : { data: [] };
+  const activeCount = ((apprenantRows ?? []) as Array<{ email: string | null }>).filter(
+    (l) => !estTitulaireProvisoire(l.email),
+  ).length;
 
   const objectives: string[] = f.objectives ?? [];
   const prerequisites: string[] = f.prerequisites ?? [];
@@ -357,8 +396,24 @@ export default async function FormationDetailPage({ params }: { params: { id: st
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-          <KpiCard icon={UsersIcon} label="Apprenants actifs" value={activeCount} accent="rose" hint="dossiers en cours ou planifiés" />
-          <KpiCard icon={Banknote} label="CA généré" value={formatEuros(totalRevenue)} accent="emerald" hint="dossiers en cours et terminés" />
+          <KpiCard
+            icon={UsersIcon}
+            label="Apprenants inscrits"
+            value={activeCount}
+            accent="rose"
+            hint={activeCount === 0 ? 'liste nominative non reçue' : 'dossiers en cours ou planifiés'}
+          />
+          <KpiCard
+            icon={Banknote}
+            label="CA réalisé"
+            value={formatEuros(totalRevenue)}
+            accent="emerald"
+            hint={
+              revenuPlanifie > 0
+                ? `dossiers en cours et terminés · ${formatEuros(revenuPlanifie)} signés à venir`
+                : 'dossiers en cours et terminés'
+            }
+          />
           <KpiCard icon={FileText} label="Dossiers" value={relatedDossiers.length} accent="orange" hint="rattachés à la formation" />
         </div>
       </header>
