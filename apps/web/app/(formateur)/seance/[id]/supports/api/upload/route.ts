@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
+import { notifySupportDepose } from '@/features/trainer-space/support-notifications';
 import {
   addFileResource,
   SUPPORT_BUCKET,
@@ -75,6 +76,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await admin.storage.from(SUPPORT_BUCKET).remove([storagePath]);
     return NextResponse.json({ ok: false, error: 'insert_failed' }, { status: 500 });
   }
+
+  // Le support attend une validation : sans alerte, il y attendrait longtemps.
+  await notifySupportDepose({
+    organizationId: acces.session.organization_id,
+    resourceId: res.resourceId,
+    sessionId: params.id,
+    title: titre,
+    trainerName: acces.trainerName,
+  });
 
   return NextResponse.json({ ok: true });
 }

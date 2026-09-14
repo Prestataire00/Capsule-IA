@@ -4,7 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
-import { addLinkResource, setResourcePublished, deleteResource } from '@/features/trainer-space/session-resources';
+import {
+  addLinkResource,
+  setResourcePublished,
+  deleteResource,
+  resubmitResource,
+} from '@/features/trainer-space/session-resources';
+import { notifySupportDepose } from '@/features/trainer-space/support-notifications';
 import { postSessionMessage, markThreadRead, MESSAGE_MAX_LENGTH } from '@/features/trainer-space/session-messages';
 
 /**
@@ -81,6 +87,14 @@ export async function addSupportLink(input: {
   });
   if (!res.ok) return { ok: false, error: humain(res.error) };
 
+  await notifySupportDepose({
+    organizationId: acces.session.organization_id,
+    resourceId: res.resourceId,
+    sessionId: p.data.sessionId,
+    title: p.data.title,
+    trainerName: acces.trainerName,
+  });
+
   revalidatePath(`/seance/${p.data.sessionId}/supports`);
   return { ok: true };
 }
@@ -117,6 +131,33 @@ export async function removeSupport(input: { sessionId: string; resourceId: stri
 
   const ok = await deleteResource(p.data.sessionId, p.data.resourceId);
   if (!ok) return { ok: false, error: humain('erreur') };
+  revalidatePath(`/seance/${p.data.sessionId}/supports`);
+  return { ok: true };
+}
+
+export async function resubmitSupport(input: { sessionId: string; resourceId: string }): Promise<ActionResult> {
+  const p = suppressionSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: humain('invalid_payload') };
+  const acces = await requireMyTrainerSession(p.data.sessionId);
+  if (!acces.ok) return { ok: false, error: humain(acces.error) };
+
+  const ok = await resubmitResource(p.data.sessionId, p.data.resourceId);
+  if (!ok) return { ok: false, error: humain('erreur') };
+
+  const { data } = await supabaseAdmin()
+    .schema('app')
+    .from('session_resources' as never)
+    .select('title')
+    .eq('id', p.data.resourceId)
+    .maybeSingle();
+  await notifySupportDepose({
+    organizationId: acces.session.organization_id,
+    resourceId: p.data.resourceId,
+    sessionId: p.data.sessionId,
+    title: (data as { title?: string } | null)?.title ?? 'Support corrigé',
+    trainerName: acces.trainerName,
+  });
+
   revalidatePath(`/seance/${p.data.sessionId}/supports`);
   return { ok: true };
 }

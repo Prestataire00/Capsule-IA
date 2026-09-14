@@ -56,7 +56,7 @@ export default async function EspaceSupportsPage({ params }: { params: { token: 
   if (!acces) notFound();
 
   const parSeance = await Promise.all(
-    acces.seances.map(async (s) => ({ seance: s, supports: await loadSessionResources(s.id, { publishedOnly: true }) })),
+    acces.seances.map(async (s) => ({ seance: s, supports: await loadSessionResources(s.id, { diffusablesSeulement: true }) })),
   );
   const avecSupports = parSeance.filter((p) => p.supports.length > 0);
   const total = avecSupports.reduce((n, p) => n + p.supports.length, 0);

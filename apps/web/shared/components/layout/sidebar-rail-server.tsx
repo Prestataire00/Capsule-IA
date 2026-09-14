@@ -15,7 +15,7 @@ async function fetchSidebarCounts(orgId: string | null, userId: string | null): 
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const [complaints, signatures, responses, invoices, demandes, taches] = await Promise.all([
+    const [complaints, signatures, responses, invoices, demandes, taches, supports] = await Promise.all([
       sb
         .schema('app')
         .from('complaints')
@@ -70,6 +70,19 @@ async function fetchSidebarCounts(orgId: string | null, userId: string | null): 
             .then((r) => ({ count: r.count ?? 0 }))
             .catch(() => ({ count: 0 }))
         : Promise.resolve({ count: 0 }),
+      // Badge « Supports à valider ». Comme ci-dessus, son échec ne doit pas
+      // emporter les autres badges : la table n'existe pas avant la 0164.
+      Promise.resolve(
+        sb
+          .schema('app')
+          .from('session_resources')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', orgId)
+          .eq('validation_status', 'en_attente')
+          .is('deleted_at', null),
+      )
+        .then((r) => ({ count: r.count ?? 0 }))
+        .catch(() => ({ count: 0 })),
     ]);
 
     return {
@@ -79,6 +92,7 @@ async function fetchSidebarCounts(orgId: string | null, userId: string | null): 
       questionnairesActive: responses.count ?? 0,
       invoicesOverdue: invoices.count ?? 0,
       demandesPending: demandes.count ?? 0,
+      supportsAValider: supports.count ?? 0,
     };
   } catch (err) {
     console.error('[sidebar-rail-server] unexpected', err);

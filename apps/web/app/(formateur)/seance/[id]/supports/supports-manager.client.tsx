@@ -2,9 +2,10 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Upload, Link2, Eye, EyeOff, Trash2, FileText, ExternalLink } from 'lucide-react';
+import { Loader2, Upload, Link2, Eye, EyeOff, Trash2, FileText, ExternalLink, RotateCcw } from 'lucide-react';
 import type { SessionResource } from '@/features/trainer-space/session-resources';
-import { addSupportLink, toggleSupportPublished, removeSupport } from '../actions';
+import { SUPPORT_STATUS_LABELS, peutResoumettre } from '@/features/trainer-space/support-status';
+import { addSupportLink, toggleSupportPublished, removeSupport, resubmitSupport } from '../actions';
 
 const ACCEPT_ATTR =
   '.pdf,.pptx,.xlsx,.docx,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg';
@@ -25,6 +26,12 @@ const poids = (octets: number | null): string => {
   if (octets === null) return '';
   const mo = octets / (1024 * 1024);
   return mo >= 1 ? `${mo.toFixed(1)} Mo` : `${Math.max(1, Math.round(octets / 1024))} Ko`;
+};
+
+const STATUT_TON: Record<string, string> = {
+  en_attente: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  valide: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  refuse: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
 };
 
 const CHAMP =
@@ -85,6 +92,14 @@ export function SupportsManager({ sessionId, supports }: { sessionId: string; su
   const basculer = (resourceId: string, isPublished: boolean) => {
     startTransition(async () => {
       const res = await toggleSupportPublished({ sessionId, resourceId, isPublished });
+      if (!res.ok) setErreur(res.error);
+      router.refresh();
+    });
+  };
+
+  const resoumettre = (resourceId: string) => {
+    startTransition(async () => {
+      const res = await resubmitSupport({ sessionId, resourceId });
       if (!res.ok) setErreur(res.error);
       router.refresh();
     });
@@ -159,6 +174,8 @@ export function SupportsManager({ sessionId, supports }: { sessionId: string; su
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
             {mode === 'fichier' ? 'PDF, PPTX, XLSX, DOCX, PNG, JPEG — 50 Mo maximum.' : 'Le lien s’ouvre dans un nouvel onglet.'}
+            <br />
+            Votre dépôt part en validation : il devient visible une fois accepté par l’administration.
           </p>
           <button
             type="button"
@@ -205,8 +222,16 @@ export function SupportsManager({ sessionId, supports }: { sessionId: string; su
                   <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                     {s.kind === 'lien' ? 'Lien externe' : poids(s.fileSizeBytes)}
-                    {!s.isPublished && ' · brouillon, non visible'}
+                    {!s.isPublished && ' · retiré par vous'}
                   </p>
+                  <span className={`mt-1 inline-flex items-center h-5 px-1.5 rounded text-[11px] font-semibold ${STATUT_TON[s.validationStatus]}`}>
+                    {SUPPORT_STATUS_LABELS[s.validationStatus]}
+                  </span>
+                  {s.validationStatus === 'refuse' && s.rejectionReason && (
+                    <p className="text-[12px] text-red-600 dark:text-red-400 mt-1 whitespace-pre-wrap">
+                      Motif : {s.rejectionReason}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -220,11 +245,21 @@ export function SupportsManager({ sessionId, supports }: { sessionId: string; su
                     <ExternalLink className="w-3.5 h-3.5" /> Ouvrir
                   </a>
                 )}
+                {peutResoumettre(s.validationStatus) && (
+                  <button
+                    type="button"
+                    onClick={() => resoumettre(s.id)}
+                    disabled={occupe}
+                    className="h-8 px-2.5 rounded-md text-[12px] font-medium inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 hover:bg-orange-100"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Soumettre à nouveau
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => basculer(s.id, !s.isPublished)}
                   disabled={occupe}
-                  title={s.isPublished ? 'Masquer aux participants' : 'Publier aux participants'}
+                  title={s.isPublished ? 'Retirer des participants' : 'Remettre aux participants'}
                   className="h-8 w-8 rounded-md grid place-items-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
                 >
                   {s.isPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}

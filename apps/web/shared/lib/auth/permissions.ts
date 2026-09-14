@@ -73,6 +73,10 @@ export function can(role: string | null | undefined, section: Section): Access {
 const ROUTE_SECTION: Array<[string, Section]> = [
   ['/parametres', 'settings'],
   ['/audit', 'settings'],
+  // Validation des supports déposés par les formateurs : l'organisme répond de
+  // ce qu'il diffuse, la décision est donc réservée à la direction — même
+  // audience que les réglages, et non au catalogue (ouvert aux gestionnaires).
+  ['/supports', 'settings'],
   ['/factures', 'billing'],
   ['/devis', 'billing'],
   ['/prospects', 'crm'],

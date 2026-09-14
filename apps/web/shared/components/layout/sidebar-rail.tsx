@@ -9,7 +9,7 @@ import {
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, PenLine,
-  TrendingUp, FileSignature, ListChecks, Trash2, Sparkles,
+  TrendingUp, FileSignature, ListChecks, Trash2, Sparkles, BookCheck,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -30,6 +30,7 @@ export type SidebarCounts = {
   questionnairesActive?: number;
   invoicesOverdue?: number;
   demandesPending?: number;
+  supportsAValider?: number;
 };
 
 export type Group = {
@@ -83,8 +84,9 @@ export const GROUPS: Group[] = [
       { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
       { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
+      { href: '/supports', icon: BookCheck, label: 'Supports à valider' },
     ],
-    countKeys: ['emargementsPending'],
+    countKeys: ['emargementsPending', 'supportsAValider'],
   },
   {
     key: 'docs-comm',
@@ -136,6 +138,7 @@ const COUNT_BY_HREF: Record<string, { key: keyof SidebarCounts; tone: Tone }> = 
   '/questionnaires': { key: 'questionnairesActive', tone: 'violet' },
   '/factures': { key: 'invoicesOverdue', tone: 'rose' },
   '/prospects': { key: 'demandesPending', tone: 'rose' },
+  '/supports': { key: 'supportsAValider', tone: 'amber' },
 };
 
 const badgeStyles: Record<Tone, string> = {
