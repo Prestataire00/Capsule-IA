@@ -394,14 +394,22 @@ export async function applyConventionImport(
       const dossierId = randomUUID();
       const reference = generateDossierReference(dossierId, Number(debut.slice(0, 4)));
       const heures = Number(payload.formations[0]?.durationHours || 0) || 1;
-      const p = {
-        p_dossier: {
+      // Insertion directe, pas `save_dossier` : cette fonction exige
+      // `app.current_organization_id()`, or nous écrivons en service role —
+      // aucun contexte utilisateur, donc elle refuserait l'appel. Les modules
+      // lus ne sont pas au catalogue : ils vivent dans le programme de la
+      // formation, pas en lignes de dossier.
+      const { error: erreur } = await sb
+        .schema('app')
+        .from('dossiers')
+        .insert({
           id: dossierId,
           organization_id: organizationId,
           reference,
           learner_id: titulaire,
           company_id: resume.companyId,
           formation_id: formationId,
+          formation_snapshot: {},
           status: 'draft',
           modality: payload.formations[0]?.modality ?? 'presentiel',
           start_date: debut,
@@ -410,18 +418,8 @@ export async function applyConventionImport(
           total_amount_cents: payload.pricing.totalHtCents,
           currency: 'EUR',
           metadata: { imported_from: 'convention', payment_terms: payload.pricing.paymentTerms },
-          // Les modules lus ne sont pas au catalogue : ils vivent dans le
-          // programme de la formation, pas en lignes de dossier.
-          modules: [],
-          trainers: [],
-          funders: [],
-        },
-        p_events: [],
-      };
-      // Le wrapper public est celui qu'utilise la création manuelle ; repli sur
-      // le schéma `app` si l'exposition diffère sur cette base.
-      let erreur = (await sb.rpc('save_dossier', p as never)).error;
-      if (erreur) erreur = (await sb.schema('app').rpc('save_dossier', p as never)).error;
+          created_by: userId,
+        } as never);
       if (erreur) resume.warnings.push(`Dossier non créé : ${erreur.message}`);
       else {
         resume.dossierId = dossierId;
