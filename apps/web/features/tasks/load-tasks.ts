@@ -85,8 +85,13 @@ export async function loadTeamMembers(sb: Client): Promise<TeamMember[]> {
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 }
 
-export async function loadTasks(sb: Client, membres: readonly TeamMember[]): Promise<Task[]> {
-  const { data } = await sb
+/**
+ * `null` = la table n'existe pas encore en base (migration 0159 non appliquée).
+ * La page l'affiche alors explicitement, au lieu de planter : l'application des
+ * migrations en production a déjà pris du retard par le passé (audit CAP-04).
+ */
+export async function loadTasks(sb: Client, membres: readonly TeamMember[]): Promise<Task[] | null> {
+  const { data, error } = await sb
     .schema('app')
     .from('tasks')
     .select(
@@ -95,6 +100,10 @@ export async function loadTasks(sb: Client, membres: readonly TeamMember[]): Pro
     .order('status', { ascending: true })
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
+  if (error) {
+    console.error('[tâches] lecture impossible', error.message);
+    return null;
+  }
   const rows = (data ?? []) as TaskRow[];
   if (rows.length === 0) return [];
 

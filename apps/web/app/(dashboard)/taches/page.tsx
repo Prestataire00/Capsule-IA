@@ -35,8 +35,26 @@ export default async function TachesPage({ searchParams }: { searchParams?: { vu
   const sb = supabaseServer() as unknown as SupabaseClient<any, any, any>;
 
   const membres = await loadTeamMembers(sb);
-  const toutes = await loadTasks(sb, membres);
+  const chargees = await loadTasks(sb, membres);
   const vue = vueDe(searchParams?.vue);
+
+  // Table absente : la migration 0159 n'est pas encore appliquée à cette base.
+  // On le dit, plutôt que de renvoyer une page en erreur.
+  if (chargees === null) {
+    return (
+      <div className="max-w-5xl w-full mx-auto px-8 py-8 space-y-4">
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Tâches</h1>
+        <div className="bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-900/60 rounded-xl p-5">
+          <p className="text-[14px] font-semibold text-amber-700 dark:text-amber-300">Fonctionnalité en attente de migration</p>
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1">
+            La table des tâches n’existe pas encore sur cette base. Appliquez la migration{' '}
+            <span className="tabular-nums">0159_taches.sql</span>, puis rechargez la page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  const toutes = chargees;
 
   const filtrees = toutes.filter((t) => {
     if (vue === 'mes') return t.assigneeUserId === moi;

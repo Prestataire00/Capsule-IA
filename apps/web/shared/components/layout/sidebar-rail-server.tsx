@@ -54,15 +54,21 @@ async function fetchSidebarCounts(orgId: string | null, userId: string | null): 
         .eq('organization_id', orgId)
         .is('deleted_at', null),
       // Badge « Tâches » : MES tâches ouvertes, pas celles de toute l'équipe.
+      // Son échec ne doit pas emporter les autres badges (table absente si la
+      // migration 0159 n'est pas encore appliquée).
       userId
-        ? sb
-            .schema('app')
-            .from('tasks')
-            .select('id', { count: 'exact', head: true })
-            .eq('organization_id', orgId)
-            .eq('assignee_user_id', userId)
-            .neq('status', 'done')
-            .is('deleted_at', null)
+        ? Promise.resolve(
+            sb
+              .schema('app')
+              .from('tasks')
+              .select('id', { count: 'exact', head: true })
+              .eq('organization_id', orgId)
+              .eq('assignee_user_id', userId)
+              .neq('status', 'done')
+              .is('deleted_at', null),
+          )
+            .then((r) => ({ count: r.count ?? 0 }))
+            .catch(() => ({ count: 0 }))
         : Promise.resolve({ count: 0 }),
     ]);
 
