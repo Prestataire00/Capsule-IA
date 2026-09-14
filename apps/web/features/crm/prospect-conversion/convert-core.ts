@@ -31,7 +31,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -57,6 +57,9 @@ export async function convertProspectToDossier(
     situation: string | null;
     funder_kind: string;
     converted_dossier_id: string | null;
+    custom_formation_title: string | null;
+    custom_formation_hours: number | string | null;
+    custom_formation_price_cents: number | string | null;
   };
 
   if (p.converted_dossier_id) {
@@ -66,7 +69,12 @@ export async function convertProspectToDossier(
       report: { learner: 'reused', company: 'none', signals: [], alreadyConverted: true },
     };
   }
-  if (!p.formation_id) return { ok: false, error: 'prospect_without_formation' };
+  // Une demande peut porter sur un besoin spécifique : la formation n'existe
+  // pas encore au catalogue, seul son intitulé est connu. Elle est créée à la
+  // conversion (un dossier exige une formation).
+  if (!p.formation_id && !p.custom_formation_title) {
+    return { ok: false, error: 'prospect_without_formation' };
+  }
 
   const prospect: ProspectForConversion = {
     id: p.id,
@@ -77,7 +85,7 @@ export async function convertProspectToDossier(
     phone: p.phone,
     birthDate: p.birth_date,
     rqth: p.rqth,
-    formationId: p.formation_id,
+    formationId: p.formation_id ?? '',
     preferredModality: p.preferred_modality,
     preferredStartDate: p.preferred_start_date,
     companyName: p.company_name,
@@ -197,6 +205,18 @@ export async function convertProspectToDossier(
 
   const signals = detectPotentialDuplicates(prospect, learners, companies);
 
+  // Formation : celle du catalogue, ou celle créée pour ce besoin précis.
+  const hours = Math.max(1, Number(p.custom_formation_hours ?? 0) || 7);
+  const formationId =
+    p.formation_id ??
+    (await createBespokeFormation(sb, orgId, {
+      title: p.custom_formation_title as string,
+      hours,
+      priceCents: Math.max(0, Number(p.custom_formation_price_cents ?? 0) || 0),
+      modality: p.preferred_modality ?? 'presentiel',
+    }));
+  if (!formationId) return { ok: false, error: 'formation_create_failed' };
+
   const dossierId = randomUUID();
   const year = Number(new Date().getFullYear());
   const reference = generateDossierReference(prospect.id, year);
@@ -208,12 +228,12 @@ export async function convertProspectToDossier(
       reference,
       learner_id: learnerId,
       company_id: companyId,
-      formation_id: prospect.formationId,
+      formation_id: formationId,
       status: 'draft',
       modality: prospect.preferredModality ?? 'distanciel',
       start_date: startDate,
       end_date: startDate,
-      total_hours: 1,
+      total_hours: p.formation_id ? 1 : hours,
       metadata: { from_prospect: prospect.id, funder_kind: prospect.funderKind },
     },
     p_events: [],
@@ -229,6 +249,48 @@ export async function convertProspectToDossier(
     .eq('id', prospect.id);
 
   return { ok: true, dossierId, report: { learner: learnerOutcome, company: companyOutcome, signals } };
+}
+
+/**
+ * Formation montée pour un besoin spécifique : hors catalogue public, avec la
+ * durée et le tarif indiqués sur la demande (base du devis, modifiables
+ * ensuite sur la fiche formation).
+ */
+async function createBespokeFormation(
+  sb: Sb,
+  orgId: string,
+  f: { title: string; hours: number; priceCents: number; modality: string },
+): Promise<string | null> {
+  const suffix = randomUUID().slice(0, 8).toUpperCase();
+  const slug = `${f.title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 60) || 'formation'}-${suffix.toLowerCase()}`;
+
+  const { data, error } = await sb
+    .schema('app')
+    .from('formations')
+    .insert({
+      organization_id: orgId,
+      code: `SM-${suffix}`,
+      title: f.title,
+      slug,
+      summary: 'Formation montée pour un besoin spécifique (hors catalogue).',
+      default_modality: f.modality,
+      default_duration_hours: f.hours,
+      default_price_cents: f.priceCents,
+      is_published: false,
+    })
+    .select('id')
+    .single();
+  if (error || !data) {
+    console.error('[conversion] formation sur mesure non créée', error?.message);
+    return null;
+  }
+  return (data as { id: string }).id;
 }
 
 function isEmptyAddress(raw: unknown): boolean {

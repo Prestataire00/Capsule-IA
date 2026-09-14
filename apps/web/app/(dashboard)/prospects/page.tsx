@@ -2,8 +2,9 @@
 // Justification: page unique « Demandes » — triage des demandes/pré-inscriptions,
 // validation des pièces (→ conversion auto en dossier) et conversion manuelle.
 
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import { Inbox, UserPlus, FolderCheck, ClipboardCheck, ArrowUpRight, Eye, FolderOpen, Building2 } from 'lucide-react';
+import { Inbox, UserPlus, FolderCheck, ClipboardCheck, ArrowUpRight, Eye, FolderOpen, Building2, Plus } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -94,7 +95,8 @@ export default async function ProspectsPage() {
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-9">
-      <header className="mb-7">
+      <header className="mb-7 flex items-start justify-between gap-4 flex-wrap">
+        <div>
         <SectionLabel className="mb-2">Relations</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Demandes &amp; pré-inscriptions</h1>
         <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
@@ -104,6 +106,14 @@ export default async function ProspectsPage() {
           {' · '}Vérifiez les pièces : une demande validée est{' '}
           <span className="font-semibold text-zinc-700 dark:text-zinc-300">automatiquement convertie en dossier</span>. Tout se passe ici.
         </p>
+        </div>
+        <Link
+          href="/prospects/nouvelle"
+          className="h-10 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 transition inline-flex items-center gap-2 shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          Nouvelle demande
+        </Link>
       </header>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-7">

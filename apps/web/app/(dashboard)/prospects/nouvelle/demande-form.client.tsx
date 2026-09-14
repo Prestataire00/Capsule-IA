@@ -1,0 +1,341 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { FUNDER_OPTIONS } from '@/features/prospect/funding';
+import { parseEurosToCents } from '@/features/billing/domain/quote';
+import { createDemande } from './actions';
+
+export type FormationOption = { id: string; title: string; code: string | null; priceCents: number; hours: number };
+
+const SITUATIONS = [
+  { value: 'salarie', label: 'Salarié(e)' },
+  { value: 'demandeur', label: "Demandeur d'emploi" },
+  { value: 'independant', label: 'Indépendant(e)' },
+  { value: 'particulier', label: 'Particulier' },
+] as const;
+
+const MODALITES = [
+  { value: '', label: 'À définir' },
+  { value: 'presentiel', label: 'Présentiel' },
+  { value: 'distanciel', label: 'Distanciel' },
+  { value: 'hybride', label: 'Hybride' },
+] as const;
+
+const input =
+  'mt-1.5 w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition placeholder:text-zinc-400';
+const label = 'text-[12px] font-semibold text-zinc-700 dark:text-zinc-300';
+const card = 'bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4';
+
+export function DemandeForm({ formations }: { formations: FormationOption[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    civility: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    birthDate: '',
+    rqth: false,
+    situation: 'salarie' as (typeof SITUATIONS)[number]['value'],
+    funderKind: 'opco' as string,
+    companyName: '',
+    companySiret: '',
+    referentName: '',
+    referentEmail: '',
+    referentPhone: '',
+    // 'catalogue' | 'sur-mesure' | 'plus-tard'
+    formationMode: 'catalogue' as 'catalogue' | 'sur-mesure' | 'plus-tard',
+    formationId: '',
+    customTitle: '',
+    customHours: '',
+    customPrice: '',
+    preferredModality: '',
+    preferredStartDate: '',
+    message: '',
+    convertNow: false,
+  });
+
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = () => {
+    setError(null);
+    const hours = form.customHours.trim() ? Number(form.customHours.replace(',', '.')) : null;
+    const price = form.customPrice.trim() ? parseEurosToCents(form.customPrice) : null;
+    if (form.formationMode === 'sur-mesure') {
+      if (!form.customTitle.trim()) return setError('Indiquez l’intitulé de la formation.');
+      if (form.customHours.trim() && !(hours && hours > 0)) return setError('Durée invalide (en heures).');
+      if (form.customPrice.trim() && price == null) return setError('Tarif invalide (ex. 1500 ou 1500,50).');
+    }
+
+    start(async () => {
+      const res = await createDemande({
+        civility: form.civility as 'm' | 'mme' | '',
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        birthDate: form.birthDate,
+        rqth: form.rqth,
+        situation: form.situation,
+        funderKind: form.funderKind as never,
+        companyName: form.companyName,
+        companySiret: form.companySiret,
+        referentName: form.referentName,
+        referentEmail: form.referentEmail,
+        referentPhone: form.referentPhone,
+        formationId: form.formationMode === 'catalogue' ? form.formationId : '',
+        customFormationTitle: form.formationMode === 'sur-mesure' ? form.customTitle : '',
+        customFormationHours: form.formationMode === 'sur-mesure' ? hours : null,
+        customFormationPriceCents: form.formationMode === 'sur-mesure' ? price : null,
+        preferredModality: form.preferredModality as never,
+        preferredStartDate: form.preferredStartDate,
+        message: form.message,
+        convertNow: form.convertNow,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      router.push(res.dossierId ? `/dossiers/${res.dossierId}` : `/prospects/${res.prospectId}`);
+      router.refresh();
+    });
+  };
+
+  const entreprise = form.situation === 'salarie' || form.funderKind === 'entreprise' || form.funderKind === 'opco';
+
+  return (
+    <div className="space-y-5">
+      <section className={card}>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Candidat</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <label className={label}>
+            Civilité
+            <select value={form.civility} onChange={(e) => set('civility', e.target.value)} className={input}>
+              <option value="">—</option>
+              <option value="m">M.</option>
+              <option value="mme">Mme</option>
+            </select>
+          </label>
+          <label className={label}>
+            Prénom
+            <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} className={input} />
+          </label>
+          <label className={label}>
+            Nom
+            <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} className={input} />
+          </label>
+          <label className={label}>
+            Date de naissance
+            <input type="date" value={form.birthDate} onChange={(e) => set('birthDate', e.target.value)} className={input} />
+          </label>
+          <label className={label}>
+            E-mail
+            <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={input} />
+          </label>
+          <label className={label}>
+            Téléphone
+            <input value={form.phone} onChange={(e) => set('phone', e.target.value)} className={input} />
+          </label>
+          <label className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2 mt-6">
+            <input type="checkbox" checked={form.rqth} onChange={(e) => set('rqth', e.target.checked)} className="w-4 h-4 accent-orange-500" />
+            RQTH / adaptation
+          </label>
+        </div>
+      </section>
+
+      <section className={card}>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Situation et financement</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <label className={label}>
+            Situation
+            <select value={form.situation} onChange={(e) => set('situation', e.target.value as typeof form.situation)} className={input}>
+              {SITUATIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={label}>
+            Financement
+            <select value={form.funderKind} onChange={(e) => set('funderKind', e.target.value)} className={input}>
+              {FUNDER_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {entreprise && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <label className={label}>
+              Entreprise
+              <input value={form.companyName} onChange={(e) => set('companyName', e.target.value)} className={input} />
+            </label>
+            <label className={label}>
+              SIRET
+              <input value={form.companySiret} onChange={(e) => set('companySiret', e.target.value)} maxLength={20} className={input} />
+            </label>
+            <label className={label}>
+              Responsable formation
+              <input value={form.referentName} onChange={(e) => set('referentName', e.target.value)} className={input} />
+            </label>
+            <label className={label}>
+              E-mail du responsable
+              <input type="email" value={form.referentEmail} onChange={(e) => set('referentEmail', e.target.value)} className={input} />
+            </label>
+            <label className={label}>
+              Téléphone du responsable
+              <input value={form.referentPhone} onChange={(e) => set('referentPhone', e.target.value)} className={input} />
+            </label>
+          </div>
+        )}
+      </section>
+
+      <section className={card}>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Formation</h2>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { v: 'catalogue', l: 'Du catalogue' },
+              { v: 'sur-mesure', l: 'Besoin spécifique (hors catalogue)' },
+              { v: 'plus-tard', l: 'À définir plus tard' },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => set('formationMode', o.v)}
+              className={`text-[13px] px-3 h-9 rounded-lg border font-semibold transition ${
+                form.formationMode === o.v
+                  ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+                  : 'border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+
+        {form.formationMode === 'catalogue' && (
+          <label className={label}>
+            Formation
+            <select value={form.formationId} onChange={(e) => set('formationId', e.target.value)} className={input}>
+              <option value="">— Choisir —</option>
+              {formations.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.title}
+                  {f.code ? ` (${f.code})` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {form.formationMode === 'sur-mesure' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className={`${label} md:col-span-3`}>
+              Intitulé de la formation
+              <input
+                value={form.customTitle}
+                onChange={(e) => set('customTitle', e.target.value)}
+                placeholder="Ex. Sûreté aéroportuaire — remise à niveau pour l'équipe de nuit"
+                className={input}
+              />
+            </label>
+            <label className={label}>
+              Durée prévue (heures)
+              <input value={form.customHours} onChange={(e) => set('customHours', e.target.value)} inputMode="decimal" className={input} />
+            </label>
+            <label className={label}>
+              Tarif prévu (€ HT par stagiaire)
+              <input value={form.customPrice} onChange={(e) => set('customPrice', e.target.value)} inputMode="decimal" className={input} />
+            </label>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 md:col-span-3">
+              La formation sera créée à l’ouverture du dossier, hors catalogue public. Durée et tarif servent de base au devis ;
+              tout reste modifiable ensuite.
+            </p>
+          </div>
+        )}
+
+        {form.formationMode === 'plus-tard' && (
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+            La demande sera enregistrée sans formation. Vous la préciserez avant d’ouvrir le dossier.
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className={label}>
+            Modalité souhaitée
+            <select value={form.preferredModality} onChange={(e) => set('preferredModality', e.target.value)} className={input}>
+              {MODALITES.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={label}>
+            Début souhaité
+            <input type="date" value={form.preferredStartDate} onChange={(e) => set('preferredStartDate', e.target.value)} className={input} />
+          </label>
+        </div>
+
+        <label className={label}>
+          Note interne
+          <textarea
+            value={form.message}
+            onChange={(e) => set('message', e.target.value)}
+            rows={3}
+            placeholder="Contexte, contraintes, interlocuteur…"
+            className={`${input} h-auto py-2`}
+          />
+        </label>
+      </section>
+
+      <section className={card}>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.convertNow}
+            onChange={(e) => set('convertNow', e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-orange-500"
+          />
+          <span>
+            <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Ouvrir le dossier tout de suite</span>
+            <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+              Crée l’apprenant, l’entreprise et le dossier. Le devis suivra dès la session planifiée et l’analyse du besoin reçue.
+            </span>
+          </span>
+        </label>
+      </section>
+
+      {error && (
+        <p className="text-[13px] text-red-600 inline-flex items-start gap-1.5">
+          <AlertTriangle className="w-4 h-4 mt-px shrink-0" />
+          {error}
+        </p>
+      )}
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={pending}
+          className="h-10 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 transition inline-flex items-center gap-2"
+        >
+          {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          Enregistrer la demande
+        </button>
+        <button type="button" onClick={() => router.back()} className="text-[13px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
