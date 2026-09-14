@@ -8,6 +8,7 @@ import {
   FileCheck2,
   ClipboardCheck,
   Inbox,
+  ListChecks,
 } from 'lucide-react';
 
 export type Notif = {
@@ -33,6 +34,7 @@ export const NOTIF_META: Record<string, Meta> = {
   'prospect.new_demande': { label: 'Nouvelle demande', icon: Inbox, tone: 'text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50' },
   'quote.draft_ready': { label: 'Devis à relire', icon: FileText, tone: 'text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50' },
   'quote.signed': { label: 'Devis signé', icon: FileCheck2, tone: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50' },
+  task_assigned: { label: 'Tâche attribuée', icon: ListChecks, tone: 'text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50' },
 };
 
 export const NOTIF_FALLBACK: Meta = {
@@ -45,6 +47,7 @@ export const NOTIF_FALLBACK: Meta = {
 export function notifHref(n: Notif): string | null {
   const p = n.payload ?? {};
   if (typeof p.quote_id === 'string') return `/devis/${p.quote_id}`;
+  if (n.related_aggregate_type === 'task' || typeof p.task_id === 'string') return '/taches';
   // Demandes (prospects) : lien vers la fiche de la demande.
   if (n.related_aggregate_type === 'prospect') {
     const prospectId = (p.prospect_id as string | undefined) ?? n.related_aggregate_id ?? undefined;

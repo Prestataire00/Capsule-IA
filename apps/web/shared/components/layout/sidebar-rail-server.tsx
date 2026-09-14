@@ -8,14 +8,14 @@ import { getCurrentMember, roleLabel } from '@/shared/lib/auth/current-member';
 
 // Service role : chaque compteur est borné à l'organisation du membre — sans ce
 // filtre, les badges additionnaient les données de tous les organismes.
-async function fetchSidebarCounts(orgId: string | null): Promise<SidebarCounts> {
+async function fetchSidebarCounts(orgId: string | null, userId: string | null): Promise<SidebarCounts> {
   if (!orgId) return {};
   try {
     const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const [complaints, signatures, responses, invoices, demandes] = await Promise.all([
+    const [complaints, signatures, responses, invoices, demandes, taches] = await Promise.all([
       sb
         .schema('app')
         .from('complaints')
@@ -53,9 +53,21 @@ async function fetchSidebarCounts(orgId: string | null): Promise<SidebarCounts> 
         .is('converted_dossier_id', null)
         .eq('organization_id', orgId)
         .is('deleted_at', null),
+      // Badge « Tâches » : MES tâches ouvertes, pas celles de toute l'équipe.
+      userId
+        ? sb
+            .schema('app')
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', orgId)
+            .eq('assignee_user_id', userId)
+            .neq('status', 'done')
+            .is('deleted_at', null)
+        : Promise.resolve({ count: 0 }),
     ]);
 
     return {
+      tasksOpen: taches.count ?? 0,
       reclamationsActive: complaints.count ?? 0,
       emargementsPending: signatures.count ?? 0,
       questionnairesActive: responses.count ?? 0,
@@ -70,7 +82,7 @@ async function fetchSidebarCounts(orgId: string | null): Promise<SidebarCounts> 
 
 export async function SidebarRailServer() {
   const me = await getCurrentMember();
-  const counts = await fetchSidebarCounts(me?.organizationId ?? null);
+  const counts = await fetchSidebarCounts(me?.organizationId ?? null, me?.userId ?? null);
   const user = me ? { fullName: me.fullName, roleLabel: roleLabel(me.role), role: me.role } : undefined;
   // Les « Récents » du menu Dossiers venaient du module de démonstration : trois
   // dossiers fictifs, les mêmes pour tous les organismes (audit CAP-28).

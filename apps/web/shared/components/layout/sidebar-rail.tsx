@@ -9,7 +9,7 @@ import {
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, PenLine,
-  TrendingUp, FileSignature,
+  TrendingUp, FileSignature, ListChecks,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -24,6 +24,7 @@ export type Item = {
 };
 
 export type SidebarCounts = {
+  tasksOpen?: number;
   reclamationsActive?: number;
   emargementsPending?: number;
   questionnairesActive?: number;
@@ -50,9 +51,11 @@ export const GROUPS: Group[] = [
     icon: LayoutDashboard,
     items: [
       { href: '/', icon: LayoutDashboard, label: 'Accueil' },
+      { href: '/taches', icon: ListChecks, label: 'Tâches' },
       { href: '/reporting', icon: BarChart3, label: 'Reporting' },
       { href: '/notifications', icon: Bell, label: 'Notifications' },
     ],
+    countKeys: ['tasksOpen'],
   },
   { key: 'agenda', label: 'Agenda', icon: CalendarDays, href: '/agenda' },
   {
@@ -125,6 +128,7 @@ export const GROUPS: Group[] = [
 ];
 
 const COUNT_BY_HREF: Record<string, { key: keyof SidebarCounts; tone: Tone }> = {
+  '/taches': { key: 'tasksOpen', tone: 'orange' },
   '/reclamations': { key: 'reclamationsActive', tone: 'rose' },
   '/emargements': { key: 'emargementsPending', tone: 'amber' },
   '/questionnaires': { key: 'questionnairesActive', tone: 'violet' },
