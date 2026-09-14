@@ -48,13 +48,16 @@ vi.mock('@/features/documents/build-convention-input', () => ({
 }));
 
 describe('convention groupée par entreprise', () => {
-  it('produit un document par entreprise ayant au moins deux inscrits', async () => {
+  it('produit un document par entreprise cliente, même pour un seul salarié', async () => {
     const { buildGroupConventions } = await import('@/features/documents/build-group-convention');
     const r = await buildGroupConventions('s1');
 
-    // Acme (2 salariés) seulement. Beta n'en a qu'un, le particulier est écarté.
-    expect(r.map((c) => c.companyName)).toEqual(['Acme']);
-    expect(r[0]!.dossierIds.sort()).toEqual(['d1', 'd2']);
+    // Le client est l'entreprise, qu'elle inscrive un salarié ou dix : Acme et
+    // Beta signent chacune la sienne. Le particulier, lui, n'est pas une
+    // entreprise — il relève du contrat de formation individuel.
+    expect(r.map((c) => c.companyName).sort()).toEqual(['Acme', 'Beta']);
+    expect(r.find((c) => c.companyName === 'Acme')!.dossierIds.sort()).toEqual(['d1', 'd2']);
+    expect(r.find((c) => c.companyName === 'Beta')!.dossierIds).toEqual(['d3']);
   });
 
   it('cumule montants et heures, et liste les participants par ordre alphabétique', async () => {

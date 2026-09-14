@@ -83,7 +83,9 @@ describe('exactitude', () => {
 
 describe('conformité', () => {
   it('déclare les heures suivies sur le certificat de réalisation', () => {
-    const cert = lire('../app/api/dossiers/[id]/certificat.pdf/route.ts');
+    // La génération a quitté la route pour `build-certificat-pdf`, partagée
+    // avec l'envoi automatique à l'entreprise : c'est là que la règle vit.
+    const cert = lire('../features/documents/build-certificat-pdf.ts');
     expect(cert).toContain('Number(hours.hours_attended)');
   });
 
