@@ -33,9 +33,9 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
-  const { learners } = loaded;
+  const { learners, directLearners, client } = loaded;
 
-  if (learners.length === 0) {
+  if (learners.length === 0 && directLearners.length === 0) {
     return (
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
         <EmptyState
@@ -49,6 +49,48 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
 
   return (
     <div className="space-y-4">
+      {directLearners.length > 0 && (
+        <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+          <header
+            className={`px-5 py-2.5 border-b flex items-center gap-2.5 flex-wrap text-[12px] text-zinc-500 dark:text-zinc-400 bg-gradient-to-br ${
+              client
+                ? 'from-blue-50 to-white border-blue-100 dark:from-blue-950/40 dark:to-zinc-900 dark:border-blue-900/40'
+                : 'from-rose-50 to-white border-rose-100 dark:from-rose-950/40 dark:to-zinc-900 dark:border-rose-900/40'
+            }`}
+          >
+            <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${client ? ACCENTS.blue.soft : ACCENTS.rose.soft}`}>
+              {client ? <Building2 className="w-4 h-4" /> : <User className="w-4 h-4" />}
+            </span>
+            <span className="font-bold text-[13px] text-zinc-900 dark:text-zinc-100">{client?.name ?? 'Participants directs'}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.rose.soft}`}>
+              {directLearners.length} stagiaire{directLearners.length > 1 ? 's' : ''}
+            </span>
+            <span>inscrits directement à la séance, sans dossier</span>
+          </header>
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+            {directLearners.map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-3 px-5 py-3.5 text-[13px]">
+                <div className="min-w-0 flex items-center gap-3">
+                  <Avatar name={`${l.first_name} ${l.last_name}`} />
+                  <div className="min-w-0">
+                    <p className="font-bold text-zinc-900 dark:text-zinc-100">
+                      {l.first_name} {l.last_name}
+                    </p>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{l.email ?? 'sans e-mail'}</p>
+                  </div>
+                </div>
+                <Link
+                  href={`/apprenants/${l.id}`}
+                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md text-[12px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition shrink-0"
+                >
+                  Fiche <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {groupByClient(learners).map((g) => (
         <section
           key={g.key}

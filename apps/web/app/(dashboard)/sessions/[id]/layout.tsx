@@ -41,7 +41,9 @@ export default async function SessionLayout({
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
-  const { session, formation, learners } = loaded;
+  const { session, formation, learners, directLearners, client } = loaded;
+  // Une séance libre porte ses participants sans dossier : ils comptent aussi.
+  const participants = learners.length + directLearners.length;
   const gerer = await canManageSection('dossiers');
 
   const st = STATUS[session.status] ?? { label: session.status, tone: 'neutral' as const };
@@ -90,8 +92,9 @@ export default async function SessionLayout({
                 </span>
                 <span className="inline-flex items-center gap-1.5 tabular-nums">
                   <UsersIcon className="w-3.5 h-3.5" aria-hidden />
-                  {learners.length} participant{learners.length > 1 ? 's' : ''}
+                  {participants} participant{participants > 1 ? 's' : ''}
                 </span>
+                {client && <span className="inline-flex items-center gap-1.5">Client : {client.name}</span>}
               </p>
             </div>
             {session.remote_url && (

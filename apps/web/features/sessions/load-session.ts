@@ -26,6 +26,14 @@ export type SessionSheet = {
   total: number;
 };
 
+/** Participant inscrit à la main, sans dossier (séance libre pour un client). */
+export type DirectParticipant = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+};
+
 export type LoadedSession = {
   session: {
     id: string;
@@ -44,6 +52,10 @@ export type LoadedSession = {
   formation: { id: string; title: string; code: string | null } | null;
   dossierIds: string[];
   learners: SessionLearner[];
+  /** Apprenants rattachés directement à la séance (aucun dossier). */
+  directLearners: DirectParticipant[];
+  /** Entreprise cliente d'une séance planifiée sans formation ni dossier. */
+  client: { id: string; name: string } | null;
   sheets: SessionSheet[];
 };
 
@@ -136,6 +148,46 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
     };
   });
 
+  // Séance libre : apprenants inscrits à la main, et entreprise cliente.
+  // Ces deux lectures sont tolérantes à l'échec — `sessions.company_id` arrive
+  // avec la migration 0161, et une base qui ne l'a pas encore ne doit pas
+  // faire tomber toutes les pages de séance.
+  const dejaVus = new Set(learners.map((l) => l.id));
+  const { data: manuels } = await sb
+    .schema('app')
+    .from('session_participants')
+    .select('learner_id, source')
+    .eq('session_id', id)
+    .eq('participant_kind', 'learner');
+  const manuelIds = [
+    ...new Set(
+      ((manuels as { learner_id: string | null; source: string | null }[] | null) ?? [])
+        .filter((p) => p.learner_id && p.source !== 'manual_remove' && !dejaVus.has(p.learner_id))
+        .map((p) => p.learner_id as string),
+    ),
+  ];
+  const { data: directData } = manuelIds.length
+    ? await sb.schema('app').from('learners').select('id, first_name, last_name, email').in('id', manuelIds)
+    : { data: [] as unknown[] };
+  const directLearners = ((directData as DirectParticipant[] | null) ?? []).sort((a, b) =>
+    `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, 'fr'),
+  );
+
+  let client: LoadedSession['client'] = null;
+  const { data: clientRow, error: clientErr } = await sb
+    .schema('app')
+    .from('sessions')
+    .select('company_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (!clientErr) {
+    const companyId = (clientRow as { company_id: string | null } | null)?.company_id ?? null;
+    if (companyId) {
+      const { data: c } = await sb.schema('app').from('companies').select('id, name').eq('id', companyId).maybeSingle();
+      client = (c as { id: string; name: string } | null) ?? null;
+    }
+  }
+
   // Feuilles d'émargement de la session + compteur de signatures.
   const { data: sheetData } = await sb
     .schema('app')
@@ -177,9 +229,9 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
   const sheets: SessionSheet[] = sheetRows.map((sh) => ({
     ...sh,
     // Sur les apprenants attendus : une ligne n'existe qu'une fois la présence recueillie.
-    total: learners.length,
+    total: learners.length + directLearners.length,
     signed: parFeuille.get(sh.id)?.signed ?? 0,
   }));
 
-  return { session, formation, dossierIds, learners, sheets };
+  return { session, formation, dossierIds, learners, directLearners, client, sheets };
 }
