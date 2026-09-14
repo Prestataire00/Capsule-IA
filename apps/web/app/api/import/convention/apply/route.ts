@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
@@ -53,6 +54,11 @@ export async function POST(req: NextRequest) {
       payload,
       pdfs,
     });
+    // Sans cela, les listes servaient encore leur version en cache : le client
+    // et les séances venaient d'être créés mais n'apparaissaient nulle part.
+    for (const p of ['/entreprises', '/formations', '/sessions', '/taches', '/agenda', '/documents']) {
+      revalidatePath(p);
+    }
     return NextResponse.json({ ok: true, summary });
   } catch (e) {
     console.error('[import convention] création impossible', e);

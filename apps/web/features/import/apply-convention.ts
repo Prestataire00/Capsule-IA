@@ -398,9 +398,14 @@ export async function applyConventionImport(
   // ── Liste nominative manquante → tâche ────────────────────────────────────
   if (learnerIds.length === 0) {
     const premiere = [...payload.sessions].sort((a, b) => a.date.localeCompare(b.date))[0]?.date ?? null;
-    const echeance = premiere
+    // Dix jours avant la première séance — mais jamais dans le passé : une
+    // convention signée tardivement donnerait une tâche déjà en retard à sa
+    // création, ce qui la ferait passer pour un oubli.
+    const aujourdHui = new Date().toISOString().slice(0, 10);
+    const dixJoursAvant = premiere
       ? new Date(new Date(`${premiere}T00:00:00Z`).getTime() - 10 * 24 * 3600_000).toISOString().slice(0, 10)
       : null;
+    const echeance = dixJoursAvant ? (dixJoursAvant < aujourdHui ? aujourdHui : dixJoursAvant) : null;
     const nomClient = payload.client.name.trim() || 'client';
     const { error } = await sb
       .schema('app')
