@@ -117,5 +117,14 @@
 
 | Claude (demande-manuelle) | **Créer une demande à la main, sans formation imposée** (demande Ismael) : page `/prospects/nouvelle` (formulaire staff : identité, situation, financeur, entreprise, modalité/date souhaitées) où la formation est **facultative** — soit une du catalogue, soit un intitulé libre avec durée et tarif (dossiers spécifiques). **Migration 0163+** (`prospects.custom_formation_title` / `_hours` / `_price_cents`), conversion `features/crm/prospect-conversion/convert-core.ts` (crée la formation à la volée si intitulé libre), bouton sur `prospects/page.tsx`. **Ne touche pas** aux colonnes `formations.client_*` ni aux écrans « formations sur mesure » de l'autre instance. | (push direct main) | 2026-09-14 | fait |
 
+
+> **⚠️ Migrations : GitHub Actions est bloqué (facturation GitHub, depuis le 2026-09-14).**
+> Le workflow « DB migrations (prod) » échoue avant de démarrer : *« The job was not started
+> because recent account payments have failed or your spending limit needs to be increased »*.
+> **Rien ne s'applique automatiquement en production.** Après chaque migration poussée, livrer à
+> Ismael un fichier SQL prêt à coller dans l'éditeur SQL Supabase (migrations dans l'ordre +
+> `INSERT` des versions dans `supabase_migrations.schema_migrations` pour ne pas les rejouer).
+> Les versions 0159 à 0163 ont été appliquées ainsi le 2026-09-14.
+
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.
