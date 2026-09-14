@@ -22,7 +22,8 @@ export type SessionMessage = {
   readonly createdAt: string;
 };
 
-export const MESSAGE_MAX_LENGTH = 5000;
+export { MESSAGE_MAX_LENGTH } from './message-constants';
+import { MESSAGE_MAX_LENGTH } from './message-constants';
 
 type Row = {
   id: string;

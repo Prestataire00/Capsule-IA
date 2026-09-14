@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Send } from 'lucide-react';
-import { MESSAGE_MAX_LENGTH } from '@/features/trainer-space/session-messages';
+import { MESSAGE_MAX_LENGTH } from '@/features/trainer-space/message-constants';
 
 /**
  * Zone d'écriture du fil. L'envoi est fourni par l'appelant : le formateur,
