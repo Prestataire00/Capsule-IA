@@ -39,7 +39,10 @@ describe('création d’une séance libre', () => {
 
   it('inscrit les participants à la main — seule source d’émargement sans dossier', () => {
     expect(actions).toContain("participant_kind: 'learner'");
-    expect(actions).toContain("source: 'manual'");
+    // `participant_source` est une énumération : 'derived', 'manual_add',
+    // 'manual_remove'. Un 'manual' était refusé par la base, en silence.
+    expect(actions).toContain("source: 'manual_add'");
+    expect(actions).not.toMatch(/source: 'manual'/);
   });
 
   it('refuse une fin antérieure au début', () => {

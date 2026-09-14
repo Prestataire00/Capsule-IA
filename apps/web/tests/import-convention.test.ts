@@ -151,6 +151,12 @@ describe('création dans le CRM', () => {
     expect(apply).toContain("from('dossier_trainers')");
     expect(apply).toContain("from('session_trainers')");
   });
+
+  it('inscrit les participants avec une valeur que l’énumération accepte', () => {
+    // app.participant_source = 'derived' | 'manual_add' | 'manual_remove'.
+    expect(apply).toContain("source: 'manual_add'");
+    expect(apply).not.toMatch(/source: 'manual'/);
+  });
 });
 
 describe('routes d’import', () => {

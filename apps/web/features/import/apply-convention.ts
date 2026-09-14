@@ -611,7 +611,7 @@ export async function applyConventionImport(
             organization_id: organizationId,
             participant_kind: 'learner',
             learner_id: id,
-            source: 'manual',
+            source: 'manual_add',
           })) as never,
           { onConflict: 'session_id,participant_kind,participant_id' },
         );
@@ -645,7 +645,7 @@ export async function applyConventionImport(
             organization_id: organizationId,
             participant_kind: 'trainer',
             trainer_id: tid,
-            source: 'manual',
+            source: 'manual_add',
           })),
         ) as never,
         { onConflict: 'session_id,participant_kind,participant_id' },

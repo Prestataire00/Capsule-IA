@@ -18,7 +18,7 @@ import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
  * dossier) : impossible de poser une intervention sur mesure, une réunion de
  * cadrage ou une prestation ponctuelle. Ici l'intitulé, le client et les
  * participants sont saisis directement ; les participants sont inscrits en
- * `manual`, ce que l'émargement sait déjà lire.
+ * `manual_add`, ce que l'émargement sait déjà lire.
  *
  * L'écriture se fait en service role, donc après vérification explicite du rôle,
  * de l'organisation, et de l'appartenance de chaque personne rattachée.
@@ -129,7 +129,7 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
   }
 
   // Participants inscrits à la main : c'est la seule source pour une séance
-  // sans dossier, et l'émargement les reconnaît (`source = 'manual'`).
+  // sans dossier, et l'émargement les reconnaît (`source = 'manual_add'`).
   if (v.learnerIds.length > 0) {
     const { error } = await sb
       .schema('app')
@@ -140,7 +140,7 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
           organization_id: org,
           participant_kind: 'learner',
           learner_id: id,
-          source: 'manual',
+          source: 'manual_add',
         })) as never,
         { onConflict: 'session_id,participant_kind,participant_id' },
       );
@@ -165,7 +165,7 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
           organization_id: org,
           participant_kind: 'trainer',
           trainer_id: v.trainerId,
-          source: 'manual',
+          source: 'manual_add',
         } as never,
         { onConflict: 'session_id,participant_kind,participant_id' },
       );
