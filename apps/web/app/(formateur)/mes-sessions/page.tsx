@@ -7,12 +7,27 @@ import { SupabaseMembershipReader } from '@/features/identity/trainer-self/infra
 import { dayKey } from '@/features/trainer-space/dates';
 import { loadSessionsByIds, mySessionIds, type MySession } from '@/features/trainer-space/my-sessions';
 import { SessionCard } from '@/features/trainer-space/session-card';
+import { unreadCounts } from '@/features/trainer-space/session-messages';
 
 export const dynamic = 'force-dynamic';
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 
-function Section({ titre, sessions, noms, vide, emphasize }: { titre: string; sessions: MySession[]; noms: Map<string, string> | null; vide?: string; emphasize?: boolean }) {
+function Section({
+  titre,
+  sessions,
+  noms,
+  vide,
+  emphasize,
+  nonLus,
+}: {
+  titre: string;
+  sessions: MySession[];
+  noms: Map<string, string> | null;
+  vide?: string;
+  emphasize?: boolean;
+  nonLus: Map<string, number>;
+}) {
   if (sessions.length === 0 && !vide) return null;
   return (
     <section className="space-y-2">
@@ -25,7 +40,12 @@ function Section({ titre, sessions, noms, vide, emphasize }: { titre: string; se
         <ul className="space-y-2">
           {sessions.map((s) => (
             <li key={s.id}>
-              <SessionCard s={s} organizationName={noms?.get(s.organizationId) ?? null} emphasize={emphasize} />
+              <SessionCard
+                s={s}
+                organizationName={noms?.get(s.organizationId) ?? null}
+                emphasize={emphasize}
+                unread={nonLus.get(s.id) ?? 0}
+              />
             </li>
           ))}
         </ul>
@@ -50,6 +70,11 @@ export default async function MesSessionsPage() {
   const terminees = toutes.filter((s) => !duJour.includes(s) && Date.parse(s.endsAt) < now).reverse();
   const noms = memberships.length > 1 ? new Map(memberships.map((m) => [m.organizationId as string, m.organizationName])) : null;
 
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  const nonLus = user ? await unreadCounts(toutes.map((s) => s.id), user.id, 'formateur') : new Map<string, number>();
+
   return (
     <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
       <header>
@@ -59,9 +84,9 @@ export default async function MesSessionsPage() {
         </p>
       </header>
 
-      <Section titre="Aujourd’hui" sessions={duJour} noms={noms} vide="Aucune séance aujourd’hui." emphasize />
-      <Section titre="À venir" sessions={aVenir} noms={noms} vide="Aucune séance à venir pour l’instant." />
-      <Section titre="Terminées (30 derniers jours)" sessions={terminees} noms={noms} />
+      <Section titre="Aujourd’hui" sessions={duJour} noms={noms} nonLus={nonLus} vide="Aucune séance aujourd’hui." emphasize />
+      <Section titre="À venir" sessions={aVenir} noms={noms} nonLus={nonLus} vide="Aucune séance à venir pour l’instant." />
+      <Section titre="Terminées (30 derniers jours)" sessions={terminees} noms={noms} nonLus={nonLus} />
     </div>
   );
 }

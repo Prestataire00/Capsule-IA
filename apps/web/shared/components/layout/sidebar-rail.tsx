@@ -9,7 +9,7 @@ import {
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, PenLine,
-  TrendingUp, FileSignature, ListChecks, Trash2,
+  TrendingUp, FileSignature, ListChecks, Trash2, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -77,6 +77,7 @@ export const GROUPS: Group[] = [
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
+      { href: '/import-convention', icon: Sparkles, label: 'Importer une convention' },
       { href: '/catalogue-public', icon: Globe, label: 'Catalogue public' },
       { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
       { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },

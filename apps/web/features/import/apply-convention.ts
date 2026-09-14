@@ -1,0 +1,446 @@
+import 'server-only';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { slugify } from '@/features/formations/mapping';
+import { DEFAULT_THEME, type Programme, type ProgrammeSection } from '@/features/formations/programme/types';
+import { persistGeneratedDocument } from '@/features/documents/persist-document';
+import { parisIso } from './paris-time';
+import type { ConventionImport, ImportFormation, ImportSummary } from './convention-types';
+
+export type { ImportSummary };
+
+/**
+ * Création dans le CRM de ce qu'une convention contient : le client, la
+ * formation sur mesure (avec son programme et ses modules), les séances aux
+ * dates convenues, et la tâche de récupération de la liste nominative quand la
+ * convention ne nomme pas les stagiaires.
+ *
+ * Aucun document financier n'est créé : le tarif lu est enregistré sur la
+ * formation et les séances, le devis reste un acte volontaire.
+ *
+ * Idempotence : le client est réutilisé s'il existe (SIRET, sinon raison
+ * sociale), les apprenants nommés aussi (e-mail, sinon nom complet). Les
+ * formations et les séances, elles, sont créées à chaque import — relancer deux
+ * fois le même fichier crée deux jeux de séances.
+ */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Client = SupabaseClient<any, any, any>;
+
+const nettoieSiret = (v: string): string | null => {
+  const chiffres = v.replace(/\D/g, '');
+  return chiffres.length === 14 ? chiffres : null;
+};
+
+/** Code interne libre mais unique par organisme : on suffixe jusqu'à trouver. */
+async function codeDisponible(sb: Client, organizationId: string, base: string): Promise<string> {
+  const racine = (slugify(base) || 'formation').slice(0, 24);
+  for (let i = 0; i < 20; i++) {
+    const code = i === 0 ? racine : `${racine}-${i + 1}`;
+    const { data } = await sb
+      .schema('app')
+      .from('formations')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('code', code)
+      .maybeSingle();
+    if (!data) return code;
+  }
+  return `${racine}-${Date.now().toString(36)}`.slice(0, 40);
+}
+
+/** Programme imprimable depuis les modules lus : la fiche n'est pas qu'un résumé. */
+function programmeDepuisImport(f: ImportFormation, orgName: string): Programme {
+  const sections: ProgrammeSection[] = [];
+
+  const infos: Array<{ label: string; value: string }> = [
+    { label: 'Public cible', value: f.targetAudience },
+    { label: 'Prérequis', value: f.prerequisites.join(' · ') },
+    { label: 'Durée', value: f.durationHours ? `${f.durationHours} heures` : '' },
+    { label: 'Délai d’accès', value: f.accessDelay },
+  ].filter((r) => r.value.trim() !== '');
+  if (infos.length > 0) {
+    sections.push({ id: 'keyvalue-0', type: 'keyvalue', title: 'Informations générales', rows: infos });
+  }
+
+  if (f.objectives.length > 0) {
+    sections.push({ id: 'bullets-1', type: 'bullets', title: 'Objectifs pédagogiques', items: f.objectives });
+  }
+
+  if (f.modules.length > 0) {
+    sections.push({
+      id: 'modules-2',
+      type: 'modules',
+      title: 'Détail du programme',
+      overviewTitle: 'Vue d’ensemble',
+      overview: f.modules.map((m, i) => ({
+        code: m.code || `Module ${i + 1}`,
+        title: m.title,
+        durationLabel: m.durationLabel,
+      })),
+      totalLabel: 'Durée totale du programme',
+      totalValue: f.durationHours ? `${f.durationHours} heures` : '',
+      modules: f.modules.map((m, i) => ({
+        code: m.code || `Module ${i + 1}`,
+        title: m.title,
+        durationLabel: m.durationLabel,
+        submodules: [
+          {
+            code: m.code || `M${i + 1}`,
+            title: m.title,
+            durationLabel: m.durationLabel,
+            contenu: m.contenu,
+            objectifs: m.objectifs,
+          },
+        ],
+      })),
+    });
+  }
+
+  for (const [i, bloc] of [
+    { title: 'Méthodes et moyens pédagogiques', html: f.pedagogicalMethod },
+    { title: 'Modalités d’évaluation', html: f.evaluationMethod },
+    { title: 'Accessibilité', html: f.accessibilityInfo },
+    { title: 'Équipe pédagogique', html: f.teachingTeam },
+  ].entries()) {
+    if (bloc.html.trim() !== '') {
+      sections.push({ id: `richtext-${3 + i}`, type: 'richtext', title: bloc.title, html: bloc.html });
+    }
+  }
+
+  return {
+    schemaVersion: 1,
+    theme: DEFAULT_THEME,
+    header: {
+      logoUrl: '',
+      kicker: 'Programme de formation',
+      orgName,
+      title: f.title,
+      subtitle: f.subtitle,
+      metaItems: [
+        ...(f.durationHours ? [{ icon: 'clock' as const, text: `${f.durationHours} heures` }] : []),
+        { icon: 'location' as const, text: f.modality === 'distanciel' ? 'Distanciel' : f.modality === 'hybride' ? 'Hybride' : 'Présentiel' },
+      ],
+    },
+    sections,
+    footer: { legalLine: orgName, lines: [], versionLine: '' },
+  };
+}
+
+export async function applyConventionImport(
+  sb: Client,
+  args: {
+    organizationId: string;
+    userId: string;
+    payload: ConventionImport;
+    /** PDF d'origine, archivés comme documents de l'organisme. */
+    pdfs?: ReadonlyArray<{ name: string; bytes: Uint8Array }>;
+  },
+): Promise<ImportSummary> {
+  const { organizationId, userId, payload } = args;
+  const resume: ImportSummary = {
+    companyId: null,
+    companyCreated: false,
+    contactCreated: false,
+    formations: [],
+    sessions: 0,
+    learners: 0,
+    taskCreated: false,
+    documents: 0,
+    warnings: [],
+  };
+
+  const { data: orgRow } = await sb.schema('app').from('organizations').select('name').eq('id', organizationId).maybeSingle();
+  const orgName = (orgRow as { name: string } | null)?.name ?? 'Organisme de formation';
+
+  // ── Client ────────────────────────────────────────────────────────────────
+  const siret = nettoieSiret(payload.client.siret);
+  if (payload.client.name.trim() !== '' || siret) {
+    let existante: { id: string } | null = null;
+    if (siret) {
+      const { data } = await sb
+        .schema('app')
+        .from('companies')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('siret', siret)
+        .is('deleted_at', null)
+        .maybeSingle();
+      existante = data as { id: string } | null;
+    }
+    if (!existante && payload.client.name.trim() !== '') {
+      const { data } = await sb
+        .schema('app')
+        .from('companies')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .ilike('name', payload.client.name.trim())
+        .is('deleted_at', null)
+        .maybeSingle();
+      existante = data as { id: string } | null;
+    }
+
+    if (existante) {
+      resume.companyId = existante.id;
+    } else {
+      const { data, error } = await sb
+        .schema('app')
+        .from('companies')
+        .insert({
+          organization_id: organizationId,
+          name: payload.client.name.trim() || payload.client.legalName.trim() || 'Client',
+          legal_name: payload.client.legalName.trim() || null,
+          siret,
+          address: payload.client.address.trim() ? { line1: payload.client.address.trim() } : {},
+          contact_email: payload.client.contactEmail || null,
+          contact_phone: payload.client.contactPhone || null,
+          notes: payload.notes || null,
+          created_by: userId,
+          updated_by: userId,
+        } as never)
+        .select('id')
+        .single();
+      if (error || !data) resume.warnings.push('Le client n’a pas pu être créé.');
+      else {
+        resume.companyId = (data as { id: string }).id;
+        resume.companyCreated = true;
+      }
+    }
+  } else {
+    resume.warnings.push('Aucun client identifié dans les documents.');
+  }
+
+  // Représentant signataire → contact de l'entreprise.
+  if (resume.companyId && payload.client.representativeLastName.trim() !== '') {
+    const { data: dejaLa } = await sb
+      .schema('app')
+      .from('contacts')
+      .select('id')
+      .eq('company_id', resume.companyId)
+      .ilike('last_name', payload.client.representativeLastName.trim())
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (!dejaLa) {
+      const { error } = await sb
+        .schema('app')
+        .from('contacts')
+        .insert({
+          organization_id: organizationId,
+          company_id: resume.companyId,
+          first_name: payload.client.representativeFirstName.trim() || '—',
+          last_name: payload.client.representativeLastName.trim(),
+          email: payload.client.contactEmail || null,
+          phone: payload.client.contactPhone || null,
+          position: payload.client.representativeRole.trim() || 'Représentant légal',
+          is_primary: true,
+        } as never);
+      if (!error) resume.contactCreated = true;
+    }
+  }
+
+  // ── Formations sur mesure ─────────────────────────────────────────────────
+  const nbParticipants = payload.participants.count && payload.participants.count > 0 ? payload.participants.count : null;
+  // Le tarif d'une convention est global ; l'application raisonne par stagiaire.
+  const tarifParStagiaire =
+    payload.pricing.totalHtCents != null && nbParticipants
+      ? Math.round(payload.pricing.totalHtCents / nbParticipants)
+      : payload.pricing.totalHtCents;
+
+  for (const f of payload.formations) {
+    if (f.title.trim() === '') continue;
+    const code = await codeDisponible(sb, organizationId, f.title);
+    const catalog = {
+      subtitle: f.subtitle,
+      programContent: f.programContent,
+      pedagogicalMethod: f.pedagogicalMethod,
+      accessibilityInfo: f.accessibilityInfo,
+      accessDelay: f.accessDelay,
+      teachingTeam: f.teachingTeam,
+      effectifMax: nbParticipants,
+      priceEntrepriseCents: payload.pricing.totalHtCents,
+      priceMode: 'ht',
+      importPricing: {
+        totalHtCents: payload.pricing.totalHtCents,
+        vatRate: payload.pricing.vatRate,
+        paymentTerms: payload.pricing.paymentTerms,
+      },
+      importedFrom: 'convention',
+      programme: programmeDepuisImport(f, orgName),
+    };
+
+    const ligne: Record<string, unknown> = {
+      organization_id: organizationId,
+      code,
+      slug: slugify(code),
+      title: f.title.trim(),
+      summary: f.subtitle || null,
+      description: f.programContent || null,
+      objectives: f.objectives,
+      prerequisites: f.prerequisites,
+      target_audience: f.targetAudience || null,
+      evaluation_method: f.evaluationMethod || null,
+      pedagogical_method: f.pedagogicalMethod || null,
+      default_modality: f.modality,
+      default_duration_hours: Number(f.durationHours || 0) || 0,
+      default_price_cents: tarifParStagiaire ?? 0,
+      is_published: false,
+      metadata: { catalog },
+      created_by: userId,
+      updated_by: userId,
+    };
+    // Formation rattachée au client (0162) ; si la colonne manque, on crée
+    // quand même la formation, sans le lien.
+    const avecClient = resume.companyId
+      ? { ...ligne, client_kind: 'company', client_company_id: resume.companyId }
+      : ligne;
+
+    let creee: { id: string } | null = null;
+    const premier = await sb.schema('app').from('formations').insert(avecClient as never).select('id').single();
+    if (premier.error && resume.companyId) {
+      const repli = await sb.schema('app').from('formations').insert(ligne as never).select('id').single();
+      creee = (repli.data as { id: string } | null) ?? null;
+      if (repli.error) resume.warnings.push(`Formation « ${f.title} » non créée : ${repli.error.message}`);
+      else resume.warnings.push('Formations sur mesure indisponibles sur cette base : le lien au client n’a pas été posé.');
+    } else {
+      creee = (premier.data as { id: string } | null) ?? null;
+      if (premier.error) resume.warnings.push(`Formation « ${f.title} » non créée : ${premier.error.message}`);
+    }
+    if (creee) resume.formations.push({ id: creee.id, title: f.title.trim() });
+  }
+
+  const formationId = resume.formations[0]?.id ?? null;
+
+  // ── Apprenants nommés (rare : la liste est souvent annexée plus tard) ─────
+  const learnerIds: string[] = [];
+  for (const p of payload.participants.named) {
+    if (p.lastName.trim() === '' && p.firstName.trim() === '') continue;
+    let trouve: { id: string } | null = null;
+    if (p.email) {
+      const { data } = await sb
+        .schema('app')
+        .from('learners')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('email', p.email)
+        .is('deleted_at', null)
+        .maybeSingle();
+      trouve = data as { id: string } | null;
+    }
+    if (!trouve) {
+      const { data, error } = await sb
+        .schema('app')
+        .from('learners')
+        .insert({
+          organization_id: organizationId,
+          first_name: p.firstName.trim() || '—',
+          last_name: p.lastName.trim() || '—',
+          email: p.email || null,
+        } as never)
+        .select('id')
+        .single();
+      if (error || !data) continue;
+      trouve = data as { id: string };
+      resume.learners += 1;
+    }
+    learnerIds.push(trouve.id);
+  }
+
+  // ── Séances ───────────────────────────────────────────────────────────────
+  for (const s of payload.sessions) {
+    const debut = parisIso(s.date, s.startTime);
+    const fin = parisIso(s.date, s.endTime);
+    if (!debut || !fin) continue;
+
+    const ligne: Record<string, unknown> = {
+      organization_id: organizationId,
+      dossier_id: null,
+      formation_id: formationId,
+      title: s.label || null,
+      modality: s.modality,
+      status: 'planned',
+      starts_at: debut,
+      ends_at: fin,
+      location: s.location || null,
+      price_cents: tarifParStagiaire ?? null,
+    };
+    const avecClient = resume.companyId ? { ...ligne, company_id: resume.companyId } : ligne;
+
+    let sessionId: string | null = null;
+    const premier = await sb.schema('app').from('sessions').insert(avecClient as never).select('id').single();
+    if (premier.error && resume.companyId) {
+      const repli = await sb.schema('app').from('sessions').insert(ligne as never).select('id').single();
+      sessionId = (repli.data as { id: string } | null)?.id ?? null;
+    } else {
+      sessionId = (premier.data as { id: string } | null)?.id ?? null;
+    }
+    if (!sessionId) {
+      resume.warnings.push(`Séance « ${s.label || s.date} » non créée.`);
+      continue;
+    }
+    resume.sessions += 1;
+
+    if (learnerIds.length > 0) {
+      await sb
+        .schema('app')
+        .from('session_participants')
+        .upsert(
+          learnerIds.map((id) => ({
+            session_id: sessionId,
+            organization_id: organizationId,
+            participant_kind: 'learner',
+            learner_id: id,
+            source: 'manual',
+          })) as never,
+          { onConflict: 'session_id,participant_kind,participant_id' },
+        );
+    }
+  }
+
+  // ── Liste nominative manquante → tâche ────────────────────────────────────
+  if (learnerIds.length === 0) {
+    const premiere = [...payload.sessions].sort((a, b) => a.date.localeCompare(b.date))[0]?.date ?? null;
+    const echeance = premiere
+      ? new Date(new Date(`${premiere}T00:00:00Z`).getTime() - 10 * 24 * 3600_000).toISOString().slice(0, 10)
+      : null;
+    const nomClient = payload.client.name.trim() || 'client';
+    const { error } = await sb
+      .schema('app')
+      .from('tasks')
+      .insert({
+        organization_id: organizationId,
+        title: `Liste nominative des stagiaires — ${nomClient}`.slice(0, 200),
+        description:
+          `À récupérer auprès de ${nomClient} avant la première séance.` +
+          (payload.participants.groups ? ` Répartition annoncée : ${payload.participants.groups}.` : '') +
+          (nbParticipants ? ` ${nbParticipants} stagiaires prévus.` : '') +
+          ' Les dossiers seront créés à réception des noms.',
+        assignee_user_id: userId,
+        status: 'todo',
+        priority: 'high',
+        due_date: echeance,
+        created_by: userId,
+      } as never);
+    if (!error) resume.taskCreated = true;
+  }
+
+  // ── Archivage des PDF source ──────────────────────────────────────────────
+  for (const pdf of args.pdfs ?? []) {
+    const convention = /convention/i.test(pdf.name);
+    try {
+      await persistGeneratedDocument(sb as never, {
+        organizationId,
+        dossierId: null,
+        kind: convention ? 'convention' : 'programme',
+        title: pdf.name.replace(/\.pdf$/i, '').slice(0, 200),
+        bytes: pdf.bytes,
+        generationInput: { imported: true, source: pdf.name },
+        metadata: { imported_from: 'convention', company_id: resume.companyId },
+      });
+      resume.documents += 1;
+    } catch (e) {
+      console.error('[import convention] archivage impossible', pdf.name, e);
+      resume.warnings.push(`Le fichier « ${pdf.name} » n’a pas pu être archivé.`);
+    }
+  }
+
+  return resume;
+}

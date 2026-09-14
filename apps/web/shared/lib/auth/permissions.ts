@@ -78,6 +78,7 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   ['/prospects', 'crm'],
   ['/entreprises', 'crm'],
   ['/formations', 'catalogue'],
+  ['/import-convention', 'catalogue'],
   ['/catalogue-public', 'catalogue'],
   ['/financeurs', 'catalogue'],
   ['/emargements', 'attendance'],

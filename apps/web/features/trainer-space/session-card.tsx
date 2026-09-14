@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ClipboardList, ListChecks, MapPin, Video } from 'lucide-react';
+import { ClipboardList, ListChecks, MapPin, MessagesSquare, Users, Video } from 'lucide-react';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { heure, jourRelatif } from '@/features/trainer-space/dates';
 import type { MySession } from '@/features/trainer-space/my-sessions';
@@ -10,7 +10,18 @@ const STATUT: Record<string, { label: string; tone: 'warning' | 'success' | 'inf
 };
 
 /** Carte d'une séance du formateur : horaires, lieu, émargement, visio. */
-export function SessionCard({ s, organizationName, emphasize = false }: { s: MySession; organizationName?: string | null; emphasize?: boolean }) {
+export function SessionCard({
+  s,
+  organizationName,
+  emphasize = false,
+  unread = 0,
+}: {
+  s: MySession;
+  organizationName?: string | null;
+  emphasize?: boolean;
+  /** Messages non lus du fil de la séance — sinon le formateur ne les verrait jamais. */
+  unread?: number;
+}) {
   const statut = STATUT[s.status] ?? { label: 'à venir', tone: 'info' as const };
   return (
     <div
@@ -44,6 +55,21 @@ export function SessionCard({ s, organizationName, emphasize = false }: { s: MyS
               <Video className="w-3.5 h-3.5" /> Visio
             </a>
           )}
+          {unread > 0 && (
+            <Link
+              href={`/seance/${s.id}/messages`}
+              className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100"
+            >
+              <MessagesSquare className="w-3.5 h-3.5" />
+              <span className="tabular-nums">{unread}</span> message{unread > 1 ? 's' : ''}
+            </Link>
+          )}
+          <Link
+            href={`/seance/${s.id}`}
+            className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <Users className="w-3.5 h-3.5" /> Contacts & supports
+          </Link>
           <Link
             href={`/seance/${s.id}/fiches-besoin`}
             className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
