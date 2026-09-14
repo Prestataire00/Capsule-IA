@@ -40,12 +40,15 @@ type FormationRow = {
   created_at: string | null;
 };
 
-type SearchParams = { q?: string; modality?: string; corbeille?: string };
+type SearchParams = { q?: string; modality?: string; corbeille?: string; nature?: string };
+
+const NATURES = ['catalogue', 'sur-mesure'] as const;
 
 export default async function FormationsPage({ searchParams }: { searchParams: SearchParams }) {
   const q = (searchParams.q ?? '').trim().toLowerCase();
   const modality = MODALITIES.includes(searchParams.modality as (typeof MODALITIES)[number]) ? searchParams.modality! : '';
   const corbeille = searchParams.corbeille === '1';
+  const nature = (NATURES as readonly string[]).includes(searchParams.nature ?? '') ? searchParams.nature! : '';
 
   const sb = supabaseServer();
   // Corbeille : les politiques RLS de lecture filtrent `deleted_at IS NULL` —
@@ -158,11 +161,35 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
   const draft = all.length - published;
   const totalActive = Array.from(activeByFormation.values()).reduce((s, n) => s + n, 0);
 
+  // Catalogue (offre standard, publiable) contre sur mesure (montée pour un
+  // client précis — création manuelle ou import d'une convention). Les deux ne
+  // se pilotent pas pareil : l'une se publie, l'autre se facture au client.
+  const nbSurMesure = all.filter((f) => surMesure.has(f.id)).length;
+  const nbCatalogue = all.length - nbSurMesure;
+
   const filtered = all.filter((f) => {
+    if (nature === 'sur-mesure' && !surMesure.has(f.id)) return false;
+    if (nature === 'catalogue' && surMesure.has(f.id)) return false;
     if (modality && f.default_modality !== modality) return false;
     if (q && !(`${f.title} ${f.code}`.toLowerCase().includes(q))) return false;
     return true;
   });
+
+  /** Lien d'onglet conservant la recherche et la modalité en cours. */
+  const lienNature = (valeur: '' | 'catalogue' | 'sur-mesure'): string => {
+    const p = new URLSearchParams();
+    if (valeur) p.set('nature', valeur);
+    if (searchParams.q) p.set('q', searchParams.q);
+    if (modality) p.set('modality', modality);
+    const qs = p.toString();
+    return qs ? `/formations?${qs}` : '/formations';
+  };
+
+  const ONGLETS: Array<{ valeur: '' | 'catalogue' | 'sur-mesure'; label: string; compte: number }> = [
+    { valeur: '', label: 'Toutes', compte: all.length },
+    { valeur: 'catalogue', label: 'Catalogue', compte: nbCatalogue },
+    { valeur: 'sur-mesure', label: 'Sur mesure', compte: nbSurMesure },
+  ];
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-9">
@@ -196,11 +223,46 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6" aria-label="Synthèse">
-        <KpiCard label="Total formations" value={all.length} icon={BookOpen} accent="orange" hint="au catalogue de l'OF" />
+        <KpiCard
+          label="Total formations"
+          value={all.length}
+          icon={BookOpen}
+          hint={`${nbCatalogue} au catalogue · ${nbSurMesure} sur mesure`}
+          accent="orange"
+        />
         <KpiCard label="Publiées" value={published} icon={Eye} accent="emerald" hint="visibles au catalogue" />
         <KpiCard label="Brouillons" value={draft} icon={EyeOff} accent="amber" hint={draft > 0 ? 'à publier' : '—'} />
         <KpiCard label="Apprenants actifs" value={totalActive} icon={UsersIcon} accent="rose" hint="dossiers en cours" />
       </section>
+
+      {!corbeille && (
+        <nav className="mb-4 flex flex-wrap items-center gap-1.5" aria-label="Nature des formations">
+          {ONGLETS.map((o) => {
+            const actif = o.valeur === nature;
+            return (
+              <Link
+                key={o.valeur || 'toutes'}
+                href={lienNature(o.valeur)}
+                className={`text-[13px] font-semibold px-3 h-9 inline-flex items-center gap-1.5 rounded-lg border transition ${
+                  actif
+                    ? 'border-orange-200 dark:border-orange-900/60 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300'
+                    : 'border-zinc-200/80 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 text-zinc-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800/60'
+                }`}
+              >
+                {o.label}
+                <span className="tabular-nums opacity-70">{o.compte}</span>
+              </Link>
+            );
+          })}
+          <span className="text-[12px] text-zinc-500 dark:text-zinc-400 ml-1">
+            {nature === 'sur-mesure'
+              ? 'Montées pour un client précis (création manuelle ou import de convention) — hors catalogue public.'
+              : nature === 'catalogue'
+                ? 'Votre offre standard, publiable au catalogue.'
+                : ''}
+          </span>
+        </nav>
+      )}
 
       <div className="mb-4 flex items-center gap-2 flex-wrap">
         <form action="/formations" method="get" className="relative">
