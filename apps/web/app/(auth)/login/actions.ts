@@ -3,7 +3,9 @@
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { LoginSchema, type LoginInput } from './schema';
-import { resolveLanding } from '@/shared/lib/auth/landing';
+import { resolveLanding, hasTrainerSpace } from '@/shared/lib/auth/landing';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { destinationAutorisee } from '@/shared/lib/auth/trainer-routes';
 
 type LoginResult = { ok: false; error: string };
 
@@ -29,15 +31,26 @@ export async function login(input: LoginInput): Promise<LoginResult> {
 
   if (error) return { ok: false, error: 'Identifiants incorrects.' };
 
-  // Une destination explicite (page demandée avant connexion) prime. Sinon on
-  // aiguille selon l'identité : l'espace de l'organisme pour un membre,
-  // l'espace formateur pour un formateur sans rôle interne (audit CAP-29).
-  if (parsed.data.redirectedFrom) redirect(safeRedirect(parsed.data.redirectedFrom));
-
   const {
     data: { user },
   } = await sb.auth.getUser();
-  redirect(user ? ((await resolveLanding(user.id)) ?? '/login?motif=aucun-acces') : '/');
+  if (!user) redirect('/');
+
+  // Une destination explicite (page demandée avant connexion) prime — mais
+  // seulement si elle est atteignable. Elle était rejouée telle quelle : un
+  // administrateur dont l'onglet était resté sur l'espace formateur y était
+  // renvoyé, puis refoulé par le garde avec un message alarmant sur son compte.
+  const demandee = parsed.data.redirectedFrom ? safeRedirect(parsed.data.redirectedFrom) : null;
+  if (demandee) {
+    const [membre, formateur] = await Promise.all([getCurrentMember(), hasTrainerSpace(user.id)]);
+    if (destinationAutorisee(demandee, { estMembre: Boolean(membre), estFormateur: formateur })) {
+      redirect(demandee);
+    }
+  }
+
+  // Sinon on aiguille selon l'identité : l'espace de l'organisme pour un
+  // membre, l'espace formateur pour un formateur sans rôle interne (CAP-29).
+  redirect((await resolveLanding(user.id)) ?? '/login?motif=aucun-acces');
 }
 
 /** Déconnexion : invalide la session et renvoie vers la page de connexion. */

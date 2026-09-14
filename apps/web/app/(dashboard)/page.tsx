@@ -30,9 +30,13 @@ const greet = () => {
   return 'Bonsoir';
 };
 
+// Un motif s'adresse à quelqu'un qui n'a rien fait de mal : il explique, il
+// n'accuse pas. « Votre compte n'est rattaché à aucune fiche formateur » se
+// lisait comme un défaut de configuration alors qu'un administrateur est
+// simplement au bon endroit.
 const MOTIFS: Record<string, string> = {
   'no-trainer-membership':
-    "Cet accès est réservé aux formateurs. Votre compte n'est rattaché à aucune fiche formateur — vous avez été ramené ici.",
+    "L'espace formateur est réservé aux intervenants qui y animent des séances. Vous voici dans votre espace d'organisme.",
 };
 
 type Accent = 'orange' | 'emerald' | 'blue' | 'purple' | 'amber';
