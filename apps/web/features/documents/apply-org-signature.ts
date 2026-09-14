@@ -69,19 +69,24 @@ export async function drawSignatureBlock(
   });
 
   // Cachet en fond (à droite), puis signature par-dessus (à gauche)
+  // Bande libre du cadre : sous l'intitulé (y + height - 12) et au-dessus du nom
+  // du signataire (y + 4). Le cachet s'y inscrit sans rien recouvrir.
+  const bandeY = y + 16;
+  const bandeH = Math.max(24, height - 34);
+
   if (assets.stampPng) {
     const stamp = await doc.embedPng(assets.stampPng);
-    const s = stamp.scaleToFit(72, 72);
-    page.drawImage(stamp, { x: x + width - s.width - 8, y: y + 8, width: s.width, height: s.height, opacity: 0.85 });
+    const s = stamp.scaleToFit(72, bandeH);
+    page.drawImage(stamp, { x: x + width - s.width - 8, y: bandeY, width: s.width, height: s.height, opacity: 0.85 });
   } else if (assets.stampText && assets.stampText.length > 0) {
     // Cachet texte encadré (bleu tampon), aligné à droite de la zone de signature.
     const lines = assets.stampText;
     const lineH = 11;
     const padY = 8;
     const boxW = Math.min(176, width - 12);
-    const boxH = Math.min(height - 16, lines.length * lineH + padY * 2);
+    const boxH = Math.min(bandeH, lines.length * lineH + padY * 2);
     const bx = x + width - boxW - 4;
-    const by = y + 8;
+    const by = bandeY;
     page.drawRectangle({
       x: bx, y: by, width: boxW, height: boxH,
       color: rgb(1, 1, 1), borderColor: COLOR_STAMP, borderWidth: 1,
@@ -98,8 +103,8 @@ export async function drawSignatureBlock(
   }
   if (assets.signaturePng) {
     const sig = await doc.embedPng(assets.signaturePng);
-    const s = sig.scaleToFit(110, 48);
-    page.drawImage(sig, { x: x + 8, y: y + 16, width: s.width, height: s.height });
+    const s = sig.scaleToFit(110, Math.min(48, bandeH));
+    page.drawImage(sig, { x: x + 8, y: bandeY, width: s.width, height: s.height });
   }
 
   // Nom + qualité du représentant

@@ -77,7 +77,11 @@ export const generateConventions = authActionClient
       const built = await buildConventionInput(admin as never, parsedInput.dossierId, payer);
       if (!built) return { ok: false as const, error: 'dossier_not_found' };
 
-      const pdfBytes = await generateConventionPDF(built.input);
+      // Depuis un dossier, on produit l'exemplaire du stagiaire : nominatif,
+      // aux conditions de SON dossier. Celui de l'entreprise, qui regroupe tous
+      // ses salariés, se génère depuis la séance (« Documents par client »).
+      const input = { ...built.input, audience: 'stagiaire' as const };
+      const pdfBytes = await generateConventionPDF(input);
       const titleSuffix = payer ? ` — ${payer.modeLabel}` : '';
       await persistGeneratedDocument(admin as never, {
         organizationId: orgId,
@@ -85,7 +89,7 @@ export const generateConventions = authActionClient
         kind: 'convention',
         title: `Convention de formation${titleSuffix}`,
         bytes: pdfBytes,
-        generationInput: built.input,
+        generationInput: input,
         // Une entrée par convention (dossier + payeur) : régénérer remplace la
         // version affichée, l'ancienne reste en historique. Pièce signée : figée.
         sourceKey: `convention:${parsedInput.dossierId}:${payer?.payer ?? 'reste'}`,

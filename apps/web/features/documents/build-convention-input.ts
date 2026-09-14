@@ -91,7 +91,10 @@ export async function buildConventionInput(
       contactEmail: org?.contact_email ?? null,
       contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
       certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
-      representativeName: branding.representativeName ?? org?.contact_email ?? null,
+      // Jamais l'e-mail en repli : une convention signée « contact@… » n'est
+      // pas signée. Sans représentant renseigné, la ligne est simplement absente
+      // (Paramètres → Organisation).
+      representativeName: branding.representativeName ?? null,
     },
     signaturePng: branding.signaturePng,
     stampPng: branding.stampPng,

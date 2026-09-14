@@ -131,7 +131,8 @@ async function buildAttestationInput(
         contactEmail: org?.contact_email ?? null,
         contactPhone: (org as { contact_phone?: string | null } | null)?.contact_phone ?? null,
         certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
-        representativeName: branding.representativeName ?? org?.contact_email ?? null,
+        // Pas d'e-mail en repli : voir build-convention-input.
+        representativeName: branding.representativeName ?? null,
       },
       signaturePng: branding.signaturePng,
       stampPng: branding.stampPng,

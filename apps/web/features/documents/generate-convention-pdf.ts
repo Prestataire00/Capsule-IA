@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
 import { drawOrgLogo } from './pdf-logo';
 import { drawRgpdMention } from './pdf-rgpd';
+import { richTextBlocks, richTextToPlain } from './rich-text';
 
 export type ConventionInput = {
   organization: {
@@ -81,6 +82,14 @@ export type ConventionInput = {
    * rétractation. « convention » (défaut) : entreprise ou financeur.
    */
   contractKind?: 'convention' | 'contrat';
+  /**
+   * Destinataire de l'exemplaire, quand le client est une entreprise :
+   * « entreprise » liste l'intégralité de ses stagiaires sur un seul document,
+   * « stagiaire » le nomme seul, sans exposer ses collègues. Les deux portent
+   * les mêmes engagements ; seul le bloc bénéficiaire change. Par défaut,
+   * déduit de `participants` (plusieurs → exemplaire entreprise).
+   */
+  audience?: 'entreprise' | 'stagiaire';
   generatedAt: Date;
 };
 
@@ -115,15 +124,17 @@ function ensureRoom(doc: PDFDocument, c: Cursor, neededHeight: number): Cursor {
   return c;
 }
 
-function drawLabel(c: Cursor, font: PDFFont, label: string): Cursor {
-  c.page.drawText(label.toUpperCase(), {
+function drawLabel(doc: PDFDocument, c: Cursor, font: PDFFont, label: string): Cursor {
+  // 28 pt : l'intitulé et sa première ligne restent sur la même page.
+  const out = ensureRoom(doc, c, 28);
+  out.page.drawText(label.toUpperCase(), {
     x: MARGIN,
-    y: c.y,
+    y: out.y,
     size: 8,
     font,
     color: COLOR_MUTED,
   });
-  return { ...c, y: c.y - 12 };
+  return { ...out, y: out.y - 12 };
 }
 
 function drawHeading(doc: PDFDocument, c: Cursor, fontBold: PDFFont, text: string): Cursor {
@@ -138,15 +149,41 @@ function drawHeading(doc: PDFDocument, c: Cursor, fontBold: PDFFont, text: strin
   return { ...out, y: out.y - 18 };
 }
 
-function drawText(doc: PDFDocument, c: Cursor, font: PDFFont, text: string, opts: { size?: number; color?: ReturnType<typeof rgb>; maxWidth?: number } = {}): Cursor {
+function drawText(
+  doc: PDFDocument,
+  c: Cursor,
+  font: PDFFont,
+  text: string,
+  opts: { size?: number; color?: ReturnType<typeof rgb>; maxWidth?: number; hanging?: number } = {},
+): Cursor {
   const size = opts.size ?? 10;
-  const maxWidth = opts.maxWidth ?? COL;
+  // `hanging` : décalage des lignes de continuation, pour qu'une puce qui
+  // déborde s'aligne sous son texte et non sous son point.
+  const hanging = opts.hanging ?? 0;
+  const maxWidth = (opts.maxWidth ?? COL) - hanging;
   const color = opts.color ?? COLOR_BODY;
   const lines = wrapText(text, font, size, maxWidth);
-  let cursor = ensureRoom(doc, c, lines.length * (size + 4));
-  for (const line of lines) {
-    cursor.page.drawText(line, { x: MARGIN, y: cursor.y, size, font, color });
+  let cursor = c;
+  for (const [i, line] of lines.entries()) {
+    cursor = ensureRoom(doc, cursor, size + 4);
+    cursor.page.drawText(line, { x: MARGIN + (i === 0 ? 0 : hanging), y: cursor.y, size, font, color });
     cursor = { ...cursor, y: cursor.y - (size + 4) };
+  }
+  return cursor;
+}
+
+/**
+ * Champ saisi dans l'éditeur riche : stocké en HTML, rendu ici en paragraphes
+ * et puces. Sans cette réduction, la convention imprimait le balisage.
+ */
+function drawRichText(doc: PDFDocument, c: Cursor, font: PDFFont, html: string | null): Cursor {
+  let cursor = c;
+  for (const bloc of richTextBlocks(html)) {
+    cursor =
+      bloc.kind === 'li'
+        ? drawText(doc, cursor, font, `• ${bloc.text}`, { hanging: 10 })
+        : drawText(doc, cursor, font, bloc.text);
+    cursor = { ...cursor, y: cursor.y - 2 };
   }
   return cursor;
 }
@@ -197,6 +234,10 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });
   c = { ...c, y: c.y - 24 };
   const contrat = input.contractKind === 'contrat';
+  // Destinataire : explicite quand l'appelant le fixe, sinon déduit de la liste
+  // des participants (plusieurs noms = c'est l'exemplaire du client).
+  const destinataire = input.audience ?? ((input.participants?.length ?? 0) > 1 ? 'entreprise' : 'stagiaire');
+  const entrepriseSurLeDocument = destinataire === 'entreprise' && !!input.company && !contrat;
   c.page.drawText(contrat ? 'CONTRAT DE FORMATION PROFESSIONNELLE' : 'CONVENTION DE FORMATION PROFESSIONNELLE', {
     x: MARGIN, y: c.y, size: 14, font: fontBold, color: COLOR_BODY,
   });
@@ -211,7 +252,20 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   c.page.drawText(`Généré le ${fmtDate(input.generatedAt.toISOString())}`, {
     x: MARGIN + COL - 150, y: c.y, size: 9, font, color: COLOR_MUTED,
   });
-  c = { ...c, y: c.y - 24 };
+  c = { ...c, y: c.y - 14 };
+
+  // Un client entreprise reçoit deux jeux de documents : le sien, qui couvre
+  // tous ses salariés, et celui de chaque stagiaire, nominatif. Le lecteur doit
+  // savoir lequel il tient en main dès l'en-tête.
+  const exemplaire = entrepriseSurLeDocument
+    ? `Exemplaire de l'entreprise — ${input.company!.name}`
+    : input.company
+      ? `Exemplaire du stagiaire — ${input.learner.firstName} ${input.learner.lastName}`
+      : null;
+  if (exemplaire) {
+    c.page.drawText(exemplaire, { x: MARGIN, y: c.y, size: 9, font, color: COLOR_MUTED });
+  }
+  c = { ...c, y: c.y - (exemplaire ? 24 : 10) };
 
   // Section 1 — Organisme de formation
   c = drawHeading(doc, c, fontBold, '1. Organisme de formation');
@@ -219,8 +273,10 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   if (input.organization.siret) c = drawKeyValue(doc, c, font, fontBold, 'SIRET', input.organization.siret);
   if (input.organization.nda) c = drawKeyValue(doc, c, font, fontBold, 'N° déclaration activité', input.organization.nda);
   if (input.organization.address) c = drawKeyValue(doc, c, font, fontBold, 'Adresse', input.organization.address);
-  const orgContact = [input.organization.contactPhone, input.organization.contactEmail].filter(Boolean).join(' | ');
-  if (orgContact) c = drawKeyValue(doc, c, font, fontBold, 'Contact', orgContact);
+  // Téléphone et e-mail sur deux lignes : accolés par une barre verticale, ils
+  // se lisaient comme une seule chaîne illisible.
+  if (input.organization.contactPhone) c = drawKeyValue(doc, c, font, fontBold, 'Téléphone', input.organization.contactPhone);
+  if (input.organization.contactEmail) c = drawKeyValue(doc, c, font, fontBold, 'E-mail', input.organization.contactEmail);
   if (input.organization.certifications) {
     c = drawKeyValue(doc, c, font, fontBold, 'Agréments', input.organization.certifications);
   }
@@ -228,11 +284,14 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   c = { ...c, y: c.y - 12 };
 
   // Section 2 — Bénéficiaire(s)
-  const groupe = (input.participants?.length ?? 0) > 1;
+  // Seul l'exemplaire de l'entreprise nomme les collègues : celui du stagiaire
+  // ne porte que lui, pour ne pas diffuser l'effectif à chaque salarié.
+  const groupe = entrepriseSurLeDocument && (input.participants?.length ?? 0) > 0;
   c = drawHeading(doc, c, fontBold, groupe ? '2. Bénéficiaires de la formation' : '2. Bénéficiaire de la formation');
 
   if (groupe) {
-    c = drawKeyValue(doc, c, font, fontBold, 'Effectif', `${input.participants!.length} participants`);
+    const effectif = input.participants!.length;
+    c = drawKeyValue(doc, c, font, fontBold, 'Effectif', `${effectif} participant${effectif > 1 ? 's' : ''}`);
     for (const [i, p] of input.participants!.entries()) {
       const naissance = p.birthDate ? ` — né(e) le ${fmtDate(p.birthDate)}` : '';
       c = drawKeyValue(
@@ -255,7 +314,15 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
     if (input.company.siret) c = drawKeyValue(doc, c, font, fontBold, 'SIRET entreprise', input.company.siret);
     if (input.company.representative) c = drawKeyValue(doc, c, font, fontBold, 'Représentée par', input.company.representative);
   }
-  if (input.funder) c = drawKeyValue(doc, c, font, fontBold, 'Financeur', `${input.funder.name} (${input.funder.modeLabel})`);
+  if (input.funder) {
+    // Le libellé du mode porte déjà ses propres parenthèses (« Reste à charge
+    // (financement direct) ») : les imbriquer donnait « X (Y (Z)) ».
+    const financeur =
+      input.funder.name === input.funder.modeLabel
+        ? input.funder.name
+        : `${input.funder.name} — ${input.funder.modeLabel}`;
+    c = drawKeyValue(doc, c, font, fontBold, 'Financeur', financeur);
+  }
   c = { ...c, y: c.y - 12 };
 
   // Section 3 — Formation
@@ -278,33 +345,38 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   }
   c = { ...c, y: c.y - 8 };
 
-  if (input.formation.objectives.length > 0) {
-    c = drawLabel(c, font, 'Objectifs pédagogiques');
-    for (const obj of input.formation.objectives) {
-      c = drawText(doc, c, font, `• ${obj}`, { size: 10 });
+  const puces = (valeurs: readonly string[]): string[] =>
+    valeurs.flatMap((v) => richTextBlocks(v).map((b) => b.text));
+
+  const objectifs = puces(input.formation.objectives);
+  if (objectifs.length > 0) {
+    c = drawLabel(doc, c, font, 'Objectifs pédagogiques');
+    for (const obj of objectifs) {
+      c = drawText(doc, c, font, `• ${obj}`, { hanging: 10 });
     }
     c = { ...c, y: c.y - 4 };
   }
-  if (input.formation.targetAudience) {
-    c = drawLabel(c, font, 'Public cible');
-    c = drawText(doc, c, font, input.formation.targetAudience);
+  if (richTextToPlain(input.formation.targetAudience)) {
+    c = drawLabel(doc, c, font, 'Public cible');
+    c = drawRichText(doc, c, font, input.formation.targetAudience);
     c = { ...c, y: c.y - 4 };
   }
-  if (input.formation.prerequisites.length > 0) {
-    c = drawLabel(c, font, 'Prérequis');
-    for (const p of input.formation.prerequisites) {
-      c = drawText(doc, c, font, `• ${p}`, { size: 10 });
+  const prerequis = puces(input.formation.prerequisites);
+  if (prerequis.length > 0) {
+    c = drawLabel(doc, c, font, 'Prérequis');
+    for (const p of prerequis) {
+      c = drawText(doc, c, font, `• ${p}`, { hanging: 10 });
     }
     c = { ...c, y: c.y - 4 };
   }
-  if (input.formation.pedagogicalMethod) {
-    c = drawLabel(c, font, 'Méthodes pédagogiques');
-    c = drawText(doc, c, font, input.formation.pedagogicalMethod);
+  if (richTextToPlain(input.formation.pedagogicalMethod)) {
+    c = drawLabel(doc, c, font, 'Méthodes pédagogiques');
+    c = drawRichText(doc, c, font, input.formation.pedagogicalMethod);
     c = { ...c, y: c.y - 4 };
   }
-  if (input.formation.evaluationMethod) {
-    c = drawLabel(c, font, "Modalités d'évaluation");
-    c = drawText(doc, c, font, input.formation.evaluationMethod);
+  if (richTextToPlain(input.formation.evaluationMethod)) {
+    c = drawLabel(doc, c, font, "Modalités d'évaluation");
+    c = drawRichText(doc, c, font, input.formation.evaluationMethod);
     c = { ...c, y: c.y - 4 };
   }
 
@@ -334,15 +406,20 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   }
 
   // Signatures
-  c = ensureRoom(doc, c, 120);
+  c = ensureRoom(doc, c, 150);
   c = drawHeading(doc, c, fontBold, `${signatureSection}. Signatures des parties`);
   c = { ...c, y: c.y - 24 };
 
   const colW = (COL - 24) / 2;
-  c.page.drawRectangle({ x: MARGIN, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
-  c.page.drawRectangle({ x: MARGIN + colW + 24, y: c.y - 80, width: colW, height: 80, borderColor: COLOR_RULE, borderWidth: 0.5 });
+  // 100 pt : de quoi loger le cachet SOUS l'intitulé du cadre et AU-DESSUS du
+  // nom du signataire, sans que les trois se chevauchent.
+  const sigH = 100;
+  c.page.drawRectangle({ x: MARGIN, y: c.y - sigH, width: colW, height: sigH, borderColor: COLOR_RULE, borderWidth: 0.5 });
+  c.page.drawRectangle({ x: MARGIN + colW + 24, y: c.y - sigH, width: colW, height: sigH, borderColor: COLOR_RULE, borderWidth: 0.5 });
   // Client entreprise : c'est l'entreprise (son responsable) qui signe, jamais
   // le salarié — même pour un seul inscrit. Particulier : le stagiaire signe.
+  // L'entreprise signe les DEUX exemplaires : c'est elle le client, que le
+  // document liste ses dix salariés ou n'en nomme qu'un.
   const entrepriseSigne = !!input.company && !contrat;
   c.page.drawText(entrepriseSigne ? "Le client (l'entreprise)" : contrat ? 'Le stagiaire' : 'Le bénéficiaire', {
     x: MARGIN + colW + 32, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED,
@@ -351,11 +428,11 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
     entrepriseSigne
       ? `${input.company!.name}${input.company!.representative ? ` — ${input.company!.representative}` : ''}`
       : `${input.learner.firstName} ${input.learner.lastName}`,
-    { x: MARGIN + colW + 32, y: c.y - 70, size: 8, font, color: COLOR_BODY },
+    { x: MARGIN + colW + 32, y: c.y - (sigH - 10), size: 8, font, color: COLOR_BODY },
   );
 
   // Colonne organisme : signature + cachet OF apposés automatiquement
-  const sigAnchor = { x: MARGIN, y: c.y - 80, width: colW, height: 80 };
+  const sigAnchor = { x: MARGIN, y: c.y - sigH, width: colW, height: sigH };
   await drawSignatureBlock(doc, c.page, { font, fontBold }, sigAnchor, {
     signaturePng: input.signaturePng,
     stampPng: input.stampPng,

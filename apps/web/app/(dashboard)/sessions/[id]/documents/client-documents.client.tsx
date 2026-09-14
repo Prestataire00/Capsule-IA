@@ -16,9 +16,10 @@ export type ClientRow = {
 export type SheetRow = { id: string; label: string };
 
 /**
- * Documents par client de la séance (comme RFC) : une convention par
- * entreprise, un contrat par particulier, le récap des convocations au
- * responsable de chaque entreprise et une feuille d'émargement par entreprise.
+ * Documents par client de la séance : une convention par entreprise (tous ses
+ * stagiaires) DOUBLÉE d'une convention nominative par stagiaire, un contrat par
+ * particulier, le récap des convocations au responsable de chaque entreprise et
+ * une feuille d'émargement par entreprise.
  */
 export function ClientDocuments({
   sessionId,
@@ -46,6 +47,7 @@ export function ClientDocuments({
       }
       const parts = [
         out.entreprises.length ? `${out.entreprises.length} convention(s) entreprise` : null,
+        out.stagiaires ? `${out.stagiaires} convention(s) stagiaire` : null,
         out.particuliers.length ? `${out.particuliers.length} contrat(s) particulier` : null,
       ].filter(Boolean);
       setMessage({
@@ -116,8 +118,9 @@ export function ClientDocuments({
           <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.orange.soft}`}>{clients.length}</span>
         </p>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-          Entreprise : une convention signée par son responsable, qui reçoit aussi le récap des convocations et sa
-          feuille d’émargement. Particulier : un contrat de formation professionnelle à son nom.
+          Entreprise : une convention listant tous ses salariés, signée par son responsable, qui reçoit aussi le récap
+          des convocations et sa feuille d’émargement — et une convention nominative déposée dans l’espace de chaque
+          stagiaire. Particulier : un contrat de formation professionnelle à son nom.
         </p>
         </div>
       </div>

@@ -250,10 +250,18 @@ export const sendCompanyAttendanceSheets = authActionClient
   });
 
 /**
- * Documents contractuels de la séance, un par client (comme RFC) : une
- * convention par entreprise listant tous ses salariés et signée par son
- * responsable ; un contrat de formation professionnelle par particulier
- * (art. L.6353-3 à L.6353-7, délai de rétractation).
+ * Documents contractuels de la séance, en DEUX jeux quand le client est une
+ * entreprise :
+ *
+ *  • l'exemplaire de l'**entreprise** — un seul document listant l'intégralité
+ *    de ses stagiaires, le montant et les heures cumulés, signé par son
+ *    responsable. C'est la pièce contractuelle, celle qu'on lui transmet ;
+ *  • l'exemplaire de **chaque stagiaire** — nominatif, aux mêmes conditions,
+ *    déposé dans son dossier et donc dans son espace. Il ne nomme que lui :
+ *    un salarié n'a pas à connaître la liste ni les tarifs de ses collègues.
+ *
+ * Un particulier, lui, n'a qu'un document : son contrat de formation
+ * professionnelle (art. L.6353-3 à L.6353-7, délai de rétractation).
  */
 export const generateGroupConventions = authActionClient
   .schema(z.object({ sessionId: z.string().uuid() }))
@@ -269,7 +277,7 @@ export const generateGroupConventions = authActionClient
     for (const l of loaded.learners.filter((x) => !x.companyId)) {
       const built = await buildConventionInput(admin as never, l.dossierId, null);
       if (!built) continue;
-      const input = { ...built.input, contractKind: 'contrat' as const };
+      const input = { ...built.input, contractKind: 'contrat' as const, audience: 'stagiaire' as const };
       const bytes = await generateConventionPDF(input);
       await persistGeneratedDocument(admin as never, {
         organizationId: built.organizationId,
@@ -285,17 +293,19 @@ export const generateGroupConventions = authActionClient
     }
 
     for (const c of conventions) {
-      const bytes = await generateConventionPDF(c.input);
+      const input = { ...c.input, audience: 'entreprise' as const };
+      const bytes = await generateConventionPDF(input);
       await persistGeneratedDocument(admin as never, {
         organizationId: c.organizationId,
         dossierId: c.anchorDossierId,
         kind: 'convention',
         title: `Convention de formation — ${c.companyName} (${c.dossierIds.length} participant${c.dossierIds.length > 1 ? 's' : ''})`,
         bytes,
-        generationInput: c.input,
+        generationInput: input,
         sourceKey: `convention:${parsedInput.sessionId}:${c.companyId}`,
         metadata: {
           grouped: true,
+          audience: 'entreprise',
           session_id: parsedInput.sessionId,
           company_id: c.companyId,
           dossier_ids: c.dossierIds,
@@ -304,6 +314,36 @@ export const generateGroupConventions = authActionClient
       entreprises.push(c.companyName);
     }
 
+    // Exemplaire nominatif de chaque salarié : mêmes conditions, son seul nom.
+    let stagiaires = 0;
+    for (const l of loaded.learners.filter((x) => x.companyId)) {
+      const built = await buildConventionInput(admin as never, l.dossierId, null);
+      if (!built) continue;
+      const input = { ...built.input, audience: 'stagiaire' as const };
+      const bytes = await generateConventionPDF(input);
+      await persistGeneratedDocument(admin as never, {
+        organizationId: built.organizationId,
+        dossierId: l.dossierId,
+        kind: 'convention',
+        title: `Convention de formation — ${l.first_name} ${l.last_name}`,
+        bytes,
+        generationInput: input,
+        sourceKey: `convention-stagiaire:${parsedInput.sessionId}:${l.dossierId}`,
+        metadata: {
+          audience: 'stagiaire',
+          session_id: parsedInput.sessionId,
+          company_id: l.companyId,
+        },
+      });
+      stagiaires += 1;
+    }
+
     revalidatePath(`/sessions/${parsedInput.sessionId}/documents`);
-    return { ok: true as const, count: conventions.length + particuliers.length, entreprises, particuliers };
+    return {
+      ok: true as const,
+      count: conventions.length + particuliers.length + stagiaires,
+      entreprises,
+      particuliers,
+      stagiaires,
+    };
   });

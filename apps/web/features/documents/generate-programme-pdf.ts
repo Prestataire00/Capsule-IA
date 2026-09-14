@@ -2,6 +2,7 @@ import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawOrgLogo } from './pdf-logo';
 import { drawRgpdMention } from './pdf-rgpd';
+import { richTextBlocks, richTextToPlain } from './rich-text';
 
 export type ProgrammeInput = {
   organization: {
@@ -101,15 +102,17 @@ function ensureRoom(doc: PDFDocument, c: Cursor, neededHeight: number): Cursor {
   return c;
 }
 
-function drawLabel(c: Cursor, font: PDFFont, label: string): Cursor {
-  c.page.drawText(label.toUpperCase(), {
+function drawLabel(doc: PDFDocument, c: Cursor, font: PDFFont, label: string): Cursor {
+  // 28 pt : l'intitulé et sa première ligne restent sur la même page.
+  const out = ensureRoom(doc, c, 28);
+  out.page.drawText(label.toUpperCase(), {
     x: MARGIN,
-    y: c.y,
+    y: out.y,
     size: 8,
     font,
     color: COLOR_MUTED,
   });
-  return { ...c, y: c.y - 12 };
+  return { ...out, y: out.y - 12 };
 }
 
 function drawHeading(doc: PDFDocument, c: Cursor, fontBold: PDFFont, text: string): Cursor {
@@ -124,15 +127,41 @@ function drawHeading(doc: PDFDocument, c: Cursor, fontBold: PDFFont, text: strin
   return { ...out, y: out.y - 18 };
 }
 
-function drawText(doc: PDFDocument, c: Cursor, font: PDFFont, text: string, opts: { size?: number; color?: ReturnType<typeof rgb>; maxWidth?: number } = {}): Cursor {
+function drawText(
+  doc: PDFDocument,
+  c: Cursor,
+  font: PDFFont,
+  text: string,
+  opts: { size?: number; color?: ReturnType<typeof rgb>; maxWidth?: number; hanging?: number } = {},
+): Cursor {
   const size = opts.size ?? 10;
-  const maxWidth = opts.maxWidth ?? COL;
+  // `hanging` : décalage des lignes de continuation, pour qu'une puce qui
+  // déborde s'aligne sous son texte et non sous son point.
+  const hanging = opts.hanging ?? 0;
+  const maxWidth = (opts.maxWidth ?? COL) - hanging;
   const color = opts.color ?? COLOR_BODY;
   const lines = wrapText(text, font, size, maxWidth);
-  let cursor = ensureRoom(doc, c, lines.length * (size + 4));
-  for (const line of lines) {
-    cursor.page.drawText(line, { x: MARGIN, y: cursor.y, size, font, color });
+  let cursor = c;
+  for (const [i, line] of lines.entries()) {
+    cursor = ensureRoom(doc, cursor, size + 4);
+    cursor.page.drawText(line, { x: MARGIN + (i === 0 ? 0 : hanging), y: cursor.y, size, font, color });
     cursor = { ...cursor, y: cursor.y - (size + 4) };
+  }
+  return cursor;
+}
+
+/**
+ * Champ saisi dans l'éditeur riche : stocké en HTML, rendu ici en paragraphes
+ * et puces. Sans cette réduction, le programme imprimait le balisage.
+ */
+function drawRichText(doc: PDFDocument, c: Cursor, font: PDFFont, html: string | null): Cursor {
+  let cursor = c;
+  for (const bloc of richTextBlocks(html)) {
+    cursor =
+      bloc.kind === 'li'
+        ? drawText(doc, cursor, font, `• ${bloc.text}`, { hanging: 10 })
+        : drawText(doc, cursor, font, bloc.text);
+    cursor = { ...cursor, y: cursor.y - 2 };
   }
   return cursor;
 }
@@ -199,41 +228,44 @@ export async function generateProgrammePDF(input: ProgrammeInput): Promise<Uint8
   c = drawKeyValue(doc, c, font, fontBold, 'Tarif', fmtEuros(input.dossier.totalAmountCents, input.dossier.currency));
   c = { ...c, y: c.y - 8 };
 
-  if (input.formation.objectives.length > 0) {
-    c = drawLabel(c, font, 'Objectifs pédagogiques');
-    for (const obj of input.formation.objectives) {
-      c = drawText(doc, c, font, `• ${obj}`, { size: 10 });
+  const puces = (valeurs: readonly string[]): string[] =>
+    valeurs.flatMap((v) => richTextBlocks(v).map((b) => b.text));
+
+  const objectifs = puces(input.formation.objectives);
+  c = drawLabel(doc, c, font, 'Objectifs pédagogiques');
+  if (objectifs.length > 0) {
+    for (const obj of objectifs) {
+      c = drawText(doc, c, font, `• ${obj}`, { hanging: 10 });
     }
-    c = { ...c, y: c.y - 4 };
   } else {
-    c = drawLabel(c, font, 'Objectifs pédagogiques');
     c = drawText(doc, c, font, '—');
+  }
+  c = { ...c, y: c.y - 4 };
+
+  if (richTextToPlain(input.formation.targetAudience)) {
+    c = drawLabel(doc, c, font, 'Public cible');
+    c = drawRichText(doc, c, font, input.formation.targetAudience);
     c = { ...c, y: c.y - 4 };
   }
 
-  if (input.formation.targetAudience) {
-    c = drawLabel(c, font, 'Public cible');
-    c = drawText(doc, c, font, input.formation.targetAudience);
-    c = { ...c, y: c.y - 4 };
-  }
-
-  if (input.formation.prerequisites.length > 0) {
-    c = drawLabel(c, font, 'Prérequis');
-    for (const p of input.formation.prerequisites) {
-      c = drawText(doc, c, font, `• ${p}`, { size: 10 });
+  const prerequis = puces(input.formation.prerequisites);
+  if (prerequis.length > 0) {
+    c = drawLabel(doc, c, font, 'Prérequis');
+    for (const p of prerequis) {
+      c = drawText(doc, c, font, `• ${p}`, { hanging: 10 });
     }
     c = { ...c, y: c.y - 4 };
   }
 
-  if (input.formation.pedagogicalMethod) {
-    c = drawLabel(c, font, 'Méthodes pédagogiques');
-    c = drawText(doc, c, font, input.formation.pedagogicalMethod);
+  if (richTextToPlain(input.formation.pedagogicalMethod)) {
+    c = drawLabel(doc, c, font, 'Méthodes pédagogiques');
+    c = drawRichText(doc, c, font, input.formation.pedagogicalMethod);
     c = { ...c, y: c.y - 4 };
   }
 
-  if (input.formation.evaluationMethod) {
-    c = drawLabel(c, font, "Modalités d'évaluation");
-    c = drawText(doc, c, font, input.formation.evaluationMethod);
+  if (richTextToPlain(input.formation.evaluationMethod)) {
+    c = drawLabel(doc, c, font, "Modalités d'évaluation");
+    c = drawRichText(doc, c, font, input.formation.evaluationMethod);
     c = { ...c, y: c.y - 4 };
   }
 

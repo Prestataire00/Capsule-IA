@@ -192,7 +192,9 @@ export async function resolveDossierVariables(
     organisme_siret: e(org?.siret ?? ''),
     organisme_nda: e(org?.declaration_activite ?? ''),
     organisme_adresse: e(composeAddress(org?.address)),
-    organisme_representant: e(org?.representative_name || org?.contact_email || ''),
+    // Pas d'e-mail en repli : la variable reste vide plutôt que de faire signer
+    // une adresse de contact (voir build-convention-input).
+    organisme_representant: e(org?.representative_name || ''),
     organisme_representant_qualite: e(org?.representative_title ?? ''),
     organisme_email: e(org?.contact_email ?? ''),
     organisme_telephone: e(org?.contact_phone ?? ''),
