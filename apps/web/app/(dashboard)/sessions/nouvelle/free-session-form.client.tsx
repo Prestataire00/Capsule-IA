@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Check, Loader2, Search, User, Users } from 'lucide-react';
 import { createFreeSession } from './free-session-actions';
+import { DisponibilitesPanel } from '@/features/trainer-space/ui/disponibilites-panel.client';
 
 export type Option = { id: string; label: string };
 
@@ -170,6 +171,13 @@ export function FreeSessionForm({
             />
           </label>
         </div>
+
+        <DisponibilitesPanel
+          startsAtLocal={f.startsAt}
+          endsAtLocal={f.endsAt}
+          selectedTrainerId={f.trainerId}
+          onSelect={(trainerId) => setF({ ...f, trainerId })}
+        />
 
         <div className="grid sm:grid-cols-3 gap-3">
           <label className="block space-y-1">
