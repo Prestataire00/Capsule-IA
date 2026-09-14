@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Video, MapPin, Users as UsersIcon, Trash2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -56,6 +57,52 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const all = ((data as any[]) ?? []) as FormationRow[];
   const colors = formationColorMap(all);
+
+  // Formations sur mesure (0162) : le client s'affiche à côté de l'intitulé.
+  // Lecture tolérante : si la migration n'est pas encore appliquée, la liste
+  // s'affiche quand même, sans ce repère.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sbAny = sb as unknown as SupabaseClient<any, any, any>;
+  const surMesure = new Map<string, { kind: 'company' | 'individual'; name: string }>();
+  const { data: liensData, error: liensErr } = await sbAny
+    .schema('app')
+    .from('formations')
+    .select('id, client_kind, client_company_id, client_learner_id')
+    .not('client_kind', 'is', null)
+    .is('deleted_at', null);
+  if (liensErr && !/column .* does not exist/i.test(liensErr.message)) {
+    console.error('[formations] clients des formations sur mesure :', liensErr.message);
+  }
+  const liens = (liensData ?? []) as Array<{
+    id: string;
+    client_kind: 'company' | 'individual';
+    client_company_id: string | null;
+    client_learner_id: string | null;
+  }>;
+  if (liens.length > 0) {
+    const compIds = [...new Set(liens.map((l) => l.client_company_id).filter(Boolean))] as string[];
+    const appIds = [...new Set(liens.map((l) => l.client_learner_id).filter(Boolean))] as string[];
+    const [comps, apps] = await Promise.all([
+      compIds.length ? sbAny.schema('app').from('companies').select('id, name').in('id', compIds) : { data: [] },
+      appIds.length ? sbAny.schema('app').from('learners').select('id, first_name, last_name').in('id', appIds) : { data: [] },
+    ]);
+    const nomEntreprise = new Map(
+      ((comps.data ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]),
+    );
+    const nomApprenant = new Map(
+      ((apps.data ?? []) as Array<{ id: string; first_name: string | null; last_name: string | null }>).map((l) => [
+        l.id,
+        `${l.first_name ?? ''} ${l.last_name ?? ''}`.trim(),
+      ]),
+    );
+    for (const l of liens) {
+      const nom =
+        l.client_kind === 'company'
+          ? nomEntreprise.get(l.client_company_id ?? '')
+          : nomApprenant.get(l.client_learner_id ?? '');
+      surMesure.set(l.id, { kind: l.client_kind, name: nom && nom.length > 0 ? nom : 'Client' });
+    }
+  }
 
   // Nombre de formations à la corbeille : l'accès s'affiche seulement s'il y en a.
   const { count: supprimees } = await sb
@@ -240,20 +287,33 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                   <li key={f.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
                     <div className="min-w-0 flex gap-3">
                       <span className="mt-[5px] w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: color }} />
-                      {corbeille ? (
-                        // La fiche d'une formation supprimée n'est plus consultable : pas de lien mort.
-                        <span className="min-w-0 block truncate text-[14px] font-extrabold" style={{ color: deepColor(color) }}>
-                          {f.title}
-                        </span>
-                      ) : (
-                        <Link
-                          href={`/formations/${f.id}`}
-                          className="min-w-0 block truncate text-[14px] font-extrabold hover:underline"
-                          style={{ color: deepColor(color) }}
-                        >
-                          {f.title}
-                        </Link>
-                      )}
+                      <div className="min-w-0">
+                        {corbeille ? (
+                          // La fiche d'une formation supprimée n'est plus consultable : pas de lien mort.
+                          <span className="block truncate text-[14px] font-extrabold" style={{ color: deepColor(color) }}>
+                            {f.title}
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/formations/${f.id}`}
+                            className="block truncate text-[14px] font-extrabold hover:underline"
+                            style={{ color: deepColor(color) }}
+                          >
+                            {f.title}
+                          </Link>
+                        )}
+                        {surMesure.get(f.id) && (
+                          <p className="mt-1 flex items-center gap-1.5 min-w-0">
+                            <span className={`inline-flex items-center h-5 px-1.5 rounded text-[11px] font-bold shrink-0 ${ACCENTS.teal.soft}`}>
+                              Sur mesure
+                            </span>
+                            <span className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
+                              {surMesure.get(f.id)?.kind === 'company' ? 'Entreprise' : 'Particulier'} ·{' '}
+                              {surMesure.get(f.id)?.name}
+                            </span>
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="min-w-0">

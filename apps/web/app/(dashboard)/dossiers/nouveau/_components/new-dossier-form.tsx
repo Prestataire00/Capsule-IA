@@ -60,12 +60,17 @@ export function NewDossierForm({
   trainers,
   funders,
   modulesByFormation,
+  initialLearnerId,
+  initialFormationId,
 }: {
   learners: LearnerOption[];
   formations: FormationOption[];
   trainers: TrainerOption[];
   funders: FunderOption[];
   modulesByFormation: Record<string, ModuleOption[]>;
+  /** Pré-remplissage depuis une fiche client (?learnerId=…&formationId=…). */
+  initialLearnerId?: string;
+  initialFormationId?: string;
 }) {
   const router = useRouter();
   const { executeAsync } = useAction(createDossierAction);
@@ -74,15 +79,33 @@ export function NewDossierForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Formation pré-sélectionnée : ses valeurs par défaut (modalité, tarif,
+  // modules) servent d'état initial, comme si on venait de la choisir.
+  const preselect = initialFormationId ? formations.find((f) => f.id === initialFormationId) ?? null : null;
+
   // État du formulaire
-  const [learnerId, setLearnerId] = useState<string>(learners[0]?.id ?? '');
-  const [formationId, setFormationId] = useState<string>('');
-  const [modality, setModality] = useState<Modality>('presentiel');
+  const [learnerId, setLearnerId] = useState<string>(
+    (initialLearnerId && learners.some((l) => l.id === initialLearnerId) ? initialLearnerId : learners[0]?.id) ?? '',
+  );
+  const [formationId, setFormationId] = useState<string>(preselect?.id ?? '');
+  const [modality, setModality] = useState<Modality>(
+    preselect && MODALITIES.includes(preselect.defaultModality as Modality)
+      ? (preselect.defaultModality as Modality)
+      : 'presentiel',
+  );
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [modules, setModules] = useState<ModuleRow[]>([]);
+  const [modules, setModules] = useState<ModuleRow[]>(
+    (preselect ? modulesByFormation[preselect.id] ?? [] : []).map((m) => ({
+      moduleId: m.moduleId,
+      title: m.title,
+      durationHours: m.durationHours,
+    })),
+  );
   const [trainerId, setTrainerId] = useState<string>(trainers[0]?.id ?? '');
-  const [amountEuros, setAmountEuros] = useState<string>('');
+  const [amountEuros, setAmountEuros] = useState<string>(
+    preselect && preselect.defaultPriceCents > 0 ? String(Math.round(preselect.defaultPriceCents / 100)) : '',
+  );
   const [funderRows, setFunderRows] = useState<FunderRow[]>([]);
 
   const totalHours = useMemo(

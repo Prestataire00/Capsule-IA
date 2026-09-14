@@ -8,6 +8,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ACCENTS } from '@/shared/ui/kpi-card';
+import { ClientFormationsSection } from '@/features/formations/ui/client-formations-section';
 import { LearnerHeader } from './learner-header';
 import { DossierCard } from './dossier-card';
 import { buildLearnerSummary, normalizeOne, type LearnerDossier } from './summary';
@@ -107,6 +108,13 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
           }}
           summary={summary}
           isOwnerAdmin={isOwnerAdmin}
+        />
+
+        {/* BtoC : ce particulier peut avoir ses propres formations, hors catalogue. */}
+        <ClientFormationsSection
+          clientKind="individual"
+          clientId={lr.id}
+          clientName={`${lr.first_name} ${lr.last_name}`.trim()}
         />
 
         <section className="mt-10">

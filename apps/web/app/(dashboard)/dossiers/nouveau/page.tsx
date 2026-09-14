@@ -2,6 +2,7 @@
 // Justification: création multi-étapes guidée — focus extrême, 1 seule chose par écran.
 // Données réelles Supabase (RLS) chargées côté serveur, formulaire câblé à save_dossier.
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { NewDossierForm } from './_components/new-dossier-form';
 import { requireAccess } from '@/shared/lib/auth/require-access';
@@ -15,7 +16,11 @@ import type {
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewDossierPage() {
+export default async function NewDossierPage({
+  searchParams,
+}: {
+  searchParams?: { learnerId?: string; formationId?: string };
+}) {
   await requireAccess('dossiers', 'manage');
   const sb = supabaseServer();
 
@@ -82,6 +87,42 @@ export default async function NewDossierPage() {
     defaultModality: f.default_modality,
   }));
 
+  // Formations sur mesure (0162) : elles ne sont pas publiées — sans cette
+  // lecture, une formation montée pour un client n'apparaîtrait pas ici.
+  // Requête à part : si la migration n'est pas appliquée, l'assistant continue
+  // de fonctionner avec le seul catalogue.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sbBespoke = sb as unknown as SupabaseClient<any, any, any>;
+  const { data: bespokeData, error: bespokeErr } = await sbBespoke
+    .schema('app')
+    .from('formations')
+    .select('id, code, title, default_duration_hours, default_price_cents, default_modality')
+    .not('client_kind', 'is', null)
+    .eq('is_published', false)
+    .is('deleted_at', null)
+    .order('title', { ascending: true });
+  if (bespokeErr && !/column .* does not exist/i.test(bespokeErr.message)) {
+    console.error('[dossiers/nouveau] formations sur mesure :', bespokeErr.message);
+  }
+  for (const f of (bespokeData as unknown as Array<{
+    id: string;
+    code: string;
+    title: string;
+    default_duration_hours: number;
+    default_price_cents: number;
+    default_modality: string;
+  }>) ?? []) {
+    formations.push({
+      id: f.id,
+      code: f.code,
+      title: `${f.title} · sur mesure`,
+      defaultHours: f.default_duration_hours,
+      defaultPriceCents: f.default_price_cents,
+      defaultModality: f.default_modality,
+    });
+  }
+  formations.sort((a, b) => a.title.localeCompare(b.title));
+
   const trainers = ((trainersRes.data as unknown as Array<{
     id: string;
     first_name: string;
@@ -121,6 +162,8 @@ export default async function NewDossierPage() {
       trainers={trainers}
       funders={funders}
       modulesByFormation={modulesByFormation}
+      initialLearnerId={searchParams?.learnerId}
+      initialFormationId={searchParams?.formationId}
     />
   );
 }

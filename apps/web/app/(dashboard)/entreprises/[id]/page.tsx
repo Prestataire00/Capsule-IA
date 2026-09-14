@@ -10,6 +10,7 @@ import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/s
 import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { ClientFormationsSection } from '@/features/formations/ui/client-formations-section';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,6 +106,9 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
         <KpiCard label="Apprenants" value={learners.length} icon={Users} accent="rose" hint="rattachés" />
         <KpiCard label="Dossiers" value={dossiers.length} icon={FolderOpen} accent="orange" hint="liés" />
       </section>
+
+      {/* BtoB : formations montées pour cette entreprise seule, hors catalogue. */}
+      <ClientFormationsSection clientKind="company" clientId={c.id} clientName={c.name} />
 
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-2.5">
