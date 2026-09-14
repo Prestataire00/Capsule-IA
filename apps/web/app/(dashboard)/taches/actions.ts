@@ -9,12 +9,16 @@ import {
   assignTaskSchema,
   createTaskSchema,
   deleteTaskSchema,
+  postponeTaskSchema,
   updateTaskStatusSchema,
   type CreateTaskInput,
+  type PostponeTaskInput,
 } from '@/features/tasks/schemas';
+import { nettoyerDetail } from '@/features/tasks/rich-description';
+import { jourParis } from '@/features/tasks/dates';
 
 /**
- * Tâches internes : création, attribution, avancement, suppression.
+ * Tâches internes : création, attribution, avancement, report, suppression.
  *
  * La table n'est écrivable qu'en service role : chaque action vérifie donc
  * explicitement le compte, son organisation, et — pour modifier une tâche
@@ -121,7 +125,8 @@ export async function createTask(input: CreateTaskInput): Promise<Result> {
     .insert({
       organization_id: g.membre.organizationId,
       title: v.title,
-      description: v.description || null,
+      // HTML de l'éditeur riche : seules les balises et styles qu'il produit survivent.
+      description: v.description ? nettoyerDetail(v.description) || null : null,
       assignee_user_id: v.assigneeUserId || null,
       priority: v.priority,
       due_date: v.dueDate || null,
@@ -171,6 +176,32 @@ export async function updateTaskStatus(input: { taskId: string; status: string }
   if (error) {
     console.error('[tâches] statut non enregistré', error.message);
     return { ok: false, error: 'Le statut n’a pas pu être enregistré.' };
+  }
+
+  revalidatePath('/taches');
+  return { ok: true };
+}
+
+/** Reporter l'échéance d'une tâche — jamais dans le passé, à l'heure de Paris. */
+export async function postponeTask(input: PostponeTaskInput): Promise<Result> {
+  const p = postponeTaskSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Date de report invalide.' };
+  const g = await garde();
+  if (!g.ok) return g;
+  const acces = await tacheModifiable(p.data.taskId, g.membre);
+  if (!acces.ok) return acces;
+
+  if (p.data.dueDate < jourParis()) return { ok: false, error: 'On ne reporte pas une tâche dans le passé.' };
+
+  const { error } = await admin()
+    .schema('app')
+    .from('tasks')
+    .update({ due_date: p.data.dueDate, updated_at: new Date().toISOString() } as never)
+    .eq('id', p.data.taskId)
+    .eq('organization_id', g.membre.organizationId);
+  if (error) {
+    console.error('[tâches] report non enregistré', error.message);
+    return { ok: false, error: 'Le report n’a pas pu être enregistré.' };
   }
 
   revalidatePath('/taches');

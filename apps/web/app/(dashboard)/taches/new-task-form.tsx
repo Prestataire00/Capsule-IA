@@ -6,13 +6,14 @@ import { Loader2, Plus, X } from 'lucide-react';
 import { PRIORITY_LABELS, TASK_PRIORITIES, type TaskPriority } from '@/features/tasks/schemas';
 import type { TeamMember } from '@/features/tasks/load-tasks';
 import { createTask } from './actions';
+import { TaskDescriptionEditor } from './task-description-editor';
 
 const champ =
   'w-full text-[13px] px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/30';
 
 const VIDE = { title: '', description: '', assigneeUserId: '', priority: 'medium' as TaskPriority, dueDate: '' };
 
-/** Création d'une tâche : titre, personne, échéance, priorité. */
+/** Création d'une tâche : titre, personne, échéance, priorité, détail en texte riche. */
 export function NewTaskForm({ membres, moi }: { membres: TeamMember[]; moi: string | null }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -107,16 +108,15 @@ export function NewTaskForm({ membres, moi }: { membres: TeamMember[]; moi: stri
         </label>
       </div>
 
-      <label className="block space-y-1">
+      <div className="space-y-1">
         <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">Détail (facultatif)</span>
-        <textarea
+        <TaskDescriptionEditor
           value={f.description}
-          onChange={(e) => setF({ ...f, description: e.target.value })}
-          rows={3}
-          maxLength={4000}
-          className={champ}
+          // Mise à jour fonctionnelle : l'éditeur garde la fonction de son premier rendu,
+          // un `{ ...f }` écraserait les champs saisis depuis.
+          onChange={(html) => setF((prev) => ({ ...prev, description: html }))}
         />
-      </label>
+      </div>
 
       {erreur && (
         <p role="alert" className="text-[12px] font-semibold text-red-600 dark:text-red-400">

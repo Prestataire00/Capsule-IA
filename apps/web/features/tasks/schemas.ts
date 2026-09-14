@@ -5,6 +5,9 @@ import { z } from 'zod';
 export const TASK_STATUSES = ['todo', 'in_progress', 'done'] as const;
 export const TASK_PRIORITIES = ['low', 'medium', 'high'] as const;
 
+/** Longueur maximale du détail, balises HTML comprises (contrainte 0160). */
+export const DETAIL_MAX = 50_000;
+
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
@@ -32,7 +35,8 @@ const uuidOuVide = z
 
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1, 'Titre requis').max(200, 'Titre : 200 caractères au plus'),
-  description: z.string().trim().max(4000, 'Description : 4 000 caractères au plus'),
+  /** HTML de l'éditeur riche, nettoyé par l'action avant enregistrement. */
+  description: z.string().trim().max(DETAIL_MAX, 'Détail trop long, tableaux compris'),
   /** Vide = tâche non attribuée (à prendre). */
   assigneeUserId: uuidOuVide,
   priority: z.enum(TASK_PRIORITIES),
@@ -55,6 +59,13 @@ export const assignTaskSchema = z.object({
 });
 
 export const deleteTaskSchema = z.object({ taskId: z.string().uuid() });
+
+export const postponeTaskSchema = z.object({
+  taskId: z.string().uuid(),
+  dueDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date de report invalide'),
+});
+
+export type PostponeTaskInput = z.input<typeof postponeTaskSchema>;
 
 /** FormData → objet plat, pour un `safeParse` direct. */
 export function formToObject(fd: FormData): Record<string, string> {

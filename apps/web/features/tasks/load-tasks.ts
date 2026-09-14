@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TaskPriority, TaskStatus } from './schemas';
+import { versHtmlSur } from './rich-description';
 
 /**
  * Tâches de l'organisation et membres attribuables.
@@ -23,6 +24,8 @@ export type Task = {
   readonly id: string;
   readonly title: string;
   readonly description: string | null;
+  /** Détail prêt à afficher : HTML nettoyé, ou texte brut échappé pour les anciennes tâches. */
+  readonly descriptionHtml: string | null;
   readonly status: TaskStatus;
   readonly priority: TaskPriority;
   readonly dueDate: string | null;
@@ -120,6 +123,7 @@ export async function loadTasks(sb: Client, membres: readonly TeamMember[]): Pro
     id: r.id,
     title: r.title,
     description: r.description,
+    descriptionHtml: r.description ? versHtmlSur(r.description) : null,
     status: r.status,
     priority: r.priority,
     dueDate: r.due_date,
