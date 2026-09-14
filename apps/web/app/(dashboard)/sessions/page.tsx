@@ -11,6 +11,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { formationColorMap, deepColor, tintColor, NEUTRAL_COLOR } from '@/shared/lib/formation-color';
 
 export const dynamic = 'force-dynamic';
@@ -88,7 +89,7 @@ const STATUS: Record<string, { label: string; tone: 'info' | 'success' | 'neutra
 };
 const MODALITY_LABEL: Record<string, string> = { presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' };
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_214px_minmax(0,1.3fr)_88px_104px_100px] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_214px_minmax(0,1.3fr)_88px_104px_136px] gap-4 px-5';
 
 const ACTIONS: { suffix: string; icon: ComponentType<{ className?: string }>; label: string }[] = [
   { suffix: '', icon: Eye, label: 'Ouvrir la session' },
@@ -683,6 +684,14 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
                           <Icon className="w-4 h-4" />
                         </Link>
                       ))}
+                      <ManageOnly section="dossiers">
+                        <DeleteEntityButton
+                          entite="seance"
+                          id={s.id}
+                          nom={s.title || dateFmt.format(start)}
+                          article="cette séance"
+                        />
+                      </ManageOnly>
                     </div>
                   </li>
                 );

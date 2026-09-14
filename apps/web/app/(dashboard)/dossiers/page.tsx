@@ -11,6 +11,7 @@ import { dossierStatusLabel } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusFilter } from './status-filter.client';
 import { DossierStatusControl } from './[id]/dossier-status-control.client';
@@ -30,7 +31,7 @@ const STATUS_ACCENT: Record<string, { bar: string; head: string }> = {
   cancelled: { bar: 'border-l-rose-500', head: 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300' },
 };
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_112px_112px_128px_108px] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_112px_112px_128px_144px] gap-4 px-5';
 
 const ACTIONS: { suffix: string; icon: ComponentType<{ className?: string }>; label: string }[] = [
   { suffix: '', icon: Eye, label: 'Ouvrir le dossier' },
@@ -333,6 +334,9 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                         <Icon className="w-4 h-4" />
                       </Link>
                     ))}
+                    <ManageOnly section="dossiers">
+                      <DeleteEntityButton entite="dossier" id={d.id} nom={d.reference} article="ce dossier" />
+                    </ManageOnly>
                   </div>
                 </li>
               ))}

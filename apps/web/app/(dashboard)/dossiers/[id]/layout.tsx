@@ -9,6 +9,8 @@ import { TabsNav } from '@/shared/components/layout/tabs-nav';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { DossierStatusControl } from './dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -63,7 +65,19 @@ export default async function DossierLayout({
               {d.company?.name && <span>{' · '}{d.company.name}</span>}
             </p>
           </div>
-          <DossierStatusControl dossierId={params.id} status={d.status as DossierStatus} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <DossierStatusControl dossierId={params.id} status={d.status as DossierStatus} />
+            <ManageOnly section="dossiers">
+              <DeleteEntityButton
+                entite="dossier"
+                id={params.id}
+                nom={d.reference}
+                article="ce dossier"
+                variant="button"
+                redirigerVers="/dossiers"
+              />
+            </ManageOnly>
+          </div>
         </header>
 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8" aria-label="Chiffres clés du dossier">

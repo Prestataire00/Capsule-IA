@@ -6,6 +6,8 @@ import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Video, MapPin, User
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -46,14 +48,27 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
   const corbeille = searchParams.corbeille === '1';
 
   const sb = supabaseServer();
-  const listeBase = sb
-    .schema('app')
-    .from('formations')
-    .select('id, code, title, default_modality, default_duration_hours, is_published, created_at');
-  const { data } = await (corbeille ? listeBase.not('deleted_at', 'is', null) : listeBase.is('deleted_at', null)).order(
-    'code',
-    { ascending: true },
-  );
+  // Corbeille : les politiques RLS de lecture filtrent `deleted_at IS NULL` —
+  // une lecture ordinaire ne renvoie donc jamais une formation supprimée. On la
+  // lit en service_role, explicitement bornée à l'organisation du membre.
+  const membre = await getCurrentMember();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lecteurSupprimees = supabaseAdmin() as any;
+  const orgId = membre?.organizationId ?? '';
+
+  const listeBase = corbeille
+    ? lecteurSupprimees
+        .schema('app')
+        .from('formations')
+        .select('id, code, title, default_modality, default_duration_hours, is_published, created_at')
+        .eq('organization_id', orgId)
+        .not('deleted_at', 'is', null)
+    : sb
+        .schema('app')
+        .from('formations')
+        .select('id, code, title, default_modality, default_duration_hours, is_published, created_at')
+        .is('deleted_at', null);
+  const { data } = await listeBase.order('code', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const all = ((data as any[]) ?? []) as FormationRow[];
   const colors = formationColorMap(all);
@@ -104,11 +119,13 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
     }
   }
 
-  // Nombre de formations à la corbeille : l'accès s'affiche seulement s'il y en a.
-  const { count: supprimees } = await sb
+  // Nombre de formations à la corbeille : l'accès s'affiche seulement s'il y en
+  // a. Même raison que ci-dessus : lecture en service_role, bornée à l'organisme.
+  const { count: supprimees } = await lecteurSupprimees
     .schema('app')
     .from('formations')
     .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
     .not('deleted_at', 'is', null);
 
   // Compteurs par formation : apprenants actifs (colonne), et usage total

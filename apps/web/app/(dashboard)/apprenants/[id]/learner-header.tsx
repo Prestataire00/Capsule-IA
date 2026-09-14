@@ -6,6 +6,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { AnonymizeAction } from '../../rgpd/anonymize-action';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { EditLearnerDialog } from './edit-learner-dialog';
 import type { LearnerSummary } from './summary';
 
@@ -100,6 +101,19 @@ export function LearnerHeader({
           >
             <Plus className="w-4 h-4" /> Nouveau dossier
           </Link>
+          <DeleteEntityButton
+            entite="apprenant"
+            id={learner.id}
+            nom={fullName}
+            article="cet apprenant"
+            liens={
+              summary.formationsCount > 0
+                ? `${summary.formationsCount} formation${summary.formationsCount > 1 ? 's' : ''} y ${summary.formationsCount > 1 ? 'sont' : 'est'} rattachée${summary.formationsCount > 1 ? 's' : ''}.`
+                : null
+            }
+            variant="button"
+            redirigerVers="/apprenants"
+          />
         </div>
       </div>
 

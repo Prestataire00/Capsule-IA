@@ -10,6 +10,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 
 type TrainerRow = {
   id: string;
@@ -27,7 +28,7 @@ function trainerPhotoUrl(path: string | null): string | null {
   return `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/trainer-photos/${path}`;
 }
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.6fr)_96px_130px_72px] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.6fr)_96px_130px_108px] gap-4 px-5';
 
 const AVATARS = [
   'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
@@ -196,7 +197,7 @@ export default async function FormateursPage() {
                         <StatusPill tone="neutral">sans contrat</StatusPill>
                       )}
                     </div>
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Link
                         href={`/formateurs/${t.id}`}
                         aria-label={`Ouvrir la fiche — ${name}`}
@@ -205,6 +206,9 @@ export default async function FormateursPage() {
                       >
                         <Eye className="w-4 h-4" />
                       </Link>
+                      <ManageOnly section="dossiers">
+                        <DeleteEntityButton entite="formateur" id={t.id} nom={name} article="ce formateur" />
+                      </ManageOnly>
                     </div>
                   </li>
                 );

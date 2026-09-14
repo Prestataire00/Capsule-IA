@@ -10,6 +10,7 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { KpiCard } from '@/shared/ui/kpi-card';
 import { AnonymizeAction } from '../rgpd/anonymize-action';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
 
 export const dynamic = 'force-dynamic';
@@ -312,14 +313,19 @@ export default async function ApprenantsPage({
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Link
-                        href={`/apprenants/${l.id}`}
-                        aria-label={`Ouvrir la fiche — ${name}`}
-                        title="Ouvrir la fiche"
-                        className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Link
+                          href={`/apprenants/${l.id}`}
+                          aria-label={`Ouvrir la fiche — ${name}`}
+                          title="Ouvrir la fiche"
+                          className="w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <ManageOnly section="dossiers">
+                          <DeleteEntityButton entite="apprenant" id={l.id} nom={name} article="cet apprenant" />
+                        </ManageOnly>
+                      </div>
                       {isOwnerAdmin && !l.anonymized_at && (
                         <AnonymizeAction subject={{ kind: 'learner', id: l.id, lastName: l.last_name }} />
                       )}

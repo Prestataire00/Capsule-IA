@@ -13,6 +13,8 @@ import { KpiCard } from '@/shared/ui/kpi-card';
 import { notFound } from 'next/navigation';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +46,7 @@ const statusTone: Record<ComplaintRow['status'], 'success' | 'warning' | 'danger
   closed: 'neutral',
 };
 
-const ROW_GRID = 'grid grid-cols-[130px_minmax(0,2fr)_minmax(0,1fr)_110px_100px_110px_56px] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[130px_minmax(0,2fr)_minmax(0,1fr)_110px_100px_110px_92px] gap-4 px-5';
 
 export default async function ReclamationsPage() {
   await requireAccess('qualiopi');
@@ -154,7 +156,7 @@ export default async function ReclamationsPage() {
                   <div>
                     <StatusPill tone={statusTone[c.status]}>{stateLabel[c.status]}</StatusPill>
                   </div>
-                  <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-end gap-0.5">
                     <Link
                       href={`/reclamations/${c.id}`}
                       aria-label={`Ouvrir la réclamation ${c.reference}`}
@@ -163,6 +165,9 @@ export default async function ReclamationsPage() {
                     >
                       <Eye className="w-4 h-4" />
                     </Link>
+                    <ManageOnly section="qualiopi">
+                      <DeleteEntityButton entite="reclamation" id={c.id} nom={c.subject} article="cette réclamation" />
+                    </ManageOnly>
                   </div>
                 </li>
               ))}

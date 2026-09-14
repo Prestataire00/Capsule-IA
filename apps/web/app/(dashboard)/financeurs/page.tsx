@@ -8,6 +8,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { getFundersOverview } from '@/features/funders/funders-overview.query';
 import { formatEurosCents } from '@/features/funders/funders-overview';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { KpiCard, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,7 @@ const kindStyles: Record<string, { icon: React.ComponentType<{ className?: strin
   autre: { icon: Wallet, label: 'Autre', accent: 'emerald' },
 };
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_150px_120px_140px_72px] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_150px_120px_140px_108px] gap-4 px-5';
 
 const ACTIVE_RING = 'ring-4 ring-orange-500/15';
 
@@ -164,7 +165,7 @@ export default async function FinanceursPage({
                     <div className={`text-right text-[14px] font-bold tabular-nums truncate ${f.fundedCents > 0 ? ACCENTS.emerald.value : 'text-zinc-400'}`}>
                       {formatEurosCents(f.fundedCents)}
                     </div>
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Link
                         href={`/financeurs/${f.id}`}
                         aria-label={`Ouvrir la fiche — ${f.name}`}
@@ -173,6 +174,15 @@ export default async function FinanceursPage({
                       >
                         <Eye className="w-4 h-4" />
                       </Link>
+                      <ManageOnly section="catalogue">
+                        <DeleteEntityButton
+                          entite="financeur"
+                          id={f.id}
+                          nom={f.name}
+                          article="ce financeur"
+                          liens={f.dossierCount > 0 ? `${f.dossierCount} dossier${f.dossierCount > 1 ? 's' : ''} y ${f.dossierCount > 1 ? 'sont' : 'est'} rattaché${f.dossierCount > 1 ? 's' : ''}.` : null}
+                        />
+                      </ManageOnly>
                     </div>
                   </li>
                 );

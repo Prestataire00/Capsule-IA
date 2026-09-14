@@ -13,6 +13,8 @@ import { KpiCard } from '@/shared/ui/kpi-card';
 import { ConvertButton } from './convert-button';
 import { AnonymizeAction } from '../rgpd/anonymize-action';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -227,6 +229,9 @@ export default async function ProspectsPage() {
                         ) : (
                           !pendingValidation && <ConvertButton prospectId={p.id} />
                         )}
+                        <ManageOnly section="crm">
+                          <DeleteEntityButton entite="demande" id={p.id} nom={name} article="cette demande" />
+                        </ManageOnly>
                       </div>
                       {isOwnerAdmin && !p.anonymized_at && (
                         <AnonymizeAction subject={{ kind: 'prospect', id: p.id, lastName: p.last_name }} />

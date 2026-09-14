@@ -125,6 +125,7 @@
 > Ismael un fichier SQL prêt à coller dans l'éditeur SQL Supabase (migrations dans l'ordre +
 > `INSERT` des versions dans `supabase_migrations.schema_migrations` pour ne pas les rejouer).
 > Les versions 0159 à 0163 ont été appliquées ainsi le 2026-09-14.
+| Claude (corbeille) | **Tout est supprimable** (demande Ismael) : corbeille commune réversible — `features/corbeille/{entities,actions,load-trash}.ts` + `ui/delete-entity-button.client.tsx`, page `app/(dashboard)/corbeille/page.tsx`, boutons Supprimer branchés dans les listes et fiches (dossiers, apprenants, entreprises, formateurs, financeurs, séances, réclamations, demandes). `deleted_at` posé (rien n'est effacé), droits via `can(role, section) === manage`. **Sans migration.** Ne touche pas aux zones factures/devis/espace formateur. | (push direct main) | 2026-09-14 | actif |
 
 > Convention numéros de migration : avant d'écrire `supabase/migrations/NNNN_*.sql`,
 > prendre `(dernier numéro sur origin/main) + 1` au moment du push, pas du brainstorm.

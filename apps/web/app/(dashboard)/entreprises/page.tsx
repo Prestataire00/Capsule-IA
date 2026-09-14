@@ -9,8 +9,9 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,1.7fr)_minmax(0,1.7fr)_170px_110px_72px] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,1.7fr)_minmax(0,1.7fr)_170px_110px_108px] gap-4 px-5';
 
 export default async function EntreprisesPage() {
   await requireAccess('crm');
@@ -153,7 +154,7 @@ export default async function EntreprisesPage() {
                       </span>
                       <span className="text-[12px] text-zinc-500 dark:text-zinc-400"> rattaché{count > 1 ? 's' : ''}</span>
                     </div>
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Link
                         href={`/entreprises/${c.id}`}
                         aria-label={`Ouvrir la fiche — ${c.name}`}
@@ -162,6 +163,15 @@ export default async function EntreprisesPage() {
                       >
                         <Eye className="w-4 h-4" />
                       </Link>
+                      <ManageOnly section="crm">
+                        <DeleteEntityButton
+                          entite="entreprise"
+                          id={c.id}
+                          nom={c.name}
+                          article="cette entreprise"
+                          liens={count > 0 ? `${count} apprenant${count > 1 ? 's' : ''} y ${count > 1 ? 'sont' : 'est'} rattaché${count > 1 ? 's' : ''}.` : null}
+                        />
+                      </ManageOnly>
                     </div>
                   </li>
                 );

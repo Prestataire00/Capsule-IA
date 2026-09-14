@@ -10,6 +10,8 @@ import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/s
 import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { ClientFormationsSection } from '@/features/formations/ui/client-formations-section';
 
 export const dynamic = 'force-dynamic';
@@ -93,6 +95,19 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
             <Building2 className="w-5 h-5" />
           </span>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{c.name}</h1>
+          <span className="ml-auto shrink-0">
+            <ManageOnly section="crm">
+              <DeleteEntityButton
+                entite="entreprise"
+                id={params.id}
+                nom={c.name}
+                article="cette entreprise"
+                liens={`${learners.length} apprenant${learners.length > 1 ? 's' : ''} et ${dossiers.length} dossier${dossiers.length > 1 ? 's' : ''} y sont rattachés.`}
+                variant="button"
+                redirigerVers="/entreprises"
+              />
+            </ManageOnly>
+          </span>
         </div>
         <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
           {c.legal_name && c.legal_name !== c.name && <>{c.legal_name} · </>}

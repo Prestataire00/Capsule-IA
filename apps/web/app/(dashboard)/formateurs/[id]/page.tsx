@@ -9,6 +9,8 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { libre } from '@/features/trainer-space/billing';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { ContractUpload } from './contract-upload';
 import { ContractGenerate } from './contract-generate';
 import { TrainerProfileEdit } from './profile-edit';
@@ -155,6 +157,18 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
               </div>
             )}
           </div>
+          <span className="ml-auto shrink-0 pt-1">
+            <ManageOnly section="dossiers">
+              <DeleteEntityButton
+                entite="formateur"
+                id={params.id}
+                nom={`${t.first_name} ${t.last_name}`}
+                article="ce formateur"
+                variant="button"
+                redirigerVers="/formateurs"
+              />
+            </ManageOnly>
+          </span>
         </div>
         {t.bio && (
           <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-5 pt-5 border-t border-teal-100 dark:border-teal-900/40 whitespace-pre-line">
