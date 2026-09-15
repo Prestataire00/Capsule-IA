@@ -27,7 +27,8 @@ const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Action non autorisée.',
   last_owner: 'Impossible : dernier propriétaire.',
   not_found: 'Membre introuvable.',
-  owner_only: 'Seul un propriétaire peut désactiver un autre propriétaire.',
+  owner_only: 'Seul un propriétaire peut modifier le compte d’un autre propriétaire.',
+  owner_grant: 'L’organisation ne compte qu’un propriétaire : transférez-le depuis son compte.',
   self: 'Vous ne pouvez pas désactiver votre propre compte.',
   rls_denied:
     'Refusé par la base : votre session ne vous reconnaît pas comme administrateur. Déconnectez-vous puis reconnectez-vous, et réessayez.',
@@ -81,7 +82,13 @@ export function MemberRowActions(props: {
       if (res?.data?.ok) {
         setRole(next);
       } else {
-        setError(ERROR_LABEL[res?.data?.error ?? ''] ?? 'Échec de la mise à jour.');
+        // Le motif exact plutôt qu'un « échec » muet : c'est presque toujours une
+        // règle métier (dernier propriétaire, droits), pas une panne.
+        const d = res?.data as { error?: string; details?: string } | undefined;
+        setError(
+          ERROR_LABEL[d?.error ?? ''] ??
+            (d?.details ? `Échec de la mise à jour : ${d.details}` : 'Échec de la mise à jour.'),
+        );
       }
     });
 
@@ -108,7 +115,10 @@ export function MemberRowActions(props: {
           onChange={(e) => onRoleChange(e.target.value as MemberRole)}
           className={`h-8 text-[12px] font-semibold border border-transparent rounded-lg px-2 ${ROLE_TONE[role]} focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition disabled:opacity-50`}
         >
-          {MEMBER_ROLES.map((r) => (
+          {/* « Propriétaire » n'est proposé que sur la ligne du propriétaire :
+              l'organisation n'en compte qu'un, et la base refuse d'en nommer un
+              second — le choix était offert puis rejeté sans explication. */}
+          {MEMBER_ROLES.filter((r) => r !== 'owner' || props.role === 'owner').map((r) => (
             <option key={r} value={r}>
               {ROLE_LABEL[r]}
             </option>

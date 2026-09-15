@@ -1,4 +1,4 @@
-// Désactivation d'un membre : contrôles sous RLS, écriture en service role.
+// Désactivation d'un membre : contrôles explicites, écriture en service role.
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';

@@ -32,13 +32,24 @@ type MemberRow = {
   role: string;
 };
 
-// Membres actifs de l'org de l'utilisateur courant + rôle de cet utilisateur.
+/**
+ * Membres actifs de l'org de l'utilisateur courant + rôle de cet utilisateur.
+ *
+ * Lu en service role, comme `addMemberAction` : les politiques RLS de `members`
+ * s'appuient sur des claims du JWT (`organization_id`, `user_role`, posés par le
+ * hook 0042/0091). Un jeton émis avant le hook, ou simplement périmé, ne les
+ * porte pas — l'utilisateur ne se voyait alors lui-même dans aucune org et tout
+ * l'écran tombait sur un « organization_not_found » illisible. Le cloisonnement
+ * ne repose donc pas sur la RLS ici, mais sur cette ligne : l'org retenue est
+ * celle de l'appelant authentifié, et tout ce qui suit y est borné.
+ */
 async function loadContext(ctx: AuthCtx): Promise<{
   orgId: string;
   currentRole: string | null;
   members: MemberRow[];
 }> {
-  const { data: me } = await ctx.supabase
+  const admin = supabaseAdmin();
+  const { data: me } = await admin
     .schema('app')
     .from('members')
     .select('organization_id, role')
@@ -50,7 +61,7 @@ async function loadContext(ctx: AuthCtx): Promise<{
   const meRow = me as { organization_id: string; role: string } | null;
   if (!meRow) throw new Error('organization_not_found');
 
-  const { data: membersData } = await ctx.supabase
+  const { data: membersData } = await admin
     .schema('app')
     .from('members')
     .select('id, organization_id, user_id, role')
@@ -80,14 +91,49 @@ export const changeMemberRoleAction = authActionClient
     if (target.role === 'owner' && parsedInput.role !== 'owner' && owners.length <= 1) {
       return { ok: false as const, error: 'last_owner' };
     }
+    // Règles de la base (members_update) énoncées ici, pour qu'elles se lisent à
+    // l'écran au lieu de revenir en « nouvelle ligne refusée par la RLS » :
+    // on ne touche pas la ligne d'un autre propriétaire, et on n'en nomme pas
+    // un second (l'organisation n'en compte qu'un, cf. ADD_MEMBER_ROLES).
+    if (target.role === 'owner' && target.user_id !== ctx.userId) {
+      return { ok: false as const, error: 'owner_only' };
+    }
+    if (parsedInput.role === 'owner' && target.role !== 'owner') {
+      return { ok: false as const, error: 'owner_grant' };
+    }
+    if (target.role === parsedInput.role) return { ok: true as const };
 
-    const { error } = await ctx.supabase
+    // Écriture en service role, après les contrôles ci-dessus — même raison que
+    // pour la désactivation : sous la session de l'utilisateur, `members_update`
+    // dépend de claims du JWT qui peuvent manquer, et l'UPDATE ne touchait alors
+    // AUCUNE ligne sans lever la moindre erreur. L'écran annonçait un succès et
+    // le rôle revenait à sa valeur d'avant au rechargement.
+    const admin = supabaseAdmin();
+    const { error } = await admin
       .schema('app')
       .from('members')
-      .update({ role: parsedInput.role })
+      .update({ role: parsedInput.role } as never)
       .eq('id', parsedInput.memberId)
-      .eq('organization_id', orgId);
-    if (error) throw new Error(`change_role_failed: ${error.message}`);
+      .eq('organization_id', orgId)
+      .is('deleted_at', null);
+    // L'erreur était relancée : l'écran affichait « Échec de la mise à jour »
+    // sans jamais dire pourquoi (même défaut que la désactivation, audit CAP-31).
+    if (error) {
+      console.error('[membres] changement de rôle refusé', error);
+      return { ok: false as const, error: 'update_failed', details: error.message };
+    }
+
+    // Contrôle : la ligne porte bien le nouveau rôle (sinon, pas de succès annoncé).
+    const { data: apres } = await admin
+      .schema('app')
+      .from('members')
+      .select('role')
+      .eq('id', parsedInput.memberId)
+      .maybeSingle();
+    if ((apres as { role: string } | null)?.role !== parsedInput.role) {
+      return { ok: false as const, error: 'update_failed', details: 'le rôle n’a pas été enregistré' };
+    }
+
     revalidatePath('/parametres/membres');
     return { ok: true as const };
   });
@@ -133,7 +179,7 @@ export const deactivateMemberAction = authActionClient
     if (target.role === 'owner' && currentRole !== 'owner') return { ok: false as const, error: 'owner_only' };
     if (target.user_id === ctx.userId) return { ok: false as const, error: 'self' };
 
-    // Écriture en service role, après les contrôles ci-dessus (faits sous RLS).
+    // Écriture en service role, après les contrôles ci-dessus.
     // Avec la session de l'utilisateur, la désactivation échouait toujours :
     // PostgREST relit la ligne modifiée, et la politique de lecture ne montre
     // que les membres actifs (`deleted_at IS NULL`) — la base refusait donc la
