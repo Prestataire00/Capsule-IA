@@ -14,6 +14,16 @@ export const DeactivateMemberSchema = z.object({
 });
 export type DeactivateMemberInput = z.infer<typeof DeactivateMemberSchema>;
 
+/**
+ * Transfert de propriété : le propriétaire désigne son successeur et passe
+ * lui-même administrateur. C'est le SEUL chemin vers le rôle `owner` — le
+ * sélecteur de rôle ne le propose pas, l'organisation n'en comptant qu'un.
+ */
+export const TransferOwnershipSchema = z.object({
+  memberId: z.string().uuid(),
+});
+export type TransferOwnershipInput = z.infer<typeof TransferOwnershipSchema>;
+
 /** Rôles assignables à l'invitation (pas `owner` : un seul propriétaire). */
 export const ADD_MEMBER_ROLES = ['admin', 'gestionnaire', 'comptable', 'formateur'] as const;
 export type AddMemberRole = (typeof ADD_MEMBER_ROLES)[number];

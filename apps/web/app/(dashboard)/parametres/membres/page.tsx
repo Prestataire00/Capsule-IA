@@ -73,6 +73,10 @@ export default async function ParametresMembresPage() {
     ((profilesData as unknown as ProfileRow[] | null) ?? []).map((p) => [p.user_id, p]),
   );
 
+  // Seul le propriétaire en exercice peut désigner son successeur, et sur une
+  // autre ligne que la sienne.
+  const isOwner = currentMember?.role === 'owner';
+
   const members = memberRows.map((m) => {
     const profile = profileById.get(m.user_id);
     return {
@@ -80,6 +84,7 @@ export default async function ParametresMembresPage() {
       name: profile?.full_name ?? '—',
       email: profile?.email ?? '—',
       role: m.role,
+      canTransfer: isOwner && m.role !== 'owner' && m.user_id !== currentUserId,
     };
   });
 
@@ -109,7 +114,13 @@ export default async function ParametresMembresPage() {
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{m.email}</p>
                   </div>
                 </div>
-                <MemberRowActions memberId={m.id} role={asMemberRole(m.role)} editable={canEdit} />
+                <MemberRowActions
+                  memberId={m.id}
+                  name={m.name}
+                  role={asMemberRole(m.role)}
+                  editable={canEdit}
+                  canTransfer={m.canTransfer}
+                />
               </li>
             );
           })}

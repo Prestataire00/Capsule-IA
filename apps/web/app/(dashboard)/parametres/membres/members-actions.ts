@@ -10,6 +10,7 @@ import {
   ChangeMemberRoleSchema,
   DeactivateMemberSchema,
   SetMemberPasswordSchema,
+  TransferOwnershipSchema,
 } from './members-schema';
 
 /** Mot de passe temporaire conforme (≥10, 1 maj, 1 min, 1 chiffre, 1 spécial), sans caractère ambigu. */
@@ -132,6 +133,73 @@ export const changeMemberRoleAction = authActionClient
       .maybeSingle();
     if ((apres as { role: string } | null)?.role !== parsedInput.role) {
       return { ok: false as const, error: 'update_failed', details: 'le rôle n’a pas été enregistré' };
+    }
+
+    revalidatePath('/parametres/membres');
+    return { ok: true as const };
+  });
+
+/**
+ * Transfert de propriété : le membre désigné devient propriétaire, et le
+ * propriétaire en exercice passe administrateur. Seul chemin vers le rôle
+ * `owner` — le sélecteur de rôle ne le propose pas, puisque l'organisation
+ * n'en compte qu'un.
+ *
+ * Deux écritures, sans transaction (une RPC demanderait une migration, et le
+ * déploiement des migrations est à l'arrêt). L'ordre n'est donc pas indifférent :
+ * on NOMME d'abord, on se retire ensuite. Si la seconde écriture échoue,
+ * l'organisation compte deux propriétaires — état sûr et rejouable ; l'ordre
+ * inverse la laisserait sans propriétaire, donc sans personne pour réparer.
+ */
+export const transferOwnershipAction = authActionClient
+  .schema(TransferOwnershipSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { orgId, currentRole, members } = await loadContext(ctx);
+    if (currentRole !== 'owner') return { ok: false as const, error: 'owner_only' };
+
+    const target = members.find((m) => m.id === parsedInput.memberId);
+    if (!target) return { ok: false as const, error: 'not_found' };
+    if (target.user_id === ctx.userId) return { ok: false as const, error: 'self' };
+
+    const moi = members.find((m) => m.user_id === ctx.userId);
+    if (!moi) return { ok: false as const, error: 'not_found' };
+
+    const admin = supabaseAdmin();
+    const { error: nomination } = await admin
+      .schema('app')
+      .from('members')
+      .update({ role: 'owner' } as never)
+      .eq('id', target.id)
+      .eq('organization_id', orgId)
+      .is('deleted_at', null);
+    if (nomination) {
+      console.error('[membres] nomination du propriétaire refusée', nomination);
+      return { ok: false as const, error: 'update_failed', details: nomination.message };
+    }
+
+    const { error: retrait } = await admin
+      .schema('app')
+      .from('members')
+      .update({ role: 'admin' } as never)
+      .eq('id', moi.id)
+      .eq('organization_id', orgId)
+      .is('deleted_at', null);
+    if (retrait) {
+      console.error('[membres] retrait de l’ancien propriétaire refusé', retrait);
+      return { ok: false as const, error: 'transfert_partiel', details: retrait.message };
+    }
+
+    // Contrôle : l'organisation compte bien un propriétaire, et c'est le nouveau.
+    const { data: apres } = await admin
+      .schema('app')
+      .from('members')
+      .select('id, role')
+      .eq('organization_id', orgId)
+      .eq('role', 'owner')
+      .is('deleted_at', null);
+    const owners = (apres as { id: string }[] | null) ?? [];
+    if (owners.length !== 1 || owners[0]?.id !== target.id) {
+      return { ok: false as const, error: 'transfert_partiel', details: 'le transfert n’a pas été enregistré' };
     }
 
     revalidatePath('/parametres/membres');

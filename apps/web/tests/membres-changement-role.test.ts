@@ -48,3 +48,35 @@ describe('changement de rôle d’un membre', () => {
     expect(UI).toContain("MEMBER_ROLES.filter((r) => r !== 'owner' || props.role === 'owner')");
   });
 });
+
+// Le rôle `owner` ne s'atteint que par un transfert explicite : le propriétaire
+// désigne son successeur et passe lui-même administrateur (demande Ismael,
+// 2026-09-15 — Faouzi Fiévé devient propriétaire).
+const transfert = ACTIONS.slice(
+  ACTIONS.indexOf('export const transferOwnershipAction'),
+  ACTIONS.indexOf('export const setMemberPasswordAction'),
+);
+
+describe('transfert de propriété', () => {
+  it('réservé au propriétaire en exercice, et jamais vers soi-même', () => {
+    expect(transfert).toContain("if (currentRole !== 'owner') return { ok: false as const, error: 'owner_only' }");
+    expect(transfert).toContain("if (target.user_id === ctx.userId) return { ok: false as const, error: 'self' }");
+  });
+
+  it('nomme AVANT de se retirer : un échec laisse deux propriétaires, jamais zéro', () => {
+    const nomination = transfert.indexOf("update({ role: 'owner' }");
+    const retrait = transfert.indexOf("update({ role: 'admin' }");
+    expect(nomination).toBeGreaterThan(-1);
+    expect(retrait).toBeGreaterThan(nomination);
+  });
+
+  it('vérifie qu’il reste exactement un propriétaire, et que c’est le nouveau', () => {
+    expect(transfert).toContain("owners.length !== 1 || owners[0]?.id !== target.id");
+  });
+
+  it('l’écran n’offre le transfert qu’au propriétaire, sur une autre ligne', () => {
+    const PAGE = lire('../app/(dashboard)/parametres/membres/page.tsx');
+    expect(PAGE).toContain("canTransfer: isOwner && m.role !== 'owner' && m.user_id !== currentUserId");
+    expect(UI).toContain('props.canTransfer && (');
+  });
+});

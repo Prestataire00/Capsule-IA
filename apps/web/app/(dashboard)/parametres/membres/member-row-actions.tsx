@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
-import { Check } from 'lucide-react';
-import { changeMemberRoleAction, deactivateMemberAction, setMemberPasswordAction } from './members-actions';
+import { Check, Crown } from 'lucide-react';
+import {
+  changeMemberRoleAction,
+  deactivateMemberAction,
+  setMemberPasswordAction,
+  transferOwnershipAction,
+} from './members-actions';
 import { MEMBER_ROLES, type MemberRole } from './members-schema';
 
 const ROLE_LABEL: Record<MemberRole, string> = {
@@ -28,7 +34,9 @@ const ERROR_LABEL: Record<string, string> = {
   last_owner: 'Impossible : dernier propriétaire.',
   not_found: 'Membre introuvable.',
   owner_only: 'Seul un propriétaire peut modifier le compte d’un autre propriétaire.',
-  owner_grant: 'L’organisation ne compte qu’un propriétaire : transférez-le depuis son compte.',
+  owner_grant: 'L’organisation ne compte qu’un propriétaire : utilisez « Transférer la propriété ».',
+  transfert_partiel:
+    'Transfert incomplet : le nouveau propriétaire est nommé, mais votre compte n’a pas été rétrogradé. Réessayez.',
   self: 'Vous ne pouvez pas désactiver votre propre compte.',
   rls_denied:
     'Refusé par la base : votre session ne vous reconnaît pas comme administrateur. Déconnectez-vous puis reconnectez-vous, et réessayez.',
@@ -36,16 +44,22 @@ const ERROR_LABEL: Record<string, string> = {
 
 export function MemberRowActions(props: {
   memberId: string;
+  name: string;
   role: MemberRole;
   editable: boolean;
+  /** Le propriétaire en exercice peut désigner son successeur, sur toute autre ligne. */
+  canTransfer: boolean;
 }) {
+  const router = useRouter();
   const [role, setRole] = useState<MemberRole>(props.role);
+  const [transferDone, setTransferDone] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const changeRole = useAction(changeMemberRoleAction);
   const deactivate = useAction(deactivateMemberAction);
   const setPassword = useAction(setMemberPasswordAction);
+  const transfer = useAction(transferOwnershipAction);
 
   const [pwOpen, setPwOpen] = useState(false);
   const [pwValue, setPwValue] = useState('');
@@ -92,6 +106,32 @@ export function MemberRowActions(props: {
       }
     });
 
+  const onTransfer = () => {
+    if (
+      !window.confirm(
+        `Transférer la propriété de l’organisation à ${props.name} ?\n\n` +
+          'Vous deviendrez administrateur : vous gardez la gestion complète, y compris les membres, ' +
+          'mais seul le nouveau propriétaire pourra vous rendre ce statut.',
+      )
+    ) {
+      return;
+    }
+    start(async () => {
+      setError(null);
+      const res = await transfer.executeAsync({ memberId: props.memberId });
+      if (res?.data?.ok) {
+        setTransferDone(true);
+        router.refresh();
+      } else {
+        const d = res?.data as { error?: string; details?: string } | undefined;
+        setError(
+          ERROR_LABEL[d?.error ?? ''] ??
+            (d?.details ? `Échec du transfert : ${d.details}` : 'Échec du transfert.'),
+        );
+      }
+    });
+  };
+
   const onDeactivate = () =>
     start(async () => {
       setError(null);
@@ -136,6 +176,18 @@ export function MemberRowActions(props: {
         >
           Mot de passe
         </button>
+        {props.canTransfer && (
+          <button
+            type="button"
+            onClick={onTransfer}
+            disabled={pending}
+            title="Faire de ce membre le propriétaire de l’organisation"
+            className="h-8 text-[12px] font-semibold text-amber-700 hover:text-amber-800 dark:text-amber-400 px-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/30 transition disabled:opacity-50 inline-flex items-center gap-1"
+          >
+            <Crown className="w-3 h-3" />
+            Transférer la propriété
+          </button>
+        )}
         <button
           type="button"
           onClick={onDeactivate}
@@ -174,6 +226,12 @@ export function MemberRowActions(props: {
         </div>
       )}
 
+      {transferDone && (
+        <span className="text-[11px] text-emerald-700 dark:text-emerald-400">
+          {props.name} est propriétaire. Votre rôle passe à administrateur — reconnectez-vous pour que le
+          changement prenne effet partout.
+        </span>
+      )}
       {pwDone && pwResult && (
         <span className="text-[11px] text-emerald-700 dark:text-emerald-400">
           Nouveau mot de passe : <code className="font-mono bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded-md">{pwResult}</code> — communiquez-le au membre.
