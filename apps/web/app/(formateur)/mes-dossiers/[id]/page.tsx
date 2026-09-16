@@ -6,10 +6,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
+  ArrowRight,
   Building2,
   CalendarClock,
   ClipboardList,
   Info,
+  ListChecks,
   Mail,
   MapPin,
   Phone,
@@ -142,6 +144,23 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
           </ul>
         )}
       </section>
+
+      {/* Préparation pédagogique — quiz et exercices du dossier (0171). */}
+      <Link
+        href={`/mes-dossiers/${params.id}/cours`}
+        className="group rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/25 dark:to-zinc-900 px-4 py-3.5 flex items-center gap-3 hover:shadow-md transition"
+      >
+        <span className="w-9 h-9 rounded-lg grid place-items-center bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
+          <ListChecks className="w-4 h-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Préparer mon cours</span>
+          <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+            Quiz auto-corrigés et exercices, publiés dans l&apos;espace des stagiaires.
+          </span>
+        </span>
+        <ArrowRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-500 transition shrink-0" />
+      </Link>
 
       <section className={carte}>
         <p className={titreCarte}>

@@ -10,6 +10,7 @@ import {
   FileText,
   PenLine,
   BookOpen,
+  ListChecks,
   MessagesSquare,
   MessageSquareWarning,
   Menu,
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { href: (t) => `/espace/${t}/messages`, label: 'Messages', icon: MessagesSquare, tone: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' },
   { href: (t) => `/espace/${t}/documents`, label: 'Documents', icon: FileText, tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300' },
   { href: (t) => `/espace/${t}/exercices`, label: 'Exercices', icon: PenLine, tone: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300' },
+  { href: (t) => `/espace/${t}/quiz`, label: 'Quiz', icon: ListChecks, tone: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300' },
   { href: (t) => `/espace/${t}/reclamation`, label: 'Réclamation', icon: MessageSquareWarning, tone: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300' },
 ];
 
