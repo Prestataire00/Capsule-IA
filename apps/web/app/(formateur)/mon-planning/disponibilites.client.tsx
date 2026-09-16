@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, X, Minus, Loader2, CalendarRange } from 'lucide-react';
+import { Check, X, Minus, Loader2, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Creneau, Dispo } from '@/features/trainer-space/availability';
 import { declarerMaDisponibilite } from './actions';
 
@@ -15,6 +15,10 @@ import { declarerMaDisponibilite } from './actions';
  *
  * Un clic fait tourner l'état : non renseigné → disponible → indisponible →
  * non renseigné. C'est le geste le plus court pour remplir un mois.
+ *
+ * UNE semaine à l'écran, et des flèches pour en changer — comme le planning de
+ * l'espace administrateur. Les cinq semaines empilées faisaient une page à
+ * dérouler, où l'on perdait de vue celle qu'on était en train de remplir.
  */
 
 export type JourAffiche = {
@@ -54,6 +58,9 @@ const LIBELLE_CRENEAU: Record<Creneau, string> = { matin: 'Matin', apres_midi: '
 
 export function Disponibilites({ trainerId, semaines }: { trainerId: string; semaines: SemaineAffichee[] }) {
   const router = useRouter();
+  const [index, setIndex] = useState(0);
+  // Borné : le tableau des semaines peut rétrécir d'un rendu à l'autre.
+  const semaine = semaines[Math.min(index, Math.max(0, semaines.length - 1))];
   const [erreur, setErreur] = useState<string | null>(null);
   const [encours, setEncours] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -122,99 +129,132 @@ export function Disponibilites({ trainerId, semaines }: { trainerId: string; sem
         ))}
       </div>
 
-      <div className="space-y-4">
-        {semaines.map((semaine) => (
-          <div key={semaine.cle} className="space-y-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+      {semaine && (
+        <div key={semaine.cle} className="space-y-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setIndex((n) => Math.max(0, n - 1))}
+                disabled={index === 0}
+                aria-label="Semaine précédente"
+                className="w-7 h-7 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-white/70 dark:hover:bg-zinc-800 transition disabled:opacity-30 disabled:hover:bg-transparent"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
               <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200 capitalize">{semaine.titre}</h3>
-              <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIndex((n) => Math.min(semaines.length - 1, n + 1))}
+                disabled={index >= semaines.length - 1}
+                aria-label="Semaine suivante"
+                className="w-7 h-7 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-white/70 dark:hover:bg-zinc-800 transition disabled:opacity-30 disabled:hover:bg-transparent"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              {index > 0 && (
                 <button
                   type="button"
-                  onClick={() => toutePlaSemaine(semaine, 'disponible')}
-                  className="h-7 px-2 rounded-md text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/40 hover:bg-emerald-200 dark:hover:bg-emerald-950/70 transition"
+                  onClick={() => setIndex(0)}
+                  className="ml-1 text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition"
                 >
-                  Tout dispo
+                  Cette semaine
                 </button>
-                <button
-                  type="button"
-                  onClick={() => toutePlaSemaine(semaine, 'indisponible')}
-                  className="h-7 px-2 rounded-md text-[11px] font-semibold text-red-700 dark:text-red-300 bg-red-100/70 dark:bg-red-950/40 hover:bg-red-200 dark:hover:bg-red-950/70 transition"
-                >
-                  Tout indispo
-                </button>
-              </span>
+              )}
             </div>
+            <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => toutePlaSemaine(semaine, 'disponible')}
+                className="h-7 px-2 rounded-md text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/40 hover:bg-emerald-200 dark:hover:bg-emerald-950/70 transition"
+              >
+                Tout dispo
+              </button>
+              <button
+                type="button"
+                onClick={() => toutePlaSemaine(semaine, 'indisponible')}
+                className="h-7 px-2 rounded-md text-[11px] font-semibold text-red-700 dark:text-red-300 bg-red-100/70 dark:bg-red-950/40 hover:bg-red-200 dark:hover:bg-red-950/70 transition"
+              >
+                Tout indispo
+              </button>
+            </span>
+          </div>
 
-            <div className="overflow-x-auto -mx-1 px-1">
-              <div className="grid grid-cols-7 gap-1.5 min-w-[560px]">
-                {semaine.jours.map((j) => (
-                  <div
-                    key={j.day}
-                    className={`rounded-lg border p-1.5 ${
-                      j.aujourdhui
-                        ? 'border-orange-300 dark:border-orange-900/60 bg-orange-50/60 dark:bg-orange-950/20'
-                        : 'border-zinc-200/70 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50'
-                    } ${j.passe ? 'opacity-40' : j.weekend ? 'opacity-70' : ''}`}
-                  >
-                    <p className="text-center mb-1">
-                      <span className="block text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                        {j.jourSemaine}
-                      </span>
-                      <span
-                        className={`block text-[13px] font-bold tabular-nums ${
-                          j.aujourdhui ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-800 dark:text-zinc-200'
+          <div className="overflow-x-auto -mx-1 px-1">
+            <div className="grid grid-cols-7 gap-1.5 min-w-[560px]">
+              {semaine.jours.map((j) => (
+                <div
+                  key={j.day}
+                  className={`rounded-lg border p-1.5 ${
+                    j.aujourdhui
+                      ? 'border-orange-300 dark:border-orange-900/60 bg-orange-50/60 dark:bg-orange-950/20'
+                      : 'border-zinc-200/70 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50'
+                  } ${j.passe ? 'opacity-40' : j.weekend ? 'opacity-70' : ''}`}
+                >
+                  <p className="text-center mb-1">
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      {j.jourSemaine}
+                    </span>
+                    <span
+                      className={`block text-[13px] font-bold tabular-nums ${
+                        j.aujourdhui ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-800 dark:text-zinc-200'
+                      }`}
+                    >
+                      {j.label}
+                    </span>
+                  </p>
+
+                  {(
+                    [
+                      ['matin', j.matin] as const,
+                      ['apres_midi', j.apresMidi] as const,
+                    ]
+                  ).map(([creneau, valeur]) => {
+                    const cle = `${j.day}-${creneau}`;
+                    const etat = j.seances > 0 ? 'seance' : (valeur ?? 'vide');
+                    const charge = encours === cle;
+                    const fige = j.passe || j.seances > 0;
+                    return (
+                      <button
+                        key={creneau}
+                        type="button"
+                        onClick={() => !fige && basculer(j, creneau, valeur)}
+                        disabled={charge || fige}
+                        aria-label={`${LIBELLE_CRENEAU[creneau]} du ${j.label} — ${
+                          j.seances > 0 ? 'séance planifiée' : etat === 'vide' ? 'non renseigné' : etat
                         }`}
+                        title={
+                          j.seances > 0
+                            ? 'Séance déjà planifiée'
+                            : j.passe
+                              ? 'Jour passé'
+                              : `${LIBELLE_CRENEAU[creneau]} — cliquez pour changer`
+                        }
+                        className={`w-full h-7 mb-1 last:mb-0 rounded-md border text-[10px] font-semibold inline-flex items-center justify-center gap-1 transition disabled:cursor-default ${CELLULE[etat]}`}
                       >
-                        {j.label}
-                      </span>
-                    </p>
-
-                    {(
-                      [
-                        ['matin', j.matin] as const,
-                        ['apres_midi', j.apresMidi] as const,
-                      ]
-                    ).map(([creneau, valeur]) => {
-                      const cle = `${j.day}-${creneau}`;
-                      const etat = j.seances > 0 ? 'seance' : (valeur ?? 'vide');
-                      const charge = encours === cle;
-                      const fige = j.passe || j.seances > 0;
-                      return (
-                        <button
-                          key={creneau}
-                          type="button"
-                          onClick={() => !fige && basculer(j, creneau, valeur)}
-                          disabled={charge || fige}
-                          aria-label={`${LIBELLE_CRENEAU[creneau]} du ${j.label} — ${
-                            j.seances > 0 ? 'séance planifiée' : etat === 'vide' ? 'non renseigné' : etat
-                          }`}
-                          title={
-                            j.seances > 0
-                              ? 'Séance déjà planifiée'
-                              : j.passe
-                                ? 'Jour passé'
-                                : `${LIBELLE_CRENEAU[creneau]} — cliquez pour changer`
-                          }
-                          className={`w-full h-7 mb-1 last:mb-0 rounded-md border text-[10px] font-semibold inline-flex items-center justify-center gap-1 transition disabled:cursor-default ${CELLULE[etat]}`}
-                        >
-                          {charge ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <>
-                              <Icone etat={etat} />
-                              <span className="hidden sm:inline">{creneau === 'matin' ? 'M' : 'A'}</span>
-                            </>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+                        {charge ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Icone etat={etat} />
+                            <span className="hidden sm:inline">{creneau === 'matin' ? 'M' : 'A'}</span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Repère de position : sans lui, on ne sait plus où l'on en est dans
+              les cinq semaines déclarables. */}
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 text-right tabular-nums">
+            Semaine {index + 1} sur {semaines.length}
+          </p>
+        </div>
+      )}
 
       {erreur && <p className="text-[12px] text-red-600 dark:text-red-400">{erreur}</p>}
     </section>
