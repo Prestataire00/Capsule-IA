@@ -16,7 +16,12 @@ import { creerTravailFormateur, genererAvecIA } from './actions';
  * la direction valide. Trois regards avant le stagiaire, dont deux humains.
  */
 
-type Brouillon = { id: string; enonce: string; choix: string[]; bonnes: number[]; points: number };
+/**
+ * `points` admet la chaîne vide : le champ doit pouvoir être vidé le temps d'y
+ * retaper un nombre. Le forcer à `0` dès la première touche effacée donnait une
+ * question qui ne comptait plus rien, sans que rien ne le dise.
+ */
+type Brouillon = { id: string; enonce: string; choix: string[]; bonnes: number[]; points: number | '' };
 type Carte = { recto: string; verso: string };
 
 const CHAMP =
@@ -73,7 +78,12 @@ export function CreerTravail({ dossierId, seances }: { dossierId: string; seance
       ),
     );
 
-  const pourValidation: QuestionQuiz[] = questions.map((q) => ({ ...q, choix: q.choix, bonnes: q.bonnes }));
+  const pourValidation: QuestionQuiz[] = questions.map((q) => ({
+    ...q,
+    choix: q.choix,
+    bonnes: q.bonnes,
+    points: q.points === '' ? 1 : q.points,
+  }));
   const trous = kind === 'texte_a_trou' ? parseTexteATrou(texte).reponses : [];
   const contenu = {
     texte: kind === 'texte_a_trou' ? texte : undefined,
@@ -367,11 +377,20 @@ export function CreerTravail({ dossierId, seances }: { dossierId: string; seance
                 />
                 <input
                   value={q.points}
-                  onChange={(e) => majQuestion(i, { points: Math.max(0, Number(e.target.value.replace(/[^\d]/g, '')) || 0) })}
+                  onChange={(e) => {
+                    const chiffres = e.target.value.replace(/[^\d]/g, '');
+                    // Un point au minimum : c'est déjà ce qu'exige `problemesDuQuiz`, autant le tenir ici.
+                    majQuestion(i, { points: chiffres === '' ? '' : Math.max(1, Number(chiffres)) });
+                  }}
+                  onBlur={() => {
+                    if (q.points === '') majQuestion(i, { points: 1 });
+                  }}
                   inputMode="numeric"
                   aria-label={`Points de la question ${i + 1}`}
                   className={`${CHAMP} w-16 shrink-0 tabular-nums text-center`}
                 />
+                {/* Un nombre nu dans une case sans nom n'apprend rien à personne. */}
+                <span className="text-[11px] font-semibold text-zinc-400 shrink-0 mt-2.5">pts</span>
                 <button
                   type="button"
                   onClick={() => setQuestions((qs) => (qs.length === 1 ? qs : qs.filter((_, j) => j !== i)))}
