@@ -14,13 +14,13 @@ import { unreadCounts } from '@/features/trainer-space/session-messages';
 import { loadMesDisponibilites, jourParis } from '@/features/trainer-space/availability-store';
 import { SessionCard } from '@/features/trainer-space/session-card';
 import { CalendarSubscribe } from './calendar-subscribe';
-import { Disponibilites, type JourAffiche } from './disponibilites.client';
+import { Disponibilites, type JourAffiche, type SemaineAffichee } from './disponibilites.client';
 
 export const dynamic = 'force-dynamic';
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
-/** Quatre semaines : au-delà, un formateur ne sait pas encore s'il est libre. */
-const JOURS_DECLARABLES = 28;
+/** Cinq semaines calendaires : au-delà, un formateur ne sait pas s'il est libre. */
+const SEMAINES_DECLARABLES = 5;
 
 const jourCourtFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' });
 const jourSemaineFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short' });
@@ -59,15 +59,18 @@ export default async function MonPlanningPage() {
   // Les disponibilités se déclarent par fiche formateur : celle de l'organisme
   // affiché, ou la première quand le formateur n'en a qu'une.
   const fiche = (focus === 'all' ? memberships[0] : memberships.find((m) => m.organizationId === focus)) ?? memberships[0];
-  const debutDecl = jourParis(now);
-  const finDecl = jourParis(new Date(now.getTime() + JOURS_DECLARABLES * JOUR_MS));
+  // Les semaines commencent le lundi, y compris celle en cours : un formateur
+  // regarde sa semaine entière, pas les sept jours qui suivent aujourd'hui.
+  const premierLundi = new Date(`${lundi}T12:00:00Z`);
+  const debutDecl = jourParis(premierLundi);
+  const finDecl = jourParis(new Date(premierLundi.getTime() + (SEMAINES_DECLARABLES * 7 - 1) * JOUR_MS));
   const declarations = fiche ? await loadMesDisponibilites(fiche.trainerId, debutDecl, finDecl) : [];
 
   const seancesParJour = new Map<string, number>();
   for (const s of seances) seancesParJour.set(dayKey(s.startsAt), (seancesParJour.get(dayKey(s.startsAt)) ?? 0) + 1);
 
-  const jours: JourAffiche[] = Array.from({ length: JOURS_DECLARABLES }, (_, i) => {
-    const d = new Date(now.getTime() + i * JOUR_MS);
+  const aujourdhuiCle = jourParis(now);
+  const construisJour = (d: Date): JourAffiche => {
     const day = jourParis(d);
     const dansLeJour = declarations.filter((x) => x.day === day);
     const journee = dansLeJour.find((x) => x.creneau === 'journee');
@@ -82,6 +85,18 @@ export default async function MonPlanningPage() {
       matin: matin?.kind ?? journee?.kind ?? null,
       apresMidi: apresMidi?.kind ?? journee?.kind ?? null,
       seances: seancesParJour.get(day) ?? 0,
+      passe: day < aujourdhuiCle,
+      aujourdhui: day === aujourdhuiCle,
+    };
+  };
+
+  const semainesDispo: SemaineAffichee[] = Array.from({ length: SEMAINES_DECLARABLES }, (_, semaine) => {
+    const debutSemaine = new Date(premierLundi.getTime() + semaine * 7 * JOUR_MS);
+    const cle = jourParis(debutSemaine);
+    return {
+      cle,
+      titre: semaineDu(cle) + (cle === lundi ? ' · cette semaine' : ''),
+      jours: Array.from({ length: 7 }, (_, i) => construisJour(new Date(debutSemaine.getTime() + i * JOUR_MS))),
     };
   });
 
@@ -89,7 +104,7 @@ export default async function MonPlanningPage() {
   const flux = user && base ? `${base}/api/formateur/calendrier/${calendarToken(env.TOKEN_SIGNING_KEY, user.id)}` : null;
 
   return (
-    <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-3xl w-full mx-auto px-4 py-6 space-y-6">
       <header className="relative overflow-hidden rounded-2xl border border-blue-100/70 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/30 dark:to-zinc-900 p-5 shadow-sm">
         <h1 className="text-[22px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Mon planning</h1>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">
@@ -99,7 +114,7 @@ export default async function MonPlanningPage() {
         </p>
       </header>
 
-      {fiche && <Disponibilites trainerId={fiche.trainerId} jours={jours} />}
+      {fiche && <Disponibilites trainerId={fiche.trainerId} semaines={semainesDispo} />}
 
       <section className="space-y-5">
         <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-blue-600 dark:text-blue-400 flex items-center gap-2">
