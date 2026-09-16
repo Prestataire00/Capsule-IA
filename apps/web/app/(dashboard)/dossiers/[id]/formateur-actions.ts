@@ -94,8 +94,9 @@ export async function confierDossier(input: { dossierId: string; trainerId: stri
     return { ok: false, error: 'Le formateur n’a pas pu être rattaché.' };
   }
 
-  revalidatePath(`/dossiers/${p.data.dossierId}/formateurs`);
-  revalidatePath(`/dossiers/${p.data.dossierId}`);
+  // La désignation vit dans la bannière du dossier : c'est la mise en page
+  // qu'il faut rafraîchir, pas une page dédiée.
+  revalidatePath(`/dossiers/${p.data.dossierId}`, 'layout');
   return { ok: true };
 }
 
@@ -117,7 +118,8 @@ export async function retirerDossier(input: { dossierId: string; trainerId: stri
     return { ok: false, error: 'Le formateur n’a pas pu être retiré.' };
   }
 
-  revalidatePath(`/dossiers/${p.data.dossierId}/formateurs`);
-  revalidatePath(`/dossiers/${p.data.dossierId}`);
+  // La désignation vit dans la bannière du dossier : c'est la mise en page
+  // qu'il faut rafraîchir, pas une page dédiée.
+  revalidatePath(`/dossiers/${p.data.dossierId}`, 'layout');
   return { ok: true };
 }

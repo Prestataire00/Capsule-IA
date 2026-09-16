@@ -9,7 +9,6 @@ const tabs = [
   { slug: '', label: 'Vue' },
   { slug: 'apprenants', label: 'Apprenants' },
   { slug: 'sessions', label: 'Sessions' },
-  { slug: 'formateurs', label: 'Formateurs' },
   { slug: 'emargements', label: 'Émargements' },
   { slug: 'heures', label: 'Heures' },
   { slug: 'documents', label: 'Documents' },

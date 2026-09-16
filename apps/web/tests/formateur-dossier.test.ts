@@ -93,8 +93,10 @@ describe('écrans de l’espace formateur', () => {
 });
 
 describe('confier un dossier (côté organisme)', () => {
-  const actions = lire('../app/(dashboard)/dossiers/[id]/formateurs/actions.ts');
-  const page = lire('../app/(dashboard)/dossiers/[id]/formateurs/page.tsx');
+  const actions = lire('../app/(dashboard)/dossiers/[id]/formateur-actions.ts');
+  // La désignation tient dans la bannière du dossier, pas dans un onglet.
+  const banniere = lire('../app/(dashboard)/dossiers/[id]/layout.tsx');
+  const chip = lire('../app/(dashboard)/dossiers/[id]/formateur-chip.client.tsx');
 
   it('réservé aux rôles qui gèrent les dossiers', () => {
     expect(actions).toContain('getCurrentMember');
@@ -114,9 +116,14 @@ describe('confier un dossier (côté organisme)', () => {
     expect(actions).toContain('migration 0168');
   });
 
-  it('les boutons ne s’affichent qu’aux gestionnaires', () => {
-    expect(page).toContain("canManageSection('dossiers')");
-    expect(page).toContain('{gerer &&');
+  it('se désigne depuis la bannière, sans onglet dédié', () => {
+    expect(banniere).toContain('<FormateurChip');
+    expect(lire('../shared/components/layout/tabs-nav.tsx')).not.toContain("slug: 'formateurs'");
+  });
+
+  it('les commandes ne s’affichent qu’aux gestionnaires', () => {
+    expect(banniere).toContain("canManageSection('dossiers')");
+    expect(chip).toContain('{gerer && !ouvert');
   });
 });
 

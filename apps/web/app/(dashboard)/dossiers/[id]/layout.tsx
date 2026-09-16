@@ -7,6 +7,8 @@ import { ArrowLeft, Calendar, Clock, Users as UsersIcon, Banknote } from 'lucide
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { nomDuDossier } from '@/features/dossier/referent';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { FormateurChip } from './formateur-chip.client';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
@@ -65,6 +67,48 @@ export default async function DossierLayout({
         phone: contact.phone,
       }
     : null;
+  // Formateurs du dossier : lecture tolérante, la désignation vit dans la
+  // bannière (un onglet pour un seul choix n'en valait pas la peine).
+  const gererDossiers = await canManageSection('dossiers');
+  const [{ data: liens }, { data: tousFormateurs }] = await Promise.all([
+    libre.schema('app').from('dossier_trainers').select('trainer_id, is_lead').eq('dossier_id', params.id),
+    gererDossiers
+      ? libre
+          .schema('app')
+          .from('trainers')
+          .select('id, first_name, last_name, email')
+          .is('deleted_at', null)
+          .order('last_name', { ascending: true })
+      : Promise.resolve({ data: [] }),
+  ]);
+  const formateursConnus = new Map(
+    ((tousFormateurs ?? []) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[]).map(
+      (t) => [t.id, { nom: [t.first_name, t.last_name].filter(Boolean).join(' ').trim() || 'Formateur', email: t.email }],
+    ),
+  );
+  const rattaches = ((liens ?? []) as { trainer_id: string; is_lead: boolean }[]).map((r) => ({
+    id: r.trainer_id,
+    nom: formateursConnus.get(r.trainer_id)?.nom ?? 'Formateur',
+    isLead: r.is_lead,
+  }));
+  // Les noms manquent quand la personne n'a pas le droit de voir la liste : on
+  // les complète alors depuis les seuls formateurs rattachés.
+  if (!gererDossiers && rattaches.length > 0) {
+    const { data: nommes } = await libre
+      .schema('app')
+      .from('trainers')
+      .select('id, first_name, last_name')
+      .in('id', rattaches.map((r) => r.id));
+    for (const t of (nommes ?? []) as { id: string; first_name: string | null; last_name: string | null }[]) {
+      const cible = rattaches.find((r) => r.id === t.id);
+      if (cible) cible.nom = [t.first_name, t.last_name].filter(Boolean).join(' ').trim() || 'Formateur';
+    }
+  }
+  const dejaRattaches = new Set(rattaches.map((r) => r.id));
+  const formateursDisponibles = [...formateursConnus.entries()]
+    .filter(([id]) => !dejaRattaches.has(id))
+    .map(([id, t]) => ({ id, label: t.email ? `${t.nom} · ${t.email}` : t.nom }));
+
   const { nom: learner, estReferent } = nomDuDossier({
     learner: { firstName: d.learner?.first_name, lastName: d.learner?.last_name, email: d.learner?.email },
     referent,
@@ -108,6 +152,12 @@ export default async function DossierLayout({
                 </span>
               </p>
             )}
+            <FormateurChip
+              dossierId={params.id}
+              assignes={rattaches}
+              disponibles={formateursDisponibles}
+              gerer={gererDossiers}
+            />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <DossierStatusControl dossierId={params.id} status={d.status as DossierStatus} />
