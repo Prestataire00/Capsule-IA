@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { buildConvocationPdf } from '@/features/documents/build-convocation-pdf';
 import { canAccessDossier } from '@/features/documents/guard-dossier-access';
+import { persistGeneratedDocument } from '@/features/documents/persist-document';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,29 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const sessionId = req.nextUrl.searchParams.get('session') ?? '';
   if (!UUID.test(sessionId)) return NextResponse.json({ error: 'session_required' }, { status: 400 });
 
-  const built = await buildConvocationPdf(admin(), { sessionId, dossierId: params.id });
+  const sb = admin();
+  const built = await buildConvocationPdf(sb, { sessionId, dossierId: params.id });
   if (!built) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+
+  // Archivée comme l'attestation : sans cela, la convocation s'ouvrait mais ne
+  // rejoignait jamais les documents du dossier — donc impossible à envoyer par
+  // e-mail depuis l'écran, qui promet pourtant l'inverse.
+  try {
+    await persistGeneratedDocument(sb as never, {
+      organizationId: built.organizationId,
+      dossierId: params.id,
+      kind: 'convocation',
+      title: built.title,
+      bytes: built.bytes,
+      generationInput: { session_id: sessionId, dossier_id: params.id },
+      // Document vivant : horaires, lieu et formateur peuvent changer jusqu'au jour J.
+      sourceKey: `convocation:${params.id}:${sessionId}`,
+      sourceUrl: `/api/dossiers/${params.id}/convocation.pdf?session=${sessionId}`,
+      metadata: { session_id: sessionId },
+    });
+  } catch (e) {
+    console.error('[convocation] persist failed', e);
+  }
 
   return new NextResponse(new Uint8Array(built.bytes), {
     status: 200,
