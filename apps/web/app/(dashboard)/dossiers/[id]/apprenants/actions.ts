@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
-import { estTitulaireProvisoire } from '@/features/dossier/referent';
 
 /**
  * Inscription des stagiaires sur un dossier.
@@ -85,7 +84,7 @@ export async function ajouterApprenants(input: {
 
   const garde = await garder(p.data.dossierId);
   if (!garde.ok) return garde;
-  const { organizationId, companyId, learnerId, sessionIds } = garde.ctx;
+  const { organizationId, companyId, sessionIds } = garde.ctx;
   const admin = supabaseAdmin();
 
   // Une adresse déjà connue de l'organisme désigne la même personne : on la
@@ -160,21 +159,11 @@ export async function ajouterApprenants(input: {
     if (error) console.error('[apprenants] inscription aux séances incomplète', error.message);
   }
 
-  // Le titulaire provisoire posé à l'import ne représente personne : le premier
-  // stagiaire nommé prend sa place, sans quoi le dossier resterait au nom de
-  // « Stagiaires à désigner » sur tous les documents.
-  if (learnerId) {
-    const { data: titulaire } = await admin
-      .schema('app')
-      .from('learners')
-      .select('email')
-      .eq('id', learnerId)
-      .maybeSingle();
-    const email = (titulaire as { email: string | null } | null)?.email ?? null;
-    if (estTitulaireProvisoire(email) && ids[0]) {
-      await admin.schema('app').from('dossiers').update({ learner_id: ids[0] } as never).eq('id', p.data.dossierId);
-    }
-  }
+  // Règle posée par Ismael le 16/09/2026 : un inscrit est un APPRENANT, et le
+  // dossier reste au nom du référent désigné chez le client. On ne promeut donc
+  // personne en titulaire — le titulaire provisoire de l'import est un artefact
+  // technique (`learner_id` est NOT NULL), masqué partout : les écrans affichent
+  // le référent (features/dossier/referent.ts).
 
   revalidatePath(`/dossiers/${p.data.dossierId}/apprenants`);
   revalidatePath(`/dossiers/${p.data.dossierId}`);

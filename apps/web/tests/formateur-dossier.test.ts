@@ -119,3 +119,20 @@ describe('confier un dossier (côté organisme)', () => {
     expect(page).toContain('{gerer &&');
   });
 });
+
+// Règle posée par Ismael le 16/09/2026 : un inscrit est un apprenant, et le
+// dossier reste au nom du référent désigné chez le client.
+describe('titulaire du dossier', () => {
+  const actions = lire('../app/(dashboard)/dossiers/[id]/apprenants/actions.ts');
+  const page = lire('../app/(dashboard)/dossiers/[id]/apprenants/page.tsx');
+
+  it('inscrire un stagiaire ne le promeut pas titulaire', () => {
+    expect(codeSeul(actions)).not.toMatch(/update\(\{ learner_id/);
+  });
+
+  it('l’écran dit que le dossier est au nom du référent', () => {
+    expect(page).toContain('au nom du');
+    expect(page).toContain('référent désigné chez le client');
+    expect(page).not.toContain('prendra sa place');
+  });
+});

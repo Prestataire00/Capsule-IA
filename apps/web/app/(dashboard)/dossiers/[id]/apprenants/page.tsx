@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Users, Mail, Phone, AlertTriangle, Crown } from 'lucide-react';
+import { Users, Mail, Phone, Info, Crown } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { canManageSection } from '@/shared/lib/auth/require-access';
@@ -93,11 +93,12 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
       </div>
 
       {enAttenteDeListe && (
-        <p className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/25 px-4 py-3 text-[13px] text-amber-800 dark:text-amber-300 inline-flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+        <p className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3 text-[13px] text-zinc-700 dark:text-zinc-300 inline-flex items-start gap-2">
+          <Info className="w-4 h-4 shrink-0 mt-0.5 text-zinc-400" />
           <span>
-            La convention a été enregistrée avant la liste nominative : le dossier porte encore un titulaire
-            provisoire. Le premier stagiaire inscrit ci-dessous prendra sa place.
+            Ce dossier est au nom du <strong>référent désigné chez le client</strong> ; les personnes inscrites
+            ci-dessous en sont les <strong>stagiaires</strong>. Le titulaire technique que la base exige reste masqué et
+            n’apparaît sur aucun document.
           </span>
         </p>
       )}
