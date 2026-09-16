@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, ClipboardList, FolderOpen, Home, CircleUser } from 'lucide-react';
+import { ClipboardList, FolderOpen, Home, CircleUser } from 'lucide-react';
 
 /**
  * Navigation de l'espace formateur.
@@ -12,10 +12,9 @@ import { CalendarDays, ClipboardList, FolderOpen, Home, CircleUser } from 'lucid
  * les mêmes séances s'affichaient sur l'accueil, le planning et la liste :
  * trois chemins pour un seul travail, d'où l'impression que rien n'était clair.
  *
- * Cinq entrées suffisent, et chacune répond à une question différente :
+ * Quatre entrées suffisent, et chacune répond à une question différente :
  *   Aujourd'hui   — qu'ai-je à faire maintenant ?
- *   Planning      — quand suis-je pris, quand suis-je libre ?
- *   Mes séances   — sur quoi je travaille : préparer, animer, émarger.
+ *   Mes séances   — mon temps et mon travail : à faire, calendrier, disponibilités.
  *   Mes dossiers  — pour quel client ?
  *   Mon compte    — le reste : facturation, frais, profil, preuves.
  */
@@ -43,20 +42,12 @@ const LIENS: Lien[] = [
     plein: 'bg-orange-500 text-white shadow-orange-500/30',
   },
   {
-    href: '/mon-planning',
-    label: 'Planning',
-    court: 'Planning',
-    icon: CalendarDays,
-    prefixes: ['/mon-planning'],
-    doux: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-    plein: 'bg-blue-500 text-white shadow-blue-500/30',
-  },
-  {
     href: '/mes-sessions',
     label: 'Mes séances',
     court: 'Séances',
     icon: ClipboardList,
-    prefixes: ['/mes-sessions', '/emarger', '/seance'],
+    // Le planning a fusionné ici (vue calendrier) : son ancienne adresse y mène.
+    prefixes: ['/mes-sessions', '/emarger', '/seance', '/mon-planning'],
     doux: 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
     plein: 'bg-sky-500 text-white shadow-sky-500/30',
   },

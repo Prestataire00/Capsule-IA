@@ -162,7 +162,7 @@ export default async function FormateurDashboard() {
           value={heuresAVenir % 1 === 0 ? heuresAVenir : heuresAVenir.toFixed(1)}
           icon={Clock}
           accent="sky"
-          href="/mon-planning"
+          href="/mes-sessions?vue=calendrier"
           hint="60 prochains jours"
         />
         <KpiCard
