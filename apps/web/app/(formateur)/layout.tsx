@@ -1,14 +1,19 @@
-// ARCHETYPE: shared (mobile-first formateur)
+// ARCHETYPE: command (shell)
+// Justification: shell de l'espace formateur, sur la charpente de l'espace
+// organisme — barre latérale à gauche, barre du haut, contenu.
+
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { SupabaseMembershipReader } from '@/features/identity/trainer-self/infrastructure/supabase-membership.reader';
-import { FormateurHeader } from '@/features/identity/trainer-self/ui/formateur-header';
-import { FormateurNav } from '@/features/identity/trainer-self/ui/formateur-nav';
+import { FormateurRailServer } from '@/features/identity/trainer-self/ui/formateur-rail-server';
+import { FormateurTopbar } from '@/features/identity/trainer-self/ui/formateur-topbar';
 
 export default async function FormateurLayout({ children }: { children: React.ReactNode }) {
   const supabase = supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectedFrom=/formateur');
 
   const reader = new SupabaseMembershipReader(supabase);
@@ -25,11 +30,16 @@ export default async function FormateurLayout({ children }: { children: React.Re
   // compte sans rôle interne est informé à la connexion (pas de boucle).
   if (memberships.length === 0) redirect(membre ? '/?reason=no-trainer-membership' : '/login?motif=aucun-acces');
 
+  const moi = memberships[0];
+  const nom = moi ? `${moi.firstName} ${moi.lastName}`.trim() : undefined;
+
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col">
-      <FormateurHeader memberships={memberships} showOfLink={Boolean(membre)} />
-      <FormateurNav />
-      <main className="flex-1">{children}</main>
+    <div className="min-h-screen flex bg-zinc-50 dark:bg-zinc-950">
+      <FormateurRailServer nom={nom} />
+      <div className="flex-1 min-w-0 flex flex-col">
+        <FormateurTopbar memberships={memberships} showOfLink={Boolean(membre)} />
+        <main className="relative isolate flex-1 min-w-0 overflow-x-hidden bg-app-canvas">{children}</main>
+      </div>
     </div>
   );
 }

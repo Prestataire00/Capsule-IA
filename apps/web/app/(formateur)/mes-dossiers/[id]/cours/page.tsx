@@ -55,7 +55,7 @@ export default async function CoursDuDossierPage({ params }: { params: { id: str
   const auDossier = await loadTravaux({ type: 'dossier', id: params.id });
 
   return (
-    <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
       <Link
         href={`/mes-dossiers/${params.id}`}
         className="text-[12px] font-medium text-zinc-500 inline-flex items-center gap-1.5 hover:text-zinc-800 dark:hover:text-zinc-200 transition"

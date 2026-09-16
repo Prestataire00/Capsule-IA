@@ -63,7 +63,7 @@ export default async function SeanceQuestionnairesPage({ params }: { params: { i
   for (const l of lignes) parModele.set(l.template_id, [...(parModele.get(l.template_id) ?? []), l]);
 
   return (
-    <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
       <SeanceNav
         sessionId={params.id}
         quand={`${jourLong(seance.startsAt)} · ${heure(seance.startsAt)} – ${heure(seance.endsAt)}`}

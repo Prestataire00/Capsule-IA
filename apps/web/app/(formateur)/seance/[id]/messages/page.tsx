@@ -33,7 +33,7 @@ export default async function SeanceMessagesPage({ params }: { params: { id: str
   }
 
   return (
-    <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
       <SeanceNav
         sessionId={params.id}
         quand={`${jourLong(session.starts_at)} · ${heure(session.starts_at)} – ${heure(session.ends_at)}`}

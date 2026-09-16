@@ -93,7 +93,7 @@ export default async function FormateurDashboard() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-7 space-y-7">
+    <div className="max-w-5xl mx-auto px-6 py-8 space-y-7">
       <section className="relative overflow-hidden rounded-2xl border border-orange-100/70 dark:border-orange-900/30 bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 dark:from-orange-950/40 dark:via-rose-950/20 dark:to-zinc-900 p-6 shadow-sm">
         <span className="absolute -right-10 -top-12 w-40 h-40 rounded-full bg-orange-200/40 dark:bg-orange-800/20 blur-2xl" aria-hidden />
         <div className="relative">

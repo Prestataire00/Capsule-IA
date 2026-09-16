@@ -71,7 +71,7 @@ export default async function MonComptePage() {
   const bientot = alerts.reduce((s, a) => s + a.expiringSoon, 0);
 
   return (
-    <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
       <header className="relative overflow-hidden rounded-2xl border border-zinc-200/70 dark:border-zinc-800 bg-gradient-to-br from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-950 p-5 shadow-sm">
         <h1 className="text-[22px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Mon compte</h1>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">

@@ -120,7 +120,7 @@ export default async function MesSeancesPage({ searchParams }: { searchParams: {
   const flux = auth.user && base ? `${base}/api/formateur/calendrier/${calendarToken(env.TOKEN_SIGNING_KEY, auth.user.id)}` : null;
 
   return (
-    <div className="max-w-3xl w-full mx-auto px-4 py-6 space-y-5">
+    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-5">
       <header className="relative overflow-hidden rounded-2xl border border-sky-100/70 dark:border-sky-900/30 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/30 dark:to-zinc-900 p-5 shadow-sm">
         <h1 className="text-[22px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Mes séances</h1>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">{INTRO[vue]}</p>
