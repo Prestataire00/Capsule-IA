@@ -10,6 +10,7 @@ import {
   CircleUser,
   List,
   CalendarDays,
+  CalendarPlus,
   CheckSquare,
   Receipt,
   Wallet,
@@ -73,21 +74,25 @@ const GROUPES: Groupe[] = [
     ],
   },
   { cle: 'dossiers', label: 'Mes dossiers', court: 'Dossiers', icon: FolderOpen, href: '/mes-dossiers' },
-  {
-    cle: 'compte',
-    label: 'Mon compte',
-    court: 'Compte',
-    icon: CircleUser,
-    compteur: 'competences',
-    items: [
-      { href: '/mes-factures', label: 'Mes factures', icon: Receipt },
-      { href: '/mes-frais', label: 'Notes de frais', icon: Wallet },
-      { href: '/mes-evaluations', label: 'Mes évaluations', icon: Star },
-      { href: '/profil', label: 'Mon profil', icon: UserRound },
-      { href: '/cv', label: 'CV & compétences', icon: FileBadge },
-    ],
-  },
 ];
+
+/** En pied de colonne, là où l'espace organisme met « Paramètres ». */
+const COMPTE: Groupe = {
+  cle: 'compte',
+  label: 'Mon compte',
+  court: 'Compte',
+  icon: CircleUser,
+  compteur: 'competences',
+  items: [
+    { href: '/mes-factures', label: 'Mes factures', icon: Receipt },
+    { href: '/mes-frais', label: 'Notes de frais', icon: Wallet },
+    { href: '/mes-evaluations', label: 'Mes évaluations', icon: Star },
+    { href: '/profil', label: 'Mon profil', icon: UserRound },
+    { href: '/cv', label: 'CV & compétences', icon: FileBadge },
+  ],
+};
+
+const TOUS = [...GROUPES, COMPTE];
 
 /** Le chemin d'un sous-item peut porter une vue (`?vue=…`) : on compare à part. */
 const separe = (href: string): { chemin: string; vue: string | null } => {
@@ -119,7 +124,7 @@ export function FormateurRail({
 
   // « Mes séances » couvre aussi la fiche d'une séance et l'émargement.
   const groupeActif =
-    GROUPES.find((g) => {
+    TOUS.find((g) => {
       if (g.cle === 'seances') {
         return ['/mes-sessions', '/seance', '/emarger', '/mon-planning'].some(
           (p) => pathname === p || pathname.startsWith(`${p}/`),
@@ -129,10 +134,54 @@ export function FormateurRail({
       return g.items?.some((i) => estActif(i.href));
     })?.cle ?? null;
 
-  if (survole && GROUPES.find((g) => g.cle === survole)?.items?.length) dernierPanneau.current = survole;
-  const panneau = GROUPES.find((g) => g.cle === dernierPanneau.current);
-  const montrePanneau =
-    survole !== null && (GROUPES.find((g) => g.cle === survole)?.items?.length ?? 0) > 0;
+  if (survole && TOUS.find((g) => g.cle === survole)?.items?.length) dernierPanneau.current = survole;
+  const panneau = TOUS.find((g) => g.cle === dernierPanneau.current);
+  const montrePanneau = survole !== null && (TOUS.find((g) => g.cle === survole)?.items?.length ?? 0) > 0;
+
+  /** Une icône de la colonne : même forme pour les groupes et pour le compte. */
+  const renduGroupe = (g: Groupe) => {
+    const Icone = g.icon;
+    const actif = groupeActif === g.cle;
+    const survol = survole === g.cle;
+    const total = g.compteur ? (counts?.[g.compteur] ?? 0) : 0;
+
+    const contenu = (
+      <div
+        className={cn(
+          'relative flex flex-col items-center gap-0.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
+          actif
+            ? 'bg-orange-500 text-white shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/15'
+            : survol
+              ? 'bg-orange-100/70 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+              : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
+        )}
+        onMouseEnter={() => setSurvole(g.cle)}
+      >
+        <Icone className="w-5 h-5" />
+        <span className="text-[10px] font-medium leading-tight text-center break-words">{g.court ?? g.label}</span>
+        {total > 0 && (
+          <span
+            className={cn(
+              'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-medium flex items-center justify-center tabular-nums shadow-sm',
+              actif ? 'bg-white text-orange-600' : 'bg-rose-500 text-white',
+            )}
+          >
+            {total > 99 ? '99+' : total}
+          </span>
+        )}
+      </div>
+    );
+
+    return g.href ? (
+      <Link key={g.cle} href={g.href} className="group block">
+        {contenu}
+      </Link>
+    ) : (
+      <div key={g.cle} className="group">
+        {contenu}
+      </div>
+    );
+  };
 
   const initiales = (nom ?? '')
     .split(' ')
@@ -151,59 +200,28 @@ export function FormateurRail({
           <Link href="/formateur" className="mt-4 mb-3 shrink-0 flex flex-col items-center gap-1" aria-label="Accueil">
             <Logo size="sm" showWordmark={false} />
             <span className="text-[10px] font-semibold tracking-tight leading-none text-zinc-700 dark:text-zinc-300">
-              Formateur
+              Capsule&nbsp;IA
             </span>
+          </Link>
+
+          <Link
+            href="/mes-sessions?vue=disponibilites"
+            className="group mt-1 mb-3 w-10 h-10 rounded-xl bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center shadow-sm transition"
+            aria-label="Déclarer mes disponibilités"
+            title="Déclarer mes disponibilités"
+            onMouseEnter={() => setSurvole(null)}
+          >
+            <CalendarPlus className="w-4 h-4" />
           </Link>
 
           <div className="w-8 h-px bg-orange-200/80 dark:bg-zinc-800 mb-2" />
 
           <div className="flex-1 flex flex-col gap-1 w-full px-2 overflow-y-auto scrollbar-thin">
-            {GROUPES.map((g) => {
-              const Icone = g.icon;
-              const actif = groupeActif === g.cle;
-              const survol = survole === g.cle;
-              const total = g.compteur ? (counts?.[g.compteur] ?? 0) : 0;
-
-              const contenu = (
-                <div
-                  className={cn(
-                    'relative flex flex-col items-center gap-0.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
-                    actif
-                      ? 'bg-orange-500 text-white shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/15'
-                      : survol
-                        ? 'bg-orange-100/70 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
-                        : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
-                  )}
-                  onMouseEnter={() => setSurvole(g.cle)}
-                >
-                  <Icone className="w-5 h-5" />
-                  <span className="text-[10px] font-medium leading-tight text-center break-words">
-                    {g.court ?? g.label}
-                  </span>
-                  {total > 0 && (
-                    <span
-                      className={cn(
-                        'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-medium flex items-center justify-center tabular-nums shadow-sm',
-                        actif ? 'bg-white text-orange-600' : 'bg-rose-500 text-white',
-                      )}
-                    >
-                      {total > 99 ? '99+' : total}
-                    </span>
-                  )}
-                </div>
-              );
-
-              return g.href ? (
-                <Link key={g.cle} href={g.href} className="group">
-                  {contenu}
-                </Link>
-              ) : (
-                <div key={g.cle} className="group">
-                  {contenu}
-                </div>
-              );
-            })}
+            {GROUPES.map((g) => renduGroupe(g))}
           </div>
+
+          {/* Le compte en pied de colonne, comme « Paramètres » côté organisme. */}
+          <div className="w-full px-2 pt-2">{renduGroupe(COMPTE)}</div>
 
           <Link
             href="/profil"

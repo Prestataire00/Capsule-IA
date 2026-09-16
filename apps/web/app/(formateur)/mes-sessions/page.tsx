@@ -33,8 +33,13 @@ const INTRO: Record<Vue, string> = {
   disponibilites: 'Dites quand vous êtes libre : votre organisme le voit au moment où il planifie une séance.',
 };
 
-export default async function MesSeancesPage({ searchParams }: { searchParams: { vue?: string } }) {
+export default async function MesSeancesPage({
+  searchParams,
+}: {
+  searchParams: { vue?: string; q?: string };
+}) {
   const vue: Vue = estVue(searchParams.vue) ? searchParams.vue : 'liste';
+  const recherche = (searchParams.q ?? '').trim();
 
   const sb = supabaseServer();
   const focus = cookies().get('of_focus')?.value ?? 'all';
@@ -57,12 +62,22 @@ export default async function MesSeancesPage({ searchParams }: { searchParams: {
     )
   ).filter((s) => s.status !== 'cancelled');
 
+  // Recherche de la barre du haut : sur le titre et le lieu, sans accent ni
+  // casse — on tape « manosque », pas « Manosque ».
+  const sansAccent = (v: string) =>
+    v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr-FR');
+  const filtrees = recherche
+    ? toutes.filter((s) =>
+        [s.title, s.location ?? ''].some((champ) => sansAccent(champ).includes(sansAccent(recherche))),
+      )
+    : toutes;
+
   const aujourdhui = dayKey(now);
-  const duJour = toutes.filter(
+  const duJour = filtrees.filter(
     (s) => dayKey(s.startsAt) === aujourdhui || (Date.parse(s.startsAt) <= maintenant && Date.parse(s.endsAt) >= maintenant),
   );
-  const aVenir = toutes.filter((s) => !duJour.includes(s) && Date.parse(s.startsAt) > maintenant);
-  const terminees = toutes.filter((s) => !duJour.includes(s) && Date.parse(s.endsAt) < maintenant).reverse();
+  const aVenir = filtrees.filter((s) => !duJour.includes(s) && Date.parse(s.startsAt) > maintenant);
+  const terminees = filtrees.filter((s) => !duJour.includes(s) && Date.parse(s.endsAt) < maintenant).reverse();
 
   const noms = memberships.length > 1 ? new Map(memberships.map((m) => [m.organizationId as string, m.organizationName])) : null;
   const nonLus = auth.user
@@ -145,13 +160,23 @@ export default async function MesSeancesPage({ searchParams }: { searchParams: {
 
       <BasculeVue active={vue} />
 
+      {recherche && (
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+          <span className="tabular-nums font-semibold">{filtrees.length}</span> séance
+          {filtrees.length > 1 ? 's' : ''} pour « {recherche} ».{' '}
+          <a href="/mes-sessions" className="text-orange-600 dark:text-orange-400 hover:underline font-medium">
+            Effacer la recherche
+          </a>
+        </p>
+      )}
+
       {vue === 'liste' && (
         <VueListe duJour={duJour} aVenir={aVenir} terminees={terminees} noms={noms} nonLus={nonLus} />
       )}
 
       {vue === 'calendrier' && (
         <>
-          <VueCalendrier seances={toutes} lundi={lundi} noms={noms} nonLus={nonLus} />
+          <VueCalendrier seances={filtrees} lundi={lundi} noms={noms} nonLus={nonLus} />
           {/* L'abonnement ICS reste offert, mais replié : le calendrier ci-dessus
               est la source, et il n'a besoin d'aucun agenda extérieur. */}
           {flux && (
