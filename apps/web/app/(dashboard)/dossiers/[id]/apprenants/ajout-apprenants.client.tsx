@@ -1,50 +1,116 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, Loader2, ClipboardList, AlertTriangle, Check, X } from 'lucide-react';
+import { UserPlus, Loader2, Plus, Trash2, Check, X } from 'lucide-react';
 import { parseListeApprenants } from '@/features/dossier/parse-learners';
 import { ajouterApprenants } from './actions';
 
 /**
- * Inscription des stagiaires : un par un, ou la liste entière collée.
+ * Inscription des stagiaires : une ligne par personne, quatre cases.
  *
- * Une liste nominative arrive en tableau ou en corps de mail — la retaper
- * seize fois n'a pas de sens. Ce qui est compris est montré avant d'écrire :
- * on corrige un nom mal coupé plutôt que de créer seize fiches à nettoyer.
+ * Un collage multi-lignes reste accepté — la liste nominative arrive en
+ * tableau ou en corps de mail, et la retaper seize fois n'a pas de sens : le
+ * contenu se répartit alors dans les cases, où il reste corrigeable avant
+ * d'être enregistré.
  */
 
-const CHAMP =
-  'w-full h-9 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400';
+type Ligne = { firstName: string; lastName: string; email: string; phone: string };
 
-const EXEMPLE = `DUPONT Alice ; alice.dupont@france-metiers.fr ; 06 11 22 33 44
-Bob MARTIN <bob.martin@france-metiers.fr>
-Claire Petit`;
+const VIDE: Ligne = { firstName: '', lastName: '', email: '', phone: '' };
+const LIGNES_INITIALES = 3;
+const MAX_LIGNES = 200;
+
+const CASE_BASE =
+  'w-full h-9 px-2.5 rounded-lg border bg-white dark:bg-zinc-950 text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400/60';
+const CASE = `${CASE_BASE} border-zinc-200 dark:border-zinc-700`;
+const CASE_MANQUANTE = `${CASE_BASE} border-red-300 dark:border-red-800`;
+
+const remplie = (l: Ligne): boolean =>
+  Boolean(l.firstName.trim() || l.lastName.trim() || l.email.trim() || l.phone.trim());
 
 export function AjoutApprenants({ dossierId }: { dossierId: string }) {
   const router = useRouter();
-  const [mode, setMode] = useState<'un' | 'liste'>('liste');
-  const [colle, setColle] = useState('');
-  const [unique, setUnique] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [lignes, setLignes] = useState<Ligne[]>(() => Array.from({ length: LIGNES_INITIALES }, () => ({ ...VIDE })));
   const [erreur, setErreur] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
+  const [montreManques, setMontreManques] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const lecture = useMemo(() => parseListeApprenants(colle), [colle]);
-
-  const enregistrer = (apprenants: Array<{ firstName: string; lastName: string; email: string | null; phone: string | null }>) => {
+  const modifier = (index: number, champ: keyof Ligne, valeur: string) => {
+    setLignes((actuelles) => actuelles.map((l, i) => (i === index ? { ...l, [champ]: valeur } : l)));
     setErreur(null);
     setSucces(null);
+  };
+
+  const supprimerLigne = (index: number) => {
+    setLignes((actuelles) => (actuelles.length === 1 ? [{ ...VIDE }] : actuelles.filter((_, i) => i !== index)));
+  };
+
+  /**
+   * Coller plusieurs lignes remplit le tableau à partir de la case visée,
+   * plutôt que d'entasser la liste entière dans une seule case.
+   */
+  const collerDepuis = (index: number, evenement: React.ClipboardEvent<HTMLInputElement>) => {
+    const texte = evenement.clipboardData.getData('text');
+    if (!texte.includes('\n') && !texte.includes('\t')) return;
+    evenement.preventDefault();
+
+    const { apprenants } = parseListeApprenants(texte);
+    if (apprenants.length === 0) return;
+
+    setLignes((actuelles) => {
+      const suite = [...actuelles];
+      apprenants.forEach((a, decalage) => {
+        const cible = index + decalage;
+        const ligne: Ligne = {
+          firstName: a.firstName,
+          lastName: a.lastName,
+          email: a.email ?? '',
+          phone: a.phone ?? '',
+        };
+        if (cible < suite.length) suite[cible] = ligne;
+        else suite.push(ligne);
+      });
+      return suite.slice(0, MAX_LIGNES);
+    });
+    setErreur(null);
+    setSucces(null);
+  };
+
+  const aInscrire = lignes.filter(remplie);
+  const sansNom = aInscrire.filter((l) => !l.lastName.trim()).length;
+
+  const enregistrer = () => {
+    setErreur(null);
+    setSucces(null);
+    if (aInscrire.length === 0) return setErreur('Renseignez au moins une personne.');
+    if (sansNom > 0) {
+      setMontreManques(true);
+      return setErreur(
+        sansNom === 1 ? 'Une ligne est sans nom de famille.' : `${sansNom} lignes sont sans nom de famille.`,
+      );
+    }
+
     startTransition(async () => {
-      const res = await ajouterApprenants({ dossierId, apprenants });
+      const res = await ajouterApprenants({
+        dossierId,
+        apprenants: aInscrire.map((l) => ({
+          firstName: l.firstName.trim(),
+          lastName: l.lastName.trim(),
+          email: l.email.trim() || null,
+          phone: l.phone.trim() || null,
+        })),
+      });
       if (!res.ok) return setErreur(res.error);
+
       const bouts = [
         res.ajoutes > 0 ? `${res.ajoutes} inscrit${res.ajoutes > 1 ? 's' : ''}` : null,
         res.reutilises > 0 ? `${res.reutilises} déjà connu${res.reutilises > 1 ? 's' : ''} de votre CRM` : null,
       ].filter(Boolean);
       setSucces(`${bouts.join(' · ')}.`);
-      setColle('');
-      setUnique({ firstName: '', lastName: '', email: '', phone: '' });
+      setLignes(Array.from({ length: LIGNES_INITIALES }, () => ({ ...VIDE })));
+      setMontreManques(false);
       router.refresh();
     });
   };
@@ -58,142 +124,113 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
         <div>
           <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Inscrire des stagiaires</h2>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-            Ils sont inscrits à toutes les séances du dossier.
+            Ils sont inscrits à toutes les séances du dossier. Vous pouvez aussi coller une liste : elle se répartit
+            dans les cases.
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 text-[13px]">
-        {(['liste', 'un'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => {
-              setMode(m);
-              setErreur(null);
-            }}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              mode === m
-                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-medium'
-                : 'text-zinc-600 dark:text-zinc-300 hover:bg-white/70 dark:hover:bg-zinc-800'
-            }`}
-          >
-            {m === 'liste' ? 'Coller une liste' : 'Un par un'}
-          </button>
-        ))}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <table className="w-full min-w-[620px] border-separate border-spacing-y-1.5">
+          <thead>
+            <tr className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 text-left">
+              <th className="w-8 pb-0.5" aria-label="Ligne" />
+              <th className="pb-0.5 font-bold">Prénom</th>
+              <th className="pb-0.5 font-bold">
+                Nom <span className="text-red-500">*</span>
+              </th>
+              <th className="pb-0.5 font-bold">E-mail</th>
+              <th className="pb-0.5 font-bold">Téléphone</th>
+              <th className="w-9 pb-0.5" aria-label="Retirer" />
+            </tr>
+          </thead>
+          <tbody>
+            {lignes.map((l, i) => {
+              const manque = montreManques && remplie(l) && !l.lastName.trim();
+              return (
+                <tr key={i}>
+                  <td className="text-[12px] text-zinc-400 tabular-nums pr-1">{i + 1}</td>
+                  <td className="pr-1.5">
+                    <input
+                      value={l.firstName}
+                      onChange={(e) => modifier(i, 'firstName', e.target.value)}
+                      onPaste={(e) => collerDepuis(i, e)}
+                      placeholder="Alice"
+                      autoComplete="off"
+                      className={CASE}
+                    />
+                  </td>
+                  <td className="pr-1.5">
+                    <input
+                      value={l.lastName}
+                      onChange={(e) => modifier(i, 'lastName', e.target.value)}
+                      onPaste={(e) => collerDepuis(i, e)}
+                      placeholder="DUPONT"
+                      autoComplete="off"
+                      aria-invalid={manque || undefined}
+                      className={manque ? CASE_MANQUANTE : CASE}
+                    />
+                  </td>
+                  <td className="pr-1.5">
+                    <input
+                      value={l.email}
+                      onChange={(e) => modifier(i, 'email', e.target.value)}
+                      onPaste={(e) => collerDepuis(i, e)}
+                      type="email"
+                      placeholder="alice.dupont@client.fr"
+                      autoComplete="off"
+                      className={CASE}
+                    />
+                  </td>
+                  <td className="pr-1.5">
+                    <input
+                      value={l.phone}
+                      onChange={(e) => modifier(i, 'phone', e.target.value)}
+                      onPaste={(e) => collerDepuis(i, e)}
+                      placeholder="06 11 22 33 44"
+                      autoComplete="off"
+                      className={`${CASE} tabular-nums`}
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => supprimerLigne(i)}
+                      aria-label={`Retirer la ligne ${i + 1}`}
+                      title="Retirer la ligne"
+                      className="w-8 h-8 rounded-md grid place-items-center text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      {mode === 'liste' ? (
-        <div className="space-y-2.5">
-          <textarea
-            value={colle}
-            onChange={(e) => setColle(e.target.value)}
-            rows={6}
-            placeholder={EXEMPLE}
-            className="w-full resize-y rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-[13px] leading-relaxed text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 font-mono"
-          />
-          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1.5">
-            <ClipboardList className="w-3.5 h-3.5" />
-            Une personne par ligne. Nom, prénom, e-mail et téléphone dans n&apos;importe quel ordre.
-          </p>
-
-          {lecture.apprenants.length > 0 && (
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/70 dark:bg-zinc-900/60 overflow-hidden">
-              <p className="px-3 py-2 text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 border-b border-zinc-100 dark:border-zinc-800">
-                <span className="tabular-nums">{lecture.apprenants.length}</span> personne
-                {lecture.apprenants.length > 1 ? 's' : ''} comprise{lecture.apprenants.length > 1 ? 's' : ''}
-              </p>
-              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80 max-h-60 overflow-y-auto">
-                {lecture.apprenants.map((a, i) => (
-                  <li key={`${a.lastName}-${i}`} className="px-3 py-2 flex items-center justify-between gap-3">
-                    <span className="text-[13px] text-zinc-900 dark:text-zinc-100 truncate">
-                      {a.firstName} <span className="font-semibold">{a.lastName}</span>
-                    </span>
-                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
-                      {a.email ?? <span className="text-amber-600 dark:text-amber-400">sans e-mail</span>}
-                      {a.phone ? ` · ${a.phone}` : ''}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {lecture.rejets.length > 0 && (
-            <ul className="space-y-1">
-              {lecture.rejets.map((r, i) => (
-                <li key={i} className="text-[12px] text-amber-700 dark:text-amber-400 inline-flex items-start gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>
-                    « {r.ligne.slice(0, 60)} » — {r.motif}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <button
-            type="button"
-            onClick={() => enregistrer(lecture.apprenants)}
-            disabled={pending || lecture.apprenants.length === 0}
-            className="h-9 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 transition disabled:opacity-50"
-          >
-            {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-            Inscrire {lecture.apprenants.length > 0 ? `ces ${lecture.apprenants.length}` : 'les'} stagiaires
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <div className="grid sm:grid-cols-2 gap-2">
-            <input
-              value={unique.firstName}
-              onChange={(e) => setUnique({ ...unique, firstName: e.target.value })}
-              placeholder="Prénom"
-              className={CHAMP}
-            />
-            <input
-              value={unique.lastName}
-              onChange={(e) => setUnique({ ...unique, lastName: e.target.value })}
-              placeholder="Nom"
-              className={CHAMP}
-            />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-2">
-            <input
-              value={unique.email}
-              onChange={(e) => setUnique({ ...unique, email: e.target.value })}
-              type="email"
-              placeholder="E-mail"
-              className={CHAMP}
-            />
-            <input
-              value={unique.phone}
-              onChange={(e) => setUnique({ ...unique, phone: e.target.value })}
-              placeholder="Téléphone"
-              className={`${CHAMP} tabular-nums`}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (!unique.lastName.trim()) return setErreur('Le nom est nécessaire.');
-              enregistrer([
-                {
-                  firstName: unique.firstName.trim(),
-                  lastName: unique.lastName.trim(),
-                  email: unique.email.trim() || null,
-                  phone: unique.phone.trim() || null,
-                },
-              ]);
-            }}
-            disabled={pending}
-            className="h-9 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 transition disabled:opacity-60"
-          >
-            {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-            Inscrire
-          </button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setLignes((a) => (a.length >= MAX_LIGNES ? a : [...a, { ...VIDE }]))}
+          className="h-9 px-3 rounded-lg text-[13px] font-medium inline-flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-white/70 dark:bg-zinc-900/60 hover:bg-white dark:hover:bg-zinc-800 transition"
+        >
+          <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
+        </button>
+        <button
+          type="button"
+          onClick={enregistrer}
+          disabled={pending || aInscrire.length === 0}
+          className="h-9 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 transition disabled:opacity-50"
+        >
+          {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+          {aInscrire.length > 1 ? `Inscrire ces ${aInscrire.length} stagiaires` : 'Inscrire'}
+        </button>
+        <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+          Le nom est obligatoire. Sans e-mail, ni convocation ni lien d&apos;émargement ne partiront.
+        </span>
+      </div>
 
       {succes && (
         <p className="text-[12px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1.5">
