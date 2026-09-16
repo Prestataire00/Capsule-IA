@@ -16,6 +16,7 @@ export const ROUTES_FORMATEUR = [
   '/mon-planning',
   '/mes-sessions',
   '/mes-dossiers',
+  '/mon-compte',
   '/mes-evaluations',
   '/mes-factures',
   '/mes-frais',

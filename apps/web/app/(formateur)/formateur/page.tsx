@@ -1,20 +1,17 @@
 // apps/web/app/(formateur)/formateur/page.tsx
 // ARCHETYPE: workflow
-// Justification: le tableau de bord du formateur — sa journée, ses chiffres, ses raccourcis.
+// Justification: la journée du formateur — ce qu'il a à faire maintenant.
+// Volontairement sans liste des séances à venir ni grille de raccourcis : la
+// barre et « Mes séances » s'en chargent, les répéter ici brouillait tout.
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import {
   CalendarDays,
   ClipboardList,
-  FileBadge,
-  UserRound,
   AlertTriangle,
   Clock,
   MessagesSquare,
   ShieldCheck,
-  Receipt,
-  Wallet,
-  Star,
   ArrowRight,
 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
@@ -74,7 +71,6 @@ export default async function FormateurDashboard() {
     (s) => dayKey(s.startsAt) === aujourdhuiKey || (Date.parse(s.startsAt) <= maintenant && Date.parse(s.endsAt) >= maintenant),
   );
   const aVenir = actives.filter((s) => !duJour.includes(s) && Date.parse(s.startsAt) > maintenant);
-  const prochaines = aVenir.slice(0, 3);
 
   const nonLus = auth.user
     ? await unreadCounts(actives.map((s) => s.id), auth.user.id, 'formateur')
@@ -114,7 +110,10 @@ export default async function FormateurDashboard() {
                 {duJour.length > 1 ? 's' : ''} aujourd&apos;hui.
               </>
             ) : aVenir.length > 0 ? (
-              <>Pas de séance aujourd&apos;hui. La prochaine est plus bas.</>
+              <>
+                Pas de séance aujourd&apos;hui.{' '}
+                <strong className="tabular-nums text-zinc-900 dark:text-zinc-100">{aVenir.length}</strong> à venir.
+              </>
             ) : (
               <>Aucune séance planifiée pour l&apos;instant.</>
             )}
@@ -179,7 +178,7 @@ export default async function FormateurDashboard() {
           value={aVerifier === 0 ? 'OK' : aVerifier}
           icon={aVerifier === 0 ? ShieldCheck : AlertTriangle}
           accent={aVerifier === 0 ? 'purple' : 'amber'}
-          href="/cv"
+          href="/mon-compte"
           hint={aVerifier === 0 ? 'à jour' : 'à vérifier'}
         />
       </section>
@@ -199,32 +198,23 @@ export default async function FormateurDashboard() {
         </section>
       )}
 
-      <section className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-sky-600 dark:text-sky-400">
-            Prochaines séances
-          </h2>
-          <Link href="/mon-planning" className="text-[12px] font-semibold text-orange-600 dark:text-orange-400 hover:underline inline-flex items-center gap-1">
-            Tout le planning <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-        {prochaines.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 px-4 py-10 text-center">
-            <span className="mx-auto mb-3 w-12 h-12 rounded-xl grid place-items-center bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
-              <CalendarDays className="h-6 w-6" />
-            </span>
-            <p className="text-[13px] text-zinc-400">Aucune séance planifiée dans les deux prochains mois.</p>
-          </div>
-        ) : (
-          <ul className="space-y-2.5">
-            {prochaines.map((s) => (
-              <li key={s.id}>
-                <SessionCard s={s} organizationName={noms?.get(s.organizationId) ?? null} unread={nonLus.get(s.id) ?? 0} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <Link
+        href="/mes-sessions"
+        className="group rounded-xl border border-sky-100 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-950/20 px-4 py-3.5 flex items-center gap-3 hover:border-sky-300 transition"
+      >
+        <span className="w-9 h-9 rounded-lg grid place-items-center bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 shrink-0">
+          <ClipboardList className="w-4 h-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Mes séances</span>
+          <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+            {aVenir.length === 0
+              ? 'Aucune séance à venir dans les deux prochains mois.'
+              : `${aVenir.length} séance${aVenir.length > 1 ? 's' : ''} à venir — préparer, émarger, échanger.`}
+          </span>
+        </span>
+        <ArrowRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-500 transition shrink-0" />
+      </Link>
 
       {memberships.length > 1 && (
         <section className="space-y-2.5">
@@ -270,42 +260,7 @@ export default async function FormateurDashboard() {
         </section>
       )}
 
-      <section className="space-y-2.5">
-        <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Raccourcis</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          <Raccourci href="/mon-planning" icon={CalendarDays} label="Mon planning" ton="bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" />
-          <Raccourci href="/mes-sessions" icon={ClipboardList} label="Sessions & émargement" ton="bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300" />
-          <Raccourci href="/mes-evaluations" icon={Star} label="Mes évaluations" ton="bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300" />
-          <Raccourci href="/mes-factures" icon={Receipt} label="Mes factures" ton="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" />
-          <Raccourci href="/mes-frais" icon={Wallet} label="Notes de frais" ton="bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300" />
-          <Raccourci href="/profil" icon={UserRound} label="Mon profil" ton="bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" />
-          <Raccourci href="/cv" icon={FileBadge} label="CV & compétences" ton="bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" />
-        </div>
-      </section>
     </div>
   );
 }
 
-function Raccourci({
-  href,
-  icon: Icone,
-  label,
-  ton,
-}: {
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  ton: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group p-3 rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-orange-300 dark:hover:border-orange-900/60 hover:shadow-md transition flex items-center gap-2.5"
-    >
-      <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${ton}`}>
-        <Icone className="w-4 h-4" />
-      </span>
-      <span className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">{label}</span>
-    </Link>
-  );
-}
