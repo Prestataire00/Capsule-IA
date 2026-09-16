@@ -3,6 +3,8 @@ import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { lireQuestions } from '@/features/pedagogie/store';
 import { sansLesReponses, baremeTotal, type QuestionPourApprenant } from '@/features/pedagogie/quiz';
+import { estForme, type ContenuExercice, type Forme } from '@/features/pedagogie/kinds';
+import { parseTexteATrou, type Segment } from '@/features/pedagogie/cloze';
 
 /**
  * Les quiz visibles par un apprenant (0171).
@@ -15,6 +17,11 @@ import { sansLesReponses, baremeTotal, type QuestionPourApprenant } from '@/feat
 
 export type QuizApprenant = {
   readonly id: string;
+  readonly kind: Forme;
+  /** Texte à trou : segments SANS les réponses attendues. */
+  readonly segments: readonly Segment[];
+  readonly nbTrous: number;
+  readonly contenu: ContenuExercice;
   readonly title: string;
   readonly instructions: string | null;
   readonly questions: QuestionPourApprenant[];
@@ -51,10 +58,12 @@ export async function resolveQuizApprenant(token: string): Promise<ContexteQuiz 
   const { data, error } = await admin
     .schema('app')
     .from('exercises' as never)
-    .select('id, title, instructions, questions, pass_score, due_at')
+    .select('id, kind, title, instructions, questions, content, pass_score, due_at')
     .in('dossier_id', dossierIds)
-    .eq('kind', 'quiz')
+    .in('kind', ['quiz', 'texte_a_trou', 'cartes_memoire', 'video'])
     .eq('is_published', true)
+    // Ce que la direction n'a pas validé n'atteint pas le stagiaire (0172).
+    .eq('validation_status', 'valide')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
   if (error) {
@@ -64,9 +73,11 @@ export async function resolveQuizApprenant(token: string): Promise<ContexteQuiz 
 
   const rows = (data ?? []) as unknown as Array<{
     id: string;
+    kind: string | null;
     title: string;
     instructions: string | null;
     questions: unknown;
+    content: unknown;
     pass_score: number | string | null;
     due_at: string | null;
   }>;
@@ -91,16 +102,28 @@ export async function resolveQuizApprenant(token: string): Promise<ContexteQuiz 
     learnerId,
     organizationId,
     quiz: rows.map((r) => {
+      const kind = estForme(r.kind) ? r.kind : 'quiz';
+      const contenu = (r.content ?? {}) as ContenuExercice;
       const questions = lireQuestions(r.questions);
+      // Les réponses attendues restent au serveur : la page ne reçoit que la
+      // forme du texte, trous compris mais vides.
+      const lu = kind === 'texte_a_trou' ? parseTexteATrou(contenu.texte ?? '') : null;
+      const segments = (lu?.segments ?? []).map((seg) =>
+        seg.type === 'trou' ? { type: 'trou' as const, index: seg.index, reponse: '' } : seg,
+      );
       const rendu = rendus.get(r.id);
       const note = rendu?.grade === null || rendu?.grade === undefined ? null : Number(rendu.grade);
       const max = rendu?.max_grade === null || rendu?.max_grade === undefined ? null : Number(rendu.max_grade);
       return {
         id: r.id,
+        kind,
+        segments,
+        nbTrous: lu?.reponses.length ?? 0,
+        contenu: kind === 'cartes_memoire' || kind === 'video' ? contenu : {},
         title: r.title,
         instructions: r.instructions,
         questions: sansLesReponses(questions),
-        bareme: baremeTotal(questions),
+        bareme: kind === 'texte_a_trou' ? (lu?.reponses.length ?? 0) : baremeTotal(questions),
         passScore: r.pass_score === null ? null : Number(r.pass_score),
         dueAt: r.due_at,
         resultat:

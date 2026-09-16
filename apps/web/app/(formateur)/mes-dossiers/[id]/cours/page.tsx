@@ -4,11 +4,12 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, ListChecks, PenLine, Users, BookOpen, Trophy } from 'lucide-react';
+import { ArrowLeft, ListChecks, PenLine, Users, BookOpen, Trophy, Sparkles } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerDossier } from '@/features/trainer-space/my-dossiers';
 import { loadTravaux, loadRendus } from '@/features/pedagogie/store';
 import { baremeTotal } from '@/features/pedagogie/quiz';
+import { FORME_LABELS } from '@/features/pedagogie/kinds';
 import { CreerTravail } from './creer-travail.client';
 import { TravailActions } from './travail-actions.client';
 
@@ -78,8 +79,9 @@ export default async function PreparerCoursPage({ params }: { params: { id: stri
             Quiz et exercices
           </h1>
           <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">
-            Un quiz se corrige tout seul dès que le stagiaire répond. Un exercice se rend en texte ou en fichier, et
-            c&apos;est vous qui le notez. Les deux apparaissent dans l&apos;espace du stagiaire une fois publiés.
+            Quiz, texte à trou, cartes mémoire, vidéo ou exercice à rendre — l&apos;IA peut vous en proposer un
+            brouillon à partir de votre programme. Ce que vous publiez part en validation : la direction ouvre le
+            contenu aux stagiaires.
           </p>
           <Link
             href={`/mes-dossiers/${params.id}`}
@@ -140,15 +142,42 @@ export default async function PreparerCoursPage({ params }: { params: { id: stri
                         {t.sessionId && titreSeance.has(t.sessionId) && ` · ${titreSeance.get(t.sessionId)}`}
                         {t.dueAt && ` · à rendre avant le ${dateFmt.format(new Date(t.dueAt))}`}
                       </p>
-                      <span
-                        className={`mt-1.5 inline-flex items-center h-5 px-1.5 rounded text-[11px] font-semibold ${
-                          t.isPublished
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
-                        }`}
-                      >
-                        {t.isPublished ? 'Publié' : 'Brouillon'}
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                          {FORME_LABELS[t.kind]}
+                        </span>
+                        {!t.isPublished ? (
+                          <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                            Brouillon
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center h-5 px-1.5 rounded text-[11px] font-semibold ${
+                              t.validationStatus === 'valide'
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : t.validationStatus === 'refuse'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                            }`}
+                          >
+                            {t.validationStatus === 'valide'
+                              ? 'Validé, visible'
+                              : t.validationStatus === 'refuse'
+                                ? 'Refusé'
+                                : 'En attente de validation'}
+                          </span>
+                        )}
+                        {t.aiAssisted && (
+                          <span className="inline-flex items-center gap-1 h-5 px-1.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                            <Sparkles className="w-3 h-3" /> brouillon IA
+                          </span>
+                        )}
                       </span>
+                      {t.validationStatus === 'refuse' && t.rejectionReason && (
+                        <p className="text-[12px] text-red-600 dark:text-red-400 mt-1 whitespace-pre-wrap">
+                          Motif : {t.rejectionReason}
+                        </p>
+                      )}
                     </div>
                   </div>
 

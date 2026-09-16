@@ -15,7 +15,7 @@ async function fetchSidebarCounts(orgId: string | null, userId: string | null): 
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const [complaints, signatures, responses, invoices, demandes, taches, supports] = await Promise.all([
+    const [complaints, signatures, responses, invoices, demandes, taches, supports, coursAValider] = await Promise.all([
       sb
         .schema('app')
         .from('complaints')
@@ -83,6 +83,19 @@ async function fetchSidebarCounts(orgId: string | null, userId: string | null): 
       )
         .then((r) => ({ count: r.count ?? 0 }))
         .catch(() => ({ count: 0 })),
+      // Quiz et exercices en attente (0172) : même file, même badge.
+      Promise.resolve(
+        sb
+          .schema('app')
+          .from('exercises')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', orgId)
+          .eq('validation_status', 'en_attente')
+          .eq('is_published', true)
+          .is('deleted_at', null),
+      )
+        .then((r) => ({ count: r.count ?? 0 }))
+        .catch(() => ({ count: 0 })),
     ]);
 
     return {
@@ -92,7 +105,7 @@ async function fetchSidebarCounts(orgId: string | null, userId: string | null): 
       questionnairesActive: responses.count ?? 0,
       invoicesOverdue: invoices.count ?? 0,
       demandesPending: demandes.count ?? 0,
-      supportsAValider: supports.count ?? 0,
+      supportsAValider: (supports.count ?? 0) + (coursAValider.count ?? 0),
     };
   } catch (err) {
     console.error('[sidebar-rail-server] unexpected', err);

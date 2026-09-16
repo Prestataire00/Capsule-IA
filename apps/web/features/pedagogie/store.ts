@@ -2,6 +2,8 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { corrigerQuiz, baremeTotal, type QuestionQuiz, type ReponsesQuiz } from './quiz';
+import { estForme, type ContenuExercice, type Forme } from './kinds';
+import { corrigerTexteATrou, parseTexteATrou } from './cloze';
 
 /**
  * Exercices et quiz d'un dossier (0080, étendus par la 0171).
@@ -14,7 +16,11 @@ import { corrigerQuiz, baremeTotal, type QuestionQuiz, type ReponsesQuiz } from 
 
 export type Travail = {
   readonly id: string;
-  readonly kind: 'devoir' | 'quiz';
+  readonly kind: Forme;
+  readonly contenu: ContenuExercice;
+  readonly validationStatus: 'en_attente' | 'valide' | 'refuse';
+  readonly rejectionReason: string | null;
+  readonly aiAssisted: boolean;
   readonly title: string;
   readonly instructions: string | null;
   readonly questions: QuestionQuiz[];
@@ -30,6 +36,10 @@ export type Travail = {
 type Row = {
   id: string;
   kind: string | null;
+  content: unknown;
+  validation_status: string | null;
+  rejection_reason: string | null;
+  ai_assisted: boolean | null;
   title: string;
   instructions: string | null;
   questions: unknown;
@@ -68,7 +78,9 @@ export async function loadTravaux(dossierId: string): Promise<Travail[]> {
   const { data, error } = await admin
     .schema('app')
     .from('exercises' as never)
-    .select('id, kind, title, instructions, questions, pass_score, session_id, due_at, is_published, created_at')
+    .select(
+      'id, kind, title, instructions, questions, pass_score, session_id, due_at, is_published, created_at, content, validation_status, rejection_reason, ai_assisted',
+    )
     .eq('dossier_id', dossierId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
@@ -96,7 +108,14 @@ export async function loadTravaux(dossierId: string): Promise<Travail[]> {
     const compte = rendus.get(r.id) ?? { total: 0, corriges: 0 };
     return {
       id: r.id,
-      kind: r.kind === 'quiz' ? 'quiz' : 'devoir',
+      kind: estForme(r.kind) ? r.kind : 'devoir',
+      contenu: (r.content ?? {}) as ContenuExercice,
+      // Une valeur inconnue est traitée comme « à valider » : on ne diffuse
+      // jamais par défaut (même règle que les supports, 0165).
+      validationStatus:
+        r.validation_status === 'valide' || r.validation_status === 'refuse' ? r.validation_status : 'en_attente',
+      rejectionReason: r.rejection_reason,
+      aiAssisted: Boolean(r.ai_assisted),
       title: r.title,
       instructions: r.instructions,
       questions: lireQuestions(r.questions),
@@ -120,7 +139,9 @@ export async function creerTravail(input: {
   organizationId: string;
   dossierId: string;
   userId: string;
-  kind: 'devoir' | 'quiz';
+  kind: Forme;
+  contenu?: ContenuExercice;
+  aiAssisted?: boolean;
   title: string;
   instructions?: string | null;
   questions?: QuestionQuiz[];
@@ -136,9 +157,11 @@ export async function creerTravail(input: {
       organization_id: input.organizationId,
       dossier_id: input.dossierId,
       kind: input.kind,
+      content: input.contenu ?? {},
+      ai_assisted: input.aiAssisted ?? false,
       title: input.title,
       instructions: input.instructions ?? null,
-      questions: input.kind === 'quiz' ? (input.questions ?? []) : [],
+      questions: input.kind === 'quiz' || input.kind === 'video' ? (input.questions ?? []) : [],
       pass_score: input.kind === 'quiz' ? (input.passScore ?? null) : null,
       session_id: input.sessionId ?? null,
       due_at: input.dueAt ?? null,
@@ -259,6 +282,45 @@ export async function rendreQuiz(input: {
     );
   if (error) {
     console.error('[pedagogie] rendu du quiz refusé', input.exerciseId, error.message);
+    return { ok: false, error: "Votre réponse n'a pas pu être enregistrée." };
+  }
+  return { ok: true, note: correction.note, bareme: correction.bareme, pourcentage: correction.pourcentage };
+}
+
+/**
+ * Rendu d'un texte à trou : un point par trou, corrigé sur les réponses
+ * attendues telles qu'elles sont en base — jamais sur ce que le navigateur
+ * renvoie.
+ */
+export async function rendreTexteATrou(input: {
+  organizationId: string;
+  exerciseId: string;
+  learnerId: string;
+  texte: string;
+  donnees: string[];
+}): Promise<{ ok: true; note: number; bareme: number; pourcentage: number } | { ok: false; error: string }> {
+  const attendues = parseTexteATrou(input.texte).reponses;
+  const correction = corrigerTexteATrou(attendues, input.donnees);
+
+  const { error } = await supabaseAdmin()
+    .schema('app')
+    .from('exercise_submissions' as never)
+    .upsert(
+      {
+        organization_id: input.organizationId,
+        exercise_id: input.exerciseId,
+        learner_id: input.learnerId,
+        answers: { trous: input.donnees },
+        status: 'graded',
+        grade: correction.note,
+        max_grade: correction.bareme,
+        submitted_at: new Date().toISOString(),
+        graded_at: new Date().toISOString(),
+      } as never,
+      { onConflict: 'exercise_id,learner_id' },
+    );
+  if (error) {
+    console.error('[pedagogie] rendu du texte à trou refusé', input.exerciseId, error.message);
     return { ok: false, error: "Votre réponse n'a pas pu être enregistrée." };
   }
   return { ok: true, note: correction.note, bareme: correction.bareme, pourcentage: correction.pourcentage };
