@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, ClipboardList, FileBadge, Home, Receipt, Star, UserRound, Wallet } from 'lucide-react';
+import { CalendarDays, ClipboardList, FileBadge, FolderOpen, Home, Receipt, Star, UserRound, Wallet } from 'lucide-react';
 
 /**
  * Navigation de l'espace formateur.
@@ -41,6 +41,12 @@ const LIENS: Lien[] = [
     prefixes: ['/mes-sessions', '/emarger', '/seance'],
     doux: 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
     plein: 'bg-sky-500 text-white shadow-sky-500/30',
+  },
+  {
+    href: '/mes-dossiers', label: 'Dossiers confiés', court: 'Dossiers', icon: FolderOpen,
+    prefixes: ['/mes-dossiers'],
+    doux: 'bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300',
+    plein: 'bg-teal-500 text-white shadow-teal-500/30',
   },
   {
     href: '/mes-evaluations', label: 'Évaluations', court: 'Évaluations', icon: Star, prefixes: ['/mes-evaluations'],
