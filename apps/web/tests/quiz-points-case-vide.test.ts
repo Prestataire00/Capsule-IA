@@ -10,7 +10,7 @@ import path from 'node:path';
 import { problemesDuQuiz } from '@/features/pedagogie/quiz';
 
 const UI = fs.readFileSync(
-  path.resolve(__dirname, '../app/(formateur)/mes-dossiers/[id]/cours/creer-travail.client.tsx'),
+  path.resolve(__dirname, '../app/(formateur)/_cours/creer-travail.client.tsx'),
   'utf-8',
 );
 

@@ -1,6 +1,7 @@
 import 'server-only';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import type { ContexteFormation } from './generate-with-ai';
+import type { Ancrage } from './store';
 
 /**
  * Ce que l'IA doit savoir pour proposer un exercice qui tienne : la formation,
@@ -26,11 +27,40 @@ function extraireProgramme(metadata: unknown): string | null {
   return morceaux.length > 0 ? morceaux.join('\n\n') : null;
 }
 
+/**
+ * Un cours ancré à une séance n'a pas de dossier désigné (0174) : on remonte
+ * alors au dossier que la séance sert — le sien, ou le premier de ceux qu'elle
+ * regroupe. C'est lui qui porte la formation, sa durée et sa modalité.
+ */
+async function dossierDeReference(ancrage: Ancrage): Promise<string | null> {
+  if (ancrage.type === 'dossier') return ancrage.id;
+  const admin = supabaseAdmin();
+
+  const { data: seance } = await admin
+    .schema('app')
+    .from('sessions')
+    .select('dossier_id')
+    .eq('id', ancrage.id)
+    .maybeSingle();
+  const direct = (seance as { dossier_id: string | null } | null)?.dossier_id ?? null;
+  if (direct) return direct;
+
+  const { data: liens } = await admin
+    .schema('app')
+    .from('session_dossiers')
+    .select('dossier_id')
+    .eq('session_id', ancrage.id)
+    .limit(1);
+  return ((liens ?? []) as Array<{ dossier_id: string }>)[0]?.dossier_id ?? null;
+}
+
 export async function chargerContexteFormation(
-  dossierId: string,
+  ancrage: Ancrage,
   options: { sessionId?: string | null; consigne?: string | null } = {},
 ): Promise<ContexteFormation | null> {
   const admin = supabaseAdmin();
+  const dossierId = await dossierDeReference(ancrage);
+  if (!dossierId) return null;
 
   const { data: dossierRow } = await admin
     .schema('app')

@@ -73,7 +73,12 @@ export function lireQuestions(brut: unknown): QuestionQuiz[] {
   });
 }
 
-export async function loadTravaux(dossierId: string): Promise<Travail[]> {
+/** Ancrage d'un cours : la séance qu'il prépare, ou le dossier qu'il suit (0174). */
+export type Ancrage = { readonly type: 'seance' | 'dossier'; readonly id: string };
+
+const colonne = (a: Ancrage) => (a.type === 'seance' ? 'session_id' : 'dossier_id');
+
+export async function loadTravaux(ancrage: Ancrage): Promise<Travail[]> {
   const admin = supabaseAdmin();
   const { data, error } = await admin
     .schema('app')
@@ -81,11 +86,11 @@ export async function loadTravaux(dossierId: string): Promise<Travail[]> {
     .select(
       'id, kind, title, instructions, questions, pass_score, session_id, due_at, is_published, created_at, content, validation_status, rejection_reason, ai_assisted',
     )
-    .eq('dossier_id', dossierId)
+    .eq(colonne(ancrage), ancrage.id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
   if (error) {
-    console.error('[pedagogie] lecture impossible', dossierId, error.message);
+    console.error('[pedagogie] lecture impossible', ancrage.id, error.message);
     return [];
   }
   const rows = (data ?? []) as unknown as Row[];
@@ -130,14 +135,16 @@ export async function loadTravaux(dossierId: string): Promise<Travail[]> {
   });
 }
 
-export async function loadTravail(dossierId: string, travailId: string): Promise<Travail | null> {
-  const tous = await loadTravaux(dossierId);
+export async function loadTravail(ancrage: Ancrage, travailId: string): Promise<Travail | null> {
+  const tous = await loadTravaux(ancrage);
   return tous.find((t) => t.id === travailId) ?? null;
 }
 
 export async function creerTravail(input: {
   organizationId: string;
-  dossierId: string;
+  dossierId: string | null;
+  /** Séance à laquelle le cours est rattaché quand c'est elle qu'on prépare. */
+  sessionIdAncrage?: string | null;
   userId: string;
   kind: Forme;
   contenu?: ContenuExercice;
@@ -163,7 +170,7 @@ export async function creerTravail(input: {
       instructions: input.instructions ?? null,
       questions: input.kind === 'quiz' || input.kind === 'video' ? (input.questions ?? []) : [],
       pass_score: input.kind === 'quiz' ? (input.passScore ?? null) : null,
-      session_id: input.sessionId ?? null,
+      session_id: input.sessionIdAncrage ?? input.sessionId ?? null,
       due_at: input.dueAt ?? null,
       is_published: input.isPublished,
       created_by: input.userId,
@@ -175,7 +182,7 @@ export async function creerTravail(input: {
 }
 
 export async function majTravail(
-  dossierId: string,
+  ancrage: Ancrage,
   travailId: string,
   patch: Record<string, unknown>,
 ): Promise<boolean> {
@@ -184,13 +191,13 @@ export async function majTravail(
     .from('exercises' as never)
     .update({ ...patch, updated_at: new Date().toISOString() } as never)
     .eq('id', travailId)
-    .eq('dossier_id', dossierId);
+    .eq(colonne(ancrage), ancrage.id);
   if (error) console.error('[pedagogie] mise à jour refusée', travailId, error.message);
   return !error;
 }
 
-export async function supprimerTravail(dossierId: string, travailId: string): Promise<boolean> {
-  return majTravail(dossierId, travailId, { deleted_at: new Date().toISOString() });
+export async function supprimerTravail(ancrage: Ancrage, travailId: string): Promise<boolean> {
+  return majTravail(ancrage, travailId, { deleted_at: new Date().toISOString() });
 }
 
 export type RenduApprenant = {

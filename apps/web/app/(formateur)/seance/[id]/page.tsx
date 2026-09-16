@@ -2,17 +2,13 @@
 // Justification: le poste de travail du formateur sur une séance — qui il a en face,
 // comment les joindre, où se retrouver en visio, et par où passer pour le reste.
 
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ClipboardList, ListChecks, PenLine, Mail, Phone, Users, Building2, Home, BookOpen, MessagesSquare, ArrowRight } from 'lucide-react';
+import { Mail, Phone, Users, Building2, Home } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
 import { loadSession } from '@/features/sessions/load-session';
 import { heure, jourLong } from '@/features/trainer-space/dates';
 import { loadSessionContacts, type Contact } from '@/features/trainer-space/session-contacts';
-import { loadSessionResources } from '@/features/trainer-space/session-resources';
-import { loadSessionMessages } from '@/features/trainer-space/session-messages';
-import { estVisibleParApprenant } from '@/features/trainer-space/support-status';
 import { VisioForm } from './visio-form.client';
 import { SeanceNav } from './_components/seance-nav';
 
@@ -79,42 +75,6 @@ function ContactList({
   );
 }
 
-function Raccourci({
-  href,
-  icone: Icone,
-  label,
-  detail,
-  ton,
-  primaire,
-}: {
-  href: string;
-  icone: React.ComponentType<{ className?: string }>;
-  label: string;
-  detail?: string;
-  ton: string;
-  /** L'émargement est l'acte de la séance : il ne se cherche pas parmi les autres. */
-  primaire?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`group rounded-xl border px-4 py-3 transition flex items-center gap-3 ${
-        primaire
-          ? 'border-orange-200 dark:border-orange-900/50 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/30 dark:to-zinc-900 hover:shadow-md'
-          : 'border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-orange-300 dark:hover:border-orange-900/60 hover:shadow-sm'
-      }`}
-    >
-      <span className={`w-9 h-9 rounded-lg grid place-items-center flex-shrink-0 ${ton}`}>
-        <Icone className="w-4 h-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{label}</span>
-        {detail && <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{detail}</span>}
-      </span>
-      <ArrowRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-500 transition shrink-0" />
-    </Link>
-  );
-}
 
 export default async function SeancePage({ params }: { params: { id: string } }) {
   const acces = await requireMyTrainerSession(params.id);
@@ -127,14 +87,11 @@ export default async function SeancePage({ params }: { params: { id: string } })
   if (!loaded) notFound();
   const { session, formation } = loaded;
 
-  const [contacts, supports, messages] = await Promise.all([
-    loadSessionContacts({ id: session.id, organization_id: session.organization_id, dossier_id: session.dossier_id ?? null }),
-    loadSessionResources(params.id),
-    loadSessionMessages(params.id),
-  ]);
-
-  // « Visible » = validé par l'administration ET toujours proposé par le formateur.
-  const publies = supports.filter(estVisibleParApprenant).length;
+  const contacts = await loadSessionContacts({
+    id: session.id,
+    organization_id: session.organization_id,
+    dossier_id: session.dossier_id ?? null,
+  });
 
   return (
     <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
@@ -172,45 +129,6 @@ export default async function SeancePage({ params }: { params: { id: string } })
         vide="Coordonnées de l'organisme non renseignées."
       />
 
-      <section className="space-y-2">
-        <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Ma séance</h2>
-        <div className="grid sm:grid-cols-2 gap-2">
-          <Raccourci
-            href={`/seance/${params.id}/supports`}
-            icone={BookOpen}
-            ton="bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-            label="Supports de cours"
-            detail={supports.length === 0 ? 'Aucun support déposé' : `${supports.length} déposé${supports.length > 1 ? 's' : ''} · ${publies} visible${publies > 1 ? 's' : ''}`}
-          />
-          <Raccourci
-            href={`/seance/${params.id}/messages`}
-            icone={MessagesSquare}
-            ton="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-            label="Messages"
-            detail={messages.length === 0 ? 'Aucun message' : `${messages.length} message${messages.length > 1 ? 's' : ''}`}
-          />
-          <Raccourci
-            href={`/seance/${params.id}/fiches-besoin`}
-            icone={ClipboardList}
-            ton="bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"
-            label="Fiches besoin"
-          />
-          <Raccourci
-            href={`/seance/${params.id}/questionnaires`}
-            icone={ListChecks}
-            ton="bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
-            label="Questionnaires"
-          />
-          <Raccourci
-            href={`/emarger/${params.id}`}
-            icone={PenLine}
-            ton="bg-orange-500 text-white shadow-sm shadow-orange-500/30"
-            label="Émargement"
-            detail="Faire signer et clôturer"
-            primaire
-          />
-        </div>
-      </section>
     </div>
   );
 }

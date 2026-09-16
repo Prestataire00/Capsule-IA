@@ -12,6 +12,7 @@ import { heure, jourLong } from '@/features/trainer-space/dates';
 import { KIND_LABELS, STATUS_LABELS, TRAINER_SENDABLE_KINDS, isSatisfactionKind } from '@/features/trainer-space/questionnaires';
 import type { Question } from '@/features/questionnaire/schema';
 import { SendQuestionnaireForm } from './send-form';
+import { SeanceNav } from '../_components/seance-nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,16 +64,13 @@ export default async function SeanceQuestionnairesPage({ params }: { params: { i
 
   return (
     <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
-      <Link href="/mes-sessions" className="text-[12px] text-zinc-500 inline-flex items-center gap-1.5 hover:text-zinc-800 dark:hover:text-zinc-200">
-        <ArrowLeft className="w-3 h-3" /> Mes sessions
-      </Link>
-      <header>
-        <p className="text-[11px] uppercase tracking-wider text-zinc-500 tabular-nums">
-          {jourLong(seance.startsAt)} · {heure(seance.startsAt)} – {heure(seance.endsAt)}
-        </p>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{seance.title}</h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">Questionnaires de la séance</p>
-      </header>
+      <SeanceNav
+        sessionId={params.id}
+        quand={`${jourLong(seance.startsAt)} · ${heure(seance.startsAt)} – ${heure(seance.endsAt)}`}
+        titre={seance.title}
+        sousTitre="Questionnaires envoyés aux participants de cette séance."
+        actif="questionnaires"
+      />
 
       <SendQuestionnaireForm sessionId={params.id} templates={envoyables} />
 
