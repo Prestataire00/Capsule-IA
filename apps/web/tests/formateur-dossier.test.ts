@@ -111,9 +111,18 @@ describe('confier un dossier (côté organisme)', () => {
     expect(actions).toContain('is_lead: (count ?? 0) === 0');
   });
 
-  it('explique la panne d’audit connue au lieu d’un message opaque', () => {
+  it('explique les pannes d’audit connues au lieu d’un message opaque', () => {
     expect(actions).toContain('has no field "id"');
-    expect(actions).toContain('migration 0168');
+    expect(actions).toContain('permission denied for schema audit');
+    expect(actions).toContain("return '0168'");
+    expect(actions).toContain("return '0170'");
+  });
+
+  it('diagnostique aussi bien le retrait que le rattachement', () => {
+    // Le retrait échouait avec un message opaque là où le rattachement, lui,
+    // nommait déjà la migration à appliquer.
+    expect(actions.match(/migrationManquante\(error\.message\)/g)?.length).toBe(2);
+    expect(actions).toContain('Retrait bloqué par l’audit de la base');
   });
 
   it('se désigne depuis la bannière, sans onglet dédié', () => {

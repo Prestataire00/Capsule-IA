@@ -25,6 +25,20 @@ const schema = z.object({ dossierId: z.string().uuid(), trainerId: z.string().uu
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const admin = () => supabaseAdmin() as unknown as SupabaseClient<any, any, any>;
 
+/**
+ * Pannes connues du déclencheur d'audit générique, traduites pour l'écran :
+ * sans cela le message ne dit que « ça n'a pas marché », et rien n'indique que
+ * la base attend une migration.
+ * - `NEW.id` absent : table à clé composée, corrigé par la 0168.
+ * - `permission denied for schema audit` : `audit.audit_row()` repassée en
+ *   SECURITY INVOKER par la 0168, rétablie en DEFINER par la 0170.
+ */
+function migrationManquante(message: string): string | null {
+  if (/has no field "id"/.test(message)) return '0168';
+  if (/permission denied for schema audit/i.test(message)) return '0170';
+  return null;
+}
+
 async function garde(input: z.infer<typeof schema>): Promise<{ ok: true; organizationId: string } | { ok: false; error: string }> {
   const membre = await getCurrentMember();
   if (!membre) return { ok: false, error: 'Session expirée — reconnectez-vous.' };
@@ -83,12 +97,11 @@ export async function confierDossier(input: { dossierId: string; trainerId: stri
     );
   if (error) {
     console.error('[dossier] formateur non rattaché', error.message);
-    // Panne connue : l'audit générique lisait `NEW.id`, absent de cette table
-    // (corrigé par la migration 0168).
-    if (/has no field "id"/.test(error.message)) {
+    const migration = migrationManquante(error.message);
+    if (migration) {
       return {
         ok: false,
-        error: 'Rattachement bloqué par l’audit de la base : appliquez la migration 0168, puis réessayez.',
+        error: `Rattachement bloqué par l’audit de la base : appliquez la migration ${migration}, puis réessayez.`,
       };
     }
     return { ok: false, error: 'Le formateur n’a pas pu être rattaché.' };
@@ -115,6 +128,13 @@ export async function retirerDossier(input: { dossierId: string; trainerId: stri
     .eq('organization_id', g.organizationId);
   if (error) {
     console.error('[dossier] formateur non retiré', error.message);
+    const migration = migrationManquante(error.message);
+    if (migration) {
+      return {
+        ok: false,
+        error: `Retrait bloqué par l’audit de la base : appliquez la migration ${migration}, puis réessayez.`,
+      };
+    }
     return { ok: false, error: 'Le formateur n’a pas pu être retiré.' };
   }
 
