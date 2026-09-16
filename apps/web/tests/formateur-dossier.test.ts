@@ -81,7 +81,7 @@ describe('écrans de l’espace formateur', () => {
 
   it('donne au formateur ce qui sert son travail : client, référent, apprenants, séances, émargement', () => {
     expect(detail).toContain('Client');
-    expect(detail).toContain('Votre interlocuteur chez le client.');
+    expect(detail).toContain('Votre interlocuteur chez le client');
     expect(detail).toContain('Apprenants');
     expect(detail).toContain('Séances');
     expect(detail).toContain('/emarger/${s.id}');
@@ -133,6 +133,39 @@ describe('confier un dossier (côté organisme)', () => {
   it('les commandes ne s’affichent qu’aux gestionnaires', () => {
     expect(banniere).toContain("canManageSection('dossiers')");
     expect(chip).toContain('{gerer && !ouvert');
+  });
+});
+
+// L'écran affichait « Stagiaires à désigner » comme client et « Aucun référent
+// désigné » : companies et contacts n'avaient aucune politique pour un
+// formateur externe, les requêtes revenaient vides sans erreur.
+describe('le client et son référent sont lisibles par le formateur', () => {
+  const sql = lire('../../../supabase/migrations/0173_formateur_voit_client_et_referent.sql');
+
+  it('ouvre companies et contacts à l’espace formateur', () => {
+    expect(sql).toContain('CREATE POLICY companies_formateur_espace ON app.companies');
+    expect(sql).toContain('CREATE POLICY contacts_formateur_espace ON app.contacts');
+    expect(sql).toContain('FOR SELECT TO authenticated');
+  });
+
+  it('les restreint aux seules lignes de ses dossiers', () => {
+    expect(sql).toContain('app.my_trainer_dossier_ids()');
+    expect(sql).toContain('app.my_trainer_company_ids()');
+    expect(sql).toContain('app.my_trainer_contact_ids()');
+    expect(sql).not.toMatch(/USING \(\s*true\s*\)/);
+  });
+
+  it('n’ouvre aucune écriture ni aucune autre table', () => {
+    expect(sql).not.toMatch(/FOR (INSERT|UPDATE|DELETE)/);
+    expect(sql).not.toMatch(/CREATE POLICY \w+ ON app\.(quotes|invoices|payments|dossier_funders)/);
+  });
+
+  it('écarte le titulaire provisoire de la liste des apprenants', () => {
+    // « Stagiaires à désigner » n'est pas une personne : le compter comme
+    // apprenant ferait croire au formateur qu'il a un stagiaire inscrit.
+    const src = lire('../features/trainer-space/my-dossiers.ts');
+    expect(src).toContain('estTitulaireProvisoire');
+    expect(src).toContain('.filter((l) => !estTitulaireProvisoire(l.email))');
   });
 });
 

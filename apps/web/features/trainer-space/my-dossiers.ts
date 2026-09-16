@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { hasTrainerSpace } from '@/shared/lib/auth/landing';
+import { estTitulaireProvisoire } from '@/features/dossier/referent';
 
 /**
  * Dossiers confiés au formateur connecté.
@@ -127,17 +128,19 @@ async function habiller(
       ? sb.schema('app').from('companies').select('id, name').in('id', companyIds)
       : Promise.resolve({ data: [] }),
     learnerIds.length
-      ? sb.schema('app').from('learners').select('id, first_name, last_name').in('id', learnerIds)
+      ? sb.schema('app').from('learners').select('id, first_name, last_name, email').in('id', learnerIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   const titre = new Map(((formations.data ?? []) as { id: string; title: string }[]).map((f) => [f.id, f.title]));
   const raison = new Map(((entreprises.data ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]));
+  // Un titulaire provisoire (« Stagiaires à désigner », adresse en .invalid)
+  // n'est pas une personne : l'afficher comme apprenant ferait croire au
+  // formateur qu'il a un stagiaire inscrit. On l'écarte ici, une fois.
   const apprenant = new Map(
-    ((apprenants.data ?? []) as { id: string; first_name: string | null; last_name: string | null }[]).map((l) => [
-      l.id,
-      nom(l),
-    ]),
+    (
+      (apprenants.data ?? []) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[]
+    ).map((l) => [l.id, estTitulaireProvisoire(l.email) ? null : nom(l)]),
   );
 
   return new Map(
@@ -287,6 +290,7 @@ export async function loadMyDossier(sb: Client, dossierId: string): Promise<Doss
         .in('id', [...apprenantIds])
     : { data: [] };
   const apprenants = ((gens ?? []) as { id: string; first_name: string; last_name: string; email: string | null; phone: string | null }[])
+    .filter((l) => !estTitulaireProvisoire(l.email))
     .map((l) => ({ id: l.id, firstName: l.first_name, lastName: l.last_name, email: l.email, phone: l.phone }))
     .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
 

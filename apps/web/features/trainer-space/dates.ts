@@ -28,6 +28,13 @@ export const jourLong = (iso: string) =>
 export const semaineDu = (cleLundi: string) =>
   `Semaine du ${new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', day: 'numeric', month: 'long' }).format(new Date(`${cleLundi}T12:00:00Z`))}`;
 
+/** Pastille de date : « 14 » puis « sept. », à Paris. */
+export const jourNumero = (iso: string) =>
+  new Intl.DateTimeFormat('fr-FR', { timeZone: PARIS, day: '2-digit' }).format(new Date(iso));
+
+export const moisCourt = (iso: string) =>
+  new Intl.DateTimeFormat('fr-FR', { timeZone: PARIS, month: 'short' }).format(new Date(iso));
+
 /** « Aujourd'hui », « Demain » ou le jour en toutes lettres. */
 export function jourRelatif(iso: string, now = new Date()): string {
   const cle = dayKey(iso);
