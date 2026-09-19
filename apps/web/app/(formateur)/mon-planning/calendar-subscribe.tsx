@@ -12,7 +12,7 @@ export function CalendarSubscribe({ url }: { url: string }) {
       <div className="flex items-start gap-3">
         <CalendarPlus className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" aria-hidden />
         <div className="space-y-1">
-          <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Retrouvez vos séances dans votre agenda</p>
+          <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Retrouvez vos séances dans votre agenda</p>
           <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
             Abonnez votre agenda à ce lien : vos séances s’y ajoutent et se mettent à jour toutes seules. Il est personnel, ne le partagez pas.
           </p>

@@ -20,7 +20,7 @@ export default function MerciPage({ searchParams }: { searchParams: { status?: s
         <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-3">
           {already ? 'Déjà reçu, merci 🙏' : 'Merci pour votre retour 💜'}
         </h1>
-        <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-8">
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-8">
           {already
             ? 'Vous avez déjà répondu à ce questionnaire.'
             : 'Votre avis a bien été enregistré. Il nourrit l\'amélioration continue de notre offre de formation.'}

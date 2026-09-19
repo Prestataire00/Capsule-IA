@@ -133,7 +133,7 @@ export default async function DossierLayout({
               <IdPill>{d.reference}</IdPill>
             </div>
             <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{learner}</h1>
-            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
               <span className="font-bold text-zinc-800 dark:text-zinc-200">{d.formation?.title ?? '—'}</span>
               {d.company?.name && <span>{' · '}{d.company.name}</span>}
             </p>

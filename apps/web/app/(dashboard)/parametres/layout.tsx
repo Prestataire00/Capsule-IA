@@ -15,7 +15,7 @@ export default async function ParametresLayout({ children }: { children: React.R
         <div className="min-w-0">
           <SectionLabel className="mb-2">Configuration</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Paramètres</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-3">
             Réglages de l'organisation, des membres et des intégrations.
           </p>
         </div>

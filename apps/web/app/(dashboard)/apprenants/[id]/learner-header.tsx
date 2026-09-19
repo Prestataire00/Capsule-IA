@@ -62,7 +62,7 @@ export function LearnerHeader({
         <div className="min-w-0">
           <SectionLabel className="mb-2">Apprenant</SectionLabel>
           <div className="flex items-center gap-3 flex-wrap">
-            <span className={`w-10 h-10 rounded-full grid place-items-center text-[14px] font-bold flex-shrink-0 ${avatarTone(fullName)}`}>
+            <span className={`w-10 h-10 rounded-full grid place-items-center text-[15px] font-bold flex-shrink-0 ${avatarTone(fullName)}`}>
               {initials || '?'}
             </span>
             <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">{fullName}</h1>
@@ -77,7 +77,7 @@ export function LearnerHeader({
               </StatusPill>
             )}
           </div>
-          <div className="flex items-center gap-4 text-[14px] text-zinc-500 dark:text-zinc-400 flex-wrap mt-3">
+          <div className="flex items-center gap-4 text-[13px] text-zinc-500 dark:text-zinc-400 flex-wrap mt-3">
             <span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{learner.email}</span>
             {learner.phone && (
               <span className="inline-flex items-center gap-1.5 tabular-nums"><Phone className="w-3.5 h-3.5" />{learner.phone}</span>

@@ -45,7 +45,7 @@ export default async function FinanceursPage({
         <div>
           <SectionLabel className="mb-2">Relations</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Financeurs</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             <span className="tabular-nums">
               {overview.totalFunders} financeur{overview.totalFunders > 1 ? 's' : ''}
             </span>{' '}
@@ -140,7 +140,7 @@ export default async function FinanceursPage({
                       <div className="min-w-0">
                         <Link
                           href={`/financeurs/${f.id}`}
-                          className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                          className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
                         >
                           {f.name}
                         </Link>
@@ -162,7 +162,7 @@ export default async function FinanceursPage({
                         {f.dossierCount}
                       </span>
                     </div>
-                    <div className={`text-right text-[14px] font-bold tabular-nums truncate ${f.fundedCents > 0 ? ACCENTS.emerald.value : 'text-zinc-400'}`}>
+                    <div className={`text-right text-[15px] font-bold tabular-nums truncate ${f.fundedCents > 0 ? ACCENTS.emerald.value : 'text-zinc-400'}`}>
                       {formatEurosCents(f.fundedCents)}
                     </div>
                     <div className="flex items-center justify-end gap-0.5">

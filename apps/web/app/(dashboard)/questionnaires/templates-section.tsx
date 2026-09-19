@@ -43,7 +43,7 @@ export function TemplatesSection({ templates }: { templates: TemplateItem[] }) {
                 <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
                   <ClipboardList className="w-4 h-4" />
                 </span>
-                <Link href={`/questionnaires/${t.id}`} className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                <Link href={`/questionnaires/${t.id}`} className="min-w-0 truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
                   {t.title}
                 </Link>
               </div>

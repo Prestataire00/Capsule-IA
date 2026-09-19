@@ -43,7 +43,7 @@ export default async function EntreprisesPage() {
         <div>
           <SectionLabel className="mb-2">Relations</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Entreprises</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             <span className="tabular-nums">
               {companies.length} entreprise{companies.length > 1 ? 's' : ''}
             </span>{' '}
@@ -110,7 +110,7 @@ export default async function EntreprisesPage() {
                       <div className="min-w-0">
                         <Link
                           href={`/entreprises/${c.id}`}
-                          className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                          className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
                         >
                           {c.name}
                         </Link>

@@ -30,7 +30,7 @@ export default async function CorbeillePage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Corbeille</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Éléments supprimés</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           {total} élément{total > 1 ? 's' : ''} · rien n&apos;est effacé : vous pouvez tout restaurer.
         </p>
       </header>
@@ -60,7 +60,7 @@ export default async function CorbeillePage() {
                 {g.lignes.map((l) => (
                   <li key={`${l.entite}-${l.id}`} className="flex items-center gap-4 px-5 py-3.5">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{l.nom}</p>
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{l.nom}</p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
                         {l.detail ? `${l.detail} · ` : ''}
                         {l.supprimeLe ? `supprimé le ${dateFmt.format(new Date(l.supprimeLe))}` : 'supprimé'}

@@ -27,7 +27,7 @@ export function NeedsCard({ fiche, entete }: { fiche: FicheBesoin; entete?: Reac
     <li className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          {entete ?? <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">{fiche.name}</p>}
+          {entete ?? <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{fiche.name}</p>}
           {fiche.companyName && <p className="text-[12px] text-zinc-500">{fiche.companyName}</p>}
         </div>
         {fiche.statut === 'recue' ? (

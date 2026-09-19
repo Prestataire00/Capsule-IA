@@ -85,7 +85,7 @@ export default async function SeanceQuestionnairesPage({ params }: { params: { i
             <section key={premier.template_id} className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 overflow-hidden">
               <header className="px-4 py-3 bg-zinc-50 dark:bg-zinc-900/60 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{premier.template_title}</p>
+                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{premier.template_title}</p>
                   <p className="text-[11px] text-zinc-500">{KIND_LABELS[premier.kind] ?? premier.kind}</p>
                 </div>
                 <span className="text-[12px] text-zinc-600 dark:text-zinc-300 tabular-nums">

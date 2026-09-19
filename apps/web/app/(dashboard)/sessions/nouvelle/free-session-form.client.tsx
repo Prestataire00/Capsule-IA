@@ -228,7 +228,7 @@ export function FreeSessionForm({
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+            <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
               <Users className="w-4 h-4 text-zinc-400" aria-hidden /> Participants
             </p>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">

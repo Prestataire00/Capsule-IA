@@ -122,7 +122,7 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
           <UserPlus className="w-4 h-4" />
         </span>
         <div>
-          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Inscrire des stagiaires</h2>
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Inscrire des stagiaires</h2>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
             Ils sont inscrits à toutes les séances du dossier. Vous pouvez aussi coller une liste : elle se répartit
             dans les cases.

@@ -53,7 +53,7 @@ export default async function AuditPage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Sécurité</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Audit log</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Toutes les modifications sensibles tracées avec acteur, IP et user-agent.{' '}
           <span className="tabular-nums">
             {lignes.length} trace{lignes.length > 1 ? 's' : ''} récente{lignes.length > 1 ? 's' : ''}

@@ -137,7 +137,7 @@ export default async function ParametresIntegrationsPage() {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{integ.name}</p>
+                  <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{integ.name}</p>
                   <StatusPill tone={st.tone}>{st.label}</StatusPill>
                   {integ.badge && (
                     <span className="text-[11px] font-semibold h-6 inline-flex items-center px-2 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">

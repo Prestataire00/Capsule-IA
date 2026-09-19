@@ -211,7 +211,7 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
       {/* Panneau IA */}
       <aside className="space-y-3">
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 lg:sticky lg:top-6">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2 mb-1">
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2 mb-1">
             <Sparkles className="w-4 h-4 text-orange-500" /> Générer avec l'IA
           </p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">

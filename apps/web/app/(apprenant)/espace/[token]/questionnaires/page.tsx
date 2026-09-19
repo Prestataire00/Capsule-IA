@@ -35,7 +35,7 @@ export default async function EspaceQuestionnairesPage({
         <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Questionnaires</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
             {todo.length === 0 ? 'Tout est à jour, merci !' : `${todo.length} questionnaire${todo.length > 1 ? 's' : ''} à compléter.`}
           </p>
         </div>
@@ -71,7 +71,7 @@ export default async function EspaceQuestionnairesPage({
                         <ClipboardList className="w-5 h-5" />
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{q.title}</p>
+                        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{q.title}</p>
                         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 inline-flex items-center gap-1.5 tabular-nums">
                           {QUESTIONNAIRE_KIND_LABEL[q.kind] ?? 'Questionnaire'}
                           {q.dueAt && (
@@ -105,7 +105,7 @@ export default async function EspaceQuestionnairesPage({
                       <CheckCircle2 className="w-5 h-5" />
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{q.title}</p>
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{q.title}</p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">{QUESTIONNAIRE_KIND_LABEL[q.kind] ?? 'Questionnaire'} · complété</p>
                     </div>
                   </li>

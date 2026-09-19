@@ -32,7 +32,7 @@ export default async function LoginPage({
           <h1 className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
             Ravi de vous revoir
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-2">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
             Accédez à votre espace organisme de formation.
           </p>
         </div>

@@ -66,7 +66,7 @@ export default async function FormateursPage() {
         <div>
           <SectionLabel className="mb-2">Relations</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Formateurs</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             <span className="tabular-nums">
               {trainers.length} formateur{trainers.length > 1 ? 's' : ''}
             </span>{' '}
@@ -159,7 +159,7 @@ export default async function FormateursPage() {
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Link
                             href={`/formateurs/${t.id}`}
-                            className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                            className="truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
                           >
                             {name}
                           </Link>

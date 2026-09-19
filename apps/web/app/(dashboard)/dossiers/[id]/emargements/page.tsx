@@ -122,7 +122,7 @@ export default async function EmargementsPage({ params }: { params: { id: string
 
       {lignes.length === 0 ? (
         <div className="border border-dashed border-zinc-200/80 dark:border-zinc-800 rounded-xl px-6 py-10 text-center">
-          <p className="text-[14px] text-zinc-700 dark:text-zinc-300">Aucune feuille d&apos;émargement pour ce dossier.</p>
+          <p className="text-[13px] text-zinc-700 dark:text-zinc-300">Aucune feuille d&apos;émargement pour ce dossier.</p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
             Les feuilles sont créées automatiquement à la planification des séances (une par demi-journée).
           </p>

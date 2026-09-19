@@ -30,7 +30,7 @@ export default function NouvelleReclamationPage({ searchParams }: { searchParams
           <div>
             <SectionLabel className="mb-2">Réclamations</SectionLabel>
             <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouvelle réclamation</h1>
-            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Saisie manuelle — tracée pour l'indicateur Qualiopi I31.</p>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">Saisie manuelle — tracée pour l'indicateur Qualiopi I31.</p>
           </div>
         </header>
 

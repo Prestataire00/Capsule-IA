@@ -55,7 +55,7 @@ export default async function EditQuestionnairePage({ params }: { params: { temp
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
             {isSystem ? 'Dupliquer ce modèle' : 'Modifier le questionnaire'}
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             {isSystem ? 'Ce modèle système sera copié dans vos questionnaires.' : 'Mise à jour du modèle de votre organisme.'}
           </p>
         </div>

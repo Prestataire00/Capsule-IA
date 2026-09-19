@@ -164,7 +164,7 @@ export default async function FichesBesoinPage() {
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
           Fiches besoin
         </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Analyse des besoins recueillie auprès des apprenants et des inscrits, regroupée par formation.
         </p>
       </header>

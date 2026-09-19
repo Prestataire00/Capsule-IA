@@ -95,7 +95,7 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
                     <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.rose.soft}`}>
                       <ClipboardPen className="w-4 h-4" />
                     </span>
-                    <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                    <span className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                       {KIND_LABEL[q.template?.kind ?? ''] ?? q.template?.title ?? 'Questionnaire'}
                     </span>
                   </span>
@@ -144,7 +144,7 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
                 key={`${a.template_id}-${a.recipient_email ?? i}`}
                 className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors"
               >
-                <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{a.recipient_email ?? 'Financeur'}</span>
+                <span className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{a.recipient_email ?? 'Financeur'}</span>
                 <StatusPill tone={a.status === 'completed' ? 'success' : 'neutral'}>{a.status}</StatusPill>
               </li>
             ))}

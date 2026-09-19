@@ -197,7 +197,7 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
         <div>
           <SectionLabel className="mb-2">Catalogue</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Formations</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             {corbeille ? (
               <>
                 <span className="tabular-nums">{all.length}</span> formation{all.length > 1 ? 's' : ''} à la corbeille. Elles ne
@@ -369,13 +369,13 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                       <div className="min-w-0">
                         {corbeille ? (
                           // La fiche d'une formation supprimée n'est plus consultable : pas de lien mort.
-                          <span className="block truncate text-[14px] font-extrabold" style={{ color: deepColor(color) }}>
+                          <span className="block truncate text-[15px] font-extrabold" style={{ color: deepColor(color) }}>
                             {f.title}
                           </span>
                         ) : (
                           <Link
                             href={`/formations/${f.id}`}
-                            className="block truncate text-[14px] font-extrabold hover:underline"
+                            className="block truncate text-[15px] font-extrabold hover:underline"
                             style={{ color: deepColor(color) }}
                           >
                             {f.title}

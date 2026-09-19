@@ -73,7 +73,7 @@ export default async function SessionsPage({ params }: { params: { id: string } 
               <SectionLabel>Sessions</SectionLabel>
               <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.blue.soft}`}>{rows.length}</span>
             </div>
-            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 tabular-nums">
               {rows.length} session{rows.length > 1 ? 's' : ''} · volume couvert : <span className="font-bold text-sky-700 dark:text-sky-300">{coveredHours} h</span> / {totalHours} h
             </p>
             {totalHours > 0 && (
@@ -113,7 +113,7 @@ export default async function SessionsPage({ params }: { params: { id: string } 
                 return (
                   <li key={s.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
                     <div className="min-w-0">
-                      <Link href={`/sessions/${s.id}`} className="block truncate text-[14px] font-semibold text-[color:var(--sess)] hover:underline">
+                      <Link href={`/sessions/${s.id}`} className="block truncate text-[15px] font-semibold text-[color:var(--sess)] hover:underline">
                         {s.title ?? s.modality}
                       </Link>
                       {shared && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Session partagée</p>}
@@ -128,7 +128,7 @@ export default async function SessionsPage({ params }: { params: { id: string } 
                       </p>
                     </div>
 
-                    <div className="text-[14px] font-bold text-sky-700 dark:text-sky-300 tabular-nums">{Number(s.duration_hours)} h</div>
+                    <div className="text-[15px] font-bold text-sky-700 dark:text-sky-300 tabular-nums">{Number(s.duration_hours)} h</div>
 
                     <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
                       <span className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-full text-[12px] font-semibold ${ACCENTS.purple.soft}`}>

@@ -22,7 +22,7 @@ export default function ReclamationEnvoyeePage({
           Réclamation envoyée
         </h1>
 
-        <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-8">
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-8">
           Nous avons bien reçu votre réclamation. Notre équipe vous répondra dans les meilleurs délais.
         </p>
 

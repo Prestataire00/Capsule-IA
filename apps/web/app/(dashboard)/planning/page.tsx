@@ -115,7 +115,7 @@ export default async function PlanningPage({
         <div>
           <SectionLabel className="mb-2">Planification</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Planning des sessions</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
             {sessions.length} session{sessions.length > 1 ? 's' : ''} cette semaine.
           </p>
           {sessionErr && (
@@ -159,7 +159,7 @@ export default async function PlanningPage({
             >
               <ChevronLeft className="w-4 h-4" />
             </Link>
-            <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 capitalize tabular-nums">{monthLabel}</p>
+            <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 capitalize tabular-nums">{monthLabel}</p>
             <Link
               href={`/planning?week=${weekOffset + 1}`}
               aria-label="Semaine suivante"

@@ -155,7 +155,7 @@ export default async function DocumentsPage({
         <div>
           <SectionLabel className="mb-2">Documents &amp; communication</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Documents</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             Conventions, attestations, certificats — générés depuis vos templates.{' '}
             <span className="tabular-nums">
               {all.length} document{all.length > 1 ? 's' : ''} · {counts['a-signer']} à signer
@@ -262,11 +262,11 @@ export default async function DocumentsPage({
                     </span>
                     <div className="min-w-0">
                       {d.dossier ? (
-                        <Link href={href} className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                        <Link href={href} className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
                           {d.title}
                         </Link>
                       ) : (
-                        <span className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
+                        <span className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
                       )}
                       {d.created_at && (
                         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums mt-0.5">

@@ -112,7 +112,7 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
             <div className="flex items-center gap-3">
               <Initiales accent="rose" prenom={referent.firstName} nom={referent.lastName} />
               <div className="min-w-0">
-                <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
                   {[referent.firstName, referent.lastName].filter(Boolean).join(' ')}
                 </p>
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
@@ -163,7 +163,7 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
               <li key={a.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-rose-50/60 dark:hover:bg-rose-950/20 transition">
                 <Initiales accent="rose" prenom={a.firstName} nom={a.lastName} />
                 <div className="min-w-0">
-                  <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                  <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
                     {a.firstName} {a.lastName}
                   </p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 flex flex-wrap gap-x-3 truncate">
@@ -186,7 +186,7 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
           <ListChecks className="w-5 h-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">Préparer mon cours</span>
+          <span className="block text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Préparer mon cours</span>
           <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
             Quiz auto-corrigés et exercices, publiés dans l&apos;espace des stagiaires.
           </span>
@@ -217,7 +217,7 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
                     <span className="block text-[11px] uppercase tracking-wide opacity-90">{moisCourt(s.startsAt)}</span>
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
                       {s.title ?? jourLong(s.startsAt)}
                     </p>
                     <p className="text-[12px] text-zinc-600 dark:text-zinc-400 tabular-nums">

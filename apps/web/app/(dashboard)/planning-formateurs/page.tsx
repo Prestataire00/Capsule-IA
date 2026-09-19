@@ -115,7 +115,7 @@ export default async function PlanningFormateursPage({
         <h1 className="text-[30px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">
           Tous les formateurs
         </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
           Une ligne par formateur, deux cases par jour (matin, après-midi) : ce qu&apos;il anime, et ce qu&apos;il a
           déclaré libre. À ouvrir avant de confier une séance.
         </p>
@@ -156,7 +156,7 @@ export default async function PlanningFormateursPage({
           >
             <ChevronLeft className="w-4 h-4" />
           </Link>
-          <span className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 tabular-nums px-1">
+          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 tabular-nums px-1">
             Semaine du {semaineFmt.format(lundi)}
           </span>
           <Link

@@ -109,7 +109,7 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
             </ManageOnly>
           </span>
         </div>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           {c.legal_name && c.legal_name !== c.name && <>{c.legal_name} · </>}
           <span className="tabular-nums">
             {learners.length} apprenant{learners.length > 1 ? 's' : ''} · {dossiers.length} dossier{dossiers.length > 1 ? 's' : ''}
@@ -192,7 +192,7 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
                           <span className={`w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold flex-shrink-0 ${avatarTone(name)}`}>
                             {initials || '?'}
                           </span>
-                          <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{name || '—'}</span>
+                          <span className="truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{name || '—'}</span>
                         </span>
                         <span className="truncate text-zinc-500 dark:text-zinc-400">{l.email || '—'}</span>
                       </Link>
@@ -246,7 +246,7 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
                           <IdPill>{d.reference}</IdPill>
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.formation?.title ?? '—'}</span>
+                          <span className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{d.formation?.title ?? '—'}</span>
                           {learner && <span className="block truncate text-[12px] text-zinc-500 dark:text-zinc-400">{learner}</span>}
                         </span>
                         <span>

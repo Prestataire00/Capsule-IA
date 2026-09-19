@@ -63,7 +63,7 @@ function InvalidScreen({ reason }: { reason: string }) {
           <AlertTriangle className="w-7 h-7" />
         </span>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Lien invalide</h1>
-        <p className="text-[14px] text-zinc-600 dark:text-zinc-400">{message}</p>
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400">{message}</p>
       </main>
     </div>
   );
@@ -88,7 +88,7 @@ export default async function SatisfactionPage({
         <main className="max-w-xl mx-auto px-6 py-20 text-center">
           <Sparkles className="w-12 h-12 text-violet-500 mx-auto mb-6" />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Déjà répondu, merci 🙏</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
             Vous avez déjà partagé votre avis sur cette formation. Nous le prenons en compte avec attention.
           </p>
         </main>
@@ -114,7 +114,7 @@ export default async function SatisfactionPage({
           <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">
             Comment s'est passée votre formation{ctx.dossier.learner ? `, ${ctx.dossier.learner.first_name}` : ''} ?
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
             <strong className="text-zinc-700 dark:text-zinc-300">{ctx.dossier.formation?.title ?? 'Votre formation'}</strong> · 5 minutes chrono · 100% confidentiel
           </p>
         </div>

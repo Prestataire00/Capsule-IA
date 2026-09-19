@@ -72,6 +72,14 @@ typography:
     fontFamily: "Geist Mono, ui-monospace, SFMono-Regular, Menlo, monospace"
     fontSize: "11px"
     fontWeight: 400
+  input-mobile:
+    fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+  projection:
+    fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "48px"
+    fontWeight: 600
 rounded:
   md: "6px"
   lg: "8px"
@@ -224,6 +232,21 @@ technique ; à taille de corps elle reste ouverte et neutre.
 - **Code** (normal, 11px, Geist Mono) : références de dossier, identifiants, types techniques.
 
 Tailles autorisées : 11, 12, 13, 15, 17, 20, 24, et 30 pour le hero seul. Rien entre.
+
+Deux rôles sortent de cette échelle, et pour une raison mécanique, pas esthétique :
+
+- **Input mobile** (16px) : un champ de saisie sous 16px déclenche le zoom automatique
+  de Safari iOS à la prise de focus. La salle de signature se remplit au téléphone ;
+  descendre à 15px y rendrait le formulaire pénible. 16px est un minimum technique.
+- **Projection** (48px, semibold) : l'écran de salle, lu depuis le fond d'une pièce.
+  La distance de lecture n'est pas celle d'un bureau ; l'échelle d'écran ne s'y applique pas.
+
+### Named Rules
+
+**La règle des deux exceptions.** Hors input mobile et écran de projection, aucune taille
+ne sort de l'échelle. Une taille intermédiaire (14px, 16px, 28px) est une dérive, pas une
+nuance : elle se range sur le pas au-dessus ou en dessous selon le rôle du texte —
+un nom d'objet monte, un texte courant descend.
 
 ### Named Rules
 

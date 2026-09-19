@@ -74,7 +74,7 @@ export default async function ReclamationsPage() {
         <div>
           <SectionLabel className="mb-2">Qualité</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Réclamations</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
             {open.length} ouverte{open.length > 1 ? 's' : ''} · {complaints.length} au total · indicateur Qualiopi I31
           </p>
         </div>
@@ -132,7 +132,7 @@ export default async function ReclamationsPage() {
                   <div>
                     <IdPill>{c.reference}</IdPill>
                   </div>
-                  <Link href={`/reclamations/${c.id}`} className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                  <Link href={`/reclamations/${c.id}`} className="min-w-0 truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
                     {c.subject}
                   </Link>
                   <span className="text-zinc-700 dark:text-zinc-300 truncate">

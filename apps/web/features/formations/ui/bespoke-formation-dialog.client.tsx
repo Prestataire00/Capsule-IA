@@ -79,7 +79,7 @@ export function BespokeFormationDialog({
                 <Sparkles className="w-4 h-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-[16px] font-extrabold text-zinc-900 dark:text-zinc-100">Formation sur mesure</h2>
+                <h2 className="text-[17px] font-extrabold text-zinc-900 dark:text-zinc-100">Formation sur mesure</h2>
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
                   Hors catalogue, pour {clientName} · tarif que vous fixez
                 </p>

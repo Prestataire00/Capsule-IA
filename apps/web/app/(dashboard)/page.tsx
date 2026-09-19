@@ -158,7 +158,7 @@ export default async function Home({
           <h1 className="mt-2 text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
             {greet()} {firstName}
           </h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-1.5">Voici l&apos;activité de votre organisme aujourd&apos;hui.</p>
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">Voici l&apos;activité de votre organisme aujourd&apos;hui.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="bg-white/80 dark:bg-zinc-900/80 border border-orange-100 dark:border-zinc-800 rounded-lg px-3 h-10 inline-flex items-center gap-2 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 shadow-sm">

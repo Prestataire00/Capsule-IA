@@ -86,7 +86,7 @@ export function DeclaredPanel({
     <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
             <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.purple.soft}`}>
               <PenLine className="w-4 h-4" />
             </span>

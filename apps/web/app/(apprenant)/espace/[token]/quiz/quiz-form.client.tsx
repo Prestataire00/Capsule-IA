@@ -58,7 +58,7 @@ export function QuizForm({
   if (resultat) {
     return (
       <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/25 px-4 py-3">
-        <p className="text-[14px] font-bold text-emerald-800 dark:text-emerald-300 inline-flex items-center gap-2">
+        <p className="text-[15px] font-bold text-emerald-800 dark:text-emerald-300 inline-flex items-center gap-2">
           <Trophy className="w-4 h-4" />
           <span className="tabular-nums">
             {resultat.note} / {resultat.bareme}

@@ -33,7 +33,7 @@ function ContactList({
         <span className={`w-7 h-7 rounded-md grid place-items-center ${ton}`}>
           <Icone className="w-4 h-4" />
         </span>
-        <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
           {titre} {contacts.length > 0 && <span className="text-zinc-400 tabular-nums">({contacts.length})</span>}
         </h2>
       </div>

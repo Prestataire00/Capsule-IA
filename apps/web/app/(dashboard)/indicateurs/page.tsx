@@ -89,7 +89,7 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
             Indicateurs de résultats
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
             Calculés en direct depuis vos dossiers terminés et vos questionnaires de satisfaction —
             aucune saisie. Publiés automatiquement sur la fiche publique de chaque formation
             (indicateur Qualiopi 2).
@@ -140,7 +140,7 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
 
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800">
-          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
             <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.blue.soft}`}>
               <BookOpen className="w-4 h-4" />
             </span>
@@ -181,7 +181,7 @@ export default async function IndicateursPage({ searchParams }: { searchParams: 
                           <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: color }} />
                           <Link
                             href={`/formations/${f.formationId}`}
-                            className="text-[14px] font-extrabold truncate hover:underline"
+                            className="text-[15px] font-extrabold truncate hover:underline"
                             style={{ color: deepColor(color) }}
                           >
                             {f.title}

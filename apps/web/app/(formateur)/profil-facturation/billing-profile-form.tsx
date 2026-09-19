@@ -64,7 +64,7 @@ export function BillingProfileForm({ initial, numerotationLibre }: { initial: Ch
       }}
     >
       <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 p-4 space-y-3 bg-white dark:bg-zinc-900">
-        <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Identité</h2>
+        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Identité</h2>
         <Champ label="Nom ou raison sociale" aide="Tel qu’il doit figurer sur vos factures (ex. « Anissa Fiévé EI »).">
           <input value={f.legalName} onChange={maj('legalName')} className={champ} maxLength={200} required />
         </Champ>
@@ -85,7 +85,7 @@ export function BillingProfileForm({ initial, numerotationLibre }: { initial: Ch
       </section>
 
       <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 p-4 space-y-3 bg-white dark:bg-zinc-900">
-        <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">TVA</h2>
+        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">TVA</h2>
         <Champ label="Régime">
           <select value={f.vatRegime} onChange={maj('vatRegime')} className={champ}>
             <option value="franchise">Franchise en base (micro-entreprise) — « TVA non applicable, art. 293 B du CGI »</option>
@@ -105,7 +105,7 @@ export function BillingProfileForm({ initial, numerotationLibre }: { initial: Ch
       </section>
 
       <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 p-4 space-y-3 bg-white dark:bg-zinc-900">
-        <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Règlement et numérotation</h2>
+        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Règlement et numérotation</h2>
         <div className="grid sm:grid-cols-[1fr_140px] gap-3">
           <Champ label="IBAN" aide="Facultatif : imprimé sur la facture pour faciliter le virement.">
             <input value={f.iban} onChange={maj('iban')} className={`${champ} font-mono`} maxLength={42} />

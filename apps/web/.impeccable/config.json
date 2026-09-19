@@ -1,6 +1,11 @@
 {
   "detector": {
-    "ignoreRules": [],
+    "ignoreRules": [
+      "gray-on-color",
+      "ai-color-palette",
+      "side-tab",
+      "bounce-easing"
+    ],
     "ignoreFiles": [
       "shared/lib/email/**",
       "features/documents/**",
@@ -27,8 +32,16 @@
       "features/trainer-space/billing.ts",
       "features/trainer-space/trainer-invoice-pdf.ts",
       "shared/lib/notifications/notify-staff.ts",
-      "**/*.test.ts"
+      "**/*.test.ts",
+      "features/formations/programme/programme-document.tsx",
+      "app/(dashboard)/parametres/inscription/inscription-link.tsx"
     ],
     "ignoreValues": []
+  },
+  "_motifsDesRegles": {
+    "gray-on-color": "Vérifié le 2026-09-19 : 97 signalements, 97 faux positifs. La règle apparie des noms de classes dans une même chaîne sans modéliser les variantes Tailwind. Elle lit « zinc-400 sur orange-50 » là où `dark:text-zinc-400` ne vaut qu'en thème sombre (fond orange-950) et où `hover:bg-orange-50` s'accompagne toujours d'un `hover:text-orange-600`. Les deux derniers cas opposaient un pseudo-élément `file:` au texte du champ. Le contraste réel est tenu par la règle du 500 du DESIGN.md : sur fond teinté, jamais sous horizon-500 (5:1).",
+    "ai-color-palette": "Le violet n'est pas une ambiance ici, c'est une catégorie : la charte v4.1 l'assigne à Qualiopi (indicateurs, audits, supports à valider). Voir la règle du sens du DESIGN.md.",
+    "side-tab": "La bordure gauche colorée est le code de statut de l'application (réclamations, factures en retard, lignes de dossier), pas un ornement. Système assumé et documenté.",
+    "bounce-easing": "Unique occurrence : les trois points « l'assistant écrit » de ai-assistant.tsx. Le rebond est la convention établie d'un indicateur de frappe, pas une transition d'interface."
   }
 }

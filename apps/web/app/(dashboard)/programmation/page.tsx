@@ -26,7 +26,7 @@ export default async function ProgrammationPage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Communication</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Programmation des envois</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-3xl">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-3xl">
           Programmez des emails automatiques relatifs à une date d'un dossier — par exemple un
           rappel 3 jours avant le début de la 1ʳᵉ session. Les règles actives sont évaluées chaque
           jour et envoient une seule fois par dossier.{' '}

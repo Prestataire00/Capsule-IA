@@ -61,7 +61,7 @@ export default async function MfaPage() {
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900 p-4">
             <ShieldAlert className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
             <div className="flex-1 space-y-1">
-              <p className="text-[14px] font-bold text-amber-900 dark:text-amber-100">
+              <p className="text-[15px] font-bold text-amber-900 dark:text-amber-100">
                 MFA non activée
               </p>
               <p className="text-[13px] text-amber-700 dark:text-amber-300">

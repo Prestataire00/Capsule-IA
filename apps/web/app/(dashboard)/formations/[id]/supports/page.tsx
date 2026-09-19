@@ -139,7 +139,7 @@ export default async function FormationSupportsPage({
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
           {(formation as { title: string }).title}
         </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           {modulesWithResources.length} module{modulesWithResources.length !== 1 ? 's' : ''} —{' '}
           {totalResources} support{totalResources !== 1 ? 's' : ''}
         </p>
@@ -173,7 +173,7 @@ export default async function FormationSupportsPage({
                   <BookOpen className="w-4 h-4" />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                  <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                     {mod.moduleTitle}
                   </p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">

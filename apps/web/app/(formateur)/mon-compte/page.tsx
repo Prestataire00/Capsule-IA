@@ -117,7 +117,7 @@ export default async function MonComptePage() {
                   <Icone className="w-5 h-5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">{r.titre}</span>
+                  <span className="block text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{r.titre}</span>
                   <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 leading-snug">{r.detail}</span>
                 </span>
                 <ArrowRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-500 transition shrink-0" />

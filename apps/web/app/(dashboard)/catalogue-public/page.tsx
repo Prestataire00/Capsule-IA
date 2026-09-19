@@ -52,7 +52,7 @@ export default async function CataloguePublicPage() {
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
           Votre catalogue en ligne
         </h1>
-        <p className="mt-3 text-[14px] text-zinc-500 dark:text-zinc-400">
+        <p className="mt-3 text-[13px] text-zinc-500 dark:text-zinc-400">
           Partagez ce lien : il affiche toutes vos formations publiées, chacune avec son programme détaillé.
         </p>
       </header>
@@ -131,7 +131,7 @@ export default async function CataloguePublicPage() {
                       <span className="mt-[5px] w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: color }} />
                       <Link
                         href={`/formations/${f.id}`}
-                        className="min-w-0 block truncate text-[14px] font-extrabold hover:underline"
+                        className="min-w-0 block truncate text-[15px] font-extrabold hover:underline"
                         style={{ color: deepColor(color) }}
                       >
                         {f.title}

@@ -54,7 +54,7 @@ export default async function EspaceQuizPage({ params }: { params: { token: stri
             >
               <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
-                  <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">
+                  <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
                     {q.title}
                     <span className="ml-2 text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
                       {FORME_LABELS[q.kind]}

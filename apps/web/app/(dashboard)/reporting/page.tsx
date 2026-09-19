@@ -54,7 +54,7 @@ export default async function ReportingPage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Pilotage</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Reporting</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Indicateurs clés de l'organisme — pipeline, formation, conformité, finances.
         </p>
       </header>
@@ -121,7 +121,7 @@ export default async function ReportingPage() {
             {/* Heures */}
             <div className={`${CARD} p-5`}>
               <CardTitle icon={Clock} accent="sky">Heures réalisées</CardTitle>
-              <p className={`text-[28px] leading-none font-extrabold tabular-nums mt-4 ${ACCENTS.sky.value}`}>
+              <p className={`text-[24px] leading-none font-extrabold tabular-nums mt-4 ${ACCENTS.sky.value}`}>
                 {hrs(r.hours_delivered)}
               </p>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-2 tabular-nums">
@@ -163,7 +163,7 @@ function CardTitle({
   children: React.ReactNode;
 }) {
   return (
-    <p className={`text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5 ${className ?? ''}`}>
+    <p className={`text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5 ${className ?? ''}`}>
       <span className={`w-8 h-8 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS[accent].soft}`}>
         <Icon className="w-4 h-4" />
       </span>

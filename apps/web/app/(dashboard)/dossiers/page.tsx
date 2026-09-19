@@ -95,7 +95,7 @@ function DossierCard({ d, nom = learnerName(d) }: { d: Row; nom?: string }) {
       </div>
       <div className="flex items-center gap-2.5 min-w-0">
         <Avatar name={nom} />
-        <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{nom}</p>
+        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{nom}</p>
       </div>
       <p className="text-[13px] font-bold text-zinc-700 dark:text-zinc-300 truncate mt-0.5">{d.formation?.title ?? '—'}</p>
       {d.company?.name && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{d.company.name}</p>}
@@ -331,7 +331,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   <div className="min-w-0 flex items-center gap-3">
                     <Avatar name={titre(d).nom} />
                     <div className="min-w-0">
-                      <Link href={`/dossiers/${d.id}`} className="block truncate text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100 hover:underline">
+                      <Link href={`/dossiers/${d.id}`} className="block truncate text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100 hover:underline">
                         {titre(d).nom}
                         {titre(d).estReferent && (
                           <span className="ml-1.5 align-middle text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
@@ -355,7 +355,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                     <p className="text-zinc-500 dark:text-zinc-400 mt-1">→ {fmtDate(d.end_date)}</p>
                   </div>
 
-                  <div className={`text-right text-[14px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>
+                  <div className={`text-right text-[15px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>
                     {fmtEuros(d.total_amount_cents)}
                   </div>
 

@@ -60,7 +60,7 @@ export async function ClientFormationsSection({
               {formations.map((f) => (
                 <li key={f.id} className="grid grid-cols-[minmax(0,1.6fr)_120px_130px_110px_minmax(0,220px)] gap-4 px-5 py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors">
                   <div className="min-w-0">
-                    <Link href={`/formations/${f.id}`} className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:text-orange-600 dark:hover:text-orange-300">
+                    <Link href={`/formations/${f.id}`} className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:text-orange-600 dark:hover:text-orange-300">
                       {f.title}
                     </Link>
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
@@ -74,7 +74,7 @@ export async function ClientFormationsSection({
                       {MODALITY_LABEL[f.modality] ?? f.modality}
                     </span>
                   </div>
-                  <div className="text-[14px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{euro.format(f.priceCents / 100)}</div>
+                  <div className="text-[15px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{euro.format(f.priceCents / 100)}</div>
                   <div className="flex items-center justify-end gap-2 flex-wrap">
                     <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums inline-flex items-center gap-2">
                       <span className="inline-flex items-center gap-1" title="Séances planifiées">

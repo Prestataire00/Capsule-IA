@@ -121,7 +121,7 @@ export default async function QuestionnairesPage({
         <div>
           <SectionLabel className="mb-2">Documents &amp; communication</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Questionnaires</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             Positionnement, satisfaction à chaud et à froid — preuves Qualiopi I10, I26, I27.{' '}
             <span className="tabular-nums">
               {all.length} envoi{all.length > 1 ? 's' : ''} · {templates.length} modèle{templates.length > 1 ? 's' : ''}
@@ -272,7 +272,7 @@ export default async function QuestionnairesPage({
                       <div className="min-w-0 flex items-center gap-3">
                         <span className={`w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${palette}`}>{initials || '—'}</span>
                         <div className="min-w-0">
-                          <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{who}</p>
+                          <p className="truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{who}</p>
                           {q.recipient_name && q.recipient_email && (
                             <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">{q.recipient_email}</p>
                           )}

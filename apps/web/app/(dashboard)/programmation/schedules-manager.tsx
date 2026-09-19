@@ -334,7 +334,7 @@ export function SchedulesManager({ rules }: { rules: ScheduleRow[] }) {
                       <CalendarClock className="w-4 h-4" />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</p>
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{r.name}</p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
                         <span className={`font-semibold ${ACCENTS.blue.text}`}>{timingLabel(r.offset_days, r.anchor)}</span>
                         {attachmentLabel(r.attachment_kind) ? ` · pièce jointe : ${attachmentLabel(r.attachment_kind)}` : ''} ·{' '}

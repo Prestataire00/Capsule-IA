@@ -80,7 +80,7 @@ export default async function TracabilitePage({
       <header className="mb-7">
         <SectionLabel className="mb-2">Suivi</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Traçabilité des documents</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Qui a ouvert ou téléchargé les documents, et quand — preuve d&apos;accès (Qualiopi).{' '}
           <span className="tabular-nums">
             {rows.length} accès · {dossiers} dossier{dossiers > 1 ? 's' : ''}

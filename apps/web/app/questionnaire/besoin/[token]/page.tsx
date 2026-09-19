@@ -92,7 +92,7 @@ function InfoScreen({
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">
           {title}
         </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">{message}</p>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">{message}</p>
       </div>
     </Shell>
   );
@@ -142,7 +142,7 @@ export default async function FicheBesoinPage({
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
           {learnerName ? `Bonjour ${learnerName},` : 'Votre fiche besoin'}
         </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-2">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
           Avant de démarrer{formationTitle ? ` « ${formationTitle} »` : ' votre formation'}, aidez-nous à
           analyser vos besoins. Cela prend environ 10 minutes et nous permet d&apos;adapter le parcours.
         </p>
@@ -166,7 +166,7 @@ export default async function FicheBesoinPage({
         <input type="hidden" name="token" value={params.token} />
 
         <fieldset>
-          <legend className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 mb-3">
+          <legend className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 mb-3">
             Votre niveau actuel sur le sujet de la formation
           </legend>
           <div className="grid grid-cols-5 gap-1.5">
@@ -195,7 +195,7 @@ export default async function FicheBesoinPage({
         </fieldset>
 
         <label className="block">
-          <span className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
+          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
             Quels sont vos objectifs pour cette formation ? <span className="text-rose-500">*</span>
           </span>
           <textarea
@@ -208,7 +208,7 @@ export default async function FicheBesoinPage({
         </label>
 
         <label className="block">
-          <span className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
+          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
             Vos attentes particulières
           </span>
           <textarea
@@ -220,14 +220,14 @@ export default async function FicheBesoinPage({
         </label>
 
         <label className="block">
-          <span className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
+          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
             Contraintes éventuelles (planning, organisation…)
           </span>
           <textarea name="constraints" rows={2} placeholder="Disponibilités, contraintes…" className={inputCls} />
         </label>
 
         <label className="block">
-          <span className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
+          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
             Besoin d&apos;aménagement (situation de handicap)
           </span>
           <textarea

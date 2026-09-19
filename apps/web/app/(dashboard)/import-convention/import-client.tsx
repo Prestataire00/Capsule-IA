@@ -198,7 +198,7 @@ export function ImportConventionClient() {
         </p>
 
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-3">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
             <Building2 className="w-4 h-4 text-zinc-400" /> Client
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -234,7 +234,7 @@ export function ImportConventionClient() {
 
         {payload.formations.map((f, i) => (
           <section key={i} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-3">
-            <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+            <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-zinc-400" /> Formation {payload.formations.length > 1 ? i + 1 : ''}
             </p>
             <div className="grid sm:grid-cols-[1fr_120px_140px] gap-3">
@@ -287,7 +287,7 @@ export function ImportConventionClient() {
         ))}
 
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-3">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
             <CalendarClock className="w-4 h-4 text-zinc-400" /> Séances
             <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.blue.soft}`}>
               {payload.sessions.length}
@@ -345,7 +345,7 @@ export function ImportConventionClient() {
         </section>
 
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-3">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Tarif et participants</p>
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Tarif et participants</p>
           <div className="grid sm:grid-cols-3 gap-3">
             <label className="block space-y-1">
               <span className={etiquette}>Total HT (€)</span>
@@ -385,7 +385,7 @@ export function ImportConventionClient() {
         </section>
 
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-2">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
             <FolderOpen className="w-4 h-4 text-zinc-400" aria-hidden /> L’affaire
           </p>
           <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">

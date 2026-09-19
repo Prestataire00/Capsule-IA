@@ -122,7 +122,7 @@ export function KpiCard({
       </div>
       <p className="text-[13px] font-semibold text-zinc-600 dark:text-zinc-400 mt-4">{label}</p>
       {value !== undefined && (
-        <p className={cn('text-[28px] leading-none font-extrabold tabular-nums mt-1.5', a.value)}>{value}</p>
+        <p className={cn('text-[24px] leading-none font-extrabold tabular-nums mt-1.5', a.value)}>{value}</p>
       )}
       {children && <div className="mt-2">{children}</div>}
       {hint && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-2 tabular-nums">{hint}</p>}

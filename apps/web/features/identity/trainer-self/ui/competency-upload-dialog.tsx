@@ -80,7 +80,7 @@ export function CompetencyUploadDialog({
             className="bg-white dark:bg-zinc-950 rounded-2xl shadow-lg max-w-md w-full p-5 space-y-4 border border-zinc-200 dark:border-zinc-800"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-[16px] font-medium">Nouvelle compétence</h2>
+              <h2 className="text-[17px] font-medium">Nouvelle compétence</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}

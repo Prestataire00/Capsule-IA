@@ -136,7 +136,7 @@ export default async function ApprenantsPage({
         <div>
           <SectionLabel className="mb-2">Relations</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Apprenants</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             <span className="tabular-nums">{learners.length} apprenants</span> suivis dans votre OF.
           </p>
         </div>
@@ -275,7 +275,7 @@ export default async function ApprenantsPage({
                       <div className="min-w-0">
                         <Link
                           href={`/apprenants/${l.id}`}
-                          className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                          className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
                         >
                           {name}
                         </Link>

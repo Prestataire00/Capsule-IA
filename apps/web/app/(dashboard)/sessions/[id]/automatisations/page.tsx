@@ -63,7 +63,7 @@ export default async function SessionAutomatisations({ params }: { params: { id:
       </p>
 
       <section className="space-y-2">
-        <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Envois de Capsule</h2>
+        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Envois de Capsule</h2>
         <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg divide-y divide-zinc-200/60 dark:divide-zinc-800">
           {AUTOMATION_KEYS.map((e) => (
             <li key={e.key} className="px-4 py-3 flex items-start justify-between gap-3">
@@ -86,7 +86,7 @@ export default async function SessionAutomatisations({ params }: { params: { id:
 
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Programmations de l’organisme</h2>
+          <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Programmations de l’organisme</h2>
           <Link href="/programmation" className="text-[12px] text-orange-600 dark:text-orange-400 hover:underline">
             Gérer les programmations →
           </Link>

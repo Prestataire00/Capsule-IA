@@ -70,7 +70,7 @@ export async function FormateurTopbar({
           {initiales}
         </span>
         <span className="min-w-0 leading-tight hidden sm:block">
-          <span className="block text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+          <span className="block text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
             {moi ? `${moi.firstName} ${moi.lastName}` : 'Espace formateur'}
           </span>
           <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">Espace formateur</span>

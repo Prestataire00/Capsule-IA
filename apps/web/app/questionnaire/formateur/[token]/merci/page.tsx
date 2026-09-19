@@ -18,7 +18,7 @@ export default function MerciPage({ searchParams }: { searchParams: { status?: s
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
           {already ? 'Déjà enregistré, merci 🙏' : 'Merci pour votre retour 🙏'}
         </h1>
-        <p className="text-[14px] text-zinc-600 dark:text-zinc-400">
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
           Votre avis de formateur contribue à améliorer l'organisation des prochaines sessions.
         </p>
       </main>

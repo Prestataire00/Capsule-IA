@@ -78,7 +78,7 @@ export function TaskRow({
         </button>
 
         <div className="min-w-0 flex-1">
-          <p className={`text-[14px] font-medium text-zinc-900 dark:text-zinc-100 ${terminee ? 'line-through' : ''}`}>
+          <p className={`text-[13px] font-medium text-zinc-900 dark:text-zinc-100 ${terminee ? 'line-through' : ''}`}>
             {task.title}
           </p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">

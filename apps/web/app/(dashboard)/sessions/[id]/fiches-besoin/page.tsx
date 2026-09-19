@@ -52,7 +52,7 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
             key={`${f.learnerId}-${f.dossierId}`}
             fiche={f}
             entete={
-              <Link href={`/dossiers/${f.dossierId}`} className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 hover:underline">
+              <Link href={`/dossiers/${f.dossierId}`} className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 hover:underline">
                 {f.name}
               </Link>
             }

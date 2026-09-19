@@ -131,7 +131,7 @@ function DocRow({ prospectId, doc }: { prospectId: string; doc: DocChecklistItem
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 flex-wrap">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
             {doc.label}
             {doc.required && <span className="text-red-500" title="Pièce obligatoire"> *</span>}
           </p>

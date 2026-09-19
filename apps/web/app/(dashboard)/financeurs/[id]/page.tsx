@@ -172,7 +172,7 @@ export default async function FinanceurDetailPage({
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-4 flex-wrap mt-3 text-[14px] text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center gap-4 flex-wrap mt-3 text-[13px] text-zinc-500 dark:text-zinc-400">
           <span className="tabular-nums">
             {links.length} dossier{links.length > 1 ? 's' : ''} financé{links.length > 1 ? 's' : ''}
           </span>
@@ -235,7 +235,7 @@ export default async function FinanceurDetailPage({
                       <div className="min-w-0">
                         <Link
                           href={`/dossiers/${d.id}/facturation`}
-                          className="text-[14px] text-zinc-900 dark:text-zinc-100 hover:underline font-bold truncate block"
+                          className="text-[15px] text-zinc-900 dark:text-zinc-100 hover:underline font-bold truncate block"
                         >
                           {d.formation?.title ?? d.reference}
                         </Link>
@@ -247,7 +247,7 @@ export default async function FinanceurDetailPage({
                         <StatusPill tone={ds.tone}>{ds.label}</StatusPill>
                         <StatusPill tone={fs.tone}>{fs.label}</StatusPill>
                       </div>
-                      <span className={`tabular-nums text-right text-[14px] font-bold ${ACCENTS.emerald.value}`}>
+                      <span className={`tabular-nums text-right text-[15px] font-bold ${ACCENTS.emerald.value}`}>
                         {formatEurosCents(l.amount_cents)}
                       </span>
                     </li>

@@ -83,12 +83,12 @@ export default async function CataloguePage({
 
       <div className="mx-auto max-w-6xl px-6 py-8">
         {!org ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-[14px] text-amber-800">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-[13px] text-amber-800">
             Lien incomplet : ajoutez le paramètre <code className="font-mono">?org=&lt;identifiant OF&gt;</code> pour
             afficher un catalogue.
           </div>
         ) : all.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center text-[14px] text-zinc-500">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center text-[13px] text-zinc-500">
             Aucune formation publiée pour le moment.
           </div>
         ) : (

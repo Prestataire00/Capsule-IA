@@ -77,7 +77,7 @@ export default async function QuestionnaireAnalyticsPage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Questionnaires</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Statistiques</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Taux de retour, NPS et satisfaction agrégés — preuves Qualiopi I26/I27.{' '}
           <span className="tabular-nums">
             {total} questionnaire{total > 1 ? 's' : ''} · {completed} complété{completed > 1 ? 's' : ''}
@@ -119,7 +119,7 @@ export default async function QuestionnaireAnalyticsPage() {
 
       {allNps.length > 0 && (
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 mb-8">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 mb-3 inline-flex items-center gap-2">
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-3 inline-flex items-center gap-2">
             <span className={`w-7 h-7 rounded-lg grid place-items-center ${ACCENTS.purple.soft}`}>
               <BarChart3 className="w-4 h-4" />
             </span>
@@ -161,7 +161,7 @@ export default async function QuestionnaireAnalyticsPage() {
                       <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${ACCENTS.blue.soft}`}>
                         <ClipboardList className="w-4 h-4" />
                       </span>
-                      <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{KIND_LABEL[kind] ?? kind}</span>
+                      <span className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{KIND_LABEL[kind] ?? kind}</span>
                     </span>
                     <span className="text-right">
                       <span className={`text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-full ${ACCENTS.blue.soft}`}>{b.total}</span>

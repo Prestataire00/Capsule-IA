@@ -256,7 +256,7 @@ export function NewDossierForm({
                 <h1 className="text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
                   Pour qui et quelle formation ?
                 </h1>
-                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
                   Dites pour qui, quelle formation, et sur quelle période.
                 </p>
               </div>
@@ -434,7 +434,7 @@ export function NewDossierForm({
                 <h1 className="text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
                   Modules et formateur
                 </h1>
-                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
                   Ajustez les modules de la formation pour ce dossier.
                 </p>
               </div>
@@ -515,7 +515,7 @@ export function NewDossierForm({
                 <h1 className="text-[30px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">
                   Financement
                 </h1>
-                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
                   Montant et financeur (optionnels au stade brouillon).
                 </p>
               </div>

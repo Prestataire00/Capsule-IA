@@ -67,7 +67,7 @@ export default async function RecherchePage({ searchParams }: { searchParams: Se
         <SectionLabel className="mb-2">Pilotage</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Recherche</h1>
         {q.length >= 2 && (
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
             {total} résultat{total > 1 ? 's' : ''} pour « {q} »
           </p>
         )}
@@ -97,7 +97,7 @@ export default async function RecherchePage({ searchParams }: { searchParams: Se
                 {companies.map((c) => (
                   <li key={c.id} className="px-5 py-3.5 text-[13px] flex items-center gap-3">
                     <RowIcon icon={Building2} accent="teal" />
-                    <span className="flex-1 min-w-0 text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.name}</span>
+                    <span className="flex-1 min-w-0 text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.name}</span>
                     {c.siret && <span className="font-mono text-[12px] text-zinc-500 dark:text-zinc-400">{c.siret}</span>}
                   </li>
                 ))}
@@ -112,7 +112,7 @@ export default async function RecherchePage({ searchParams }: { searchParams: Se
                 {learners.map((l) => (
                   <li key={l.id} className="px-5 py-3.5 text-[13px] flex items-center gap-3">
                     <RowIcon icon={User} accent="rose" />
-                    <span className="flex-1 min-w-0 text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                    <span className="flex-1 min-w-0 text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                       {[l.first_name, l.last_name].filter(Boolean).join(' ')}
                     </span>
                     <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{l.email}</span>

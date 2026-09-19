@@ -87,7 +87,7 @@ export default async function EspaceSessionsPage({ params }: { params: { token: 
         <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Sessions & replays</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
             {ctx.sessions.length} séance{ctx.sessions.length > 1 ? 's' : ''} planifiée{ctx.sessions.length > 1 ? 's' : ''} sur votre parcours.
           </p>
         </div>

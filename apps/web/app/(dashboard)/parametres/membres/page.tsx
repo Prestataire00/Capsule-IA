@@ -110,7 +110,7 @@ export default async function ParametresMembresPage() {
                     {initials}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{m.name}</p>
+                    <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{m.name}</p>
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{m.email}</p>
                   </div>
                 </div>

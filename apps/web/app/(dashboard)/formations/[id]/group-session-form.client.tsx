@@ -108,7 +108,7 @@ export function GroupSessionForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
         <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
           <Users className="w-4 h-4" />
         </span>

@@ -57,7 +57,7 @@
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: rgb(200 208 221 / 0.7);
-    border-radius: 3px;
+    border-radius: 9999px;
   }
   .dark .scrollbar-thin { scrollbar-color: rgb(51 64 86 / 0.8) transparent; }
   .dark .scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(51 64 86 / 0.8); }

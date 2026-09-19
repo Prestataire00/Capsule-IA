@@ -260,7 +260,7 @@ export default async function QualiopiPage({
         <div>
         <SectionLabel className="mb-2">Conformité</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Qualiopi</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           Référentiel national qualité — 7 critères, {indicateurs.length} indicateurs
           {version ? ` (${VERSION_LABELS[version] ?? version})` : ''}.
         </p>
@@ -317,7 +317,7 @@ export default async function QualiopiPage({
               </span>
               <div>
                 <p className="text-[13px] font-semibold text-zinc-600 dark:text-zinc-400">Préparation de l&apos;audit</p>
-                <p className={`text-[28px] leading-none font-extrabold tabular-nums mt-1.5 ${ACCENTS.purple.value}`}>
+                <p className={`text-[24px] leading-none font-extrabold tabular-nums mt-1.5 ${ACCENTS.purple.value}`}>
                   {conformes}/{applicables.length}
                   <span className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 ml-2">indicateurs conformes · {pct} %</span>
                 </p>
@@ -549,7 +549,7 @@ export default async function QualiopiPage({
                         <div>
                           <IdPill>{d.reference}</IdPill>
                         </div>
-                        <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.learnerName}</span>
+                        <span className="truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{d.learnerName}</span>
                         <span className="text-zinc-600 dark:text-zinc-400 truncate">{d.formationTitle}</span>
                         <div>
                           <StatusPill tone={dossierStatusTone(d.status)}>{dossierStatusLabel(d.status)}</StatusPill>

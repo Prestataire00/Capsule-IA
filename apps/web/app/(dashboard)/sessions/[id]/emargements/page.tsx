@@ -75,7 +75,7 @@ export default async function SessionAttendanceTab({ params }: { params: { id: s
       <AttendanceMatrix sheets={view.sheets} vignettes={vignettes} pdfs={pdfs} csvHref={`/api/emargements/export.csv?sessionId=${view.session.id}`} />
 
       <details className="group rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <summary className="cursor-pointer px-5 py-3.5 text-[14px] font-medium text-zinc-800 dark:text-zinc-200">
+        <summary className="cursor-pointer px-5 py-3.5 text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
           Détail par demi-journée — clôture, justificatifs, import Zoom, liens personnels
         </summary>
         <div className="px-5 pb-5 space-y-5">

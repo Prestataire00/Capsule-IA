@@ -59,7 +59,7 @@ export default async function HeuresRisquePage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Pilotage</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Heures à risque</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Dossiers dont le volume projeté finira sous les heures payées par le financeur.
         </p>
       </header>
@@ -111,7 +111,7 @@ export default async function HeuresRisquePage() {
                       className={`${ROW_GRID} py-3.5 items-center text-[13px] hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group`}
                     >
                       <span className="min-w-0 flex items-center gap-2 flex-wrap">
-                        <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                        <span className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                           {r.dossiers?.reference ?? r.dossier_id.slice(0, 8)}
                         </span>
                         {r.dossiers?.abandoned_at && <StatusPill tone="danger">abandon</StatusPill>}

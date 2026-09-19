@@ -140,7 +140,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
                 {t.is_internal ? 'Interne' : 'Externe'}
               </span>
             </div>
-            <div className="flex items-center gap-4 mt-3 flex-wrap text-[14px] text-zinc-500 dark:text-zinc-400">
+            <div className="flex items-center gap-4 mt-3 flex-wrap text-[13px] text-zinc-500 dark:text-zinc-400">
               <span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{t.email}</span>
               {t.phone && <span className="inline-flex items-center gap-1.5 tabular-nums"><Phone className="w-3.5 h-3.5" />{t.phone}</span>}
             </div>

@@ -26,7 +26,7 @@ export default function FicheBesoinMerciPage({
         <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-3">
           {already ? 'Fiche déjà complétée' : 'Merci pour vos réponses'}
         </h1>
-        <p className="text-[14px] text-zinc-600 dark:text-zinc-400">
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
           {already
             ? 'Vos réponses avaient déjà été enregistrées.'
             : 'Votre fiche besoin a bien été enregistrée. Votre formateur la consultera avant le démarrage de la formation pour adapter le parcours.'}

@@ -60,7 +60,7 @@ export default async function EmargementSessionPage({
 
       {sheets.length === 0 ? (
         <div className="border border-dashed border-zinc-200/80 dark:border-zinc-800 rounded-xl px-6 py-10 space-y-3">
-          <p className="text-[14px] text-zinc-700 dark:text-zinc-300 text-center">
+          <p className="text-[13px] text-zinc-700 dark:text-zinc-300 text-center">
             Aucune feuille d&apos;émargement pour cette séance.
           </p>
           <GenerateSheetsButton sessionId={session.id} hasLegacyFull={false} />

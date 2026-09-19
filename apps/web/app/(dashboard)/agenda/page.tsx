@@ -140,7 +140,7 @@ export default async function AgendaPage({
     <div>
       <SectionLabel className="mb-2">Mon espace</SectionLabel>
       <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Agenda</h1>
-      <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+      <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
         {accountEmail ? `Synchronisé avec votre Google Agenda — ${accountEmail}` : 'Vos événements Google Agenda, synchronisés dans Capsule IA.'}
       </p>
     </div>
@@ -201,7 +201,7 @@ export default async function AgendaPage({
         <Link href={`/agenda?week=${weekOffset - 1}`} aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
           <ChevronLeft className="w-4 h-4" />
         </Link>
-        <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 capitalize tabular-nums">{monthLabel}</p>
+        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 capitalize tabular-nums">{monthLabel}</p>
         <Link href={`/agenda?week=${weekOffset + 1}`} aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
           <ChevronRight className="w-4 h-4" />
         </Link>
@@ -220,7 +220,7 @@ export default async function AgendaPage({
         <AgendaTabs />
         {header}
         <div className="border border-amber-200/70 dark:border-amber-900/50 rounded-xl px-6 py-8 text-center bg-amber-50/60 dark:bg-amber-950/30">
-          <p className="text-[14px] font-bold text-amber-800 dark:text-amber-200">Agenda momentanément indisponible</p>
+          <p className="text-[15px] font-bold text-amber-800 dark:text-amber-200">Agenda momentanément indisponible</p>
           <p className="text-[13px] text-amber-700/80 dark:text-amber-300/70 mt-1">Impossible de récupérer vos événements. L'accès a peut-être été révoqué côté Google.</p>
           <Link href="/parametres/integrations/google-calendar" className="mt-3 inline-flex items-center gap-2 text-[13px] font-semibold text-amber-800 dark:text-amber-200 hover:underline">
             <Plug className="w-4 h-4" /> Reconnecter

@@ -234,7 +234,7 @@ export default async function FormateurDashboard() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{m.organizationName}</h3>
+                      <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{m.organizationName}</h3>
                       <span
                         className={`text-[11px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
                           m.isInternal

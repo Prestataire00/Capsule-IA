@@ -90,7 +90,7 @@ export default async function SeanceCoursPage({ params }: { params: { id: string
                       {t.kind === 'devoir' ? <PenLine className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{t.title}</p>
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{t.title}</p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                         {t.kind === 'quiz'
                           ? `${t.questions.length} question${t.questions.length > 1 ? 's' : ''} · ${bareme} point${(bareme ?? 0) > 1 ? 's' : ''}`

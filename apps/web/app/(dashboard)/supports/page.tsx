@@ -45,7 +45,7 @@ export default async function SupportsAValiderPage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Pédagogie</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">À valider</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
           Rien de ce qu&apos;un formateur prépare n&apos;atteint les apprenants sans votre accord : ni les supports de
           cours, ni les quiz et exercices. Ouvrez, vérifiez, puis validez — ou refusez en disant pourquoi.
         </p>
@@ -64,7 +64,7 @@ export default async function SupportsAValiderPage() {
               >
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
+                    <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
                       {c.title}
                       <span className="ml-2 text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
                         {c.formeLabel}
@@ -200,7 +200,7 @@ export default async function SupportsAValiderPage() {
                     {s.kind === 'lien' ? <Link2 className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
+                    <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
                     {s.description && (
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{s.description}</p>
                     )}

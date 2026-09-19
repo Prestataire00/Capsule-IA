@@ -339,7 +339,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                     : 'En attente'}
               </StatusPill>
             </div>
-            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
               Reçue le {new Date(prospect.created_at).toLocaleDateString('fr-FR')}
               {prospect.company_name ? ` · ${prospect.company_name}` : ''}
             </p>

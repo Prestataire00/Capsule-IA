@@ -46,7 +46,7 @@ export default async function NouveauFinanceurPage({
         <header className="mb-8">
           <SectionLabel className="mb-2">Financeurs</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouveau financeur</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Ajoutez un financeur pour le rattacher à vos dossiers.</p>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">Ajoutez un financeur pour le rattacher à vos dossiers.</p>
         </header>
 
         <form action={createFunder} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">

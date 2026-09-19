@@ -50,7 +50,7 @@ export default async function NouvelleDemandePage() {
       <header className="mb-7">
         <SectionLabel className="mb-2">Relations</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouvelle demande</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
           Pour une demande reçue par téléphone, par mail ou en direct. La formation est facultative : choisissez-la au
           catalogue, décrivez un besoin spécifique, ou laissez-la à définir.
         </p>

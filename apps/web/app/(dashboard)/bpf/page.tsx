@@ -33,7 +33,7 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
         <div>
           <SectionLabel className="mb-2">Qualité · Réglementaire</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">Bilan Pédagogique et Financier {year}</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-3xl">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-3xl">
             Cerfa 10443 — aide au remplissage de la télédéclaration (DREETS). Produits HT des factures
             émises dans l&apos;année.
           </p>
@@ -101,7 +101,7 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
             );
           })}
           <li className="flex items-center gap-3 px-5 py-3.5 bg-emerald-50/60 dark:bg-emerald-950/20">
-            <span className="flex-1 text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Total des produits</span>
+            <span className="flex-1 text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Total des produits</span>
             <span className={`text-[17px] font-extrabold tabular-nums ${ACCENTS.emerald.value}`}>{eur(financial.totalCents)}</span>
           </li>
         </ul>

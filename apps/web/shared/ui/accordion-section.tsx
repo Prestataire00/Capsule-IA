@@ -42,7 +42,7 @@ export function AccordionSection({
           </span>
         )}
         <span className="flex-1 min-w-0">
-          <span className="block text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{title}</span>
+          <span className="block text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{title}</span>
           {description && (
             <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">{description}</span>
           )}

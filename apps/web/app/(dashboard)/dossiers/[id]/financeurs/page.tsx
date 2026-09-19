@@ -75,7 +75,7 @@ export default async function FinanceursPage({ params }: { params: { id: string 
                         <Landmark className="w-4 h-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{t.funders?.name ?? 'Financeur'}</p>
+                        <p className="truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{t.funders?.name ?? 'Financeur'}</p>
                         {t.draft_subject && (
                           <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Objet : {t.draft_subject}</p>
                         )}

@@ -210,7 +210,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
             <object data={`/api/documents/${doc.id}`} type={doc.mime_type ?? 'application/pdf'} className="w-full bg-white" style={{ height: '85vh' }}>
               {/* Repli si le navigateur n'affiche pas le PDF dans la page (Safari, lecteurs désactivés). */}
               <div className="p-10 text-center">
-                <p className="text-[14px] text-zinc-700">Votre navigateur n&apos;affiche pas le document ici.</p>
+                <p className="text-[13px] text-zinc-700">Votre navigateur n&apos;affiche pas le document ici.</p>
                 <a
                   href={`/api/documents/${doc.id}`}
                   target="_blank"

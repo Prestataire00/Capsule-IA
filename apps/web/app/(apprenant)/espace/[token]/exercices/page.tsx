@@ -25,7 +25,7 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
         <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Exercices & devoirs</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-3 tabular-nums">
             {submitted}/{total} rendu{submitted > 1 ? 's' : ''} sur l&apos;ensemble du parcours.
           </p>
         </div>
@@ -67,7 +67,7 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{ex.title}</p>
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{ex.title}</p>
                       <StatusPill tone={pillTone}>{pillLabel}</StatusPill>
                     </div>
                     {ex.dueAt && (

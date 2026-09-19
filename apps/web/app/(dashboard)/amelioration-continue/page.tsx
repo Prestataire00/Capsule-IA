@@ -150,7 +150,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
       <header>
         <SectionLabel className="mb-2">Qualité · Critères 6 et 7</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Amélioration continue</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-3xl">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-3xl">
           Incidents et réclamations donnent lieu à des actions correctives, rattachées à des axes d&apos;amélioration
           suivis jusqu&apos;à ce qu&apos;ils soient optimisés. Indicateurs 23 à 25, 31 et 32.
         </p>
@@ -208,7 +208,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
               return (
                 <div key={statut} className={`bg-gradient-to-br border rounded-xl p-3 ${ACCENTS[accent].card}`}>
                   <div className="flex items-center justify-between mb-3 px-1">
-                    <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+                    <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full ${ACCENTS[accent].bar}`} aria-hidden />
                       {AXIS_STATUS_LABELS[statut]}
                     </h2>
@@ -224,7 +224,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                         return (
                           <li key={axe.id} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-lg shadow-sm p-3 space-y-2">
                             <div className="flex items-start gap-2">
-                              <p className="flex-1 text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{axe.title}</p>
+                              <p className="flex-1 text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{axe.title}</p>
                               {axe.indicator_number && (
                                 <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
                                   I{axe.indicator_number}
@@ -315,7 +315,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                         <TriangleAlert className="w-3 h-3" />
                         {INCIDENT_KIND_LABELS[i.kind]}
                       </span>
-                      <span className="flex-1 text-[14px] font-bold text-zinc-900 dark:text-zinc-100 min-w-0">{i.title}</span>
+                      <span className="flex-1 text-[15px] font-bold text-zinc-900 dark:text-zinc-100 min-w-0">{i.title}</span>
                       <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{format(parseISO(i.occurred_on), 'dd MMM yyyy', { locale: fr })}</span>
                       <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Gravité {SEVERITY_LABELS[i.severity].toLowerCase()}</span>
                       <StatusPill tone={i.status === 'traite' ? 'success' : 'warning'}>{i.status === 'traite' ? 'traité' : 'ouvert'}</StatusPill>
@@ -360,7 +360,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                         {a.status === 'done' ? <CheckCircle2 className="w-4 h-4" /> : <ClipboardCheck className="w-4 h-4" />}
                       </span>
                       <span className="min-w-0">
-                      <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{a.title}</span>
+                      <span className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{a.title}</span>
                       <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                         {ACTION_ORIGIN_LABELS[a.origin] ?? a.origin}
                         {a.complaint_id && (
@@ -408,7 +408,7 @@ export default async function AmeliorationContinuePage({ searchParams }: { searc
                     <span className={`inline-flex items-center h-6 px-2 rounded-md text-[12px] font-semibold whitespace-nowrap ${ACCENTS.purple.soft}`}>
                       {VEILLE_CAT_LABELS[v.category] ?? v.category}
                     </span>
-                    <span className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex-1 truncate">{v.title}</span>
+                    <span className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex-1 truncate">{v.title}</span>
                     <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">{format(parseISO(v.created_at), 'dd MMM yyyy', { locale: fr })}</span>
                   </div>
                   {v.summary && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">{v.summary}</p>}

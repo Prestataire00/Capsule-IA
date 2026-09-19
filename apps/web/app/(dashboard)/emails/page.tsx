@@ -96,7 +96,7 @@ export default async function EmailsPage({
       <header className="mb-7">
         <SectionLabel className="mb-2">Notifications</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Historique des envois</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Journal d'audit de tous les emails envoyés par votre organisation.{' '}
           <span className="tabular-nums">
             {rows.length} trace{rows.length > 1 ? 's' : ''}

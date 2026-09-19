@@ -242,7 +242,7 @@ export function AttendanceMatrix({
       {choisie && participantChoisi && (
         <div className="mx-5 mb-5 rounded-xl border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/10 p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+            <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
               {participantChoisi.fullName} — {LIBELLE[choisie.halfDay] ?? choisie.halfDay}
             </p>
             <button type="button" onClick={() => setSelection(null)} aria-label="Fermer" className="p-1 text-zinc-400 hover:text-zinc-700">

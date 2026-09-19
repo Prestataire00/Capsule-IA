@@ -67,7 +67,7 @@ export default async function MesEvaluationsPage() {
               <article key={f.formation_id} className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 p-4 space-y-3 bg-white dark:bg-zinc-900">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{f.formation_title}</p>
+                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{f.formation_title}</p>
                     <p className="text-[12px] text-zinc-500 tabular-nums">
                       {f.responses} réponse{f.responses > 1 ? 's' : ''}
                     </p>

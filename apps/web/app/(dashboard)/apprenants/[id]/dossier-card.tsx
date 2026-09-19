@@ -17,7 +17,7 @@ export function DossierCard({ dossier }: { dossier: LearnerDossier }) {
       <div className="flex items-start justify-between mb-3 gap-3">
         <div className="min-w-0">
           <p className="text-[12px] font-mono text-zinc-500 dark:text-zinc-400">{dossier.reference}</p>
-          <p className="text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100 truncate">
+          <p className="text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100 truncate">
             {dossier.formationTitle ?? '—'}
           </p>
         </div>

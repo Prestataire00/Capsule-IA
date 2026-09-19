@@ -240,7 +240,7 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
           <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">
             Pré-inscription à une formation
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
             Quelques minutes suffisent. Nous revenons vers vous sous 48 h ouvrées.
           </p>
         </div>
@@ -691,7 +691,7 @@ function FormationStep({
                             </span>
                             <div className="flex-1 min-w-0">
                               <p className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
-                              <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                              <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
                                 {f.title}
                               </p>
                             </div>
@@ -815,7 +815,7 @@ function FundingStep({
         <div className="space-y-5 border border-zinc-200/60 dark:border-zinc-800 rounded-lg p-4 bg-zinc-50/40 dark:bg-zinc-950/40">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-violet-600" />
-            <h3 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Entreprise</h3>
+            <h3 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Entreprise</h3>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1118,7 +1118,7 @@ function SuccessView({
         <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-3">
           Pré-inscription envoyée
         </h1>
-        <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-8">
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-8">
           Merci <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{identity.firstName}</strong>,
           votre demande a bien été reçue. Vous recevrez un email de confirmation à{' '}
           <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{identity.email}</strong> sous quelques minutes.
@@ -1391,7 +1391,7 @@ function CompanyFlow({
           <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">
             Inscrire mes salariés
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
             Renseignez l&apos;entreprise et la formation, puis ajoutez vos salariés.
           </p>
         </div>
@@ -1970,7 +1970,7 @@ function CompanySuccessView({
         <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-3">
           {count} salarié{count > 1 ? 's' : ''} inscrit{count > 1 ? 's' : ''}
         </h1>
-        <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-8">
+        <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-8">
           Les pré-inscriptions de{' '}
           <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{companyName}</strong> ont
           bien été reçues. L&apos;organisme revient vers vous sous 48 h ouvrées.

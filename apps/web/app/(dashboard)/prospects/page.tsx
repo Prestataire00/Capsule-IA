@@ -101,7 +101,7 @@ export default async function ProspectsPage() {
         <div>
         <SectionLabel className="mb-2">Relations</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Demandes &amp; pré-inscriptions</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
           <span className="tabular-nums">
             {prospects.length} demande{prospects.length > 1 ? 's' : ''}
           </span>
@@ -162,7 +162,7 @@ export default async function ProspectsPage() {
                       <div className="min-w-0">
                         <a
                           href={`/prospects/${p.id}`}
-                          className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                          className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
                         >
                           {name}
                         </a>

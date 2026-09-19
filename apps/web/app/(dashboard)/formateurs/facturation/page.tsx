@@ -93,7 +93,7 @@ export default async function FacturationFormateursPage({ searchParams }: { sear
           <SectionLabel>Relations</SectionLabel>
         </div>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Factures & frais des formateurs</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           {aTraiter > 0 ? `${aTraiter} élément${aTraiter > 1 ? 's' : ''} à traiter.` : 'Rien à traiter pour le moment.'}
           {filtre && nom.get(filtre) ? ` Filtré sur ${nom.get(filtre)} — ` : ' '}
           {filtre && <Link href="/formateurs/facturation" className="underline">tout afficher</Link>}
@@ -112,7 +112,7 @@ export default async function FacturationFormateursPage({ searchParams }: { sear
               return (
                 <li key={f.id} className="px-4 py-3 grid gap-3 md:grid-cols-[1fr_auto]">
                   <div className="space-y-1 min-w-0">
-                    <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
                       {nom.get(f.trainer_id) ?? 'Formateur'} · <span className="font-mono text-[13px]">{f.number}</span>
                       <span className={`ml-2 text-[11px] px-2 py-0.5 rounded-full ${CLASSES_TON[statut.ton]}`}>{statut.label}</span>
                     </p>
@@ -164,7 +164,7 @@ export default async function FacturationFormateursPage({ searchParams }: { sear
               return (
                 <li key={d.id} className="px-4 py-3 grid gap-3 md:grid-cols-[1fr_auto]">
                   <div className="space-y-1 min-w-0">
-                    <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+                    <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
                       {nom.get(d.trainer_id) ?? 'Formateur'} · {CATEGORIES_FRAIS[d.category] ?? d.category}
                       <span className={`ml-2 text-[11px] px-2 py-0.5 rounded-full ${CLASSES_TON[statut.ton]}`}>{statut.label}</span>
                     </p>

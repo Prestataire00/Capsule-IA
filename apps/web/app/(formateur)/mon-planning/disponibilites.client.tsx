@@ -104,7 +104,7 @@ export function Disponibilites({ trainerId, semaines }: { trainerId: string; sem
   return (
     <section className="rounded-2xl border border-emerald-100/70 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/25 dark:to-zinc-900 p-5 shadow-sm space-y-4">
       <div>
-        <h2 className="text-[16px] font-extrabold text-zinc-900 dark:text-zinc-100">Mes disponibilités</h2>
+        <h2 className="text-[17px] font-extrabold text-zinc-900 dark:text-zinc-100">Mes disponibilités</h2>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1">
           Dites quand vous êtes libre : votre organisme le voit au moment où il planifie une séance. Cliquez sur une
           demi-journée pour changer son état.

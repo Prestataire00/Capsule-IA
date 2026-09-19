@@ -43,7 +43,7 @@ export default function NouveauFormateurPage() {
         <header className="mb-8">
           <SectionLabel className="mb-2">Formateurs</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouveau formateur</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Ajoutez un formateur (interne ou externe) à votre réseau.</p>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">Ajoutez un formateur (interne ou externe) à votre réseau.</p>
         </header>
 
         <form onSubmit={onSubmit} className="space-y-5">

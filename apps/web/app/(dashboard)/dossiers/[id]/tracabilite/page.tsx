@@ -130,7 +130,7 @@ export default async function TracabilitePage({
               <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.purple.soft}`}>{rows.length}</span>
             )}
           </div>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 tabular-nums">
             {error
               ? 'Erreur lors du chargement des données.'
               : rows.length === 0
@@ -194,7 +194,7 @@ export default async function TracabilitePage({
                       ) : (
                         <FileDown className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
                       )}
-                      <span className="truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{targetLabel(row, resourceTitles)}</span>
+                      <span className="truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{targetLabel(row, resourceTitles)}</span>
                     </div>
                     <div className="text-[13px] text-zinc-600 dark:text-zinc-400">{targetKindLabel(row.target_kind)}</div>
                     <div className="text-[13px] text-zinc-600 dark:text-zinc-400">{actorLabel(row.actor_kind)}</div>

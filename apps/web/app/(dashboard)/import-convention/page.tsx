@@ -32,7 +32,7 @@ export default async function ImportConventionPage() {
           </span>
           Importer une convention
         </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Déposez une convention signée (et ses programmes annexés) : la lecture en extrait le client, la formation avec ses
           modules, les dates de séances et le tarif. Vous relisez, puis tout est créé d’un coup.
         </p>

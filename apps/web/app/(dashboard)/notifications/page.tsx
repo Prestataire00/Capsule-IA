@@ -39,7 +39,7 @@ function NotifRow({ n }: { n: Notif }) {
           <Icon className="w-4 h-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{n.subject ?? meta.label}</p>
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{n.subject ?? meta.label}</p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
             {format(parseISO(n.created_at), 'dd/MM/yyyy HH:mm')}
           </p>
@@ -124,7 +124,7 @@ export default async function NotificationsPage({
       <header className="mb-7">
         <SectionLabel className="mb-2">Suivi</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Notifications</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
           {notifs.length} notification{notifs.length > 1 ? 's' : ''} non lue{notifs.length > 1 ? 's' : ''} — cliquez pour ouvrir et retirer de la liste.
         </p>
       </header>

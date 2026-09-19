@@ -128,7 +128,7 @@ export default function NouvelleEntreprisePage() {
         <header className="mb-8">
           <SectionLabel className="mb-2">Entreprises</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Nouvelle entreprise</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">Recherchez par nom ou SIRET — les champs se remplissent automatiquement.</p>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">Recherchez par nom ou SIRET — les champs se remplissent automatiquement.</p>
         </header>
 
         {errorMsg && (

@@ -36,7 +36,7 @@ function Champ({ label, children }: { label: string; children: React.ReactNode }
   return (
     <div className="space-y-0.5">
       <dt className="text-[13px] text-zinc-500 dark:text-zinc-400">{label}</dt>
-      <dd className="text-[14px] text-zinc-900 dark:text-zinc-100">{children}</dd>
+      <dd className="text-[13px] text-zinc-900 dark:text-zinc-100">{children}</dd>
     </div>
   );
 }

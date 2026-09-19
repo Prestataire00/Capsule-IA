@@ -76,7 +76,7 @@ export function ReferentCard({
             <UserRound className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Référent du client</h2>
+            <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Référent du client</h2>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
               Destinataire de la convention, des devis et des factures.
             </p>

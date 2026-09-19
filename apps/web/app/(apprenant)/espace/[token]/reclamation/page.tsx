@@ -44,7 +44,7 @@ export default async function EspaceReclamationPage({ params }: { params: { toke
         <div className="min-w-0">
           <SectionLabel className="mb-2">Espace apprenant</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Réclamation</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-3">
             Signalez tout dysfonctionnement — traitement confidentiel, réponse sous 15 j ouvrés.
           </p>
         </div>
@@ -68,7 +68,7 @@ export default async function EspaceReclamationPage({ params }: { params: { toke
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{c.reference}</p>
-                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</p>
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.subject}</p>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
                         {CATEGORY_LABELS[c.category] ?? c.category} · {new Date(c.createdAt).toLocaleDateString('fr-FR')}
                       </p>

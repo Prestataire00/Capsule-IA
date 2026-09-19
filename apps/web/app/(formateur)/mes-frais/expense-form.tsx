@@ -64,7 +64,7 @@ export function ExpenseForm({ seances }: { seances: { id: string; label: string;
 
   return (
     <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 p-4 space-y-3 bg-white dark:bg-zinc-900">
-      <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Nouvelle dépense</h2>
+      <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Nouvelle dépense</h2>
       <label className="block space-y-1">
         <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">Séance</span>
         <select

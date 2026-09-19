@@ -76,7 +76,7 @@ export default async function TrainerSatisfactionPage({
             <AlertTriangle className="w-7 h-7" />
           </span>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Lien invalide</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400">{message}</p>
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400">{message}</p>
         </main>
       </Shell>
     );
@@ -88,7 +88,7 @@ export default async function TrainerSatisfactionPage({
         <main className="max-w-xl mx-auto px-6 py-20 text-center">
           <Sparkles className="w-12 h-12 text-violet-500 mx-auto mb-6" />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Déjà répondu, merci 🙏</h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
             Votre retour de formateur a bien été enregistré pour cette formation.
           </p>
         </main>
@@ -114,7 +114,7 @@ export default async function TrainerSatisfactionPage({
           <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">
             Comment s'est passée cette mission{ctx.trainerFirstName ? `, ${ctx.trainerFirstName}` : ''} ?
           </h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
             <strong className="text-zinc-700 dark:text-zinc-300">{ctx.dossier.formation?.title ?? 'La formation'}</strong> · 2 minutes · votre retour améliore l'organisation
           </p>
         </div>

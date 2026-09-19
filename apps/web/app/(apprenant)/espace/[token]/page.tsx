@@ -102,7 +102,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">
             Bonjour {ctx.learner.firstName}
           </h1>
-          <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-3">
             Tout ce dont vous avez besoin pour votre formation, organisé par section.
           </p>
         </div>
@@ -269,7 +269,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
                 <Icon className="w-5 h-5" />
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{t.label}</p>
+                <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{t.label}</p>
                 <p className={`text-[12px] mt-0.5 tabular-nums ${hintTone(t.accent)}`}>{t.hint}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-300 dark:text-zinc-700 group-hover:text-orange-500 transition flex-shrink-0" />
@@ -284,7 +284,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
           <BookOpen className="w-5 h-5" />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Assiduité</p>
+          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Assiduité</p>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
             {heuresSignees.toFixed(1)} h signées / {heuresPlanifiees.toFixed(1)} h planifiées
           </p>

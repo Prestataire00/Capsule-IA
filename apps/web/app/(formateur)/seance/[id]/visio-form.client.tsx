@@ -32,7 +32,7 @@ export function VisioForm({ sessionId, initialUrl }: { sessionId: string; initia
         <span className="w-7 h-7 rounded-md grid place-items-center bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
           <Video className="w-4 h-4" />
         </span>
-        <h2 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Lien de visioconférence</h2>
+        <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Lien de visioconférence</h2>
       </div>
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
         Collez votre lien Meet, Zoom ou Teams : il apparaît aussitôt dans l&apos;espace des participants.

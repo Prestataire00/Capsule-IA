@@ -400,7 +400,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         <div>
           <SectionLabel className="mb-2">Planification</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Sessions</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
             {filtered.length} session{filtered.length > 1 ? 's' : ''} · {fmtH(totalHours)} planifiées
           </p>
         </div>
@@ -421,7 +421,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         <aside className="grid gap-4 md:grid-cols-3 items-stretch mb-6" aria-label="Synthèse">
           <div className="rounded-xl p-5 bg-zinc-900 dark:bg-zinc-800/60 text-white">
             <p className="text-[12px] font-semibold text-white/60">Heures planifiées</p>
-            <p className="text-[36px] leading-none font-extrabold tabular-nums mt-2 tracking-tight">{fmtH(totalHours)}</p>
+            <p className="text-[30px] leading-none font-extrabold tabular-nums mt-2 tracking-tight">{fmtH(totalHours)}</p>
             <p className="text-[12px] text-white/60 mt-2 tabular-nums">dont {fmtH(upcomingHours)} à venir</p>
             {totalHours > 0 && (
               <>
@@ -445,7 +445,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
 
           <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 min-w-0">
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
-              <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100">Heures par semaine</p>
+              <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Heures par semaine</p>
               <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                 {chart.series.map((s) => (
                   <li key={s.key} className="inline-flex items-center gap-1.5">
@@ -461,7 +461,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
           </div>
 
           <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-            <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 mb-3">Par modalité</p>
+            <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-3">Par modalité</p>
             <ul className="grid gap-3">
               {modalityRows.map(([m, hrs]) => (
                 <li key={m} title={`${MODALITY_LABEL[m] ?? m} · ${fmtH(hrs)}`}>
@@ -582,11 +582,11 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
                       <span className="mt-[5px] w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: s.color }} />
                       <div className="min-w-0">
                         {s.formation ? (
-                          <Link href={`/formations/${s.formation.id}`} className="block truncate text-[14px] font-extrabold hover:underline" style={{ color: deepColor(s.color) }}>
+                          <Link href={`/formations/${s.formation.id}`} className="block truncate text-[15px] font-extrabold hover:underline" style={{ color: deepColor(s.color) }}>
                             {s.formation.title}
                           </Link>
                         ) : (
-                          <span className="block truncate text-[14px] font-extrabold text-zinc-500">Hors formation</span>
+                          <span className="block truncate text-[15px] font-extrabold text-zinc-500">Hors formation</span>
                         )}
                         <Link href={`/sessions/${s.id}`} className="block truncate text-[13px] font-semibold text-[color:var(--sess)] hover:underline mt-0.5">
                           {s.title || 'Session'}
@@ -657,7 +657,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
                     </div>
 
                     <div title={s.capacity ? `${s.learnerCount} inscrit${s.learnerCount > 1 ? 's' : ''} sur ${s.capacity} places` : `${s.learnerCount} inscrit${s.learnerCount > 1 ? 's' : ''}`}>
-                      <p className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                      <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
                         {s.learnerCount}
                         {s.capacity && <span className="text-zinc-400 font-semibold">/{s.capacity}</span>}
                       </p>

@@ -191,7 +191,7 @@ export function VueCalendrier({
     <div className="space-y-5">
       {[...semaines.entries()].map(([sem, jours]) => (
         <section key={sem} className="space-y-3">
-          <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
             {semaineDu(sem)}
             {sem === lundi && (
               <span className="text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">

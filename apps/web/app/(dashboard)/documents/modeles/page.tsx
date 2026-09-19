@@ -49,7 +49,7 @@ export default async function ModelesPage() {
         <div>
           <SectionLabel className="mb-2">Documents</SectionLabel>
           <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Modèles de documents</h1>
-          <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
             Modèles HTML éditables avec variables. Utilisés pour générer les documents d&apos;un dossier.{' '}
             <span className="tabular-nums">
               {rows.length} modèle{rows.length > 1 ? 's' : ''} · {categories.length} catégorie{categories.length > 1 ? 's' : ''}
@@ -86,7 +86,7 @@ export default async function ModelesPage() {
           {groups.map((g) => (
             <section key={g.id ?? 'none'}>
               <div className="flex items-center justify-between mb-2 px-1">
-                <h2 className="text-[14px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+                <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
                   <span className={`w-6 h-6 rounded-md grid place-items-center ${g.id ? ACCENTS.orange.soft : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
                     <FileText className="w-3.5 h-3.5" />
                   </span>
@@ -118,7 +118,7 @@ export default async function ModelesPage() {
                             </span>
                             <Link
                               href={`/documents/modeles/${t.id}`}
-                              className="min-w-0 truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
+                              className="min-w-0 truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline"
                             >
                               {t.title}
                             </Link>

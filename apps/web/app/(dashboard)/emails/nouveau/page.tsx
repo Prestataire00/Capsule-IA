@@ -66,7 +66,7 @@ export default async function ComposeEmailPage() {
         <div>
         <SectionLabel className="mb-2">Communication</SectionLabel>
         <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Rédiger un email</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           Choisissez un destinataire, saisissez un objet : l'IA propose un email pré-rempli avec les
           informations de sa fiche. L'envoi part de votre boîte connectée.
         </p>

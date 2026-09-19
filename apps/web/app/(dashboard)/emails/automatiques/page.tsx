@@ -83,7 +83,7 @@ export default async function EnvoisAutomatiquesPage() {
         <h1 className="text-[30px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">
           Envois automatiques
         </h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
           Tout ce que l&apos;application envoie sans qu&apos;on le lui demande : le déclencheur, le moment, les
           destinataires — et ce qui est réellement parti ces {JOURS_OBSERVES} derniers jours.
         </p>
@@ -129,7 +129,7 @@ export default async function EnvoisAutomatiquesPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">{l.nom}</h3>
+                        <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{l.nom}</h3>
                         <Etiquette ligne={l} />
                       </div>
                       <p className="text-[13px] text-zinc-600 dark:text-zinc-300 mt-1.5">{l.declencheur}</p>

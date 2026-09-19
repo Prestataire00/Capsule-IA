@@ -150,7 +150,7 @@ export default async function ExercicesPage({ params }: { params: { id: string }
                     <PenLine className="w-4 h-4 mt-0.5 text-zinc-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100">{ex.title}</p>
+                        <p className="text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100">{ex.title}</p>
                         <StatusPill tone={ex.is_published ? 'success' : 'neutral'}>
                           {ex.is_published ? 'Publié' : 'Brouillon'}
                         </StatusPill>

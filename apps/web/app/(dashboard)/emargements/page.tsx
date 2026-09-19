@@ -40,7 +40,7 @@ export default async function EmargementsPage({ searchParams }: { searchParams: 
     <div className="max-w-7xl w-full mx-auto px-8 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Émargement</h1>
-        <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-1">Suivi des présences et des signatures sur toutes les séances de formation.</p>
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">Suivi des présences et des signatures sur toutes les séances de formation.</p>
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
