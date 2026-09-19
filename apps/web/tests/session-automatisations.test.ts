@@ -63,8 +63,22 @@ describe('crons respectant le réglage', () => {
   it('satisfaction et e-mail de fin, par dossier', () => {
     expect(cron).toContain("dossiersAutomationOff(sb, dossierIdsFin, 'satisfaction')");
     expect(cron).toContain("dossiersAutomationOff(sb, dossierIdsFin, 'fin_formation')");
-    expect(cron).toContain('if (!satisfactionOff.has(d.id)) try {');
-    expect(cron).toContain('if (!finOff.has(d.id)) try {');
+    // Depuis 0178 la condition porte aussi le jour réglé par l'organisme ; la
+    // coupure par séance reste le second verrou, et c'est ce qu'on vérifie ici.
+    expect(cron).toContain('!satisfactionOff.has(d.id)) try {');
+    expect(cron).toContain('!finOff.has(d.id)) try {');
+  });
+
+  it('respecte le réglage de l’organisme (0178), pas un délai figé', () => {
+    // Sans ce câblage, l'écran de programmation serait décoratif : il
+    // enregistrerait un délai que le cron n'irait jamais lire.
+    expect(cron).toContain("loadReglesParOrganisme(sb, 'convocation_j7')");
+    expect(cron).toContain("loadReglesParOrganisme(sb, 'satisfaction_chaud')");
+    expect(cron).toContain("loadReglesParOrganisme(sb, 'fin_de_formation')");
+    expect(cron).toContain("loadReglesParOrganisme(sb, 'certificat_entreprise')");
+    expect(cron).toContain('doitPartirAujourdhui(');
+    // Les anciennes bornes figées ne doivent plus décider de rien.
+    expect(cron).not.toContain('getUTCDate() + 7');
   });
 
   it('retour formateur', () => {

@@ -8,6 +8,8 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Zap, AlertTriangle, CheckCheck, Clock, Settings2, CalendarCog, Info } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { can } from '@/shared/lib/auth/permissions';
 import { KpiCard } from '@/shared/ui/kpi-card';
 import { SectionLabel } from '@/shared/ui/section-label';
 import {
@@ -18,7 +20,14 @@ import {
   parMoment,
   type LigneEnvoi,
 } from '@/features/emails/envois-automatiques';
+import {
+  phraseDuDelai,
+  reglableDe,
+  reglageEffectif,
+} from '@/features/emails/programmation-envois';
+import { loadReglesOrganisme } from '@/features/emails/programmation-store';
 import { EmailsTabs } from '../emails-tabs.client';
+import { Reglage } from './reglage.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,8 +74,17 @@ function Etiquette({ ligne }: { ligne: LigneEnvoi }) {
   );
 }
 
-export default async function EnvoisAutomatiquesPage() {
-  const traces = await loadTraces();
+export default async function EnvoisAutomatiquesPage({
+  searchParams,
+}: {
+  searchParams?: { erreur?: string; regle?: string };
+}) {
+  const me = await getCurrentMember();
+  const peutRegler = can(me?.role, 'settings') === 'manage';
+  const [traces, regles] = await Promise.all([
+    loadTraces(),
+    me ? loadReglesOrganisme(me.organizationId) : Promise.resolve(new Map()),
+  ]);
   const compteurs = compterParKind(traces);
   const lignes = lignesEnvois(compteurs);
   const groupes = parMoment(lignes);
@@ -90,6 +108,21 @@ export default async function EnvoisAutomatiquesPage() {
       </header>
 
       <EmailsTabs />
+
+      {searchParams?.erreur && (
+        <p className="mb-5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-[13px] text-red-800 dark:text-red-200 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>
+            <span className="font-semibold">Réglage non enregistré.</span> {searchParams.erreur}
+          </span>
+        </p>
+      )}
+      {searchParams?.regle && !searchParams.erreur && (
+        <p className="mb-5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[13px] text-emerald-800 dark:text-emerald-200 flex items-start gap-2">
+          <CheckCheck className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>Réglage enregistré. Il s&apos;applique dès le prochain passage, la nuit prochaine.</span>
+        </p>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7">
         <KpiCard
@@ -154,11 +187,28 @@ export default async function EnvoisAutomatiquesPage() {
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-zinc-400 mt-2.5 flex items-start gap-1.5">
+                  {(() => {
+                    const reglable = reglableDe(l.kind);
+                    if (!reglable) return null;
+                    const regle = regles.get(l.kind);
+                    const reglage = reglageEffectif(l.kind, regle);
+                    return (
+                      <Reglage
+                        kind={l.kind}
+                        reglable={reglable}
+                        reglage={reglage}
+                        phrase={phraseDuDelai(l.kind, reglage)}
+                        personnalise={regle !== undefined}
+                        peutRegler={peutRegler}
+                      />
+                    );
+                  })()}
+
+                  <p className="text-[11px] text-zinc-400 mt-2 flex items-start gap-1.5">
                     <Settings2 className="w-3 h-3 mt-0.5 shrink-0" />
                     {l.coupureKey ? (
                       <span>
-                        Se coupe séance par séance, dans l&apos;onglet Automatisations de la séance.
+                        Se coupe aussi séance par séance, dans l&apos;onglet Automatisations de la séance.
                       </span>
                     ) : (
                       <span>{l.obligatoire}</span>

@@ -29,6 +29,8 @@ import { expireOverdueQuotes, sweepMissingQuotes } from '@/features/billing/quot
 import { runAutomaticReminders } from '@/features/billing/invoices/reminders';
 import { sendCertificatToCompany } from '@/features/documents/send-certificat-to-company';
 import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automation/session-automations';
+import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
+import { delaisAConsiderer, doitPartirAujourdhui } from '@/features/emails/programmation-envois';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -41,6 +43,8 @@ type SessionRow = {
   location: string | null;
   remote_url: string | null;
   dossier_id: string;
+  /** Porte le réglage d'envoi de l'organisme (0178). */
+  organization_id: string;
 };
 
 type DossierRow = {
@@ -51,6 +55,7 @@ type DossierRow = {
   total_hours: number;
   learner_id: string;
   formation_id: string;
+  organization_id: string;
 };
 
 type LearnerRow = {
@@ -163,23 +168,38 @@ function espaceUrlFor(_learnerId: string): string | null {
   return null;
 }
 
-async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; errors: string[] }> {
+/** Jour UTC d'une date, en millisecondes — base des écarts en jours entiers. */
+const jourUTC = (d: Date): number => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+/** Écart en jours entiers entre une date et aujourd'hui, en jours UTC. */
+const ecartEnJours = (iso: string, aujourdhui: Date): number =>
+  Math.round((jourUTC(new Date(iso)) - jourUTC(aujourdhui)) / 86_400_000);
+
+async function runConvocations(): Promise<{ candidates: number; sent: number; errors: string[] }> {
   const sb = admin();
 
-  // Sessions qui démarrent dans exactement 7 jours (fenêtre 00:00–23:59 UTC).
-  const j7 = new Date();
-  j7.setUTCDate(j7.getUTCDate() + 7);
-  const j7Start = new Date(j7);
-  j7Start.setUTCHours(0, 0, 0, 0);
-  const j7End = new Date(j7);
-  j7End.setUTCHours(23, 59, 59, 999);
+  // Le délai n'est plus figé à sept jours : chaque organisme peut le régler
+  // (0178). On interroge une fenêtre couvrant tous les délais en vigueur, puis
+  // on ne garde que les séances dont l'écart correspond au réglage de LEUR
+  // organisme. L'arithmétique reste en jours UTC, comme avant : basculer sur
+  // Paris déplacerait d'un jour les séances de fin de soirée.
+  const regles = await loadReglesParOrganisme(sb, 'convocation_j7');
+  const delais = delaisAConsiderer('convocation_j7', regles);
+  const aujourdhui = new Date();
+
+  const borne = (jours: number, fin: boolean) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + jours);
+    d.setUTCHours(fin ? 23 : 0, fin ? 59 : 0, fin ? 59 : 0, fin ? 999 : 0);
+    return d.toISOString();
+  };
 
   const { data: sessions, error: sErr } = await sb
     .schema('app')
     .from('sessions')
     .select('id, starts_at, ends_at, modality, location, remote_url, dossier_id, organization_id, formation_id')
-    .gte('starts_at', j7Start.toISOString())
-    .lte('starts_at', j7End.toISOString())
+    .gte('starts_at', borne(delais[0]!, false))
+    .lte('starts_at', borne(delais[delais.length - 1]!, true))
     .eq('status', 'planned');
 
   if (sErr) {
@@ -187,8 +207,16 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
     return { candidates: 0, sent: 0, errors: [sErr.message] };
   }
 
-  const toutes = (sessions ?? []) as unknown as SessionRow[];
+  const toutes = ((sessions ?? []) as unknown as SessionRow[]).filter((s) =>
+    doitPartirAujourdhui({
+      kind: 'convocation_j7',
+      organizationId: s.organization_id,
+      regles,
+      ecartJours: ecartEnJours(s.starts_at, aujourdhui),
+    }),
+  );
   // Séances dont la convocation a été coupée dans l'onglet Automatisations (0156).
+  // Deux niveaux : l'organisme règle la règle, la séance fait l'exception.
   const convocationCoupee = await sessionsAutomationOff(
     sb,
     toutes.map((s) => s.id),
@@ -361,16 +389,36 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
 async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: number; certificateSent: number; errors: string[] }> {
   const sb = admin();
 
-  // Dossiers terminés hier (end_date = yesterday, status = completed)
-  const yesterday = new Date();
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const yesterdayISO = yesterday.toISOString().slice(0, 10);
+  // Trois envois partent à la fin d'un dossier, et chacun a désormais son
+  // propre délai réglable (0178) : la satisfaction peut attendre une semaine
+  // pendant que le certificat part le lendemain. On charge les trois jeux de
+  // règles, on interroge les dossiers terminés à l'une quelconque des dates
+  // concernées, puis chaque envoi décide pour lui-même.
+  const [reglesSatisfaction, reglesFin, reglesCertificat] = await Promise.all([
+    loadReglesParOrganisme(sb, 'satisfaction_chaud'),
+    loadReglesParOrganisme(sb, 'fin_de_formation'),
+    loadReglesParOrganisme(sb, 'certificat_entreprise'),
+  ]);
+
+  const tousDelais = [
+    ...new Set([
+      ...delaisAConsiderer('satisfaction_chaud', reglesSatisfaction),
+      ...delaisAConsiderer('fin_de_formation', reglesFin),
+      ...delaisAConsiderer('certificat_entreprise', reglesCertificat),
+    ]),
+  ];
+  const aujourdhui = new Date();
+  const datesDeFin = tousDelais.map((jours) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - jours);
+    return d.toISOString().slice(0, 10);
+  });
 
   const { data: dossiers, error: dErr } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, status, end_date, total_hours, learner_id, formation_id')
-    .eq('end_date', yesterdayISO)
+    .select('id, reference, status, end_date, total_hours, learner_id, formation_id, organization_id')
+    .in('end_date', datesDeFin)
     .eq('status', 'completed');
 
   if (dErr) {
@@ -397,6 +445,17 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
   ]);
 
   for (const d of rows) {
+    // Jours écoulés depuis la fin du dossier : c'est ce nombre que chaque
+    // réglage compare à son délai.
+    const depuisLaFin = -ecartEnJours(d.end_date, aujourdhui);
+    const aujourdHuiPour = (kind: string, regles: Map<string, { kind: string; enabled: boolean; delayDays: number }>) =>
+      doitPartirAujourdhui({ kind, organizationId: d.organization_id, regles, ecartJours: depuisLaFin });
+
+    const jourSatisfaction = aujourdHuiPour('satisfaction_chaud', reglesSatisfaction);
+    const jourFin = aujourdHuiPour('fin_de_formation', reglesFin);
+    const jourCertificat = aujourdHuiPour('certificat_entreprise', reglesCertificat);
+    if (!jourSatisfaction && !jourFin && !jourCertificat) continue;
+
     const [{ data: learnerRow }, { data: formationRow }] = await Promise.all([
       sb.schema('app').from('learners').select('first_name, last_name, email').eq('id', d.learner_id).maybeSingle(),
       sb.schema('app').from('formations').select('title').eq('id', d.formation_id).maybeSingle(),
@@ -406,7 +465,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     const formationTitle = (formationRow as { title: string } | null)?.title ?? 'Votre formation';
 
     // Satisfaction — JWT signed URL
-    if (!satisfactionOff.has(d.id)) try {
+    if (jourSatisfaction && !satisfactionOff.has(d.id)) try {
       const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
       const templateId = await ensureSatisfactionTemplate(sb);
 
@@ -456,7 +515,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
 
     // Fin de formation : attestation de fin (apprenant) + certificat de réalisation
     // (administratif) — les deux pour tous les dossiers terminés.
-    if (!finOff.has(d.id)) try {
+    if (jourFin && !finOff.has(d.id)) try {
       const base = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
       const attestationUrl = base ? `${base}/api/dossiers/${d.id}/attestation.pdf` : null;
       const certificateUrl = base ? `${base}/api/dossiers/${d.id}/certificat.pdf` : null;
@@ -490,7 +549,9 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     }
 
     // Client entreprise : son responsable reçoit aussi le certificat (PDF joint).
-    try {
+    // Le jour se règle (0178), l'envoi lui-même ne se coupe pas : la pièce est
+    // due à l'entreprise qui finance.
+    if (jourCertificat) try {
       const c = await sendCertificatToCompany(sb as unknown as SupabaseClient, d.id);
       if (c.ok) certificateSent++;
       else if (c.reason === 'send_failed' || c.reason === 'no_contact_email') {
@@ -1264,7 +1325,7 @@ export async function POST(req: Request) {
     startAttestation,
     customSchedules,
   ] = await Promise.all([
-    runConvocationsJ7(),
+    runConvocations(),
     runDossierEnd(),
     runMissingSignatureAlerts(),
     runTrainerSatisfaction(),
