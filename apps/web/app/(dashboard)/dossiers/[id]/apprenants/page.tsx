@@ -58,8 +58,16 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
         .eq('participant_kind', 'learner')
     : { data: [] };
 
+  // Le groupe du dossier (0175) : c'est lui qui fait foi, même sans séance.
+  const { data: duGroupe } = await admin
+    .schema('app')
+    .from('dossier_learners' as never)
+    .select('learner_id')
+    .eq('dossier_id', params.id);
+
   const ids = new Set<string>();
   if (dossier.learner_id) ids.add(dossier.learner_id);
+  for (const l of ((duGroupe ?? []) as unknown as Array<{ learner_id: string }>)) ids.add(l.learner_id);
   for (const p of ((participants ?? []) as Array<{ learner_id: string | null }>)) {
     if (p.learner_id) ids.add(p.learner_id);
   }
@@ -88,7 +96,9 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
           {apprenants.length === 0
             ? 'Aucun stagiaire inscrit sur ce dossier.'
-            : `${apprenants.length} stagiaire${apprenants.length > 1 ? 's' : ''} inscrit${apprenants.length > 1 ? 's' : ''}, sur ${sessionIds.length} séance${sessionIds.length > 1 ? 's' : ''}.`}
+            : sessionIds.length === 0
+              ? `${apprenants.length} stagiaire${apprenants.length > 1 ? 's' : ''} inscrit${apprenants.length > 1 ? 's' : ''}. Aucune séance planifiée : ils y seront rattachés dès qu'une date sera posée.`
+              : `${apprenants.length} stagiaire${apprenants.length > 1 ? 's' : ''} inscrit${apprenants.length > 1 ? 's' : ''}, sur ${sessionIds.length} séance${sessionIds.length > 1 ? 's' : ''}.`}
         </p>
       </div>
 

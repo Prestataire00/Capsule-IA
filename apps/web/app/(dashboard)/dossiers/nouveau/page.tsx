@@ -24,7 +24,7 @@ export default async function NewDossierPage({
   await requireAccess('dossiers', 'manage');
   const sb = supabaseServer();
 
-  const [learnersRes, formationsRes, trainersRes, fundersRes, formationModulesRes] =
+  const [learnersRes, companiesRes, formationsRes, trainersRes, fundersRes, formationModulesRes] =
     await Promise.all([
       sb
         .schema('app')
@@ -32,6 +32,12 @@ export default async function NewDossierPage({
         .select('id, first_name, last_name, email, company_id')
         .is('deleted_at', null)
         .order('last_name', { ascending: true }),
+      sb
+        .schema('app')
+        .from('companies')
+        .select('id, name')
+        .is('deleted_at', null)
+        .order('name', { ascending: true }),
       sb
         .schema('app')
         .from('formations')
@@ -155,9 +161,15 @@ export default async function NewDossierPage({
     });
   }
 
+  const companies = ((companiesRes.data as unknown as Array<{ id: string; name: string }>) ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+  }));
+
   return (
     <NewDossierForm
       learners={learners}
+      companies={companies}
       formations={formations}
       trainers={trainers}
       funders={funders}

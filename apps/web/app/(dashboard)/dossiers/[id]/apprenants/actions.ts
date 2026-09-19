@@ -141,7 +141,26 @@ export async function ajouterApprenants(input: {
 
   if (ids.length === 0) return { ok: false, error: "Aucun apprenant n'a pu être enregistré." };
 
-  // Inscription à toutes les séances du dossier.
+  // Le groupe du dossier (0175). C'est ce rattachement qui fait exister le
+  // stagiaire sur le dossier : sans lui, un dossier encore sans séance créait
+  // l'apprenant puis le perdait de vue.
+  const { error: lienErr } = await admin
+    .schema('app')
+    .from('dossier_learners' as never)
+    .upsert(
+      ids.map((lid) => ({
+        dossier_id: p.data.dossierId,
+        learner_id: lid,
+        organization_id: organizationId,
+      })) as never,
+      { onConflict: 'dossier_id,learner_id' },
+    );
+  if (lienErr) {
+    console.error('[apprenants] rattachement au dossier impossible', lienErr.message);
+    return { ok: false, error: "Les stagiaires n'ont pas pu être rattachés au dossier." };
+  }
+
+  // Inscription à toutes les séances du dossier, quand il en a déjà.
   if (sessionIds.length > 0) {
     const lignes = sessionIds.flatMap((sessionId) =>
       ids.map((lid) => ({
@@ -183,15 +202,24 @@ export async function retirerApprenant(input: { dossierId: string; learnerId: st
     return { ok: false, error: 'Cet apprenant est le titulaire du dossier : désignez-en un autre avant de le retirer.' };
   }
 
+  const admin = supabaseAdmin();
+  const { error: lienErr } = await admin
+    .schema('app')
+    .from('dossier_learners' as never)
+    .delete()
+    .eq('dossier_id', p.data.dossierId)
+    .eq('learner_id', p.data.learnerId);
+  if (lienErr) return { ok: false, error: "Le retrait n'a pas été enregistré." };
+
   if (garde.ctx.sessionIds.length > 0) {
-    const { error } = await supabaseAdmin()
+    const { error } = await admin
       .schema('app')
       .from('session_participants')
       .delete()
       .in('session_id', garde.ctx.sessionIds)
       .eq('learner_id', p.data.learnerId)
       .eq('participant_kind', 'learner');
-    if (error) return { ok: false, error: "Le retrait n'a pas été enregistré." };
+    if (error) return { ok: false, error: "Le retrait des séances n'a pas été enregistré." };
   }
 
   revalidatePath(`/dossiers/${p.data.dossierId}/apprenants`);

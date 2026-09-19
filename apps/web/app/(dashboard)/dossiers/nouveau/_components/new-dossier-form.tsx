@@ -34,6 +34,7 @@ const eurosFromCents = (cents: number): string =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 
 export type LearnerOption = { id: string; name: string; email: string; companyId: string | null };
+export type CompanyOption = { id: string; name: string };
 export type FormationOption = {
   id: string;
   code: string;
@@ -56,6 +57,7 @@ const MODALITY_LABELS: Record<Modality, string> = {
 
 export function NewDossierForm({
   learners,
+  companies,
   formations,
   trainers,
   funders,
@@ -64,6 +66,7 @@ export function NewDossierForm({
   initialFormationId,
 }: {
   learners: LearnerOption[];
+  companies: CompanyOption[];
   formations: FormationOption[];
   trainers: TrainerOption[];
   funders: FunderOption[];
@@ -88,6 +91,15 @@ export function NewDossierForm({
     (initialLearnerId && learners.some((l) => l.id === initialLearnerId) ? initialLearnerId : learners[0]?.id) ?? '',
   );
   const [formationId, setFormationId] = useState<string>(preselect?.id ?? '');
+  // Pour qui l'on ouvre le dossier. Une commande d'entreprise n'a pas d'apprenant
+  // au départ : les noms arrivent plus tard, par l'onglet Apprenants.
+  const [clientKind, setClientKind] = useState<'individual' | 'company'>('individual');
+  const [companyId, setCompanyId] = useState<string>('');
+  // Formation absente du catalogue : on la décrit ici, elle est créée à la volée.
+  const [surMesure, setSurMesure] = useState(false);
+  const [smTitre, setSmTitre] = useState('');
+  const [smHeures, setSmHeures] = useState('');
+  const [smTarif, setSmTarif] = useState('');
   const [modality, setModality] = useState<Modality>(
     preselect && MODALITIES.includes(preselect.defaultModality as Modality)
       ? (preselect.defaultModality as Modality)
@@ -161,16 +173,24 @@ export function NewDossierForm({
     setModules((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  const step1Valid = Boolean(learnerId && formationId && startDate && endDate && endDate >= startDate);
+  const formationChoisie = surMesure
+    ? Boolean(smTitre.trim() && Number(smHeures) > 0)
+    : Boolean(formationId);
+  const clientChoisi = clientKind === 'company' ? Boolean(companyId) : Boolean(learnerId);
+  const step1Valid = Boolean(clientChoisi && formationChoisie && startDate && endDate && endDate >= startDate);
   const step2Valid = true; // formateur et modules optionnels au stade brouillon
 
   async function handleSubmit() {
     setError(null);
 
     const candidate = {
-      learnerId,
-      formationId,
-      companyId: selectedLearner?.companyId ?? null,
+      clientKind,
+      learnerId: clientKind === 'individual' ? learnerId : null,
+      formationId: surMesure ? null : formationId,
+      customFormation: surMesure
+        ? { title: smTitre.trim(), durationHours: Number(smHeures), priceCents: Math.round(Number(smTarif || 0) * 100) }
+        : null,
+      companyId: clientKind === 'company' ? companyId : (selectedLearner?.companyId ?? null),
       modality,
       startDate,
       endDate,
@@ -237,27 +257,126 @@ export function NewDossierForm({
                   Pour qui et quelle formation ?
                 </h1>
                 <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-3">
-                  Sélectionnez l&apos;apprenant, la formation et la période.
+                  Dites pour qui, quelle formation, et sur quelle période.
                 </p>
               </div>
 
               <div className="space-y-4">
-                <Field label="Apprenant *">
-                  {learners.length === 0 ? (
-                    <EmptyHint href="/apprenants/nouveau" label="Créer un apprenant" />
-                  ) : (
-                    <select value={learnerId} onChange={(e) => setLearnerId(e.target.value)} className={selectCls}>
-                      {learners.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.name} — {l.email}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                <Field label="Pour qui ? *">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        ['individual', 'Un particulier', 'Une personne s’inscrit pour elle-même.'],
+                        ['company', 'Une entreprise', 'Elle inscrit un ou plusieurs salariés.'],
+                      ] as const
+                    ).map(([cle, titre, detail]) => (
+                      <button
+                        key={cle}
+                        type="button"
+                        onClick={() => setClientKind(cle)}
+                        className={
+                          clientKind === cle
+                            ? 'text-left border border-orange-300 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 rounded-lg px-3 py-2.5'
+                            : 'text-left border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
+                        }
+                      >
+                        <span className="block text-[13px] font-bold text-zinc-900 dark:text-zinc-100">{titre}</span>
+                        <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">{detail}</span>
+                      </button>
+                    ))}
+                  </div>
                 </Field>
 
+                {clientKind === 'individual' ? (
+                  <Field label="Apprenant *">
+                    {learners.length === 0 ? (
+                      <EmptyHint href="/apprenants/nouveau" label="Créer un apprenant" />
+                    ) : (
+                      <select value={learnerId} onChange={(e) => setLearnerId(e.target.value)} className={selectCls}>
+                        {learners.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name} — {l.email}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Field>
+                ) : (
+                  <Field label="Entreprise cliente *">
+                    {companies.length === 0 ? (
+                      <EmptyHint href="/entreprises/nouvelle" label="Créer une entreprise" />
+                    ) : (
+                      <>
+                        <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={selectCls}>
+                          <option value="">— Choisir une entreprise —</option>
+                          {companies.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+                          Les stagiaires se nomment ensuite, dans l&apos;onglet Apprenants du dossier — vous
+                          n&apos;avez pas besoin de leurs noms pour ouvrir la commande.
+                        </p>
+                      </>
+                    )}
+                  </Field>
+                )}
+
                 <Field label="Formation *">
-                  {formations.length === 0 ? (
+                  <div className="flex items-center gap-1 mb-2 text-[13px]">
+                    {(
+                      [
+                        [false, 'Au catalogue'],
+                        [true, 'Sur mesure'],
+                      ] as const
+                    ).map(([valeur, libelle]) => (
+                      <button
+                        key={String(valeur)}
+                        type="button"
+                        onClick={() => setSurMesure(valeur)}
+                        className={
+                          surMesure === valeur
+                            ? 'px-3 py-1.5 rounded-lg bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-medium'
+                            : 'px-3 py-1.5 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                        }
+                      >
+                        {libelle}
+                      </button>
+                    ))}
+                  </div>
+
+                  {surMesure ? (
+                    <div className="space-y-2">
+                      <input
+                        value={smTitre}
+                        onChange={(e) => setSmTitre(e.target.value)}
+                        placeholder="Intitulé de la formation"
+                        maxLength={200}
+                        className={inputCls}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          value={smHeures}
+                          onChange={(e) => setSmHeures(e.target.value.replace(/[^\d.,]/g, ''))}
+                          inputMode="decimal"
+                          placeholder="Durée en heures"
+                          className={`${inputCls} tabular-nums`}
+                        />
+                        <input
+                          value={smTarif}
+                          onChange={(e) => setSmTarif(e.target.value.replace(/[^\d.,]/g, ''))}
+                          inputMode="decimal"
+                          placeholder="Tarif HT (facultatif)"
+                          className={`${inputCls} tabular-nums`}
+                        />
+                      </div>
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Elle sera créée hors catalogue, pour ce client. Vous pourrez la compléter depuis sa fiche.
+                      </p>
+                    </div>
+                  ) : formations.length === 0 ? (
                     <EmptyHint href="/formations/nouvelle" label="Créer une formation" />
                   ) : (
                     <select value={formationId} onChange={(e) => applyFormation(e.target.value)} className={selectCls}>

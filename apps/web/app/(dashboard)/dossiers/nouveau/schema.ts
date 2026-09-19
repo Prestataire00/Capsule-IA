@@ -24,10 +24,29 @@ export const DossierFunderSchema = z.object({
 });
 export type DossierFunderValue = z.infer<typeof DossierFunderSchema>;
 
+/** Pour qui l'on ouvre le dossier : une personne, ou une entreprise cliente. */
+export const CLIENT_KINDS = ['individual', 'company'] as const;
+export type ClientKind = (typeof CLIENT_KINDS)[number];
+
+/** Formation montée pour ce client, absente du catalogue. */
+export const CustomFormationSchema = z.object({
+  title: z.string().trim().min(1, 'Intitulé requis').max(200),
+  durationHours: z.coerce.number().min(0.5, 'Durée requise').max(2000),
+  priceCents: z.coerce.number().int().min(0).default(0),
+});
+export type CustomFormationValue = z.infer<typeof CustomFormationSchema>;
+
 export const CreateDossierSchema = z
   .object({
-    learnerId: z.string().uuid({ message: 'Apprenant requis' }),
-    formationId: z.string().uuid({ message: 'Formation requise' }),
+    clientKind: z.enum(CLIENT_KINDS).default('individual'),
+    // Une commande d'entreprise s'ouvre avant que les noms soient connus :
+    // le titulaire n'est donc pas exigé ici (un provisoire est posé, 0175).
+    learnerId: z.string().uuid().nullable().default(null),
+    /** Stagiaires nommés dès la création — facultatif. */
+    learnerIds: z.array(z.string().uuid()).max(200).default([]),
+    formationId: z.string().uuid().nullable().default(null),
+    /** Renseignée à la place de `formationId` pour une formation sur mesure. */
+    customFormation: CustomFormationSchema.nullable().default(null),
     companyId: z.string().uuid().nullable().default(null),
     modality: z.enum(MODALITIES),
     startDate: z.string().regex(DATE_RE, 'Date de début requise'),
@@ -40,6 +59,18 @@ export const CreateDossierSchema = z
   .refine((v) => v.endDate >= v.startDate, {
     message: 'La date de fin doit être postérieure à la date de début',
     path: ['endDate'],
+  })
+  .refine((v) => Boolean(v.formationId) || Boolean(v.customFormation), {
+    message: 'Choisissez une formation du catalogue, ou décrivez-en une sur mesure',
+    path: ['formationId'],
+  })
+  .refine((v) => v.clientKind !== 'company' || Boolean(v.companyId), {
+    message: 'Entreprise cliente requise',
+    path: ['companyId'],
+  })
+  .refine((v) => v.clientKind !== 'individual' || Boolean(v.learnerId), {
+    message: 'Apprenant requis',
+    path: ['learnerId'],
   })
   .refine(
     (v) => {

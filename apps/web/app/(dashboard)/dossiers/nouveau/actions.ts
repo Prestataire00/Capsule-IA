@@ -6,7 +6,8 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateDossierReference } from '@/features/crm/prospect-conversion/dossier-reference';
 import { sendNeedsAnalysisForDossier } from '@/features/questionnaire/needs-analysis';
-import { CreateDossierSchema } from './schema';
+import { DOMAINE_PROVISOIRE } from '@/features/dossier/referent';
+import { CreateDossierSchema, type CustomFormationValue } from './schema';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];
@@ -50,12 +51,113 @@ async function resolveAdminOrgId(userId: string): Promise<string | null> {
   return member.organization_id;
 }
 
+const slug = (titre: string, suffixe: string): string =>
+  `${
+    titre
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 60) || 'formation'
+  }-${suffixe.toLowerCase()}`;
+
+/**
+ * Formation montée pour ce client : hors catalogue public, avec la durée et le
+ * tarif indiqués. Une commande porte souvent sur un programme qui n'existe pas
+ * encore — exiger qu'il soit d'abord créé au catalogue forçait à sortir de
+ * l'assistant et à tout ressaisir.
+ */
+async function creerFormationSurMesure(
+  organizationId: string,
+  f: CustomFormationValue,
+  modality: string,
+): Promise<string | null> {
+  const suffixe = randomUUID().slice(0, 8).toUpperCase();
+  const { data, error } = await supabaseAdmin()
+    .schema('app')
+    .from('formations')
+    .insert({
+      organization_id: organizationId,
+      code: `SM-${suffixe}`,
+      title: f.title,
+      slug: slug(f.title, suffixe),
+      summary: 'Formation montée pour un besoin spécifique (hors catalogue).',
+      default_modality: modality,
+      default_duration_hours: f.durationHours,
+      default_price_cents: f.priceCents,
+      is_published: false,
+    } as never)
+    .select('id')
+    .single();
+  if (error || !data) {
+    console.error('[dossier] formation sur mesure non créée', error?.message);
+    return null;
+  }
+  return (data as { id: string }).id;
+}
+
+/**
+ * `dossiers.learner_id` est obligatoire, mais une commande d'entreprise
+ * s'ouvre avant que les noms soient connus. On pose alors un titulaire
+ * provisoire sur une adresse en `.invalid` (RFC 2606) : aucun envoi ne partira
+ * vers un destinataire inventé, et les écrans l'affichent comme « à désigner ».
+ */
+async function titulaireProvisoire(organizationId: string, companyId: string | null): Promise<string | null> {
+  const admin = supabaseAdmin();
+  const email = `stagiaires-a-designer.${(companyId ?? organizationId).slice(0, 8)}${DOMAINE_PROVISOIRE}`;
+
+  const { data: existant } = await admin
+    .schema('app')
+    .from('learners')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .eq('email', email)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (existant) return (existant as { id: string }).id;
+
+  const { data, error } = await admin
+    .schema('app')
+    .from('learners')
+    .insert({
+      organization_id: organizationId,
+      company_id: companyId,
+      first_name: 'Stagiaires',
+      last_name: 'à désigner',
+      email,
+    } as never)
+    .select('id')
+    .single();
+  if (error || !data) {
+    console.error('[dossier] titulaire provisoire non créé', error?.message);
+    return null;
+  }
+  return (data as { id: string }).id;
+}
+
 export const createDossierAction = authActionClient
   .schema(CreateDossierSchema)
   .action(async ({ parsedInput, ctx }) => {
     const sb = ctx.supabase;
     const orgId = await resolveAdminOrgId(ctx.userId as unknown as string);
     if (!orgId) return { ok: false as const, error: 'forbidden_not_admin' };
+
+    // Formation : celle du catalogue, ou celle montée pour ce client.
+    const formationId =
+      parsedInput.formationId ??
+      (parsedInput.customFormation
+        ? await creerFormationSurMesure(orgId, parsedInput.customFormation, parsedInput.modality)
+        : null);
+    if (!formationId) return { ok: false as const, error: 'formation_missing' };
+
+    // Titulaire : celui qu'on a nommé, le premier stagiaire de la liste, ou un
+    // provisoire quand l'entreprise n'a pas encore donné de noms.
+    const learnerId =
+      parsedInput.learnerId ??
+      parsedInput.learnerIds[0] ??
+      (await titulaireProvisoire(orgId, parsedInput.companyId));
+    if (!learnerId) return { ok: false as const, error: 'learner_missing' };
 
     const dossierId = randomUUID();
     const year = Number(new Date().getFullYear());
@@ -92,9 +194,9 @@ export const createDossierAction = authActionClient
         id: dossierId,
         organization_id: orgId,
         reference,
-        learner_id: parsedInput.learnerId,
+        learner_id: learnerId,
         company_id: parsedInput.companyId,
-        formation_id: parsedInput.formationId,
+        formation_id: formationId,
         status: 'draft',
         modality: parsedInput.modality,
         start_date: parsedInput.startDate,
@@ -116,6 +218,20 @@ export const createDossierAction = authActionClient
         error: 'dossier_create_failed',
         details: (error as { message?: string }).message,
       };
+    }
+
+    // Le groupe du dossier (0175) : les stagiaires nommés à la création, et le
+    // titulaire quand il désigne quelqu'un.
+    const duGroupe = [...new Set([...parsedInput.learnerIds, ...(parsedInput.learnerId ? [parsedInput.learnerId] : [])])];
+    if (duGroupe.length > 0) {
+      const { error: lienErr } = await supabaseAdmin()
+        .schema('app')
+        .from('dossier_learners' as never)
+        .upsert(
+          duGroupe.map((lid) => ({ dossier_id: dossierId, learner_id: lid, organization_id: orgId })) as never,
+          { onConflict: 'dossier_id,learner_id' },
+        );
+      if (lienErr) console.error('[dossier] stagiaires non rattachés', lienErr.message);
     }
 
     // La RPC save_dossier n'upsert pas external_file_number : on le pose après coup
