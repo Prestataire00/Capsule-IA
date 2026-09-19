@@ -2,6 +2,7 @@
 // Proxy serveur de la recherche d'entreprises (API publique recherche-entreprises.api.gouv.fr).
 // Évite le blocage CORS/CSP d'un fetch direct depuis le navigateur.
 import { NextResponse, type NextRequest } from 'next/server';
+import { quotaDisponible, adresseAppelant, tropDeRequetes } from '@/shared/lib/http/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,16 @@ export async function GET(req: NextRequest): Promise<Response> {
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? '';
   if (q.length < 3) return NextResponse.json({ results: [] });
 
-  const perPage = req.nextUrl.searchParams.get('per_page') ?? '8';
+  // Ce proxy consomme le quota de l'API de l'État au nom de notre serveur :
+  // il ne peut pas rester ouvert sans compteur.
+  if (!(await quotaDisponible('sirene', adresseAppelant(req.headers)))) {
+    return tropDeRequetes('sirene');
+  }
+
+  // Borné : le paramètre était relayé tel quel, donc un appel pouvait demander
+  // une page arbitrairement grande à l'API amont.
+  const perPageDemande = Number(req.nextUrl.searchParams.get('per_page') ?? '8');
+  const perPage = String(Number.isFinite(perPageDemande) ? Math.min(Math.max(perPageDemande, 1), 25) : 8);
   const url = `${UPSTREAM}?q=${encodeURIComponent(q)}&per_page=${encodeURIComponent(perPage)}`;
 
   try {

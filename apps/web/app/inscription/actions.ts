@@ -7,6 +7,7 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { prospectConfirmationEmail } from '@/shared/lib/email/templates';
 import { notifyOrgStaffOfNewDemande } from '@/shared/lib/notifications/notify-staff';
 import { derivePrimaryFunder } from '@/features/prospect/funding';
+import { quotaDisponible, adresseAppelant } from '@/shared/lib/http/rate-limit';
 import {
   prospectFieldsSchema,
   companyEnrollmentSchema,
@@ -198,6 +199,12 @@ function nullify(v: string | undefined | null) {
 }
 
 export async function submitProspect(formData: FormData): Promise<SubmitResult> {
+  // Formulaire public : il écrit en base avec la clé service role, téléverse
+  // et déclenche un e-mail. Sans compteur, il suffit d'une boucle pour remplir
+  // la base d'un organisme.
+  if (!(await quotaDisponible('inscription', adresseAppelant(headers())))) {
+    return { ok: false, error: 'rate_limited' };
+  }
   const payloadRaw = formData.get('payload');
   if (typeof payloadRaw !== 'string') {
     return { ok: false, error: 'missing_payload' };
@@ -398,6 +405,12 @@ export type CompanySubmitResult =
  * + notification interne récapitulative.
  */
 export async function submitCompanyEnrollment(formData: FormData): Promise<CompanySubmitResult> {
+  // Formulaire public : il écrit en base avec la clé service role, téléverse
+  // et déclenche un e-mail. Sans compteur, il suffit d'une boucle pour remplir
+  // la base d'un organisme.
+  if (!(await quotaDisponible('inscription', adresseAppelant(headers())))) {
+    return { ok: false, error: 'rate_limited' };
+  }
   const payloadRaw = formData.get('payload');
   if (typeof payloadRaw !== 'string') {
     return { ok: false, error: 'missing_payload' };

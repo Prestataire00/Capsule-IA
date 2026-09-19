@@ -7,6 +7,7 @@ import {
   MAX_PDF_BYTES,
   MAX_TOTAL_BYTES,
 } from '@/features/import/extract-convention';
+import { quotaDisponible, tropDeRequetes } from '@/shared/lib/http/rate-limit';
 
 export const dynamic = 'force-dynamic';
 // La lecture de plusieurs PDF par le modèle dépasse largement le défaut.
@@ -24,6 +25,11 @@ export async function POST(req: NextRequest) {
   if (!membre) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   if (can(membre.role, 'catalogue') !== 'manage') {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+  // Chaque appel lit jusqu'à 20 Mo de PDF avec le modèle le plus cher : un
+  // compte maladroit — ou compromis — ne doit pas pouvoir boucler dessus.
+  if (!(await quotaDisponible('importIa', membre.organizationId))) {
+    return tropDeRequetes('importIa');
   }
 
   const form = await req.formData();
