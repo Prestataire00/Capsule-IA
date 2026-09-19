@@ -3,6 +3,7 @@ import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 import { legalPromptBlock } from '@/features/documents/legal/requirements';
 import { TEMPLATE_VARIABLES } from '@/features/documents/templates/variables';
 import { renderTemplate } from '@/features/documents/templates/render-template';
+import { nettoyerHtmlDocument } from '@/shared/lib/html/sanitize-document-html';
 
 export type AiDocResult =
   | { ok: true; html: string; model: string }
@@ -63,6 +64,11 @@ ${instruction || '(aucune — produire le document standard du type indiqué)'}`
     // Nettoyage défensif d'éventuels fences markdown.
     html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
     if (!html) return { ok: false, reason: 'generation_failed' };
+    // Le corps sort d'un modèle qui a pu lire des documents fournis par le
+    // client : on l'assainit AVANT de résoudre les tokens image, pour que le
+    // cachet et la signature de l'organisme — eux, de source sûre — ne soient
+    // pas emportés par le nettoyage.
+    html = nettoyerHtmlDocument(html);
     // Résout les tokens image émis par l'IA (cachet/signature de l'organisme) en
     // leurs <img> depuis les réglages. Les clés sont pré-remplies à '' pour qu'un
     // token reste propre (vide) plutôt que littéral si l'asset est absent.

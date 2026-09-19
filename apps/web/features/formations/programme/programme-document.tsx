@@ -16,6 +16,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
+import { nettoyerHtmlDocument } from '@/shared/lib/html/sanitize-document-html';
 import type { MetaIcon, Programme, ProgrammeSection, ProgrammeTheme } from './types';
 
 const ICONS: Record<MetaIcon, LucideIcon> = {
@@ -174,7 +175,10 @@ function Section({ s, upper }: { s: ProgrammeSection; upper: boolean }) {
     <>
       <SectionBar title={s.title} upper={upper} />
       {s.type === 'richtext' && (
-        <div className="pf-prose pf-panel" dangerouslySetInnerHTML={{ __html: s.html }} />
+        // Ce HTML peut venir d'un modèle qui a lu un PDF fourni par le client
+        // (import de conventions) et cette page est publique : on nettoie ici,
+        // donc aussi pour les formations importées avant ce nettoyage.
+        <div className="pf-prose pf-panel" dangerouslySetInnerHTML={{ __html: nettoyerHtmlDocument(s.html) }} />
       )}
       {s.type === 'keyvalue' && <KeyValue rows={s.rows} />}
       {s.type === 'bullets' && <Bullets items={s.items} />}

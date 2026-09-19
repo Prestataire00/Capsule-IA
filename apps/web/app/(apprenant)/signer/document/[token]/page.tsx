@@ -1,6 +1,7 @@
 import { Check, AlertCircle, PenLine } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifyDocumentSignatureToken } from '@/shared/lib/document-signature-token';
+import { nettoyerHtmlDocument } from '@/shared/lib/html/sanitize-document-html';
 import { SignForm } from './sign-form';
 
 export const dynamic = 'force-dynamic';
@@ -101,7 +102,9 @@ export default async function SignDocumentPage({ params }: { params: { token: st
       {doc.content_html ? (
         <article className="doc-sheet bg-white text-zinc-900 rounded-lg border border-zinc-200/70 dark:border-zinc-800 shadow-sm px-10 py-10 max-h-[55vh] overflow-y-auto">
           {/* eslint-disable-next-line react/no-danger */}
-          <div dangerouslySetInnerHTML={{ __html: doc.content_html }} />
+          {/* Un document peut avoir été rédigé par le modèle : cette page
+              s'ouvre par simple lien, chez un stagiaire externe. */}
+          <div dangerouslySetInnerHTML={{ __html: nettoyerHtmlDocument(doc.content_html) }} />
         </article>
       ) : doc.storage_path ? (
         <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200/70 dark:border-zinc-800 shadow-sm overflow-hidden">

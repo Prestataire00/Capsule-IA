@@ -5,10 +5,28 @@ import { generateDossierReference } from '@/features/crm/prospect-conversion/dos
 import { slugify } from '@/features/formations/mapping';
 import { DEFAULT_THEME, type Programme, type ProgrammeSection } from '@/features/formations/programme/types';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
+import { nettoyerHtmlDocument } from '@/shared/lib/html/sanitize-document-html';
 import { parisIso } from './paris-time';
 import type { ConventionImport, ImportFormation, ImportSummary } from './convention-types';
 
 export type { ImportSummary };
+
+/**
+ * Le prompt d'extraction demande au modèle d'émettre du HTML, à partir d'un
+ * document que nous n'écrivons pas. `normalizeImport` tronque et met en liste
+ * blanche les valeurs, mais ne touche pas au balisage : c'est ici qu'on l'ôte
+ * de ce qui pourrait s'exécuter chez un lecteur du catalogue public.
+ */
+function nettoyerFormationImportee(f: ImportFormation): ImportFormation {
+  return {
+    ...f,
+    programContent: nettoyerHtmlDocument(f.programContent),
+    pedagogicalMethod: nettoyerHtmlDocument(f.pedagogicalMethod),
+    evaluationMethod: nettoyerHtmlDocument(f.evaluationMethod),
+    accessibilityInfo: nettoyerHtmlDocument(f.accessibilityInfo),
+    teachingTeam: nettoyerHtmlDocument(f.teachingTeam),
+  };
+}
 
 /**
  * Création dans le CRM de ce qu'une convention contient : le client, la
@@ -283,8 +301,13 @@ export async function applyConventionImport(
   // stagiaire manquait à l'appel (10 × 90 € = 900 €, au lieu des 1 440 €
   // signés). Tant que personne ne le renseigne, ce tarif reste à zéro.
 
-  for (const f of payload.formations) {
-    if (f.title.trim() === '') continue;
+  for (const brute of payload.formations) {
+    if (brute.title.trim() === '') continue;
+    // Ces champs sont du HTML produit par le modèle à partir d'un PDF fourni
+    // par le client, et ils finissent sur la fiche publique du catalogue :
+    // entrée non fiable. On nettoie une fois, avant toutes les écritures qui
+    // suivent (description, metadata.catalog, programme imprimable).
+    const f = nettoyerFormationImportee(brute);
     const code = await codeDisponible(sb, organizationId, f.title);
     const catalog = {
       subtitle: f.subtitle,
