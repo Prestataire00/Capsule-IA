@@ -1,0 +1,12 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      "shared/lib/email/**",
+      "features/documents/**",
+      "features/attendance/pdf-render.tsx",
+      "features/trainer-space/questionnaire-email.ts"
+    ],
+    "ignoreValues": []
+  }
+}

@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-19T13:31:04.102562Z",
+  "title": "Design System: Capsule IA",
+  "extensions": {
+    "colorMeta": {
+      "brand-orange": {
+        "role": "primary",
+        "displayName": "Orange Capsule",
+        "canonical": "#F97316",
+        "tonalRamp": [
+          "#7C2D12",
+          "#9A3412",
+          "#C2410C",
+          "#EA580C",
+          "#F97316",
+          "#FB923C",
+          "#FDBA74",
+          "#FFEDD5"
+        ],
+        "note": "Identité et action. Un seul bouton primaire par écran."
+      },
+      "brand-orange-deep": {
+        "role": "primary",
+        "displayName": "Orange braise",
+        "canonical": "#C2410C",
+        "tonalRamp": [
+          "#7C2D12",
+          "#9A3412",
+          "#C2410C",
+          "#EA580C",
+          "#F97316",
+          "#FB923C",
+          "#FDBA74",
+          "#FFEDD5"
+        ],
+        "note": "Survol du primaire ; nom de session (--sess)."
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Encre bleu nuit",
+        "canonical": "#111A2E",
+        "tonalRamp": [
+          "#0A0F1C",
+          "#111A2E",
+          "#1F2940",
+          "#334056",
+          "#465269",
+          "#5F6B82",
+          "#8E99AE",
+          "#C8D0DD"
+        ],
+        "note": "Texte principal, et teinte de toutes les ombres."
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Toile",
+        "canonical": "#F5F7FA",
+        "tonalRamp": [
+          "#0A0F1C",
+          "#111A2E",
+          "#1F2940",
+          "#334056",
+          "#465269",
+          "#5F6B82",
+          "#8E99AE",
+          "#C8D0DD"
+        ],
+        "note": "Fond d'application."
+      },
+      "horizon-400": {
+        "role": "neutral",
+        "displayName": "Horizon estompé",
+        "canonical": "#8E99AE",
+        "tonalRamp": [
+          "#0A0F1C",
+          "#111A2E",
+          "#1F2940",
+          "#334056",
+          "#465269",
+          "#5F6B82",
+          "#8E99AE",
+          "#C8D0DD"
+        ],
+        "note": "Décoratif et désactivé seulement : 2,7:1 sur fond clair."
+      },
+      "horizon-500": {
+        "role": "neutral",
+        "displayName": "Horizon lisible",
+        "canonical": "#5F6B82",
+        "tonalRamp": [
+          "#0A0F1C",
+          "#111A2E",
+          "#1F2940",
+          "#334056",
+          "#465269",
+          "#5F6B82",
+          "#8E99AE",
+          "#C8D0DD"
+        ],
+        "note": "Plancher du texte secondaire : 5:1 sur toile et sur fonds -50."
+      },
+      "formation-teal": {
+        "role": "tertiary",
+        "displayName": "Sarcelle formation",
+        "canonical": "#0F9D8A",
+        "tonalRamp": [
+          "#053F38",
+          "#0A6559",
+          "#0F9D8A",
+          "#22A892",
+          "#4FBFAC",
+          "#84D5C7",
+          "#B6E7DE",
+          "#E0F6F2"
+        ],
+        "note": "Identité de formation 1/4. Palette validée daltonisme."
+      },
+      "formation-indigo": {
+        "role": "tertiary",
+        "displayName": "Indigo formation",
+        "canonical": "#6A4FE0",
+        "tonalRamp": [
+          "#2A1F5A",
+          "#3F2E86",
+          "#6A4FE0",
+          "#8B78FA",
+          "#A797FB",
+          "#C4BAFC",
+          "#DED8FD",
+          "#F0EDFE"
+        ],
+        "note": "Identité de formation 2/4."
+      },
+      "formation-raspberry": {
+        "role": "tertiary",
+        "displayName": "Framboise formation",
+        "canonical": "#D9467A",
+        "tonalRamp": [
+          "#571C30",
+          "#8A2C4C",
+          "#D9467A",
+          "#E85A8E",
+          "#EE82A9",
+          "#F4AAC5",
+          "#F9D0DF",
+          "#FDEDF3"
+        ],
+        "note": "Identité de formation 3/4."
+      },
+      "formation-sky": {
+        "role": "tertiary",
+        "displayName": "Bleu ciel formation",
+        "canonical": "#2B8FD6",
+        "tonalRamp": [
+          "#0F3A57",
+          "#1A5C8A",
+          "#2B8FD6",
+          "#3E9BE0",
+          "#6BB3E8",
+          "#9BCCF0",
+          "#C8E3F7",
+          "#EAF4FC"
+        ],
+        "note": "Identité de formation 4/4."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Titre de page, hero uniquement. Manrope extrabold 30px, resserré."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Titres de section majeurs."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Titres de carte et noms d'objets en liste."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texte courant, libellés, boutons."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "En-têtes de tableau et sur-titres, 11px majuscules."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Identifiants et références seulement. Jamais de date ni de montant."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sm",
+        "value": "0 1px 2px -1px rgb(17 26 46 / 0.06), 0 1px 3px 0 rgb(17 26 46 / 0.04)",
+        "purpose": "Repos de toute carte. Teintée à l'encre, pas au noir."
+      },
+      {
+        "name": "md",
+        "value": "0 6px 16px -4px rgb(17 26 46 / 0.08), 0 2px 4px -2px rgb(17 26 46 / 0.05)",
+        "purpose": "Survol d'une carte cliquable."
+      },
+      {
+        "name": "lg",
+        "value": "0 16px 36px -10px rgb(17 26 46 / 0.14), 0 4px 10px -4px rgb(17 26 46 / 0.06)",
+        "purpose": "Hero unique de la page d'accueil."
+      },
+      {
+        "name": "xl",
+        "value": "0 24px 56px -16px rgb(17 26 46 / 0.2), 0 8px 16px -8px rgb(17 26 46 / 0.08)",
+        "purpose": "Défini mais interdit d'usage : plafond à shadow-lg."
+      }
+    ],
+    "motion": [
+      {
+        "name": "transition-default",
+        "value": "150ms ease",
+        "purpose": "Changement d'état des boutons, cartes et champs."
+      },
+      {
+        "name": "focus-ring",
+        "value": "ring-2 ring-orange-500/30 ring-offset-2",
+        "purpose": "Focus visible, orange, sur tout élément interactif."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Bouton primaire",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "L'action principale. Un seul par écran.",
+      "html": "<button class=\"ds-btn-primary\">Enregistrer</button>",
+      "css": ".ds-btn-primary{background:#F97316;color:#fff;font:500 13px/1 Manrope,system-ui,sans-serif;height:36px;padding:0 16px;border:none;border-radius:6px;box-shadow:0 1px 2px -1px rgb(17 26 46/.06),0 1px 3px 0 rgb(17 26 46/.04);transition:background 150ms ease}.ds-btn-primary:hover{background:#C2410C}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px rgb(249 115 22/.3)}"
+    },
+    {
+      "name": "Bouton secondaire",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Action engageante mais neutre : encre pleine.",
+      "html": "<button class=\"ds-btn-secondary\">Confirmer</button>",
+      "css": ".ds-btn-secondary{background:#111A2E;color:#fff;font:500 13px/1 Manrope,system-ui,sans-serif;height:36px;padding:0 16px;border:none;border-radius:6px;transition:background 150ms ease}.ds-btn-secondary:hover{background:#1F2940}"
+    },
+    {
+      "name": "Bouton fantôme",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Action tertiaire : bordure seule, fond au survol.",
+      "html": "<button class=\"ds-btn-ghost\">Annuler</button>",
+      "css": ".ds-btn-ghost{background:transparent;color:#334056;font:400 13px/1 Manrope,system-ui,sans-serif;height:36px;padding:0 16px;border:1px solid rgb(225 230 238/.6);border-radius:6px;transition:background 150ms ease}.ds-btn-ghost:hover{background:#F5F7FA}"
+    },
+    {
+      "name": "Bouton d'icône",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Action de fin de ligne. Le fond teinté et la couleur du texte changent ENSEMBLE au survol — c'est pourquoi un gris clair au repos n'est jamais posé sur le fond coloré.",
+      "html": "<button class=\"ds-btn-icon\" aria-label=\"Ouvrir\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg></button>",
+      "css": ".ds-btn-icon{width:32px;height:32px;display:grid;place-items:center;background:transparent;color:#5F6B82;border:none;border-radius:6px;transition:background 150ms ease,color 150ms ease}.ds-btn-icon:hover{background:#FFF7ED;color:#EA580C}"
+    },
+    {
+      "name": "Champ de saisie",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Champ standard, 36px de haut.",
+      "html": "<input class=\"ds-input\" placeholder=\"Rechercher un dossier, apprenant, formation…\" />",
+      "css": ".ds-input{width:100%;height:36px;padding:0 12px;background:#fff;color:#111A2E;font:400 13px/1 Manrope,system-ui,sans-serif;border:1px solid rgb(225 230 238/.8);border-radius:8px;transition:border-color 150ms ease,box-shadow 150ms ease}.ds-input::placeholder{color:#8E99AE}.ds-input:focus{outline:none;border-color:#FDBA74;box-shadow:0 0 0 4px rgb(249 115 22/.1)}"
+    },
+    {
+      "name": "Pastille de statut",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Le statut se lit à la couleur : émeraude conforme, ambre en attente, rouge en échec.",
+      "html": "<span class=\"ds-pill ds-pill-success\"><i></i>Conforme</span> <span class=\"ds-pill ds-pill-warning\"><i></i>En attente</span> <span class=\"ds-pill ds-pill-danger\"><i></i>En retard</span>",
+      "css": ".ds-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:9999px;font:700 11px/1.6 Manrope,system-ui,sans-serif}.ds-pill i{width:6px;height:6px;border-radius:9999px}.ds-pill-success{background:#ECFDF5;color:#047857}.ds-pill-success i{background:#10B981}.ds-pill-warning{background:#FFFBEB;color:#B45309}.ds-pill-warning i{background:#F59E0B}.ds-pill-danger{background:#FEF2F2;color:#B91C1C}.ds-pill-danger i{background:#EF4444}"
+    },
+    {
+      "name": "Carte",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Conteneur par défaut : blanc sur toile, bordure fine, ombre diffuse.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Convention de formation</p><p class=\"ds-card-meta\">DOS-2026-5B372565 · 5 heures · 1 440,00 €</p></div>",
+      "css": ".ds-card{background:#fff;border:1px solid rgb(225 230 238/.7);border-radius:8px;padding:20px;box-shadow:0 1px 2px -1px rgb(17 26 46/.06),0 1px 3px 0 rgb(17 26 46/.04);transition:box-shadow 150ms ease,border-color 150ms ease}.ds-card:hover{box-shadow:0 6px 16px -4px rgb(17 26 46/.08),0 2px 4px -2px rgb(17 26 46/.05);border-color:#C8D0DD}.ds-card-title{margin:0;font:700 15px/1.3 Manrope,system-ui,sans-serif;letter-spacing:-.015em;color:#111A2E}.ds-card-meta{margin:6px 0 0;font:400 13px/1.5 Manrope,system-ui,sans-serif;color:#5F6B82;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Carte de chiffre clé",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Composant signature : dégradé de l'accent vers le blanc, pictogramme blanc sur carré plein, valeur en tabular-nums. L'accent est choisi par le SENS de la donnée.",
+      "html": "<div class=\"ds-kpi\"><span class=\"ds-kpi-chip\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"/></svg></span><p class=\"ds-kpi-label\">Produits HT</p><p class=\"ds-kpi-value\">48 320 €</p></div>",
+      "css": ".ds-kpi{background:linear-gradient(to bottom right,#ECFDF5,#fff);border:1px solid #D1FAE5;border-radius:12px;padding:16px;box-shadow:0 1px 2px -1px rgb(17 26 46/.06)}.ds-kpi-chip{width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:#10B981;color:#fff;box-shadow:0 2px 8px rgb(16 185 129/.3)}.ds-kpi-label{margin:12px 0 0;font:700 11px/1.4 Manrope,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#5F6B82}.ds-kpi-value{margin:4px 0 0;font:700 24px/1.1 Manrope,system-ui,sans-serif;color:#047857;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "En-tête de tableau",
+      "kind": "nav",
+      "refersTo": "status-pill",
+      "description": "Une ligne par objet, colonnes métier nommées, en-tête 11px majuscule.",
+      "html": "<div class=\"ds-thead\"><span>Formation</span><span>Formateur</span><span>Dates</span><span>Statut</span></div>",
+      "css": ".ds-thead{display:grid;grid-template-columns:2fr 1fr 1fr 100px;gap:16px;padding:0 20px;height:36px;align-items:center;background:#F5F7FA;border-bottom:1px solid rgb(225 230 238/.7);font:700 11px/1 Manrope,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#5F6B82}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Le tableau de bord d'atelier",
+    "overview": "Capsule IA est un outil de travail, pas une vitrine. La densité prime sur le souffle, et la couleur n'est jamais décorative — elle dit ce qu'une chose est. Les neutres sont un gris bleu nuit (« horizon »), et l'orange #F97316 porte seul l'identité et l'action : il est rare, donc il se voit. Les ombres sont en couches très diffuses, teintées à l'encre plutôt qu'au noir.",
+    "keyCharacteristics": [
+      "Densité assumée : une ligne par objet, colonnes métier explicites",
+      "Couleur sémantique, jamais ornementale",
+      "Orange rare et unique ; un seul bouton primaire par écran",
+      "Gris bleu nuit partout où d'autres mettraient du gris neutre",
+      "Chiffres en tabular-nums, jamais en chasse fixe"
+    ],
+    "rules": [
+      {
+        "name": "La règle de l'orange unique",
+        "body": "Un seul bouton primaire orange par écran. L'orange appartient à la marque et à l'action ; aucune formation, aucun statut, aucune donnée ne l'emprunte.",
+        "section": "colors"
+      },
+      {
+        "name": "La règle du sens",
+        "body": "Une couleur d'accent ne se choisit pas parce qu'elle va bien : elle se choisit parce qu'elle dit quoi. Rose pour les personnes, bleu pour le temps, violet pour Qualiopi, émeraude pour l'argent validé, ambre pour l'attente, rouge pour l'échec.",
+        "section": "colors"
+      },
+      {
+        "name": "La règle du 500",
+        "body": "Sur un fond teinté (-50 ou -100), le texte ne descend jamais sous horizon-500. horizon-400 et horizon-300 y tombent sous 3:1.",
+        "section": "colors"
+      },
+      {
+        "name": "La règle du chiffre aligné",
+        "body": "Dates, heures, montants, compteurs et pourcentages s'écrivent en sans avec tabular-nums. Jamais en chasse fixe.",
+        "section": "typography"
+      },
+      {
+        "name": "La règle du gras interdit",
+        "body": "font-bold est proscrit par défaut ; font-semibold ne sert que sur les titres hero h1/h2.",
+        "section": "typography"
+      },
+      {
+        "name": "La règle du plafond",
+        "body": "shadow-xl et au-delà sont interdits. Une interface de gestion n'a rien qui doive flotter à ce point.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do choisir l'accent d'un élément par ce qu'il désigne : rose pour les personnes, bleu pour les dates, violet pour Qualiopi, émeraude pour l'argent validé.",
+      "Do écrire dates, montants et compteurs en sans avec tabular-nums.",
+      "Do rester dans l'échelle 11/12/13/15/17/20/24/30.",
+      "Do donner sa contrepartie sombre à toute couleur posée.",
+      "Do utiliser horizon-500 ou plus foncé pour tout texte destiné à être lu sur un fond teinté.",
+      "Do nommer les colonnes d'un tableau en termes métier."
+    ],
+    "donts": [
+      "Don't poser un deuxième bouton primaire orange sur un écran.",
+      "Don't donner de l'orange à une formation, un statut ou une donnée.",
+      "Don't écrire une date ou un montant en chasse fixe.",
+      "Don't employer font-bold par défaut, ni font-semibold ailleurs que sur un titre hero.",
+      "Don't dépasser shadow-lg.",
+      "Don't utiliser horizon-400 ou horizon-300 pour du texte à lire.",
+      "Don't confondre le violet Qualiopi avec un gradient décoratif : ici le violet est une catégorie, pas une ambiance."
+    ]
+  }
+}
