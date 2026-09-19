@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { reponseCron } from '@/shared/lib/http/cron-response';
 import { autoSendDue } from '@/features/attendance/link-recipients';
 import { sessionsAutomationOff } from '@/features/automation/session-automations';
 import { sendSheetLinks } from '@/features/attendance/send-links';
@@ -76,10 +77,10 @@ async function tick() {
 
 export async function POST(req: Request) {
   if (!autorise(req)) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
-  return NextResponse.json(await tick());
+  return reponseCron('emargement-liens', await tick());
 }
 
 export async function GET(req: Request) {
   if (!autorise(req)) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
-  return NextResponse.json(await tick());
+  return reponseCron('emargement-liens', await tick());
 }

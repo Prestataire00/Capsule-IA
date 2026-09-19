@@ -11,6 +11,7 @@ import { persistSessionRecording } from '@/features/attendance/persist-session-r
 import { computeSyncWindow } from '@/features/attendance/zoom-sync-window';
 import { halfDayWindow, overlapMinutes, type HalfDay } from '@/features/attendance/half-day-window';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
+import { reponseCron } from '@/shared/lib/http/cron-response';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -340,8 +341,7 @@ export async function POST(req: NextRequest) {
     results.push(r);
   }
 
-  return NextResponse.json({
-    ok: true,
+  return reponseCron('zoom-sync', {
     processed: results.length,
     summary: {
       success: results.filter((r) => r.status === 'success').length,

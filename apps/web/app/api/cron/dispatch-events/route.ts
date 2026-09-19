@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { env } from '@/env.mjs';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
+import { reponseCron } from '@/shared/lib/http/cron-response';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -394,11 +395,9 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
   const startedAt = Date.now();
   const result = await dispatch();
-  return NextResponse.json({
-    ok: true,
-    durationMs: Date.now() - startedAt,
-    ...result,
-  });
+  // Un événement non distribué doit se voir : le cron renvoyait `ok: true`
+  // en HTTP 200 même avec des erreurs.
+  return reponseCron('dispatch-events', { durationMs: Date.now() - startedAt, ...result });
 }
 
 export async function GET(req: Request): Promise<NextResponse> {

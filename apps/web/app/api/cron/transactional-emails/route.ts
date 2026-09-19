@@ -32,6 +32,7 @@ import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automat
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { delaisAConsiderer, doitPartirAujourdhui } from '@/features/emails/programmation-envois';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
+import { reponseCron } from '@/shared/lib/http/cron-response';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -1344,8 +1345,9 @@ export async function POST(req: Request) {
   const quotes = await runBillingMaintenance();
   const durationMs = Date.now() - startedAt;
 
-  return NextResponse.json({
-    ok: true,
+  // Une erreur, même partielle, doit se voir : ce cron renvoyait `ok: true` en
+  // HTTP 200 avec `errors` plein, donc personne n'était prévenu.
+  return reponseCron('transactional-emails', {
     durationMs,
     convocationsJ7: convocations,
     dossierEnd,
