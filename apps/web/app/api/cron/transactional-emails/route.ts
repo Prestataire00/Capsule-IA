@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { randomBytes, createHash } from 'crypto';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
+import { destinatairesConvocation, mentionEntreprise } from '@/features/documents/convocation-destinataires';
 import {
   sessionConvocationEmail,
   satisfactionSurveyEmail,
@@ -56,7 +57,8 @@ type LearnerRow = {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
+  /** Facultative depuis la 0176 : l'entreprise sert alors de relais. */
+  email: string | null;
 };
 
 function admin() {
@@ -234,9 +236,30 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
       ),
     ];
     const { data: dRows } = sessionDossierIds.length
-      ? await sb.schema('app').from('dossiers').select('id, learner_id, formation_id').in('id', sessionDossierIds)
+      ? await sb
+          .schema('app')
+          .from('dossiers')
+          .select('id, learner_id, formation_id, company_id')
+          .in('id', sessionDossierIds)
       : { data: [] };
-    const sessionDossiers = (dRows ?? []) as Array<{ id: string; learner_id: string; formation_id: string | null }>;
+    const sessionDossiers = (dRows ?? []) as Array<{
+      id: string;
+      learner_id: string;
+      formation_id: string | null;
+      company_id: string | null;
+    }>;
+
+    // L'entreprise reçoit toutes les convocations de ses inscrits (filet de
+    // sécurité demandé par l'organisme) : on charge son contact et celui du
+    // référent du dossier, quand il y en a un.
+    const companyIds = [...new Set(sessionDossiers.map((d) => d.company_id).filter((x): x is string => Boolean(x)))];
+    const { data: companyRows } = companyIds.length
+      ? await sb.schema('app').from('companies').select('id, contact_email').in('id', companyIds)
+      : { data: [] };
+    const emailEntreprise = new Map(
+      ((companyRows ?? []) as Array<{ id: string; contact_email: string | null }>).map((c) => [c.id, c.contact_email]),
+    );
+    const dossierParLearner = new Map(sessionDossiers.map((d) => [d.learner_id, d]));
     const dossierByLearner = new Map(sessionDossiers.map((d) => [d.learner_id, d.id]));
     const formationId = extra.formation_id ?? sessionDossiers.find((d) => d.formation_id)?.formation_id ?? null;
 
@@ -280,17 +303,39 @@ async function runConvocationsJ7(): Promise<{ candidates: number; sent: number; 
           trainerName,
           espaceUrl: espaceUrlFor(learner.id),
         });
+        const dossierDuLearner = dossierParLearner.get(learner.id);
+        const cible = destinatairesConvocation({
+          learnerEmail: learner.email,
+          companyEmail: dossierDuLearner?.company_id
+            ? (emailEntreprise.get(dossierDuLearner.company_id) ?? null)
+            : null,
+        });
+        // Ni le stagiaire ni son entreprise n'ont d'adresse : rien à envoyer,
+        // mais il faut le dire — une convocation muette n'est pas une preuve.
+        if (cible.injoignable) {
+          errors.push(`convocation ${session.id} / ${learner.first_name} ${learner.last_name}: sans destinataire`);
+          continue;
+        }
+
+        const corps = cible.viaEntreprise
+          ? `${tpl.html}<p style="color:#64748b;font-size:13px">${mentionEntreprise(
+              `${learner.first_name} ${learner.last_name}`,
+              !learner.email,
+            )}</p>`
+          : tpl.html;
+
         // Journalisée avec son dossier : la convocation envoyée prouve l'indicateur 9.
         const r = await sendEmail({
-          to: learner.email,
+          to: cible.destinataires,
           subject: tpl.subject,
-          html: tpl.html,
+          html: corps,
           organizationId: extra.organization_id,
           dossierId: dossierByLearner.get(learner.id),
           kind: 'convocation_j7',
         });
         if (r.ok) sent++;
-        else if (r.reason !== 'no_api_key') errors.push(`convocation ${session.id} / ${learner.email}: send_failed`);
+        else if (r.reason !== 'no_api_key')
+          errors.push(`convocation ${session.id} / ${cible.destinataires.join(', ')}: send_failed`);
       } catch (e) {
         errors.push(`convocation ${session.id} / ${learner.email}: ${(e as Error).message}`);
       }
@@ -387,9 +432,15 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
         surveyUrl: signed.url,
         durationMinutes: 5,
       });
-      const r = await sendEmail({ to: learner.email, subject: sat.subject, html: sat.html });
-      if (r.ok) satisfactionSent++;
-      else if (r.reason !== 'no_api_key') errors.push(`satisfaction ${d.id}: send_failed`);
+      // Sans adresse, on ne peut pas interroger le stagiaire : son avis est
+      // personnel, l'employeur ne peut pas y répondre à sa place.
+      if (!learner.email) {
+        errors.push(`satisfaction ${d.id}: stagiaire sans adresse`);
+      } else {
+        const r = await sendEmail({ to: learner.email, subject: sat.subject, html: sat.html });
+        if (r.ok) satisfactionSent++;
+        else if (r.reason !== 'no_api_key') errors.push(`satisfaction ${d.id}: send_failed`);
+      }
     } catch (e) {
       errors.push(`satisfaction ${d.id}: ${(e as Error).message}`);
     }
@@ -410,9 +461,15 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
         certificateUrl,
         espaceUrl: espaceUrlFor(d.learner_id),
       });
-      const r = await sendEmail({ to: learner.email, subject: eot.subject, html: eot.html });
-      if (r.ok) certificateSent++;
-      else if (r.reason !== 'no_api_key') errors.push(`certificate ${d.id}: send_failed`);
+      // Sans adresse, le bloc suivant envoie tout de même le certificat à
+      // l'entreprise cliente : rien n'est perdu pour la traçabilité.
+      if (!learner.email) {
+        errors.push(`certificate ${d.id}: stagiaire sans adresse`);
+      } else {
+        const r = await sendEmail({ to: learner.email, subject: eot.subject, html: eot.html });
+        if (r.ok) certificateSent++;
+        else if (r.reason !== 'no_api_key') errors.push(`certificate ${d.id}: send_failed`);
+      }
     } catch (e) {
       errors.push(`certificate ${d.id}: ${(e as Error).message}`);
     }

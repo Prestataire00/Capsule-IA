@@ -8,6 +8,7 @@ import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
+import { destinatairesConvocation, mentionEntreprise } from '@/features/documents/convocation-destinataires';
 import { env } from '@/env.mjs';
 import { generateDocumentSignatureToken } from '@/shared/lib/document-signature-token';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
@@ -65,15 +66,57 @@ async function garde(input: z.infer<typeof schema>): Promise<Garde> {
   return { ok: true, organizationId: session.organization_id, type: input.type };
 }
 
-async function destinataire(dossierId: string): Promise<{ email: string | null; name: string }> {
+/**
+ * Qui reçoit le document. L'entreprise cliente est destinataire de tout ce qui
+ * concerne ses salariés — convocations comprises — en filet de sécurité : un
+ * salarié qui ne lit pas sa boîte, ou qui n'a pas d'adresse du tout, ne doit
+ * pas faire disparaître la pièce. Même règle que l'envoi automatique J-7.
+ */
+async function destinataire(
+  dossierId: string,
+): Promise<{
+  /** Tous ceux qui reçoivent le document pour information. */
+  emails: string[];
+  /**
+   * Celui qui SIGNE, et lui seul. Un lien de signature envoyé à l'employeur
+   * en plus du salarié lui permettrait de signer à sa place : une signature
+   * doit rester l'acte d'une personne identifiée.
+   */
+  signataire: string | null;
+  name: string;
+  viaEntreprise: boolean;
+  sansAdresse: boolean;
+}> {
   const { data } = await supabaseAdmin()
     .schema('app')
     .from('dossiers')
-    .select('learner:learners(first_name, last_name, email)')
+    .select('learner:learners(first_name, last_name, email), company:companies(contact_email), contact:contacts(email)')
     .eq('id', dossierId)
     .maybeSingle();
-  const l = (data as unknown as { learner: { first_name: string; last_name: string; email: string | null } | null } | null)?.learner;
-  return { email: l?.email ?? null, name: `${l?.first_name ?? ''} ${l?.last_name ?? ''}`.trim() || 'Apprenant' };
+
+  const brut = data as unknown as {
+    learner: { first_name: string; last_name: string; email: string | null } | null;
+    company: { contact_email: string | null } | { contact_email: string | null }[] | null;
+    contact: { email: string | null } | { email: string | null }[] | null;
+  } | null;
+  const un = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
+
+  const l = brut?.learner ?? null;
+  const cible = destinatairesConvocation({
+    learnerEmail: l?.email ?? null,
+    referentEmail: un(brut?.contact)?.email ?? null,
+    companyEmail: un(brut?.company)?.contact_email ?? null,
+  });
+
+  return {
+    emails: cible.destinataires,
+    // Le stagiaire signe. À défaut d'adresse, c'est le référent du client —
+    // il est alors le signataire déclaré, pas un simple relais.
+    signataire: cible.destinataires[0] ?? null,
+    name: `${l?.first_name ?? ''} ${l?.last_name ?? ''}`.trim() || 'Apprenant',
+    viaEntreprise: cible.viaEntreprise,
+    sansAdresse: !l?.email,
+  };
 }
 
 const corps = (prenom: string, intro: string) =>
@@ -97,12 +140,16 @@ export const sendLearnerDocument = authActionClient.schema(schema).action(async 
   if (!built) return { ok: false as const, error: 'build_failed' };
 
   const qui = await destinataire(parsedInput.dossierId);
-  if (!qui.email) return { ok: false as const, error: 'no_email' };
+  if (qui.emails.length === 0) return { ok: false as const, error: 'no_email' };
 
   const res = await sendEmail({
-    to: qui.email,
+    to: qui.emails,
     subject: built.title,
-    html: corps(qui.name.split(' ')[0] ?? qui.name, `Veuillez trouver ci-joint votre document : <strong>${built.title}</strong>.`),
+    html: corps(
+      qui.name.split(' ')[0] ?? qui.name,
+      `Veuillez trouver ci-joint votre document : <strong>${built.title}</strong>.` +
+        (qui.viaEntreprise ? `<br><br><span style="color:#64748b;font-size:13px">${mentionEntreprise(qui.name, qui.sansAdresse)}</span>` : ''),
+    ),
     attachments: [{ filename: built.filename, content: Buffer.from(built.bytes).toString('base64') }],
     organizationId: built.organizationId,
     dossierId: parsedInput.dossierId,
@@ -127,7 +174,7 @@ export const sendLearnerDocument = authActionClient.schema(schema).action(async 
   }
 
   revalidatePath(`/sessions/${parsedInput.sessionId}/documents`);
-  return { ok: true as const, email: qui.email };
+  return { ok: true as const, email: qui.emails.join(', ') };
 });
 
 /** Archive le document puis envoie un lien de signature à l'apprenant (30 jours). */
@@ -145,7 +192,7 @@ export const requestLearnerDocumentSignature = authActionClient.schema(schema).a
   if (!built) return { ok: false as const, error: 'build_failed' };
 
   const qui = await destinataire(parsedInput.dossierId);
-  if (!qui.email) return { ok: false as const, error: 'no_email' };
+  if (!qui.signataire) return { ok: false as const, error: 'no_email' };
 
   const { data: learnerRow } = await admin
     .schema('app')
@@ -173,7 +220,7 @@ export const requestLearnerDocumentSignature = authActionClient.schema(schema).a
       document_id: documentId,
       signer_kind: 'learner',
       signer_learner_id: learnerId,
-      signer_email: qui.email,
+      signer_email: qui.signataire,
       signer_name: qui.name,
       status: 'pending',
       request_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -197,7 +244,8 @@ export const requestLearnerDocumentSignature = authActionClient.schema(schema).a
   const base = (env.PUBLIC_APP_URL ?? 'https://capsule-ia.up.railway.app').replace(/\/$/, '');
   const url = `${base}/signer/document/${token}`;
   const res = await sendEmail({
-    to: qui.email,
+    // Le lien de signature ne part qu'au signataire.
+    to: qui.signataire,
     subject: `Signature à effectuer — ${built.title}`,
     html: corps(
       qui.name.split(' ')[0] ?? qui.name,
@@ -211,5 +259,5 @@ export const requestLearnerDocumentSignature = authActionClient.schema(schema).a
   if (!res.ok) return { ok: false as const, error: 'send_failed' };
 
   revalidatePath(`/sessions/${parsedInput.sessionId}/documents`);
-  return { ok: true as const, email: qui.email };
+  return { ok: true as const, email: qui.signataire };
 });
