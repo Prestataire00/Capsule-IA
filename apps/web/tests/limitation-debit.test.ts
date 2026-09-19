@@ -9,7 +9,7 @@ import path from 'node:path';
 const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
 
 describe('compteur en base', () => {
-  const sql = lire('../../../supabase/migrations/0181_limitation_de_debit.sql');
+  const sql = lire('../../../supabase/migrations/0184_limitation_de_debit.sql');
 
   it('compte en base, pas en mémoire', () => {
     // Plusieurs instances derrière un répartiteur : un compteur local ne

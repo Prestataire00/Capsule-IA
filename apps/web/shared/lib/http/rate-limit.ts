@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 /**
- * Limitation de débit des points d'entrée publics et coûteux (0181).
+ * Limitation de débit des points d'entrée publics et coûteux (0184).
  *
  * Le compteur vit en base : l'application tourne derrière un répartiteur et
  * peut avoir plusieurs instances, où un compteur en mémoire ne compterait que

@@ -1,4 +1,4 @@
--- 0181 — Limitation de débit des points d'entrée publics
+-- 0184 — Limitation de débit des points d'entrée publics
 --
 -- Constat (audit du 19/09/2026) : aucune limitation nulle part. Le formulaire
 -- d'inscription public écrit en base avec la clé service role, sans captcha ni
