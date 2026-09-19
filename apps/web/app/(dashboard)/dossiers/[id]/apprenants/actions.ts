@@ -106,6 +106,10 @@ export async function ajouterApprenants(input: {
   const ids: string[] = [];
   let ajoutes = 0;
   let reutilises = 0;
+  // Une insertion refusée doit dire pourquoi : « aucun apprenant n'a pu être
+  // enregistré » sans autre indice a laissé chercher côté base une contrainte
+  // qui venait du code.
+  let dernierRefus: string | null = null;
 
   for (const a of p.data.apprenants) {
     const email = a.email?.trim().toLowerCase() || null;
@@ -131,6 +135,7 @@ export async function ajouterApprenants(input: {
       .single();
     if (error || !data) {
       console.error('[apprenants] création impossible', a.lastName, error?.message);
+      dernierRefus = error?.message ?? null;
       continue;
     }
     const id = (data as { id: string }).id;
@@ -139,7 +144,14 @@ export async function ajouterApprenants(input: {
     ajoutes++;
   }
 
-  if (ids.length === 0) return { ok: false, error: "Aucun apprenant n'a pu être enregistré." };
+  if (ids.length === 0) {
+    return {
+      ok: false,
+      error: dernierRefus
+        ? `Aucun apprenant n'a pu être enregistré : ${dernierRefus}`
+        : "Aucun apprenant n'a pu être enregistré.",
+    };
+  }
 
   // Le groupe du dossier (0175). C'est ce rattachement qui fait exister le
   // stagiaire sur le dossier : sans lui, un dossier encore sans séance créait
