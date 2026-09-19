@@ -357,14 +357,14 @@ export default async function AgendaPage({
         {days.some((d) => (allDayByDay.get(d.key)?.length ?? 0) > 0) && (
           <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/30">
             <div className="border-r border-zinc-200/70 dark:border-zinc-800 flex items-center justify-center">
-              <span className="text-[9px] uppercase tracking-wider text-zinc-400">jour</span>
+              <span className="text-[11px] uppercase tracking-wider text-zinc-400">jour</span>
             </div>
             {days.map((d) => (
               <div key={d.key} className="p-1 border-r last:border-r-0 border-zinc-200/70 dark:border-zinc-800 space-y-1 min-h-[28px]">
                 {(allDayByDay.get(d.key) ?? []).map((e) => (
                   <div
                     key={e.id}
-                    className="text-[10px] leading-tight rounded px-1.5 py-0.5 truncate"
+                    className="text-[11px] leading-tight rounded px-1.5 py-0.5 truncate"
                     style={{ backgroundColor: e.bgColor ?? DEFAULT_BG, color: e.fgColor ?? DEFAULT_FG }}
                     title={e.title}
                   >
@@ -383,7 +383,7 @@ export default async function AgendaPage({
             {HOURS.map((h) => (
               <div key={h} className="contents">
                 <div className="border-b border-r border-zinc-100 dark:border-zinc-800/60 px-1.5 py-1" style={{ height: ROW_H }}>
-                  <p className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">{pad(h)}:00</p>
+                  <p className="text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">{pad(h)}:00</p>
                 </div>
                 {days.map((d) => (
                   <div
@@ -411,7 +411,7 @@ export default async function AgendaPage({
                     <>
                       <p className="text-[11px] font-bold leading-tight truncate">{e.title}</p>
                       {height > 30 && (
-                        <p className="text-[10px] opacity-80 truncate leading-tight inline-flex items-center gap-1 tabular-nums">
+                        <p className="text-[11px] opacity-80 truncate leading-tight inline-flex items-center gap-1 tabular-nums">
                           {e.hangoutLink && <Video className="w-2.5 h-2.5" />}
                           {e.timeLabel}
                         </p>

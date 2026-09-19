@@ -661,7 +661,7 @@ function FormationStep({
                     <p className="text-[11px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
                       {categoryLabel(cat)}
                     </p>
-                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
                       {list.length} formation{list.length > 1 ? 's' : ''}
                     </p>
                   </div>
@@ -690,7 +690,7 @@ function FormationStep({
                               <BookOpen className="w-4 h-4" />
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
+                              <p className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{f.code}</p>
                               <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
                                 {f.title}
                               </p>

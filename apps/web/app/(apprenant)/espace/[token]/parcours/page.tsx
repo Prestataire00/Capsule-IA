@@ -72,7 +72,7 @@ export default async function ParcoursPage({ params }: { params: { token: string
             </p>
           </div>
           <span className="ml-auto text-right">
-            <span className="block text-[26px] font-extrabold text-emerald-700 dark:text-emerald-300 leading-none tabular-nums">
+            <span className="block text-[24px] font-extrabold text-emerald-700 dark:text-emerald-300 leading-none tabular-nums">
               {parcours.overall.pct}%
             </span>
             <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-1 tabular-nums">

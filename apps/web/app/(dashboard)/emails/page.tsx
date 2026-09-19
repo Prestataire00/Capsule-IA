@@ -166,7 +166,7 @@ export default async function EmailsPage({
                   </span>
                   <span className="min-w-0 flex items-center gap-2.5" title={r.recipient}>
                     <span
-                      className={`w-7 h-7 rounded-full grid place-items-center text-[10px] font-bold shrink-0 ${AVATARS[(r.recipient.charCodeAt(0) || 0) % AVATARS.length]}`}
+                      className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${AVATARS[(r.recipient.charCodeAt(0) || 0) % AVATARS.length]}`}
                     >
                       {r.recipient.slice(0, 2).toUpperCase()}
                     </span>

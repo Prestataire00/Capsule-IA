@@ -59,7 +59,7 @@ export function CompetencyRow({
           <h3 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
             {competency.title}
           </h3>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded ${STATUS_STYLES[competency.status]}`}>
+          <span className={`text-[11px] px-1.5 py-0.5 rounded ${STATUS_STYLES[competency.status]}`}>
             {STATUS_LABELS[competency.status]}
           </span>
         </div>

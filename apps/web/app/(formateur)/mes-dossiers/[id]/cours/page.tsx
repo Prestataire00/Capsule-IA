@@ -69,7 +69,7 @@ export default async function CoursDuDossierPage({ params }: { params: { id: str
           <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-amber-600 dark:text-amber-400">
             Vue d&apos;ensemble
           </p>
-          <h1 className="text-[22px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1">
+          <h1 className="text-[20px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1">
             Le cours, séance par séance
           </h1>
           <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">

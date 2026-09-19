@@ -51,16 +51,16 @@
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgb(212 212 216 / 0.7) transparent;
+    scrollbar-color: rgb(200 208 221 / 0.7) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgb(212 212 216 / 0.7);
+    background-color: rgb(200 208 221 / 0.7);
     border-radius: 3px;
   }
-  .dark .scrollbar-thin { scrollbar-color: rgb(63 63 70 / 0.8) transparent; }
-  .dark .scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(63 63 70 / 0.8); }
+  .dark .scrollbar-thin { scrollbar-color: rgb(51 64 86 / 0.8) transparent; }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(51 64 86 / 0.8); }
 
   /* Masque totalement la barre de défilement (ex. barre d'onglets scrollable). */
   .scrollbar-hide {

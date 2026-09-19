@@ -192,7 +192,7 @@ export function Disponibilites({ trainerId, semaines }: { trainerId: string; sem
                   } ${j.passe ? 'opacity-40' : j.weekend ? 'opacity-70' : ''}`}
                 >
                   <p className="text-center mb-1">
-                    <span className="block text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    <span className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                       {j.jourSemaine}
                     </span>
                     <span
@@ -230,7 +230,7 @@ export function Disponibilites({ trainerId, semaines }: { trainerId: string; sem
                               ? 'Jour passé'
                               : `${LIBELLE_CRENEAU[creneau]} — cliquez pour changer`
                         }
-                        className={`w-full h-7 mb-1 last:mb-0 rounded-md border text-[10px] font-semibold inline-flex items-center justify-center gap-1 transition disabled:cursor-default ${CELLULE[etat]}`}
+                        className={`w-full h-7 mb-1 last:mb-0 rounded-md border text-[11px] font-semibold inline-flex items-center justify-center gap-1 transition disabled:cursor-default ${CELLULE[etat]}`}
                       >
                         {charge ? (
                           <Loader2 className="w-3 h-3 animate-spin" />

@@ -100,7 +100,7 @@ export default async function FormateurDashboard() {
           <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-orange-600 dark:text-orange-400 tabular-nums">
             {jourFmt.format(new Date())}
           </p>
-          <h1 className="text-[26px] font-extrabold text-zinc-900 dark:text-zinc-100 leading-tight mt-1.5">
+          <h1 className="text-[24px] font-extrabold text-zinc-900 dark:text-zinc-100 leading-tight mt-1.5">
             {salutation(heureParis)} {firstName}
           </h1>
           <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">
@@ -236,7 +236,7 @@ export default async function FormateurDashboard() {
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{m.organizationName}</h3>
                       <span
-                        className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                        className={`text-[11px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
                           m.isInternal
                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
                             : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'

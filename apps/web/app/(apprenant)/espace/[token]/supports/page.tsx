@@ -65,7 +65,7 @@ export default async function EspaceSupportsPage({ params }: { params: { token: 
     <div className="space-y-6">
       <header>
         <SectionLabel className="mb-2">Ma formation</SectionLabel>
-        <h1 className="text-[26px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Supports de cours</h1>
+        <h1 className="text-[24px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Supports de cours</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           {total === 0
             ? 'Votre formateur n’a pas encore publié de support.'

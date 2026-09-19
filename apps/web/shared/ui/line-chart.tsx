@@ -50,7 +50,7 @@ export function LineChart({
       {labels && (
         <div className="flex justify-between mt-2 px-1">
           {labels.map((l, i) => (
-            <span key={i} className="text-[10px] text-zinc-400 tabular-nums">{l}</span>
+            <span key={i} className="text-[11px] text-zinc-400 tabular-nums">{l}</span>
           ))}
         </div>
       )}

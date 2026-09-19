@@ -40,7 +40,7 @@ export function ModalityMultiSelect({
           >
             {LABELS[m]}
             {isPrimary && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500 text-white">primaire</span>
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-orange-500 text-white">primaire</span>
             )}
           </button>
         );

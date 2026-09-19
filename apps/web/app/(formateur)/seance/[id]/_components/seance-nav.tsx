@@ -86,7 +86,7 @@ export function SeanceNav({
             <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-sky-600 dark:text-sky-400 tabular-nums">
               {quand}
             </p>
-            <h1 className="text-[22px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1">{titre}</h1>
+            <h1 className="text-[20px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1">{titre}</h1>
             {sousTitre && <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5 max-w-xl">{sousTitre}</p>}
           </div>
           {/* L'émargement est l'acte de la séance : il ne se cherche pas parmi les onglets. */}

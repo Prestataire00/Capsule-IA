@@ -134,8 +134,8 @@ export function ZoomS2sForm({ initialStatus }: { initialStatus: ZoomStatus }) {
           >
             marketplace.zoom.us
           </a>{' '}
-          avec scopes <code className="font-mono text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 rounded">meeting:read:past_meeting:admin</code> et{' '}
-          <code className="font-mono text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+          avec scopes <code className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 px-1 rounded">meeting:read:past_meeting:admin</code> et{' '}
+          <code className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
             meeting:read:list_past_meeting_participants:admin
           </code>
           .

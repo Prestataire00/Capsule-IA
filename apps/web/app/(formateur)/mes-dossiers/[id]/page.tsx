@@ -73,7 +73,7 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-[22px] leading-tight font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              <h1 className="text-[20px] leading-tight font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
                 {dossier.formationTitle ?? 'Formation'}
               </h1>
               <StatusPill tone={st.tone}>{st.label}</StatusPill>
@@ -214,7 +214,7 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
                     <span className="block text-[17px] font-semibold leading-none tabular-nums">
                       {jourNumero(s.startsAt)}
                     </span>
-                    <span className="block text-[10px] uppercase tracking-wide opacity-90">{moisCourt(s.startsAt)}</span>
+                    <span className="block text-[11px] uppercase tracking-wide opacity-90">{moisCourt(s.startsAt)}</span>
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">

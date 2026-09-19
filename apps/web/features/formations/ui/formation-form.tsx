@@ -903,11 +903,11 @@ export function FormationForm({
               <dl className="grid grid-cols-2 gap-3">
                 <div>
                   <dt className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Apprenants formés</dt>
-                  <dd className="text-[26px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">{indicators.learners}</dd>
+                  <dd className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">{indicators.learners}</dd>
                 </div>
                 <div>
                   <dt className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Satisfaction</dt>
-                  <dd className="text-[26px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                  <dd className="text-[24px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100 tabular-nums">
                     {indicators.satisfactionRate === null ? '—' : `${indicators.satisfactionRate} %`}
                     <span className="ml-1.5 text-[12px] font-normal text-zinc-500">
                       {indicators.satisfactionResponses} réponse{indicators.satisfactionResponses > 1 ? 's' : ''}

@@ -645,7 +645,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
           <Card title="Budget & charges" icon={Banknote} accent="emerald">
             <div className="flex items-baseline justify-between mb-3">
               <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Total des charges</span>
-              <span className={`text-[26px] leading-none font-extrabold tabular-nums ${ACCENTS.emerald.value}`}>{formatEuros(totalExpenses)}</span>
+              <span className={`text-[24px] leading-none font-extrabold tabular-nums ${ACCENTS.emerald.value}`}>{formatEuros(totalExpenses)}</span>
             </div>
             {Object.keys(expenseByKind).length > 0 ? (
               <ul className="space-y-2.5 mb-3">
@@ -704,7 +704,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                 <div className="flex items-baseline justify-between mb-3">
                   <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Dossiers conformes</span>
                   <span
-                    className={`text-[26px] leading-none font-extrabold tabular-nums ${
+                    className={`text-[24px] leading-none font-extrabold tabular-nums ${
                       conformes === checklists.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                     }`}
                   >

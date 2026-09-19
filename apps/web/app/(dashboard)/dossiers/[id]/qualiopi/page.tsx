@@ -131,7 +131,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
           </span>
           <div className="flex-1">
             <p className="text-zinc-900 dark:text-zinc-100">
-              <span className={`text-[26px] leading-none font-extrabold tabular-nums ${ACCENTS.purple.value}`}>{satisfied} / {totalCount}</span>
+              <span className={`text-[24px] leading-none font-extrabold tabular-nums ${ACCENTS.purple.value}`}>{satisfied} / {totalCount}</span>
               <span className="ml-2 text-[14px] font-semibold text-zinc-600 dark:text-zinc-400">indicateurs satisfaits</span>
             </p>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1.5 tabular-nums">

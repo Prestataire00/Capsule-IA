@@ -80,7 +80,7 @@ export function SessionCard({
         <div className="flex items-start gap-3">
           {/* Le créneau, lu avant tout le reste. */}
           <div className={`rounded-lg px-2.5 py-1.5 text-center shrink-0 ${t.bloc}`}>
-            <p className="text-[10px] uppercase tracking-wide font-semibold leading-none">{jourRelatif(s.startsAt)}</p>
+            <p className="text-[11px] uppercase tracking-wide font-semibold leading-none">{jourRelatif(s.startsAt)}</p>
             <p className="text-[15px] font-extrabold tabular-nums leading-tight mt-1">{heure(s.startsAt)}</p>
             <p className="text-[11px] tabular-nums leading-none opacity-80">{heure(s.endsAt)}</p>
           </div>

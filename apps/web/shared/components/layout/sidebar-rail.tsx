@@ -237,7 +237,7 @@ export function SidebarRail({
           {/* Logo planète + wordmark Capsule IA (empilés) */}
           <Link href="/" className="mt-4 mb-2 shrink-0 flex flex-col items-center gap-1" aria-label="Accueil">
             <Logo size="sm" showWordmark={false} />
-            <span className="text-[10px] font-semibold tracking-tight leading-none text-zinc-700 dark:text-zinc-300">
+            <span className="text-[11px] font-semibold tracking-tight leading-none text-zinc-700 dark:text-zinc-300">
               Capsule&nbsp;IA
             </span>
           </Link>
@@ -275,11 +275,11 @@ export function SidebarRail({
                   onMouseEnter={() => setHovered(g.key)}
                 >
                   <Icon className={cn('w-5 h-5 transition-transform duration-150', !active && 'group-hover:scale-110')} />
-                  <span className="text-[10px] font-medium leading-tight text-center break-words">{g.short ?? g.label}</span>
+                  <span className="text-[11px] font-medium leading-tight text-center break-words">{g.short ?? g.label}</span>
                   {total > 0 && (
                     <span
                       className={cn(
-                        'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-medium flex items-center justify-center tabular-nums shadow-sm',
+                        'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[11px] font-medium flex items-center justify-center tabular-nums shadow-sm',
                         active
                           ? 'bg-white text-orange-600'
                           : 'bg-rose-500 text-white',
@@ -320,7 +320,7 @@ export function SidebarRail({
               aria-label="Paramètres"
             >
               <Settings className="w-5 h-5" />
-              <span className="text-[10px] font-medium leading-tight">Paramètres</span>
+              <span className="text-[11px] font-medium leading-tight">Paramètres</span>
             </Link>
           </div>
 
@@ -350,7 +350,7 @@ export function SidebarRail({
           <div className="w-60 flex flex-col h-screen">
             {/* Header */}
             <div className="px-4 pt-5 pb-3 border-b border-zinc-100 dark:border-zinc-900">
-              <p className="text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium mb-0.5">
+              <p className="text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium mb-0.5">
                 Section
               </p>
               <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
@@ -390,7 +390,7 @@ export function SidebarRail({
                       {badge && (
                         <span
                           className={cn(
-                            'text-[10px] font-medium px-1.5 py-0.5 rounded-full tabular-nums',
+                            'text-[11px] font-medium px-1.5 py-0.5 rounded-full tabular-nums',
                             badgeStyles[badge.tone],
                           )}
                         >
@@ -405,7 +405,7 @@ export function SidebarRail({
               {/* Récents (uniquement pour la section Dossiers) */}
               {flyoutGroup?.showRecents && recentDossiers.length > 0 && (
                 <li className="pt-4">
-                  <p className="px-3 mb-1 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium">
+                  <p className="px-3 mb-1 text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium">
                     Récents
                   </p>
                   <ul className="space-y-0.5">
@@ -421,7 +421,7 @@ export function SidebarRail({
                             onClick={() => setHovered(null)}
                           >
                             <span className={cn(
-                              'w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-medium flex-shrink-0',
+                              'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-medium flex-shrink-0',
                               avatarPalette[palIdx],
                             )}>
                               {inits}
@@ -430,7 +430,7 @@ export function SidebarRail({
                               <p className="text-[12px] text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 truncate transition">
                                 {learnerName}
                               </p>
-                              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono truncate">
+                              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono truncate">
                                 {d.reference}
                               </p>
                             </div>
@@ -456,7 +456,7 @@ export function SidebarRail({
                 <p className="text-[12px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
                   {displayName}
                 </p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 capitalize truncate">
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 capitalize truncate">
                   {displayRole}
                 </p>
               </div>

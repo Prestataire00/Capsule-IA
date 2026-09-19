@@ -231,7 +231,7 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
         <Card title="Contrat de sous-traitance" icon={FileSignature} accent="blue">
           <ContractGenerate trainerId={t.id} existingDocumentId={contractDocId} />
           <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
-          <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">
+          <p className="text-[11px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">
             Ou déposer un PDF signé
           </p>
           <ContractUpload trainerId={t.id} hasContract={!!t.contract_path} signedUrl={signedUrl} />

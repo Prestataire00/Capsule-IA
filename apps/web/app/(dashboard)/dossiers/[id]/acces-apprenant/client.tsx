@@ -215,7 +215,7 @@ export function AccesApprenantClient({ dossierId }: { dossierId: string }) {
                 alt="QR code de l'URL apprenant"
                 className="w-32 h-32 bg-white p-2 rounded-lg border border-zinc-200/60 dark:border-zinc-800 shadow-sm mx-auto"
               />
-              <p className="text-[10px] text-zinc-400 mt-1.5">À scanner avec le téléphone</p>
+              <p className="text-[11px] text-zinc-400 mt-1.5">À scanner avec le téléphone</p>
             </div>
           </div>
 

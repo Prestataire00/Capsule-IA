@@ -105,7 +105,7 @@ export function SignaturePanel({
                 className="flex items-center justify-between gap-3 text-[13px] bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200/70 dark:border-zinc-800 rounded-lg px-3 py-2.5"
               >
                 <span className="min-w-0 flex items-center gap-2.5">
-                  <span className={`w-7 h-7 rounded-full grid place-items-center text-[10px] font-bold shrink-0 ${AVATARS[(who.charCodeAt(0) || 0) % AVATARS.length]}`}>
+                  <span className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${AVATARS[(who.charCodeAt(0) || 0) % AVATARS.length]}`}>
                     {who.split(/[\s@.]+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
                   </span>
                   <span className="min-w-0 truncate font-bold text-zinc-900 dark:text-zinc-100">

@@ -285,7 +285,7 @@ export default async function DocumentsPage({
                     </div>
                     <span className={`min-w-0 flex items-center gap-2 ${av ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400'}`}>
                       {av && (
-                        <span className={`w-7 h-7 rounded-full grid place-items-center text-[10px] font-bold shrink-0 ${av.palette}`}>{av.initials}</span>
+                        <span className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${av.palette}`}>{av.initials}</span>
                       )}
                       <span className="truncate">{learner}</span>
                     </span>

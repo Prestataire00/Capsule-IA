@@ -57,7 +57,7 @@ export function FormateurBell({ notifications, unreadCount }: { notifications: N
       >
         <Bell className="w-4 h-4" />
         {compte > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-medium flex items-center justify-center tabular-nums shadow-sm">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[11px] font-medium flex items-center justify-center tabular-nums shadow-sm">
             {compte > 99 ? '99+' : compte}
           </span>
         )}

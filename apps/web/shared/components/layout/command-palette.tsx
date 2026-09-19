@@ -47,7 +47,7 @@ export function CommandPalette() {
         <span className="text-[13px] text-zinc-400 dark:text-zinc-500 flex-1">
           Rechercher, naviguer, agir…
         </span>
-        <kbd className="font-mono text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-md text-zinc-500 dark:text-zinc-400">
+        <kbd className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-md text-zinc-500 dark:text-zinc-400">
           ⌘K
         </kbd>
       </button>
@@ -70,7 +70,7 @@ export function CommandPalette() {
                 placeholder="Tape pour rechercher…"
                 className="flex-1 text-[13px] bg-transparent focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
               />
-              <kbd className="font-mono text-[10px] text-zinc-400">esc</kbd>
+              <kbd className="font-mono text-[11px] text-zinc-400">esc</kbd>
             </div>
             <ul className="py-1 max-h-80 overflow-y-auto">
               {filtered.length === 0 ? (
@@ -91,7 +91,7 @@ export function CommandPalette() {
                         <Icon className="w-4 h-4 text-zinc-400 group-hover:text-orange-500" />
                         <span className="flex-1">{s.label}</span>
                         {s.kbd && (
-                          <kbd className="font-mono text-[10px] text-zinc-400">{s.kbd}</kbd>
+                          <kbd className="font-mono text-[11px] text-zinc-400">{s.kbd}</kbd>
                         )}
                         <ArrowRight className="w-3 h-3 text-zinc-300 dark:text-zinc-600 group-hover:text-orange-500" />
                       </Link>
@@ -100,7 +100,7 @@ export function CommandPalette() {
                 })
               )}
             </ul>
-            <div className="border-t border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-1.5 text-[10px] font-mono text-zinc-400 flex justify-between">
+            <div className="border-t border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-1.5 text-[11px] font-mono text-zinc-400 flex justify-between">
               <span>↑↓ naviguer · ⏎ ouvrir</span>
               <span>cmd palette</span>
             </div>

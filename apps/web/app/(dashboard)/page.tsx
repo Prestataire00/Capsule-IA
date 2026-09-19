@@ -359,7 +359,7 @@ function Avatar({ name }: { name: string }) {
   ];
   const idx = name.charCodeAt(0) % palette.length;
   return (
-    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${palette[idx]}`}>
+    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${palette[idx]}`}>
       {initials}
     </span>
   );

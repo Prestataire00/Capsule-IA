@@ -164,7 +164,7 @@ function Champ({ label, aide, children }: { label: string; aide?: string; childr
     <label className="block">
       <span className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">{label}</span>
       {children}
-      {aide && <span className="block text-[10px] text-zinc-400 mt-0.5">{aide}</span>}
+      {aide && <span className="block text-[11px] text-zinc-400 mt-0.5">{aide}</span>}
     </label>
   );
 }

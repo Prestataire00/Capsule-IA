@@ -106,7 +106,7 @@ export function AiAssistant() {
       >
         <Sparkles className="w-4 h-4" />
         <span className="text-[13px] font-semibold">Assistant IA</span>
-        <kbd className="hidden md:inline-flex items-center font-mono text-[10px] bg-orange-600 dark:bg-orange-700 px-1.5 py-0.5 rounded-md ml-1">
+        <kbd className="hidden md:inline-flex items-center font-mono text-[11px] bg-orange-600 dark:bg-orange-700 px-1.5 py-0.5 rounded-md ml-1">
           ⌘J
         </kbd>
       </button>
@@ -194,7 +194,7 @@ export function AiAssistant() {
               <Send className="w-3.5 h-3.5" />
             </button>
           </div>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1.5 px-1">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1.5 px-1">
             Propulsé par Claude · réponses basées sur vos données réelles
           </p>
         </form>

@@ -102,15 +102,15 @@ export function SheetGrid({ sheet, modality }: { sheet: SheetView; modality: str
                 <div className="flex items-center gap-2 min-w-0">
                   <Icone className={`w-4 h-4 flex-shrink-0 ${p.kind === 'learner' ? 'text-rose-500' : 'text-blue-500'}`} aria-hidden />
                   <span className="truncate text-zinc-900 dark:text-zinc-100">{p.fullName}</span>
-                  {!p.expected && <span className="text-[10px] text-zinc-400">(non attendu)</span>}
+                  {!p.expected && <span className="text-[11px] text-zinc-400">(non attendu)</span>}
                 </div>
                 <span className="hidden sm:block tabular-nums text-[12px] text-zinc-600 dark:text-zinc-300">
                   {entree ?? '—'}
-                  {p.lateArrival && <span className="block text-[10px] text-amber-600">retard {p.lateArrival}</span>}
+                  {p.lateArrival && <span className="block text-[11px] text-amber-600">retard {p.lateArrival}</span>}
                 </span>
                 <span className="hidden sm:block tabular-nums text-[12px] text-zinc-600 dark:text-zinc-300">
                   {sortieTxt ?? (p.kind === 'trainer' ? '' : '—')}
-                  {p.earlyDeparture && <span className="block text-[10px] text-amber-600">départ {p.earlyDeparture}</span>}
+                  {p.earlyDeparture && <span className="block text-[11px] text-amber-600">départ {p.earlyDeparture}</span>}
                 </span>
                 <span className={`hidden sm:inline-flex w-fit text-[11px] px-2 py-0.5 rounded-full ${TON[p.state]}`}>{STATE_LABELS[p.state]}</span>
                 {!verrou && (

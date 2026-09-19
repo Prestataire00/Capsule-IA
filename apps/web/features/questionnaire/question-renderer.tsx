@@ -48,7 +48,7 @@ export function QuestionRenderer({ questions }: { questions: Question[] }) {
                         <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                       ))}
                     </div>
-                    <p className="text-[10px] text-zinc-400 mt-1">
+                    <p className="text-[11px] text-zinc-400 mt-1">
                       {v}/{q.max}
                     </p>
                   </label>

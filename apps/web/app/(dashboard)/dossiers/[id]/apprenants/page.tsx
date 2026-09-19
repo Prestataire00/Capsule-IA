@@ -141,7 +141,7 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
                         {nom}
                       </Link>
                       {titulaire && (
-                        <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
+                        <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
                           <Crown className="w-3 h-3" /> Titulaire
                         </span>
                       )}

@@ -43,8 +43,8 @@ export function DossierProgressTracker({ progress }: { progress: DossierProgress
                   step.done
                     ? 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white'
                     : isCurrent
-                      ? 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 border-orange-400 text-[10px] font-semibold text-orange-600 dark:text-orange-400'
-                      : 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 text-[10px] text-zinc-400'
+                      ? 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 border-orange-400 text-[11px] font-semibold text-orange-600 dark:text-orange-400'
+                      : 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-400'
                 }
               >
                 {step.done ? <Check className="h-3 w-3" /> : i + 1}

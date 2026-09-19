@@ -30,7 +30,7 @@ export default async function EspaceQuizPage({ params }: { params: { token: stri
     <div className="space-y-6">
       <header>
         <SectionLabel className="mb-2">Ma formation</SectionLabel>
-        <h1 className="text-[26px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Exercices en ligne</h1>
+        <h1 className="text-[24px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Exercices en ligne</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
           {quiz.length === 0
             ? 'Rien à travailler pour l’instant.'

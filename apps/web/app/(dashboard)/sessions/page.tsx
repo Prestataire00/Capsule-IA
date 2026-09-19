@@ -51,7 +51,7 @@ const clock = (d: Date) => {
 function CalendarTile({ date, color, muted }: { date: Date; color: string; muted: boolean }) {
   return (
     <div className="w-11 shrink-0 rounded-lg border border-zinc-200/80 dark:border-zinc-700 overflow-hidden text-center bg-white dark:bg-zinc-900 shadow-sm">
-      <div className="text-[10px] font-bold uppercase tracking-wider leading-4 text-white" style={{ background: color, opacity: muted ? 0.8 : 1 }}>
+      <div className="text-[11px] font-bold uppercase tracking-wider leading-4 text-white" style={{ background: color, opacity: muted ? 0.8 : 1 }}>
         {monthFmt.format(date).replace('.', '')}
       </div>
       <div className="text-[17px] font-extrabold leading-7 tabular-nums text-zinc-900 dark:text-zinc-100">{dayFmt.format(date)}</div>
@@ -169,7 +169,7 @@ function WeeklyChart({ weeks, series, currentIndex, w = 560 }: { weeks: { start:
       {[0, max / 2, max].map((t) => (
         <g key={t}>
           <line x1={padL} x2={w - padR} y1={base - sy(t)} y2={base - sy(t)} className="stroke-zinc-200 dark:stroke-zinc-800" />
-          <text x={padL - 8} y={base - sy(t) + 3.5} textAnchor="end" className="fill-zinc-400 text-[10px] tabular-nums">
+          <text x={padL - 8} y={base - sy(t) + 3.5} textAnchor="end" className="fill-zinc-400 text-[11px] tabular-nums">
             {fmtH(t)}
           </text>
         </g>
@@ -216,7 +216,7 @@ function WeeklyChart({ weeks, series, currentIndex, w = 560 }: { weeks: { start:
                 x={x + bw / 2}
                 y={h - 6}
                 textAnchor="middle"
-                className={isNow ? 'fill-orange-600 dark:fill-orange-400 text-[10px] font-bold' : 'fill-zinc-400 text-[10px]'}
+                className={isNow ? 'fill-orange-600 dark:fill-orange-400 text-[11px] font-bold' : 'fill-zinc-400 text-[11px]'}
               >
                 {isNow ? (narrow ? 'Cette sem.' : 'Cette semaine') : weekFmt.format(wk.start)}
               </text>

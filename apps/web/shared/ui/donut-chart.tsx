@@ -56,7 +56,7 @@ export function DonutChart({
       </svg>
       {(centerTitle || centerSubtitle) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {centerTitle && <div className="text-[26px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{centerTitle}</div>}
+          {centerTitle && <div className="text-[24px] leading-none font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100">{centerTitle}</div>}
           {centerSubtitle && <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">{centerSubtitle}</div>}
         </div>
       )}

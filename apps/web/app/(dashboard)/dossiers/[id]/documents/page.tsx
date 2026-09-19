@@ -264,7 +264,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                           <span className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
                           {exemplaire && (
                             <span className="mt-0.5 inline-flex items-center gap-1.5">
-                              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] ${exemplaire.tone}`}>
+                              <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.04em] ${exemplaire.tone}`}>
                                 {exemplaire.label}
                               </span>
                               <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">

@@ -49,7 +49,7 @@ export function StatusFilter({ options, selected, q, view }: { options: Option[]
         <ListFilter className="w-3.5 h-3.5 text-zinc-400" />
         Statut
         {count > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold tabular-nums">
+          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[11px] font-bold tabular-nums">
             {count}
           </span>
         )}

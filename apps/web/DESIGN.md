@@ -26,6 +26,8 @@ colors:
   money-emerald: "#059669"
   pending-amber: "#D97706"
   failure-red: "#DC2626"
+  chart-conforme: "#10B981"
+  chart-complet: "#D98A00"
 typography:
   display:
     fontFamily: "Manrope, ui-sans-serif, system-ui, -apple-system, sans-serif"
@@ -173,6 +175,10 @@ fixe, et l'employer pour autre chose casse la lecture.
 - **Rouge** : l'échec, le refus, le retard, la suppression.
 
 ### Tertiary
+- **Vert jauge** (`#10B981`) et **ambre plein** (`#D98A00`) : réservés aux graphiques
+  — l'arc de conformité Qualiopi et la barre de remplissage d'une séance complète. Plus
+  soutenus que les accents d'interface, parce qu'ils doivent tenir sur quelques pixels
+  de trait.
 - **Sarcelle, indigo, framboise, bleu ciel** : identité d'une formation, attribuée dans
   l'ordre de création et conservée quand d'autres s'ajoutent. Palette validée pour les
   daltonismes. Aucune formation ne reçoit d'orange.

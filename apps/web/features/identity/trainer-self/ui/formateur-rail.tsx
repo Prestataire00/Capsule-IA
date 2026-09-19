@@ -158,11 +158,11 @@ export function FormateurRail({
         onMouseEnter={() => setSurvole(g.cle)}
       >
         <Icone className="w-5 h-5" />
-        <span className="text-[10px] font-medium leading-tight text-center break-words">{g.court ?? g.label}</span>
+        <span className="text-[11px] font-medium leading-tight text-center break-words">{g.court ?? g.label}</span>
         {total > 0 && (
           <span
             className={cn(
-              'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-medium flex items-center justify-center tabular-nums shadow-sm',
+              'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[11px] font-medium flex items-center justify-center tabular-nums shadow-sm',
               actif ? 'bg-white text-orange-600' : 'bg-rose-500 text-white',
             )}
           >
@@ -199,7 +199,7 @@ export function FormateurRail({
         <nav className="w-20 flex flex-col items-center border-r border-orange-200/60 dark:border-zinc-800/80 bg-[linear-gradient(180deg,hsl(24_100%_97%)_0%,hsl(24_95%_92%)_50%,hsl(24_90%_88%)_100%)] dark:bg-[linear-gradient(180deg,rgb(9_9_11)_0%,rgb(9_9_11)_60%,rgb(67_20_7/0.35)_100%)] shadow-[inset_-1px_0_0_rgb(255_255_255/0.6)] dark:shadow-none">
           <Link href="/formateur" className="mt-4 mb-3 shrink-0 flex flex-col items-center gap-1" aria-label="Accueil">
             <Logo size="sm" showWordmark={false} />
-            <span className="text-[10px] font-semibold tracking-tight leading-none text-zinc-700 dark:text-zinc-300">
+            <span className="text-[11px] font-semibold tracking-tight leading-none text-zinc-700 dark:text-zinc-300">
               Capsule&nbsp;IA
             </span>
           </Link>
@@ -244,7 +244,7 @@ export function FormateurRail({
         >
           <div className="w-60 flex flex-col h-screen">
             <div className="px-4 pt-5 pb-3 border-b border-zinc-100 dark:border-zinc-900">
-              <p className="text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium mb-0.5">
+              <p className="text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium mb-0.5">
                 Section
               </p>
               <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
@@ -290,7 +290,7 @@ export function FormateurRail({
 
               {panneau?.montreSeances && seances.length > 0 && (
                 <li className="pt-4">
-                  <p className="px-3 mb-1 text-[10px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium">
+                  <p className="px-3 mb-1 text-[11px] tracking-wider uppercase text-zinc-400 dark:text-zinc-500 font-medium">
                     Prochaines
                   </p>
                   <ul className="space-y-0.5">
@@ -302,7 +302,7 @@ export function FormateurRail({
                           className="group flex flex-col px-3 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
                         >
                           <span className="text-[12px] text-zinc-700 dark:text-zinc-300 truncate">{s.titre}</span>
-                          <span className="text-[10px] text-zinc-400 tabular-nums">{s.quand}</span>
+                          <span className="text-[11px] text-zinc-400 tabular-nums">{s.quand}</span>
                         </Link>
                       </li>
                     ))}

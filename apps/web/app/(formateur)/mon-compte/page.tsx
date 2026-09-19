@@ -73,7 +73,7 @@ export default async function MonComptePage() {
   return (
     <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
       <header className="relative overflow-hidden rounded-2xl border border-zinc-200/70 dark:border-zinc-800 bg-gradient-to-br from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-950 p-5 shadow-sm">
-        <h1 className="text-[22px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Mon compte</h1>
+        <h1 className="text-[20px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Mon compte</h1>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">
           Votre administratif : facturation, frais, profil et pièces justificatives. Ce qui concerne vos séances se
           trouve dans « Mes séances ».

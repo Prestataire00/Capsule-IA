@@ -137,7 +137,7 @@ export function EspaceSidebar({
         <div className="px-4 py-4 border-b border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/30 dark:to-zinc-900">{identity}</div>
         <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin">{nav}</nav>
         <div className="px-4 py-4 border-t border-zinc-200/70 dark:border-zinc-800">
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
             Espace propulsé par<br />
             <span className="font-bold text-orange-600 dark:text-orange-400">Capsule IA</span>
           </p>
@@ -154,7 +154,7 @@ export function EspaceSidebar({
             <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
               {learnerFirstName} {learnerLastName}
             </p>
-            <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 truncate leading-tight">
+            <p className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500 truncate leading-tight">
               {dossierReference}
             </p>
           </div>
@@ -193,7 +193,7 @@ export function EspaceSidebar({
             <div className="px-4 py-4 border-b border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/30 dark:to-zinc-900">{identity}</div>
             <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin">{nav}</nav>
             <div className="px-4 py-4 border-t border-zinc-200/70 dark:border-zinc-800">
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                 Espace propulsé par<br />
                 <span className="font-bold text-orange-600 dark:text-orange-400">Capsule IA</span>
               </p>

@@ -137,7 +137,7 @@ export default async function MesSeancesPage({
   return (
     <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-5">
       <header className="relative overflow-hidden rounded-2xl border border-sky-100/70 dark:border-sky-900/30 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/30 dark:to-zinc-900 p-5 shadow-sm">
-        <h1 className="text-[22px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Mes séances</h1>
+        <h1 className="text-[20px] font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">Mes séances</h1>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1.5">{INTRO[vue]}</p>
         <div className="flex flex-wrap items-center gap-2 mt-4">
           <Compteur

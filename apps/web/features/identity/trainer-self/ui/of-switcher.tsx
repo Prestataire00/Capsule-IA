@@ -96,7 +96,7 @@ export function OfSwitcher({
               <span className={`w-2 h-2 rounded-full bg-${colorFor(m.organizationId)}-400`} />
               <span className="flex-1">
                 {m.organizationName}
-                {m.isInternal && <span className="ml-1.5 text-[10px] text-zinc-400">interne</span>}
+                {m.isInternal && <span className="ml-1.5 text-[11px] text-zinc-400">interne</span>}
               </span>
               {current === m.organizationId && <Check className="w-3.5 h-3.5 text-zinc-500" />}
             </button>

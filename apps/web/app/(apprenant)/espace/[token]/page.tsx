@@ -293,7 +293,7 @@ export default async function EspaceHomePage({ params }: { params: { token: stri
           )}
         </div>
         {heuresPlanifiees > 0 && (
-          <p className="text-[26px] leading-none font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums flex-shrink-0">
+          <p className="text-[24px] leading-none font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums flex-shrink-0">
             {Math.round((heuresSignees / heuresPlanifiees) * 100)} %
           </p>
         )}

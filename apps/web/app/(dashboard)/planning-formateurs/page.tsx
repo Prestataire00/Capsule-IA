@@ -62,11 +62,11 @@ function Case({ c }: { c: CaseSemaine }) {
   const premiere = c.seances[0];
   const contenu =
     !premiere ? null : c.seances.length === 1 ? (
-      <span className="block truncate text-[10px] leading-tight">
+      <span className="block truncate text-[11px] leading-tight">
         <span className="font-semibold tabular-nums">{heureFmt.format(new Date(premiere.debut))}</span> {premiere.titre}
       </span>
     ) : (
-      <span className="block text-[10px] font-semibold tabular-nums">{c.seances.length} séances</span>
+      <span className="block text-[11px] font-semibold tabular-nums">{c.seances.length} séances</span>
     );
 
   const corps = (
@@ -217,7 +217,7 @@ export default async function PlanningFormateursPage({
                     }`}
                   >
                     <span className="block">{JOURS[i]}</span>
-                    <span className="block text-[10px] font-normal tabular-nums opacity-70">
+                    <span className="block text-[11px] font-normal tabular-nums opacity-70">
                       {jourNumFmt.format(j)}
                     </span>
                   </th>

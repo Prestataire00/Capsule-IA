@@ -62,7 +62,7 @@ export function FinalizeButton({ sheetId, initialFinalized, initialDocumentId, r
                 Le PDF est immuable et archivé pour audit Qualiopi.
               </p>
               {hash && (
-                <p className="text-[10px] font-mono text-emerald-700/70 dark:text-emerald-300/70 mt-1 break-all">
+                <p className="text-[11px] font-mono text-emerald-700/70 dark:text-emerald-300/70 mt-1 break-all">
                   SHA-256: {hash.slice(0, 32)}…
                 </p>
               )}

@@ -49,7 +49,7 @@ function Case({ p, vignette }: { p: ParticipantRow | undefined; vignette: string
           {p.kind === 'learner' ? ` → ${sortie ?? '…'}` : ''}
         </span>
       )}
-      {p.lateArrival && <span className="text-[10px] text-amber-700 dark:text-amber-400">arrivé à {p.lateArrival}</span>}
+      {p.lateArrival && <span className="text-[11px] text-amber-700 dark:text-amber-400">arrivé à {p.lateArrival}</span>}
       {vignette && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={vignette} alt="Signature" className="h-9 w-24 object-contain bg-white rounded border border-zinc-200 dark:border-zinc-700" />

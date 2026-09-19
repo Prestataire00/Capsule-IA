@@ -69,7 +69,7 @@ export function AgendaNowLine({
       style={{ top, left: gutter, right: 0 }}
     >
       <span
-        className="-ml-[6px] rounded-sm bg-red-500 px-1 py-0.5 text-[9px] font-semibold leading-none text-white"
+        className="-ml-[6px] rounded-sm bg-red-500 px-1 py-0.5 text-[11px] font-semibold leading-none text-white"
         style={{ transform: 'translateY(-1px)' }}
       >
         {hh}:{mm}

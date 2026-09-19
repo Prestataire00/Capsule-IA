@@ -48,7 +48,7 @@ export default async function MesDossiersPage() {
             <FolderOpen className="w-5 h-5" aria-hidden />
           </span>
           <div>
-            <h1 className="text-[22px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Mes dossiers</h1>
+            <h1 className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Mes dossiers</h1>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
               {dossiers.length} dossier{dossiers.length > 1 ? 's' : ''} confié{dossiers.length > 1 ? 's' : ''}
             </p>

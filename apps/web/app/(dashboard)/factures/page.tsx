@@ -256,7 +256,7 @@ export default async function FacturesPage({
                 {inv.reference.startsWith('PROV-') ? 'Brouillon' : inv.reference}
                 {KIND_BADGE[inv.kind] && (
                   <span
-                    className={`ml-1.5 rounded px-1 py-px text-[10px] ${
+                    className={`ml-1.5 rounded px-1 py-px text-[11px] ${
                       inv.kind === 'credit_note'
                         ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
                         : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'

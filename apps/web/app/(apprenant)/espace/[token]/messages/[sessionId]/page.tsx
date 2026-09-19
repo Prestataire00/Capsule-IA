@@ -39,7 +39,7 @@ export default async function EspaceFilPage({ params }: { params: { token: strin
         <p className="text-[11px] uppercase tracking-wider text-zinc-500 tabular-nums">
           {formatSessionDate(seance.startsAt)} · {formatSessionTime(seance.startsAt)} – {formatSessionTime(seance.endsAt)}
         </p>
-        <h1 className="text-[22px] font-semibold text-zinc-900 dark:text-zinc-100">
+        <h1 className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100">
           {seance.title ?? 'Séance'}
         </h1>
       </header>
