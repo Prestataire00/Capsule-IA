@@ -53,7 +53,7 @@ export async function resolveInvoiceRecipient(sb: Sb, inv: InvoiceParties): Prom
       .eq('id', inv.funder_id)
       .maybeSingle();
     const f = data as { name: string; siret: string | null; contact_email: string | null; address: unknown } | null;
-    // Le SIRET du financeur manquait faute de colonne (migration 0179) : les
+    // Le SIRET du financeur manquait faute de colonne (migration 0181) : les
     // factures aux OPCO, les plus nombreuses chez un organisme, partaient donc
     // sans identifier leur destinataire.
     if (f) return { name: f.name, email: f.contact_email, siret: f.siret, address: composeAddress(f.address), attention: null };
