@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { estStatutFinancement, estDecide } from '@/features/billing/domain/funding-status';
 
 const schema = z.object({
   dossierId: z.string().uuid(),
@@ -133,6 +134,54 @@ export async function removeDossierFunder(formData: FormData): Promise<void> {
     .schema('app')
     .from('dossier_funders')
     .delete()
+    .eq('dossier_id', dossierId)
+    .eq('funder_id', funderId);
+
+  revalidatePath(`/dossiers/${dossierId}/facturation`);
+  redirect(`/dossiers/${dossierId}/facturation?funderSaved=1`);
+}
+
+/**
+ * Enregistre la décision du financeur : accord, refus, ou dépôt de la demande.
+ *
+ * Le montant accordé est souvent inférieur au demandé — c'est lui qui fait foi
+ * pour la facturation, sans quoi le reste à charge de l'entreprise est
+ * sous-évalué (0177).
+ */
+export async function setDossierFunderDecision(formData: FormData): Promise<void> {
+  await requireAccess('dossiers', 'manage');
+
+  const dossierId = String(formData.get('dossierId') ?? '');
+  const funderId = String(formData.get('funderId') ?? '');
+  const statutBrut = String(formData.get('status') ?? '');
+  if (!dossierId || !funderId || !estStatutFinancement(statutBrut)) {
+    redirect(`/dossiers/${dossierId}/facturation?funderError=1`);
+  }
+  const statut = statutBrut;
+
+  const accordeBrut = String(formData.get('grantedEuros') ?? '').replace(',', '.').trim();
+  const accordeCents =
+    accordeBrut === '' ? null : Math.max(0, Math.round(Number(accordeBrut) * 100));
+  if (accordeBrut !== '' && !Number.isFinite(accordeCents)) {
+    redirect(`/dossiers/${dossierId}/facturation?funderError=1`);
+  }
+  const note = String(formData.get('decisionNote') ?? '').trim().slice(0, 1000) || null;
+  const maintenant = new Date().toISOString();
+
+  const sb = supabaseServer();
+  await sb
+    .schema('app')
+    .from('dossier_funders')
+    .update({
+      status: statut,
+      // Un refus ne retient aucun montant : le laisser fausserait le plan si
+      // la décision était ensuite repassée en accord.
+      granted_cents: statut === 'refused' ? null : accordeCents,
+      decision_note: note,
+      submitted_at: statut === 'pending' ? null : maintenant,
+      decided_at: estDecide(statut) ? maintenant : null,
+      updated_at: maintenant,
+    } as never)
     .eq('dossier_id', dossierId)
     .eq('funder_id', funderId);
 

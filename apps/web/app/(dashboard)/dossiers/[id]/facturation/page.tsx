@@ -11,6 +11,8 @@ import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { InfoCallout } from '@/shared/ui/info-callout';
+import { montantCouvertCents, estStatutFinancement, manqueCents } from '@/features/billing/domain/funding-status';
+import { DecisionFinanceur } from './decision-financeur.client';
 import { InvoiceActions } from '../../../factures/invoice-actions';
 import {
   buildBillingPlan,
@@ -97,7 +99,9 @@ async function loadData(dossierId: string, organizationId: string) {
     sb
       .schema('app')
       .from('dossier_funders')
-      .select('funder_id, amount_cents, status, external_file_number, funder:funders(name, kind)')
+      .select(
+        'funder_id, amount_cents, granted_cents, status, decision_note, decided_at, external_file_number, funder:funders(name, kind)',
+      )
       .eq('dossier_id', dossierId)
       .eq('organization_id', organizationId),
     sb
@@ -125,7 +129,10 @@ async function loadData(dossierId: string, organizationId: string) {
     funders: (funderRows ?? []) as unknown as Array<{
       funder_id: string;
       amount_cents: number;
+      granted_cents: number | null;
       status: string;
+      decision_note: string | null;
+      decided_at: string | null;
       external_file_number: string | null;
       funder: { name: string; kind: string } | null;
     }>,
@@ -195,7 +202,14 @@ export default async function FacturationPage({
     funderId: f.funder_id,
     name: f.funder?.name ?? 'Financeur',
     kind: f.funder?.kind ?? 'autre',
-    allocatedHtCents: f.amount_cents,
+    // Ce que le financeur couvre RÉELLEMENT : un refus ne couvre rien, et un
+    // accord partiel ne couvre que ce qu'il accorde (0177). Compter le demandé
+    // sous-évaluait le reste à charge et faussait la facture.
+    allocatedHtCents: montantCouvertCents(
+      estStatutFinancement(f.status) ? f.status : 'pending',
+      f.amount_cents,
+      f.granted_cents,
+    ),
     status: (f.status as FunderAllocationInput['status']) ?? 'pending',
   }));
   const invoiceInputs: InvoiceInput[] = allInvoices.map((i) => ({
@@ -369,9 +383,31 @@ export default async function FacturationPage({
                         Dossier n° {f.external_file_number}
                       </span>
                     )}
+                    <DecisionFinanceur
+                      dossierId={dossier.id}
+                      funderId={f.funder_id}
+                      statut={estStatutFinancement(f.status) ? f.status : 'pending'}
+                      demandeCents={f.amount_cents}
+                      accordeCents={f.granted_cents}
+                      note={f.decision_note}
+                      decideLe={f.decided_at}
+                      devise={currency}
+                    />
                   </span>
                   <span className="tabular-nums text-right text-zinc-700 dark:text-zinc-300">
                     {formatEuros(f.amount_cents, currency)}
+                    {(() => {
+                      const st = estStatutFinancement(f.status) ? f.status : 'pending';
+                      const manque = manqueCents(st, f.amount_cents, f.granted_cents);
+                      if (manque <= 0) return null;
+                      // Ce que le financeur ne prend finalement pas en charge
+                      // retombe sur le client : le dire ici, pas le deviner.
+                      return (
+                        <span className="block text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                          −{formatEuros(manque, currency)} non couverts
+                        </span>
+                      );
+                    })()}
                   </span>
                   <form action={removeDossierFunder} className="text-right">
                     <input type="hidden" name="dossierId" value={dossier.id} />
