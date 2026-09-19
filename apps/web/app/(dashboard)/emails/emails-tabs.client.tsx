@@ -2,22 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, CalendarClock, UsersRound } from 'lucide-react';
+import { History, Zap } from 'lucide-react';
 
-// Onglets partagés : Agenda général (Google), planning des sessions, et la même
-// semaine vue par formateur — trois questions différentes sur le même temps.
+// Deux questions distinctes : « qu'est-ce qui est parti ? » (le journal) et
+// « qu'est-ce qui part tout seul, et quand ? » (le catalogue).
 const TABS = [
-  { href: '/agenda', label: 'Agenda général', icon: CalendarDays, iconCls: 'text-blue-500 dark:text-blue-400' },
-  { href: '/planning', label: 'Sessions', icon: CalendarClock, iconCls: 'text-orange-500 dark:text-orange-400' },
-  { href: '/planning-formateurs', label: 'Formateurs', icon: UsersRound, iconCls: 'text-rose-500 dark:text-rose-400' },
+  { href: '/emails', label: 'Historique', icon: History, iconCls: 'text-sky-500 dark:text-sky-400' },
+  { href: '/emails/automatiques', label: 'Envois automatiques', icon: Zap, iconCls: 'text-amber-500 dark:text-amber-400' },
 ];
 
-export function AgendaTabs() {
+export function EmailsTabs() {
   const pathname = usePathname();
   return (
     <div className="flex items-center gap-1 border-b border-zinc-200/70 dark:border-zinc-800 mb-6">
       {TABS.map((t) => {
-        const active = pathname === t.href || pathname.startsWith(`${t.href}/`);
+        const active = pathname === t.href;
         const Icon = t.icon;
         return (
           <Link

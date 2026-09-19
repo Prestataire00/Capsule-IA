@@ -287,6 +287,9 @@ export async function sendNeedsAnalysisForDossier(opts: {
     subject: email.subject,
     html: email.html,
     replyTo: env.OF_NOTIFICATION_EMAIL,
+    kind: 'fiche_besoin',
+    dossierId: dossier.id,
+    organizationId: dossier.organization_id,
   });
   if (!r.ok && r.reason !== 'no_api_key') return { ok: false, error: 'send_failed' };
 
@@ -378,6 +381,8 @@ export async function sendNeedsAnalysisForLearner(opts: {
     subject: email.subject,
     html: email.html,
     replyTo: env.OF_NOTIFICATION_EMAIL,
+    kind: 'fiche_besoin',
+    organizationId: learner.organization_id,
   });
   if (!r.ok && r.reason !== 'no_api_key') return { ok: false, error: 'send_failed' };
 

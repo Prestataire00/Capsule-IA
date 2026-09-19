@@ -98,6 +98,9 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   // les aurait purement bloqués.
   ['/dossiers', 'dossiers'],
   ['/planning', 'dossiers'],
+  // Racine distincte : la recherche exige `/planning` ou `/planning/…`, donc
+  // `/planning-formateurs` ne serait rattaché à rien sans cette ligne.
+  ['/planning-formateurs', 'dossiers'],
   ['/apprenants', 'dossiers'],
   ['/formateurs', 'dossiers'],
   ['/heures-risque', 'dossiers'],

@@ -11,6 +11,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { EmailsTabs } from './emails-tabs.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,6 +103,8 @@ export default async function EmailsPage({
           </span>
         </p>
       </header>
+
+      <EmailsTabs />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 max-w-4xl">
         <KpiCard label="Envoyés" value={sentCount} icon={Mail} accent="sky" href="/emails?status=sent" />

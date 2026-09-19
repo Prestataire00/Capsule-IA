@@ -437,7 +437,16 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
       if (!learner.email) {
         errors.push(`satisfaction ${d.id}: stagiaire sans adresse`);
       } else {
-        const r = await sendEmail({ to: learner.email, subject: sat.subject, html: sat.html });
+        const r = await sendEmail({
+          to: learner.email,
+          subject: sat.subject,
+          html: sat.html,
+          // Sans `kind`, l'envoi se journalisait sans type : impossible de dire
+          // dans l'historique si la satisfaction était bien partie.
+          kind: 'satisfaction_chaud',
+          dossierId: d.id,
+          organizationId: orgId,
+        });
         if (r.ok) satisfactionSent++;
         else if (r.reason !== 'no_api_key') errors.push(`satisfaction ${d.id}: send_failed`);
       }
@@ -466,7 +475,13 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
       if (!learner.email) {
         errors.push(`certificate ${d.id}: stagiaire sans adresse`);
       } else {
-        const r = await sendEmail({ to: learner.email, subject: eot.subject, html: eot.html });
+        const r = await sendEmail({
+          to: learner.email,
+          subject: eot.subject,
+          html: eot.html,
+          kind: 'fin_de_formation',
+          dossierId: d.id,
+        });
         if (r.ok) certificateSent++;
         else if (r.reason !== 'no_api_key') errors.push(`certificate ${d.id}: send_failed`);
       }
@@ -618,7 +633,13 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
           halfDay: sh.half_day,
           dashboardUrl,
         });
-        const res = await sendEmail({ to: r.email, subject: tpl.subject, html: tpl.html });
+        const res = await sendEmail({
+          to: r.email,
+          subject: tpl.subject,
+          html: tpl.html,
+          kind: 'alerte_emargement',
+          ...(sess.dossier_id ? { dossierId: sess.dossier_id } : {}),
+        });
         if (!res.ok && res.reason !== 'no_api_key') errors.push(`alert ${sh.id} / ${r.email}: send_failed`);
       }
       alerted++;
