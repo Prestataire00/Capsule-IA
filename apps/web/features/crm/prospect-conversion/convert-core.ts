@@ -31,7 +31,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -50,6 +50,7 @@ export async function convertProspectToDossier(
     preferred_start_date: string | null;
     company_name: string | null;
     company_siret: string | null;
+    convention_collective: string | null;
     company_address: unknown;
     referent_name: string | null;
     referent_email: string | null;
@@ -160,11 +161,12 @@ export async function convertProspectToDossier(
       const { data: existingRow } = await sb
         .schema('app')
         .from('companies')
-        .select('siret, address, contact_name, contact_email, contact_phone')
+        .select('siret, convention_collective, address, contact_name, contact_email, contact_phone')
         .eq('id', cm.id)
         .maybeSingle();
       const existing = (existingRow ?? {}) as {
         siret?: string | null;
+        convention_collective?: string | null;
         address?: unknown;
         contact_name?: string | null;
         contact_email?: string | null;
@@ -172,6 +174,9 @@ export async function convertProspectToDossier(
       };
       const patch: Record<string, unknown> = {};
       if (!existing.siret && validSiret) patch.siret = validSiret;
+      if (!existing.convention_collective && p.convention_collective?.trim()) {
+        patch.convention_collective = p.convention_collective.trim();
+      }
       if (isEmptyAddress(existing.address) && !isEmptyAddress(p.company_address)) patch.address = p.company_address;
       if (!existing.contact_name && referent.contact_name) patch.contact_name = referent.contact_name;
       if (!existing.contact_email && referent.contact_email) patch.contact_email = referent.contact_email;
@@ -188,6 +193,7 @@ export async function convertProspectToDossier(
           organization_id: orgId,
           name: prospect.companyName,
           siret: validSiret,
+          convention_collective: p.convention_collective?.trim() || null,
           address: isEmptyAddress(p.company_address) ? {} : p.company_address,
           ...referent,
         })

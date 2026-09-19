@@ -59,6 +59,7 @@ export async function createDemande(input: NouvelleDemandeValues): Promise<Creat
       funder_kind: v.funderKind,
       company_name: orNull(v.companyName),
       company_siret: orNull(v.companySiret)?.replace(/\s/g, '') ?? null,
+      convention_collective: orNull(v.conventionCollective),
       referent_name: orNull(v.referentName),
       referent_email: orNull(v.referentEmail),
       referent_phone: orNull(v.referentPhone),

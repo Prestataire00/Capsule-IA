@@ -44,6 +44,7 @@ export function DemandeForm({ formations }: { formations: FormationOption[] }) {
     funderKind: 'opco' as string,
     companyName: '',
     companySiret: '',
+    conventionCollective: '',
     referentName: '',
     referentEmail: '',
     referentPhone: '',
@@ -84,6 +85,7 @@ export function DemandeForm({ formations }: { formations: FormationOption[] }) {
         funderKind: form.funderKind as never,
         companyName: form.companyName,
         companySiret: form.companySiret,
+        conventionCollective: form.conventionCollective,
         referentName: form.referentName,
         referentEmail: form.referentEmail,
         referentPhone: form.referentPhone,
@@ -180,6 +182,16 @@ export function DemandeForm({ formations }: { formations: FormationOption[] }) {
             <label className={label}>
               SIRET
               <input value={form.companySiret} onChange={(e) => set('companySiret', e.target.value)} maxLength={20} className={input} />
+            </label>
+            <label className={label}>
+              Convention collective
+              <input
+                value={form.conventionCollective}
+                onChange={(e) => set('conventionCollective', e.target.value)}
+                maxLength={200}
+                placeholder="1486 ou Bureaux d'études techniques"
+                className={input}
+              />
             </label>
             <label className={label}>
               Responsable formation

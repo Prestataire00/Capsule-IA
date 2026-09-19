@@ -19,6 +19,7 @@ export const NouvelleDemandeSchema = z
     funderKind: z.enum(FUNDER_VALUES),
     companyName: z.string().trim().max(200).optional().or(z.literal('')),
     companySiret: z.string().trim().max(20).optional().or(z.literal('')),
+    conventionCollective: z.string().trim().max(200).optional().or(z.literal('')),
     referentName: z.string().trim().max(160).optional().or(z.literal('')),
     referentEmail: z.string().trim().email('E-mail du référent invalide').optional().or(z.literal('')),
     referentPhone: z.string().trim().max(30).optional().or(z.literal('')),

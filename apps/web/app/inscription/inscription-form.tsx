@@ -59,6 +59,7 @@ type Funding = {
   status: 'salarie' | 'demandeur' | 'independant' | 'particulier';
   companyName: string;
   companySiret: string;
+  conventionCollective: string;
   companyAddressLine1: string;
   companyAddressCity: string;
   companyAddressPostalCode: string;
@@ -101,6 +102,7 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
     status: 'salarie',
     companyName: '',
     companySiret: '',
+    conventionCollective: '',
     companyAddressLine1: '',
     companyAddressCity: '',
     companyAddressPostalCode: '',
@@ -169,6 +171,9 @@ export function InscriptionForm({ formations }: { formations: PublicFormation[] 
       situation: funding.status,
       companyName: isIndividual ? '' : funding.companyName,
       companySiret: isIndividual ? '' : funding.companySiret,
+      // Comme le SIRET : un particulier ou un demandeur d'emploi s'inscrit en
+      // son nom propre, la branche de l'employeur qu'il cite ne le concerne pas.
+      conventionCollective: isIndividual ? '' : funding.conventionCollective,
       companyAddress: isIndividual
         ? undefined
         : {
@@ -842,6 +847,18 @@ function FundingStep({
             </FormField>
           </div>
 
+            {/* Elle détermine l'OPCO de rattachement et le barème : la
+                demander ici évite un aller-retour sur chaque dossier. */}
+            <FormField label="Convention collective" hint="IDCC ou intitulé — si vous le connaissez">
+              <input
+                type="text"
+                value={value.conventionCollective}
+                onChange={(e) => update('conventionCollective', e.target.value)}
+                placeholder="1486 ou Bureaux d'études techniques"
+                className={inputClass}
+              />
+            </FormField>
+
           <FormField label="Adresse">
             <input
               type="text"
@@ -1250,6 +1267,7 @@ function CompanyFlow({
     companyName: '',
     companySiret: '',
     companySiren: '',
+    conventionCollective: '',
     companyAddressLine1: '',
     companyAddressCity: '',
     companyAddressPostalCode: '',
@@ -1312,6 +1330,7 @@ function CompanyFlow({
       companyName: company.companyName,
       companySiret: company.companySiret,
       companySiren: company.companySiren,
+      conventionCollective: company.conventionCollective,
       companyAddress: {
         line1: company.companyAddressLine1,
         city: company.companyAddressCity,
@@ -1546,6 +1565,7 @@ function CompanyStep({
     companyName: string;
     companySiret: string;
     companySiren: string;
+    conventionCollective: string;
     companyAddressLine1: string;
     companyAddressCity: string;
     companyAddressPostalCode: string;
@@ -1611,6 +1631,16 @@ function CompanyStep({
           />
         </FormField>
       </div>
+
+      <FormField label="Convention collective" hint="IDCC ou intitulé — si vous le connaissez">
+        <input
+          type="text"
+          value={value.conventionCollective}
+          onChange={(e) => update('conventionCollective', e.target.value)}
+          placeholder="1486 ou Bureaux d'études techniques"
+          className={inputClass}
+        />
+      </FormField>
 
       <FormField label="Adresse">
         <input

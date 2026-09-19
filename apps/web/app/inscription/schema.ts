@@ -57,6 +57,9 @@ export const prospectFieldsSchema = z.object({
   // Optionnel ici : l'obligation dépend de la situation, elle est portée par le
   // `superRefine` en fin de schéma.
   companySiret: z.string().trim().max(20).optional().or(z.literal('')),
+  // Texte libre : l'employeur la désigne par son IDCC (« 1486 ») ou par son
+  // intitulé. Elle détermine l'OPCO de rattachement et le barème applicable.
+  conventionCollective: z.string().trim().max(200).optional().or(z.literal('')),
   companyAddress: z
     .object({
       line1: z.string().trim().max(200).optional().or(z.literal('')),
@@ -124,6 +127,7 @@ export const companyEnrollmentSchema = z.object({
     .min(1, 'SIRET requis')
     .max(20)
     .refine(siretValide, 'SIRET invalide (14 chiffres)'),
+  conventionCollective: z.string().trim().max(200).optional().or(z.literal('')),
   companyAddress: z
     .object({
       line1: z.string().trim().max(200).optional().or(z.literal('')),

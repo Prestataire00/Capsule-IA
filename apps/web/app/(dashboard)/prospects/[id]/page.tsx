@@ -54,6 +54,7 @@ type Prospect = {
   situation: string | null;
   company_name: string | null;
   company_siret: string | null;
+  convention_collective: string | null;
   funder_kinds: string[] | null;
   funder_kind: string;
   company_batch_id: string | null;
@@ -160,7 +161,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     .schema('app')
     .from('prospects' as never)
     .select(
-      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, created_at',
+      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, created_at',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -586,6 +587,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               <SummaryRow label="Financement" value={funders.join(', ').toUpperCase() || '—'} />
               <SummaryRow label="Situation" value={situationLabel} />
               <SummaryRow label="Entreprise" value={prospect.company_name ?? '—'} />
+              {/* La branche détermine l'OPCO de rattachement et le barème :
+                  elle sert à instruire le financement. */}
+              <SummaryRow label="Convention collective" value={prospect.convention_collective ?? '—'} />
               <SummaryRow label="Reçue le" value={new Date(prospect.created_at).toLocaleDateString('fr-FR')} />
               <SummaryRow
                 label="Suivi par"

@@ -71,6 +71,7 @@ function buildProspectRecap(
   if (!isIndiv) {
     add('Entreprise', fields.companyName);
     add('SIRET', fields.companySiret);
+    add('Convention collective', fields.conventionCollective);
     const addr = fields.companyAddress;
     if (addr) add('Adresse entreprise', [addr.line1, [addr.postalCode, addr.city].filter(Boolean).join(' ')].filter(Boolean).join(', '));
     add('Référent', fields.referentName);
@@ -124,6 +125,7 @@ function buildEmployeeRecap(
   shared: {
     companyName: string;
     companySiret?: string;
+    conventionCollective?: string;
     companyAddress?: { line1?: string; city?: string; postalCode?: string };
     referentName?: string;
     formationTitle: string | null;
@@ -150,6 +152,7 @@ function buildEmployeeRecap(
 
   add('Entreprise', shared.companyName);
   add('SIRET', shared.companySiret);
+  add('Convention collective', shared.conventionCollective);
   const addr = shared.companyAddress;
   if (addr) add('Adresse entreprise', [addr.line1, [addr.postalCode, addr.city].filter(Boolean).join(' ')].filter(Boolean).join(', '));
   add('Référent', shared.referentName);
@@ -279,6 +282,7 @@ export async function submitProspect(formData: FormData): Promise<SubmitResult> 
     situation: fields.situation,
     company_name: nullify(fields.companyName),
     company_siret: isIndividual ? null : fields.companySiret || null,
+    convention_collective: isIndividual ? null : fields.conventionCollective || null,
     company_address: isIndividual ? null : fields.companyAddress ?? null,
     referent_name: isIndividual ? null : fields.referentName || null,
     referent_email: isIndividual ? null : fields.referentEmail || null,
@@ -474,6 +478,7 @@ export async function submitCompanyEnrollment(formData: FormData): Promise<Compa
     situation: 'salarie' as const,
     company_name: fields.companyName,
     company_siret: fields.companySiret || null,
+    convention_collective: fields.conventionCollective || null,
     company_siren: fields.companySiren || null,
     company_address: companyAddress,
     referent_name: fields.referentName || null,
@@ -551,6 +556,7 @@ export async function submitCompanyEnrollment(formData: FormData): Promise<Compa
   const sharedRecap = {
     companyName: fields.companyName,
     companySiret: fields.companySiret || undefined,
+    conventionCollective: fields.conventionCollective || undefined,
     companyAddress: fields.companyAddress ?? undefined,
     referentName: fields.referentName || undefined,
     formationTitle,
