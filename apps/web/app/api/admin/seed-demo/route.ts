@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
+import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

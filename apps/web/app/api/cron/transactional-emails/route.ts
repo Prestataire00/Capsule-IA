@@ -31,6 +31,7 @@ import { sendCertificatToCompany } from '@/features/documents/send-certificat-to
 import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automation/session-automations';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { delaisAConsiderer, doitPartirAujourdhui } from '@/features/emails/programmation-envois';
+import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails

@@ -17,6 +17,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { env } from '@/env.mjs';
+import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;

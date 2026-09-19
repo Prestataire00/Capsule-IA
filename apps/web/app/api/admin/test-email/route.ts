@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
+import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 
 // Endpoint diagnostic : envoie un email de test via sendEmail() (SMTP ou Resend
 // selon la config). Protégé par CRON_SECRET. Usage :

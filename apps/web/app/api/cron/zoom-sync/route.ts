@@ -10,6 +10,7 @@ import { fetchPastMeetingParticipants, fetchMeetingRecordings } from '@/features
 import { persistSessionRecording } from '@/features/attendance/persist-session-recording';
 import { computeSyncWindow } from '@/features/attendance/zoom-sync-window';
 import { halfDayWindow, overlapMinutes, type HalfDay } from '@/features/attendance/half-day-window';
+import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
