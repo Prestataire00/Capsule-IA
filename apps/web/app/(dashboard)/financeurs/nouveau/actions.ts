@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { normaliserSiret, siretValide } from '@/shared/lib/siret';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];
@@ -81,12 +82,21 @@ export async function createFunder(fd: FormData): Promise<void> {
     );
   if (kinds.length === 0) redirect('/financeurs/nouveau?error=no_kind');
 
+  // SIRET facultatif à la saisie — on ne l'a pas toujours sous la main —, mais
+  // refusé s'il est faux : un identifiant erroné fait rejeter la facture
+  // électronique, et l'erreur ne se voit qu'à l'impayé.
+  const siretSaisi = str(fd, 'siret');
+  if (siretSaisi && !siretValide(siretSaisi)) {
+    redirect('/financeurs/nouveau?error=siret_invalide');
+  }
+
   const admin = supabaseAdmin();
   const { error } = await admin.schema('app').from('funders').insert({
     organization_id: orgId,
     name,
     kind: kinds[0], // type principal (rétro-compat)
     kinds,
+    siret: siretSaisi ? normaliserSiret(siretSaisi) : null,
     contact_email: str(fd, 'email'),
     external_id: str(fd, 'externalId'),
   } as never);

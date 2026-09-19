@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { normaliserSiret, siretValide } from '@/shared/lib/siret';
 
 const FUNDER_KINDS = [
   'opco',
@@ -38,6 +39,10 @@ export async function updateFunder(fd: FormData): Promise<void> {
     );
   if (kinds.length === 0) redirect(`/financeurs/${id}?error=no_kind`);
 
+  // Voir createFunder : facultatif, mais jamais faux.
+  const siretSaisi = str(fd, 'siret');
+  if (siretSaisi && !siretValide(siretSaisi)) redirect(`/financeurs/${id}?error=siret_invalide`);
+
   const sb = supabaseServer();
   const { error } = await sb
     .schema('app')
@@ -46,6 +51,7 @@ export async function updateFunder(fd: FormData): Promise<void> {
       name,
       kind: kinds[0], // type principal (rétro-compat)
       kinds,
+      siret: siretSaisi ? normaliserSiret(siretSaisi) : null,
       contact_email: str(fd, 'email'),
       contact_phone: str(fd, 'phone'),
       external_id: str(fd, 'externalId'),

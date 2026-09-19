@@ -147,13 +147,10 @@ async function ensureSatisfactionAssignment(
   return (created as { id: string }).id;
 }
 
-function isAuthorized(req: Request): boolean {
-  const headerAuth = req.headers.get('Authorization');
-  if (headerAuth === `Bearer ${env.CRON_SECRET}`) return true;
-  // Supporte aussi ?secret= pour les crons HTTP simples (cron-job.org)
-  const url = new URL(req.url);
-  return url.searchParams.get('secret') === env.CRON_SECRET;
-}
+// En-tête uniquement : le secret en query string finissait dans les journaux
+// d'accès. La base appelle déjà avec `Authorization: Bearer` (0147) ; un cron
+// HTTP externe doit passer l'en-tête `x-cron-secret`.
+const isAuthorized = verifierSecretMachine;
 
 function formatHHMM(iso: string): string {
   const d = new Date(iso);

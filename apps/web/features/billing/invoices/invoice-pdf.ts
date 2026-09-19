@@ -49,11 +49,14 @@ export async function resolveInvoiceRecipient(sb: Sb, inv: InvoiceParties): Prom
     const { data } = await sb
       .schema('app')
       .from('funders')
-      .select('name, contact_email, address')
+      .select('name, siret, contact_email, address')
       .eq('id', inv.funder_id)
       .maybeSingle();
-    const f = data as { name: string; contact_email: string | null; address: unknown } | null;
-    if (f) return { name: f.name, email: f.contact_email, siret: null, address: composeAddress(f.address), attention: null };
+    const f = data as { name: string; siret: string | null; contact_email: string | null; address: unknown } | null;
+    // Le SIRET du financeur manquait faute de colonne (migration 0179) : les
+    // factures aux OPCO, les plus nombreuses chez un organisme, partaient donc
+    // sans identifier leur destinataire.
+    if (f) return { name: f.name, email: f.contact_email, siret: f.siret, address: composeAddress(f.address), attention: null };
   }
 
   const { data: quoteRow } = inv.quote_id
@@ -152,7 +155,7 @@ export async function buildInvoicePdf(
       sb
         .schema('app')
         .from('organizations')
-        .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
+        .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications, vat_on_debits')
         .eq('id', inv.organization_id)
         .maybeSingle(),
       sb
@@ -195,6 +198,7 @@ export async function buildInvoicePdf(
       contactEmail: org?.contact_email ?? null,
       contactPhone: org?.contact_phone ?? null,
       certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
+      vatOnDebits: (org as { vat_on_debits?: boolean } | null)?.vat_on_debits ?? false,
     },
     recipient: {
       name: recipient.name,
@@ -205,7 +209,7 @@ export async function buildInvoicePdf(
     signaturePng: branding.signaturePng,
     stampPng: branding.stampPng,
     logoPng: branding.logoPng,
-    representativeName: branding.representativeName ?? org?.contact_email ?? null,
+    representativeName: branding.representativeName ?? null,
     representativeTitle: branding.representativeTitle,
     place: org?.address?.city ?? null,
     invoice: {

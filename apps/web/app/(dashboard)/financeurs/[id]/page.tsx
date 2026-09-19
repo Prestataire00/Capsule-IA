@@ -80,6 +80,7 @@ type FunderRow = {
   kinds: string[] | null;
   contact_email: string | null;
   contact_phone: string | null;
+  siret: string | null;
   external_id: string | null;
 };
 
@@ -108,7 +109,7 @@ export default async function FinanceurDetailPage({
   const { data: funderRow } = await sb
     .schema('app')
     .from('funders')
-    .select('id, name, kind, kinds, contact_email, contact_phone, external_id')
+    .select('id, name, kind, kinds, siret, contact_email, contact_phone, external_id')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -289,6 +290,22 @@ export default async function FinanceurDetailPage({
                 </div>
               </FormField>
             </div>
+            <FormField
+              label="SIRET"
+              hint="Son SIREN — les 9 premiers chiffres — est une mention obligatoire de la facture électronique."
+            >
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="text"
+                  name="siret"
+                  inputMode="numeric"
+                  defaultValue={funder.siret ?? ''}
+                  placeholder="123 456 789 00012"
+                  className={`${inputClass} pl-9 tabular-nums`}
+                />
+              </div>
+            </FormField>
             <FormField label="Identifiant externe" hint="Code ou référence dans le système du financeur.">
               <div className="relative">
                 <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />

@@ -59,6 +59,8 @@ export const updateOrgIdentityAction = authActionClient
         vat_regime: parsedInput.vatRegime,
         // Un organisme exonéré ne conserve pas de taux résiduel.
         default_vat_rate: parsedInput.vatRegime === 'subject' ? parsedInput.defaultVatRate : 0,
+        // Un organisme exonéré n'a rien à opter : la mention n'aurait pas de sens.
+        vat_on_debits: parsedInput.vatRegime === 'subject' ? parsedInput.vatOnDebits : false,
       } as never)
       .eq('id', orgId)
       .select('id');

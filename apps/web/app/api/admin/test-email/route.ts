@@ -8,13 +8,9 @@ import { sendEmail } from '@/shared/lib/email/resend';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-function authorized(req: NextRequest): boolean {
-  const url = new URL(req.url);
-  const fromQuery = url.searchParams.get('secret') ?? '';
-  const fromHeader = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
-  const secret = fromQuery || fromHeader;
-  return Boolean(env.CRON_SECRET) && secret === env.CRON_SECRET;
-}
+// En-tête uniquement, et comparaison à temps constant : cette route envoie un
+// e-mail vers une adresse arbitraire, le secret ne doit pas traîner dans une URL.
+const authorized = (req: NextRequest): boolean => verifierSecretMachine(req);
 
 export async function GET(req: NextRequest) {
   if (!authorized(req)) {

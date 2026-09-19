@@ -304,12 +304,8 @@ const syncSession = async (
   };
 };
 
-const authorized = (req: NextRequest): boolean => {
-  const header = req.headers.get('authorization');
-  if (!header) return false;
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : header.trim();
-  return token === env.CRON_SECRET;
-};
+// Comparaison à temps constant, en-tête uniquement.
+const authorized = (req: NextRequest): boolean => verifierSecretMachine(req);
 
 export async function POST(req: NextRequest) {
   if (!authorized(req)) {

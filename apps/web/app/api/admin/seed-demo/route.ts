@@ -11,11 +11,25 @@ const admin = () =>
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+/**
+ * Ces deux points d'entrée écrivent des données fictives avec la clé service
+ * role, et le GET énumère toutes les organisations de la plateforme. C'est un
+ * outil de développement : il n'a rien à faire en production, où un secret
+ * fuité suffirait à polluer la base d'un client réel.
+ *
+ * Secret en en-tête uniquement (jamais `?secret=`, qui finit dans les journaux).
+ */
+function indisponibleEnProduction(): NextResponse | null {
+  if (env.NODE_ENV !== 'production') return null;
+  return NextResponse.json({ error: 'not_available_in_production' }, { status: 404 });
+}
+
 // GET : liste les orgs existantes pour récupérer l'organization_id cible.
-// Protégé par CRON_SECRET. Usage : /api/admin/seed-demo?secret=<CRON_SECRET>
+// Usage : curl -H "x-cron-secret: <CRON_SECRET>" …/api/admin/seed-demo
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  if (!secret || secret !== env.CRON_SECRET) {
+  const bloque = indisponibleEnProduction();
+  if (bloque) return bloque;
+  if (!verifierSecretMachine(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const sb = admin();
@@ -30,10 +44,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ organizations: data ?? [] });
 }
 
-// Protégé par CRON_SECRET en query string : /api/admin/seed-demo?secret=<CRON_SECRET>
 export async function POST(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  if (!secret || secret !== env.CRON_SECRET) {
+  const bloque = indisponibleEnProduction();
+  if (bloque) return bloque;
+  if (!verifierSecretMachine(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

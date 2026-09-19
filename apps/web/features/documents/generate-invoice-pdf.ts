@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
 import { drawOrgLogo } from './pdf-logo';
 import { drawRgpdMention } from './pdf-rgpd';
+import { formaterSiren, formaterSiret, sirenDeSiret } from '@/shared/lib/siret';
 
 export type InvoiceLine = {
   description: string;
@@ -16,6 +17,8 @@ export type InvoiceInput = {
     name: string;
     siret: string | null;
     nda: string | null;
+    /** L'organisme a opté pour le paiement de la TVA d'après les débits. */
+    vatOnDebits?: boolean;
     address: string | null;
     contactEmail: string | null;
     contactPhone: string | null;
@@ -70,8 +73,18 @@ const fmtDate = (iso: string): string => {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(d);
 };
 
+/**
+ * `Intl.NumberFormat('fr-FR')` sépare les milliers par une espace fine
+ * insécable (U+202F) et précède l'euro d'une insécable (U+00A0). WinAnsi, le
+ * jeu de caractères des polices standard de pdf-lib, n'encode ni l'une ni
+ * l'autre : `drawText` lève « WinAnsi cannot encode ». Toute facture d'au
+ * moins 1 000 € échouait donc à la génération. Les autres montants passaient,
+ * d'où un bug qui ne se voyait que sur les grosses factures.
+ */
+const espacesEncodables = (s: string): string => s.replace(/[\u202f\u00a0]/g, ' ');
+
 function fmtMoney(cents: number, currency: string): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
+  return espacesEncodables(new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100));
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
@@ -199,7 +212,17 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
   c.page.drawText(input.recipient.name, { x: rightX, y: blockY - 14, size: 11, font: fontBold, color: COLOR_BODY });
   let recipY = blockY - 30;
   if (input.recipient.siret) {
-    c.page.drawText(`SIRET ${input.recipient.siret}`, { x: rightX, y: recipY, size: 9, font, color: COLOR_MUTED });
+    // Le SIREN du client est devenu une mention obligatoire (réforme de la
+    // facturation électronique) : c'est par lui que l'administration rapproche
+    // les flux. On l'affiche pour lui-même, le SIRET désignant l'établissement.
+    const siren = formaterSiren(sirenDeSiret(input.recipient.siret));
+    if (siren) {
+      c.page.drawText(`SIREN ${siren}`, { x: rightX, y: recipY, size: 9, font, color: COLOR_BODY });
+      recipY -= 12;
+    }
+    c.page.drawText(`SIRET ${formaterSiret(input.recipient.siret) ?? input.recipient.siret}`, {
+      x: rightX, y: recipY, size: 9, font, color: COLOR_MUTED,
+    });
     recipY -= 12;
   }
   if (input.recipient.attention) {
@@ -288,6 +311,24 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
   });
 
   c = { ...c, y: c.y - 40 };
+
+  // Nature de l'opération : mention devenue obligatoire. Pour un organisme de
+  // formation elle ne varie pas — ce qu'il vend est une prestation de services.
+  c = ensureRoom(doc, c, 24);
+  c.page.drawText('Nature de l’opération : prestation de services', {
+    x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED,
+  });
+  c = { ...c, y: c.y - 14 };
+
+  // Option pour les débits : obligatoire sur la facture quand l'organisme l'a
+  // prise (la TVA est alors exigible à la facturation, non à l'encaissement).
+  if (input.organization.vatOnDebits) {
+    c = ensureRoom(doc, c, 24);
+    c.page.drawText('Option pour le paiement de la taxe d’après les débits', {
+      x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED,
+    });
+    c = { ...c, y: c.y - 14 };
+  }
 
   // Mention TVA (formation pro souvent exonérée)
   if (input.invoice.vatCents === 0) {

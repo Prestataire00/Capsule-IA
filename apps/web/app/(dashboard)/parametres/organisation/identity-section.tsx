@@ -20,6 +20,7 @@ type IdentityProps = {
   representativeTitle: string;
   vatRegime: 'exempt' | 'subject';
   defaultVatRate: string;
+  vatOnDebits: boolean;
 };
 
 const inputCls =
@@ -39,6 +40,7 @@ const FIELD_LABELS: Record<string, string> = {
   representativeTitle: 'Qualité du représentant',
   vatRegime: 'Régime de TVA',
   defaultVatRate: 'Taux de TVA',
+  vatOnDebits: 'Option pour les débits',
 };
 
 export function IdentitySection(props: { org: IdentityProps }) {
@@ -74,6 +76,7 @@ export function IdentitySection(props: { org: IdentityProps }) {
         representativeTitle: form.representativeTitle,
         vatRegime: form.vatRegime,
         defaultVatRate: Number(form.defaultVatRate) || 0,
+        vatOnDebits: form.vatOnDebits,
       });
       const out = res?.data;
       if (out?.ok) {
@@ -215,6 +218,23 @@ export function IdentitySection(props: { org: IdentityProps }) {
             />
           </label>
         </div>
+        <label className="flex items-start gap-2.5 text-[13px] text-zinc-700 dark:text-zinc-300">
+          <input
+            type="checkbox"
+            checked={form.vatOnDebits}
+            disabled={form.vatRegime === 'exempt'}
+            onChange={(e) => setForm((f) => ({ ...f, vatOnDebits: e.target.checked }))}
+            className="mt-0.5 w-4 h-4 rounded border-zinc-300 text-orange-600 focus:ring-orange-500 disabled:opacity-50"
+          />
+          <span>
+            J’ai opté pour le paiement de la TVA <strong className="font-semibold">d’après les débits</strong>
+            <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
+              La taxe devient exigible à la facturation, et non à l’encaissement. La mention devient
+              alors obligatoire sur chaque facture — c’est l’une des quatre exigées par la
+              facturation électronique.
+            </span>
+          </span>
+        </label>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
           Ce réglage pré-remplit le taux des nouvelles factures et sert de référence aux tarifs du
           catalogue. La formation professionnelle continue est exonérée de TVA sous réserve de

@@ -30,6 +30,10 @@ export const OrgIdentitySchema = z.object({
   // (art. 261-4-4°a CGI). Le taux ne s'applique que si l'organisme est assujetti.
   vatRegime: z.enum(['exempt', 'subject']),
   defaultVatRate: z.coerce.number().min(0).max(100),
+  // Option pour les débits : la TVA devient exigible à la facturation, et non à
+  // l'encaissement. Quand elle est prise, la mention doit figurer sur chaque
+  // facture — c'est l'une des quatre mentions de la facturation électronique.
+  vatOnDebits: z.coerce.boolean().optional().default(false),
 });
 
 export type OrgIdentityInput = z.infer<typeof OrgIdentitySchema>;

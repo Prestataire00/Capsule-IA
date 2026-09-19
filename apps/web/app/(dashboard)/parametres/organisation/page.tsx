@@ -21,6 +21,7 @@ type OrgRow = {
   representative_name: string | null;
   vat_regime: string | null;
   default_vat_rate: number | null;
+  vat_on_debits: boolean | null;
   representative_title: string | null;
   signature_path: string | null;
   stamp_path: string | null;
@@ -40,7 +41,7 @@ export default async function ParametresOrganisationPage() {
     .schema('app')
     .from('organizations')
     .select(
-      'name, legal_name, siret, declaration_activite, certifications, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path, logo_path, vat_regime, default_vat_rate',
+      'name, legal_name, siret, declaration_activite, certifications, qualiopi_certified_at, contact_email, contact_phone, address, representative_name, representative_title, signature_path, stamp_path, logo_path, vat_regime, default_vat_rate, vat_on_debits',
     )
     .is('deleted_at', null)
     .limit(1)
@@ -69,6 +70,7 @@ export default async function ParametresOrganisationPage() {
     representative_name: null,
     vat_regime: 'exempt',
     default_vat_rate: 0,
+    vat_on_debits: false,
     representative_title: null,
     signature_path: null,
     stamp_path: null,
@@ -92,6 +94,7 @@ export default async function ParametresOrganisationPage() {
           representativeTitle: org.representative_title ?? '',
           vatRegime: org.vat_regime === 'subject' ? 'subject' : 'exempt',
           defaultVatRate: String(org.default_vat_rate ?? 0),
+          vatOnDebits: org.vat_on_debits ?? false,
         }}
       />
 

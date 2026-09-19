@@ -225,12 +225,9 @@ const HANDLERS: Record<string, Record<string, Handler>> = {
   'session.rescheduled':     { 'recompute-session-participants': recomputeSessionParticipants },
 };
 
-function isAuthorized(req: Request): boolean {
-  const headerAuth = req.headers.get('Authorization');
-  if (headerAuth === `Bearer ${env.CRON_SECRET}`) return true;
-  const url = new URL(req.url);
-  return url.searchParams.get('secret') === env.CRON_SECRET;
-}
+// En-tête uniquement : le secret en query string finissait dans les journaux
+// d'accès. La base appelle déjà avec `Authorization: Bearer` (0147).
+const isAuthorized = verifierSecretMachine;
 
 async function isAlreadyProcessed(sb: Sb, eventId: string, handlerName: string): Promise<boolean> {
   const { data } = await sb
