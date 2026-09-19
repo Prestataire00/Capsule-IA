@@ -61,15 +61,26 @@ export type SendEmailInput = {
   kind?: string;
   /** Contexte d'envoi journalisé (ex. feuille d'émargement), utilisé pour ne pas renvoyer deux fois. */
   metadata?: Record<string, unknown>;
+  /**
+   * Clé d'unicité de l'envoi (0180). Quand elle est fournie, elle est RÉSERVÉE
+   * en base avant l'envoi : un second appel avec la même clé ne part pas.
+   * C'est la base qui arbitre, pas une lecture préalable — un `SELECT` puis
+   * `continue` ne résiste ni au rejeu ni à deux crons simultanés.
+   */
+  idempotencyKey?: string;
 };
 
 export type SendEmailResult =
   | { ok: true; id: string }
-  | { ok: false; reason: 'no_api_key' | 'send_failed'; error?: unknown };
+  | { ok: false; reason: 'no_api_key' | 'send_failed' | 'duplicate'; error?: unknown };
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const from = fromAddress();
   let result: SendEmailResult;
+
+  // Réservation : si la clé est déjà prise, cet e-mail est déjà parti.
+  const reservation = await reserverEnvoi(input);
+  if (reservation.deja) return { ok: false, reason: 'duplicate' };
 
   // ── Voie SMTP (prioritaire si configurée) — pas de vérification de domaine ──
   const transport = smtpTransport();
@@ -91,13 +102,19 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     } catch (error) {
       result = { ok: false, reason: 'send_failed', error };
     }
-    await logEmailSend(input, result);
+    await logEmailSend(input, result, reservation.id);
     return result;
   }
 
   // ── Voie Resend (fallback si pas de SMTP) ──
   const c = client();
-  if (!c) return { ok: false, reason: 'no_api_key' };
+  if (!c) {
+    // Sans transporteur, rien ne part : la clé réservée doit être libérée,
+    // sinon l'envoi resterait bloqué pour toujours une fois la clé configurée.
+    const echec = { ok: false as const, reason: 'no_api_key' as const };
+    await logEmailSend(input, echec, reservation.id);
+    return echec;
+  }
   try {
     const { data, error } = await c.emails.send({
       from,
@@ -116,8 +133,60 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     result = { ok: false, reason: 'send_failed', error };
   }
 
-  await logEmailSend(input, result);
+  await logEmailSend(input, result, reservation.id);
   return result;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const adminClient = () =>
+  createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  });
+
+/** Violation d'unicité Postgres : la clé était déjà réservée. */
+const DEJA_RESERVE = '23505';
+
+/**
+ * Réserve la clé d'unicité AVANT l'envoi (0180).
+ *
+ * L'ordre importe : réserver puis envoyer garantit qu'un second appel — rejeu
+ * HTTP, second passage du cron, deux instances en parallèle — se heurte à la
+ * contrainte au lieu d'envoyer un doublon. L'inverse (envoyer puis journaliser)
+ * laisse une fenêtre grande ouverte.
+ *
+ * Sans clé, rien n'est réservé : l'envoi reste répétable, comme avant.
+ */
+async function reserverEnvoi(input: SendEmailInput): Promise<{ deja: boolean; id: string | null }> {
+  if (!input.idempotencyKey) return { deja: false, id: null };
+  try {
+    const { data, error } = await adminClient()
+      .schema('app')
+      .from('email_log' as never)
+      .insert({
+        organization_id: input.organizationId ?? null,
+        dossier_id: input.dossierId ?? null,
+        kind: input.kind ?? null,
+        recipient: Array.isArray(input.to) ? input.to.join(', ') : input.to,
+        subject: input.subject,
+        status: 'pending',
+        idempotency_key: input.idempotencyKey,
+        metadata: input.metadata ?? {},
+      } as never)
+      .select('id')
+      .single();
+    if (error) {
+      if (error.code === DEJA_RESERVE) return { deja: true, id: null };
+      // La colonne manque (migration 0180 non appliquée) ou la base est
+      // indisponible : on envoie plutôt que de bloquer une convocation, en le
+      // disant clairement dans les journaux.
+      console.error('[email_log] réservation impossible, envoi sans garde', error.message);
+      return { deja: false, id: null };
+    }
+    return { deja: false, id: (data as { id: string } | null)?.id ?? null };
+  } catch (err) {
+    console.error('[email_log] réservation impossible, envoi sans garde', err);
+    return { deja: false, id: null };
+  }
 }
 
 /**
@@ -125,12 +194,19 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
  * Toute erreur d'écriture est tracée (console.error, red line #6 : on ne l'avale
  * pas silencieusement) mais ne modifie JAMAIS le résultat de l'envoi ni ne throw.
  * Écriture en service_role (aucune policy INSERT pour authenticated).
+ *
+ * Quand l'envoi avait été réservé, on complète la ligne existante. Un envoi
+ * parti reste marqué `sent` avec sa clé ; un envoi en échec libère la clé, pour
+ * qu'une reprise puisse repartir — ce qui n'est jamais parti doit pouvoir
+ * partir.
  */
-async function logEmailSend(input: SendEmailInput, result: SendEmailResult): Promise<void> {
+async function logEmailSend(
+  input: SendEmailInput,
+  result: SendEmailResult,
+  reservationId: string | null,
+): Promise<void> {
   try {
-    const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false },
-    });
+    const admin = adminClient();
     const error = result.ok
       ? null
       : 'error' in result && result.error !== undefined
@@ -138,6 +214,23 @@ async function logEmailSend(input: SendEmailInput, result: SendEmailResult): Pro
           ? result.error
           : JSON.stringify(result.error)
         : result.reason;
+
+    if (reservationId) {
+      const { error: updateError } = await admin
+        .schema('app')
+        .from('email_log' as never)
+        .update({
+          status: result.ok ? 'sent' : 'failed',
+          provider_id: result.ok ? result.id : null,
+          error,
+          idempotency_key: result.ok ? input.idempotencyKey : null,
+          sent_at: new Date().toISOString(),
+        } as never)
+        .eq('id', reservationId);
+      if (updateError) console.error('[email_log] update failed', updateError);
+      return;
+    }
+
     const { error: insertError } = await admin
       .schema('app')
       .from('email_log' as never)

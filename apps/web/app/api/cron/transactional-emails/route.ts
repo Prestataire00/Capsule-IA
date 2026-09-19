@@ -358,6 +358,9 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
           organizationId: extra.organization_id,
           dossierId: dossierByLearner.get(learner.id),
           kind: 'convocation_j7',
+          // Une convocation par séance et par apprenant : deux passages du
+          // cron le même jour n'en envoient plus deux (0180).
+          idempotencyKey: `convocation_j7:${session.id}:${learner.id}`,
         });
         if (r.ok) sent++;
         else if (r.reason !== 'no_api_key')
@@ -503,6 +506,8 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
           kind: 'satisfaction_chaud',
           dossierId: d.id,
           organizationId: orgId,
+          // Une enquête à chaud par dossier et par stagiaire (0180).
+          idempotencyKey: `satisfaction_chaud:${d.id}:${d.learner_id}`,
         });
         if (r.ok) satisfactionSent++;
         else if (r.reason !== 'no_api_key') errors.push(`satisfaction ${d.id}: send_failed`);
@@ -538,6 +543,8 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
           html: eot.html,
           kind: 'fin_de_formation',
           dossierId: d.id,
+          // Une attestation de fin par dossier et par stagiaire (0180).
+          idempotencyKey: `fin_de_formation:${d.id}:${d.learner_id}`,
         });
         if (r.ok) certificateSent++;
         else if (r.reason !== 'no_api_key') errors.push(`certificate ${d.id}: send_failed`);
