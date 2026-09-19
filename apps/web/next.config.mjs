@@ -2,12 +2,18 @@
 const nextConfig = {
   reactStrictMode: true,
   eslint: {
-    // TODO(sprint-4) — réactiver et fixer les violations ESLint avant.
-    ignoreDuringBuilds: true,
+    // Remis en vigueur le 19/09/2026, les 25 violations restantes ayant été
+    // corrigées. C'est le lint qui a révélé qu'une empreinte de preuve de
+    // signature était calculée puis jetée (0183).
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    // TODO(sprint-4) — réactiver et fixer les ~100-300 erreurs TS avant.
-    ignoreBuildErrors: true,
+    // Le déploiement échoue désormais si le code ne compile pas. Il passait
+    // auparavant quoi qu'il arrive : c'est ainsi qu'une régression de typage
+    // est partie en production le 14/09/2026 (un composant client important un
+    // module `server-only`). Les 13 erreurs qui subsistaient ont été corrigées
+    // le 19/09/2026 ; `pnpm typecheck` doit rester à zéro.
+    ignoreBuildErrors: false,
   },
   experimental: {
     serverActions: {

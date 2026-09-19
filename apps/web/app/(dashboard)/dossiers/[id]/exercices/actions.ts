@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
-import { supabaseServer } from '@/shared/lib/supabase/server';
 import {
   createExerciseSchema,
   gradeSubmissionSchema,

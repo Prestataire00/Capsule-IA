@@ -23,8 +23,9 @@ export async function signDocument(input: {
   const { learnerId, organizationId, dossierId } = verified.value;
 
   const match = /^data:image\/png;base64,(.+)$/.exec(input.dataUrl);
-  if (!match) return { ok: false, error: 'invalid_format' };
-  const buffer = Buffer.from(match[1], 'base64');
+  const base64 = match?.[1];
+  if (!base64) return { ok: false, error: 'invalid_format' };
+  const buffer = Buffer.from(base64, 'base64');
   if (buffer.length === 0 || buffer.length > MAX_PNG_BYTES) return { ok: false, error: 'invalid_size' };
 
   const admin = supabaseAdmin();
@@ -73,13 +74,18 @@ export async function signDocument(input: {
     signer_user_agent: ua,
     signature_image_path: imagePath,
     document_hash_at_signature: document.file_hash,
+    // Preuve d'intégrité (0183) : elle était calculée puis jetée, faute de
+    // colonne pour la recevoir. Toute retouche de l'image, de l'adresse, du
+    // navigateur ou de l'horodatage la fait diverger.
+    signature_hash: hash,
   };
 
   if (existingRow) {
     const { error } = await admin
       .schema('app')
       .from('document_signatures')
-      .update(payload)
+      // `signature_hash` vient de la 0183, absente des types générés.
+      .update(payload as never)
       .eq('id', existingRow.id);
     if (error) return { ok: false, error: 'db_update_failed' };
   } else {
@@ -92,7 +98,7 @@ export async function signDocument(input: {
         signer_kind: 'learner',
         signer_learner_id: learnerId,
         ...payload,
-      });
+      } as never);
     if (error) return { ok: false, error: 'db_insert_failed' };
   }
 

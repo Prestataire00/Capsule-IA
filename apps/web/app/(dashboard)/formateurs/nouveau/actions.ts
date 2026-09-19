@@ -63,6 +63,7 @@ type AdminRole = (typeof ADMIN_ROLES)[number];
 
 async function resolveAdminOrgId(userId: string): Promise<string | null> {
   const admin = supabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: member } = await (admin as any)
     .schema('app').from('members')
     .select('organization_id, role')
@@ -101,6 +102,7 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
 
   const admin = supabaseAdmin();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: trainer, error: insertErr } = await (admin as any)
     .schema('app').from('trainers').insert({
       organization_id: orgId,
@@ -133,6 +135,7 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
     }),
   ]);
   if (photoPath || cvPath) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any)
       .schema('app')
       .from('trainers')
@@ -145,6 +148,7 @@ export async function createTrainer(formData: FormData): Promise<CreateTrainerRe
 
   // Invitation systématique — y compris quand le compte existe déjà (le formateur
   // reçoit alors un lien de connexion) : il doit savoir qu'un espace l'attend.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: org } = await (admin as any)
     .schema('app')
     .from('organizations')

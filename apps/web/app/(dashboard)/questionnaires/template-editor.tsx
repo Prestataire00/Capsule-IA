@@ -44,8 +44,13 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
     setValues((v) => {
       const next = [...v.questions];
       const j = i + dir;
-      if (j < 0 || j >= next.length) return v;
-      [next[i], next[j]] = [next[j], next[i]];
+      // Les deux éléments sont relus avant l'échange : l'indexation d'un
+      // tableau rend `T | undefined`, et l'échange destructuré le propageait.
+      const courant = next[i];
+      const voisin = next[j];
+      if (!courant || !voisin) return v;
+      next[i] = voisin;
+      next[j] = courant;
       return { ...v, questions: next };
     });
 

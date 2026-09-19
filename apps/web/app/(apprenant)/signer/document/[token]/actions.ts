@@ -22,8 +22,9 @@ export async function submitDocumentSignature(input: {
   const { signatureId, documentId } = verified.value;
 
   const match = /^data:image\/png;base64,(.+)$/.exec(input.dataUrl);
-  if (!match) return { ok: false, error: 'invalid_format' };
-  const buffer = Buffer.from(match[1], 'base64');
+  const base64 = match?.[1];
+  if (!base64) return { ok: false, error: 'invalid_format' };
+  const buffer = Buffer.from(base64, 'base64');
   if (buffer.length === 0 || buffer.length > MAX_PNG_BYTES) return { ok: false, error: 'invalid_size' };
 
   const admin = supabaseAdmin();

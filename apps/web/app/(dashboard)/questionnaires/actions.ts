@@ -45,7 +45,8 @@ export const seedDefaultQuestionnaires = authActionClient.action(async ({ ctx })
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveOrgId(sb: SupabaseClient<any>): Promise<string | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolveOrgId(sb: SupabaseClient<any, any, any>): Promise<string | null> {
   const { data } = await sb
     .schema('app')
     .from('members')

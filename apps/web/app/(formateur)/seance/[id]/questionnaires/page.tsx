@@ -1,9 +1,7 @@
 // ARCHETYPE: command
 // Justification: questionnaires d'une séance du formateur — envoi aux apprenants et suivi des réponses.
 
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';

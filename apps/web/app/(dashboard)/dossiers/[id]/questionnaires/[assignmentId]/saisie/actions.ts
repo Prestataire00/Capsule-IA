@@ -10,6 +10,7 @@ const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'];
 
 async function resolveAdminOrgId(userId: string): Promise<string | null> {
   const admin = supabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (admin as any)
     .schema('app')
     .from('members')
@@ -39,6 +40,7 @@ export async function saveManualResponse(formData: FormData): Promise<void> {
   if (!orgId || !assignmentId) redirect(`${base}?error=forbidden`);
 
   const admin = supabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: a } = await (admin as any)
     .schema('app')
     .from('questionnaire_assignments')
@@ -48,6 +50,7 @@ export async function saveManualResponse(formData: FormData): Promise<void> {
   const assignment = a as { organization_id: string; template_id: string; dossier_id: string } | null;
   if (!assignment || assignment.organization_id !== orgId) redirect(`${base}?error=forbidden`);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: existing } = await (admin as any)
     .schema('app')
     .from('questionnaire_responses')
@@ -56,6 +59,7 @@ export async function saveManualResponse(formData: FormData): Promise<void> {
     .maybeSingle();
   if (existing) redirect(`${base}?saisie=already`);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: t } = await (admin as any)
     .schema('app')
     .from('questionnaire_templates')
@@ -81,6 +85,7 @@ export async function saveManualResponse(formData: FormData): Promise<void> {
   const nps = npsQ && answers[npsQ.id] !== undefined ? Number(answers[npsQ.id]) : null;
   const score = ratings.length ? (ratings.reduce((s, n) => s + n, 0) / ratings.length) * 20 : null;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: insErr } = await (admin as any)
     .schema('app')
     .from('questionnaire_responses')
@@ -96,6 +101,7 @@ export async function saveManualResponse(formData: FormData): Promise<void> {
     });
   if (insErr) redirect(`${base}/${assignmentId}/saisie?error=db`);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (admin as any)
     .schema('app')
     .from('questionnaire_assignments')

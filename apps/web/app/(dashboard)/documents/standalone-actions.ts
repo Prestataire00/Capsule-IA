@@ -1,6 +1,5 @@
 'use server';
 
-import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { authActionClient, type AuthCtx } from '@/shared/lib/safe-action';
 import { resolveOrgVariables } from '@/features/documents/templates/resolve-org-variables';

@@ -1,6 +1,7 @@
 import 'server-only';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { groupByLens, summarize } from './aggregate-consolidated';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ConsolidatedSheetRow,
   ConsolidatedGroup,
@@ -72,7 +73,10 @@ export async function listConsolidatedAttendance(
   filters: ConsolidatedFilters,
   now: Date = new Date(),
 ): Promise<ConsolidatedView> {
-  const sb = supabaseServer();
+  // `attendance_consolidated` est une vue absente des types générés : on lit
+  // par un client non typé plutôt que de faire croire à une table connue.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabaseServer() as unknown as SupabaseClient<any, any, any>;
   let q = sb.schema('app').from('attendance_consolidated').select(COLUMNS);
   if (filters.companyId) q = q.eq('company_id', filters.companyId);
   if (filters.from) q = q.gte('session_starts_at', filters.from);

@@ -52,7 +52,11 @@ const MODALITY_LABELS: Record<string, string> = {
 // Construit la map de variables {slug → valeur} pour un dossier donné.
 // Renvoie null si le dossier est introuvable (RLS / id invalide).
 export async function resolveDossierVariables(
-  sb: SupabaseClient,
+  // Le client de contexte porte le type `Database` généré, dont le paramètre de
+  // schéma n'est pas la chaîne 'public' attendue par le défaut de
+  // `SupabaseClient` : on accepte le client tel qu'il arrive.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: SupabaseClient<any, any, any>,
   dossierId: string,
 ): Promise<{ organizationId: string; variables: Record<string, string> } | null> {
   const { data: dRow } = await sb

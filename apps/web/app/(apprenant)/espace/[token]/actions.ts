@@ -47,11 +47,6 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#039;');
 }
 
-function generateReference(): string {
-  const year = new Date().getFullYear();
-  const random = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `REC-${year}-${random}`;
-}
 
 export async function submitComplaint(formData: FormData): Promise<void> {
   const parsed = complaintSchema.safeParse({

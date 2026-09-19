@@ -16,7 +16,6 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
-import { env } from '@/env.mjs';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 import { reponseCron } from '@/shared/lib/http/cron-response';
 

@@ -1,9 +1,7 @@
 // ARCHETYPE: command
 // Justification: le formateur prépare sa séance — analyse des besoins de chacun de ses participants.
 
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
 import { loadSession } from '@/features/sessions/load-session';

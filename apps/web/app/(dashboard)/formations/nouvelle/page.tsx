@@ -25,6 +25,7 @@ export default async function NouvelleFormationPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [orgVat, contacts] = await Promise.all([loadOrgVat(), loadOrgContacts()]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trainers = ((trainerRows as any[]) ?? []).map((t) => ({
     id: t.id as string,
     name: `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || 'Formateur',

@@ -7,7 +7,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import Image from 'next/image';
 import { Loader2, ShieldCheck, Copy, Check } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { enrollMfaAction, verifyMfaAction } from '../actions';

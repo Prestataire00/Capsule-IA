@@ -26,7 +26,10 @@ function composeAddress(addr: AddressJson | null | undefined): string {
 // génération de documents autonomes. Les slugs propres au dossier/apprenant
 // restent vides.
 export async function resolveOrgVariables(
-  sb: SupabaseClient,
+  // Même raison que resolveDossierVariables : le client de contexte porte le
+  // type `Database` généré, incompatible avec le défaut de `SupabaseClient`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: SupabaseClient<any, any, any>,
   organizationId: string,
 ): Promise<Record<string, string>> {
   const [{ data: orgData }, assets] = await Promise.all([

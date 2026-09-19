@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 import { authActionClient } from '@/shared/lib/safe-action';
-import { supabaseServer } from '@/shared/lib/supabase/server';
 import { env } from '@/env.mjs';
 import {
   decryptZoomCredentials,

@@ -43,7 +43,6 @@ export default async function EspaceExercicesPage({ params }: { params: { token:
           {exercises.map((ex) => {
             const isGraded = ex.submission?.status === 'graded';
             const isSubmitted = ex.submission?.status === 'submitted';
-            const isPending = !ex.submission;
 
             const pillTone = isGraded ? 'success' : isSubmitted ? 'info' : 'warning';
             const pillLabel = isGraded ? 'Corrigé' : isSubmitted ? 'Rendu' : 'À faire';
