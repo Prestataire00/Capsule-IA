@@ -31,6 +31,8 @@ import { sendCertificatToCompany } from '@/features/documents/send-certificat-to
 import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automation/session-automations';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { delaisAConsiderer, doitPartirAujourdhui } from '@/features/emails/programmation-envois';
+import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
+import { archiverDocument } from '@/features/documents/archiver-automatiquement';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 import { reponseCron } from '@/shared/lib/http/cron-response';
 
@@ -161,10 +163,30 @@ function formatHHMM(iso: string): string {
   return `${h}:${m}`;
 }
 
-function espaceUrlFor(_learnerId: string): string | null {
-  // En prod : JWT signé apprenant. En attendant : null (le lien sera ajouté
-  // quand verifyApprenantToken/signApprenantToken seront branchés ici.)
-  return null;
+/**
+ * Lien personnel du stagiaire vers son espace.
+ *
+ * Il renvoyait `null` : aucun e-mail ne portait donc de lien vers l'espace, et
+ * les documents étaient annoncés par des URL `/api/dossiers/...` réservées au
+ * personnel — un stagiaire cliquant dessus recevait « interdit » (recette du
+ * 20/09/2026). C'est ici que se règle le problème, à la source.
+ */
+async function espaceUrlFor(learnerId: string, dossierId: string, organizationId: string): Promise<string | null> {
+  const base = origineDesLiens();
+  if (!base || !learnerId || !dossierId) return null;
+  try {
+    const { url } = await generateApprenantUrl({ learnerId, organizationId, dossierId }, base);
+    return url;
+  } catch (e) {
+    console.error('[espace apprenant] lien non généré', learnerId, e);
+    return null;
+  }
+}
+
+/** Adresse publique de l'application, sans repli sur localhost. */
+function origineDesLiens(): string | null {
+  const brut = env.PUBLIC_APP_URL?.trim();
+  return brut ? brut.replace(/\/$/, '') : null;
 }
 
 /** Jour UTC d'une date, en millisecondes — base des écarts en jours entiers. */
@@ -328,7 +350,7 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
           location: session.location,
           remoteUrl: session.remote_url,
           trainerName,
-          espaceUrl: espaceUrlFor(learner.id),
+          espaceUrl: await espaceUrlFor(learner.id, dossierByLearner.get(learner.id) ?? '', extra.organization_id),
         });
         const dossierDuLearner = dossierParLearner.get(learner.id);
         const cible = destinatairesConvocation({
@@ -363,8 +385,20 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
           // cron le même jour n'en envoient plus deux (0180).
           idempotencyKey: `convocation_j7:${session.id}:${learner.id}`,
         });
-        if (r.ok) sent++;
-        else if (r.reason !== 'no_api_key')
+        if (r.ok) {
+          sent++;
+          // La convocation envoyée prouve l'indicateur 9 : sans PDF archivé,
+          // l'organisme n'a rien à produire en audit. Idempotent par sourceKey.
+          const dossierDeLApprenant = dossierByLearner.get(learner.id);
+          if (dossierDeLApprenant) {
+            const a = await archiverDocument(sb as unknown as SupabaseClient, {
+              type: 'convocation',
+              dossierId: dossierDeLApprenant,
+              sessionId: session.id,
+            });
+            if (!a.ok) errors.push(`convocation ${session.id}: archivage — ${a.raison}`);
+          }
+        } else if (r.reason !== 'no_api_key')
           errors.push(`convocation ${session.id} / ${cible.destinataires.join(', ')}: send_failed`);
       } catch (e) {
         errors.push(`convocation ${session.id} / ${learner.email}: ${(e as Error).message}`);
@@ -520,9 +554,12 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     // Fin de formation : attestation de fin (apprenant) + certificat de réalisation
     // (administratif) — les deux pour tous les dossiers terminés.
     if (jourFin && !finOff.has(d.id)) try {
-      const base = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
-      const attestationUrl = base ? `${base}/api/dossiers/${d.id}/attestation.pdf` : null;
-      const certificateUrl = base ? `${base}/api/dossiers/${d.id}/certificat.pdf` : null;
+      // Les routes /api/dossiers/... exigent un compte du personnel : un
+      // stagiaire qui cliquait dessus recevait « interdit ». On l'envoie vers
+      // son espace, où ses documents lui sont servis par jeton.
+      const espace = await espaceUrlFor(d.learner_id, d.id, d.organization_id);
+      const attestationUrl = espace ? `${espace}/documents` : null;
+      const certificateUrl = attestationUrl;
       const eot = endOfTrainingEmail({
         firstName: learner.first_name,
         formationTitle,
@@ -531,7 +568,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
         attendanceRate: await computeDossierAttendanceRate(sb, d.id),
         attestationUrl,
         certificateUrl,
-        espaceUrl: espaceUrlFor(d.learner_id),
+        espaceUrl: espace,
       });
       // Sans adresse, le bloc suivant envoie tout de même le certificat à
       // l'entreprise cliente : rien n'est perdu pour la traçabilité.
@@ -549,6 +586,17 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
         });
         if (r.ok) certificateSent++;
         else if (r.reason !== 'no_api_key') errors.push(`certificate ${d.id}: send_failed`);
+
+        // L'attestation n'existait qu'au clic sur un lien que le stagiaire ne
+        // pouvait pas ouvrir : elle n'était donc jamais produite. On l'archive
+        // ici, comme le certificat l'est déjà par sendCertificatToCompany.
+        // L'attestation ne dépend que du dossier, d'où la séance vide.
+        const att = await archiverDocument(sb as unknown as SupabaseClient, {
+          type: 'attestation_fin',
+          dossierId: d.id,
+          sessionId: '',
+        });
+        if (!att.ok) errors.push(`attestation ${d.id}: archivage — ${att.raison}`);
       }
     } catch (e) {
       errors.push(`certificate ${d.id}: ${(e as Error).message}`);
@@ -942,7 +990,6 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
 
   let sent = 0;
   const errors: string[] = [];
-  const base = env.PUBLIC_APP_URL ? env.PUBLIC_APP_URL.replace(/\/$/, '') : null;
   // Attestation d'entrée coupée pour la séance qui a recueilli la signature (0156).
   const entreeOff = await sessionsAutomationOff(
     sb,
@@ -976,13 +1023,15 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
       const dossier = dossierRow as { start_date: string; formation: { title: string } | null } | null;
       const learner = learnerRow as { first_name: string; email: string } | null;
       if (!dossier || !learner?.email) continue;
+      const espaceEntree = await espaceUrlFor(ctx.learnerId, dossierId, ctx.organizationId);
 
       const tpl = startOfTrainingEmail({
         firstName: learner.first_name,
         formationTitle: dossier.formation?.title ?? 'Votre formation',
         startDate: dossier.start_date,
-        attestationUrl: base ? `${base}/api/dossiers/${dossierId}/attestation-entree.pdf` : null,
-        espaceUrl: espaceUrlFor(ctx.learnerId),
+        // Même correction : l'espace du stagiaire, pas la route du personnel.
+        attestationUrl: espaceEntree ? `${espaceEntree}/documents` : null,
+        espaceUrl: espaceEntree,
       });
       const r = await sendEmail({
         to: learner.email,
