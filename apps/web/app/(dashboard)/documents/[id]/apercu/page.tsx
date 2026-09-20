@@ -109,7 +109,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     const { data: dRow } = await sb
       .schema('app')
       .from('dossiers')
-      .select('learner:learners(id, first_name, last_name, email), company:companies(name, contact_email)')
+      .select('learner:learners!dossiers_learner_id_fkey(id, first_name, last_name, email), company:companies(name, contact_email)')
       .eq('id', doc.dossier_id)
       .maybeSingle();
     const d = dRow as unknown as {

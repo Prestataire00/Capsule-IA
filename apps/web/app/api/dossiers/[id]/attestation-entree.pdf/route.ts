@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .select(`
       reference, start_date, end_date, total_hours, modality,
       organization_id, learner_id,
-      learner:learners(first_name, last_name, email, birth_date),
+      learner:learners!dossiers_learner_id_fkey(first_name, last_name, email, birth_date),
       formation:formations(title, objectives)
     `)
     .eq('id', params.id)

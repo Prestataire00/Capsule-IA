@@ -78,7 +78,7 @@ export async function createFormationSession(input: Input): Promise<Result> {
   const { data: dRows } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, learner:learners(email)')
+    .select('id, learner:learners!dossiers_learner_id_fkey(email)')
     .eq('formation_id', input.formationId)
     .is('deleted_at', null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

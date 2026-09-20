@@ -39,9 +39,8 @@ async function loadInScopeDossiers(sb: ReturnType<typeof supabaseServer>) {
   const { data, error } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      `id, reference, status, qualiopi_ready,
-       learner:learners(first_name, last_name),
+    .select(`id, reference, status, qualiopi_ready,
+       learner:learners!dossiers_learner_id_fkey(first_name, last_name),
        formation:formations(title),
        checklist:qualiopi_dossier_checklists(total_indicators, satisfied_indicators, blocking_missing)`,
     )

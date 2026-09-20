@@ -45,8 +45,7 @@ async function loadDossierCtx(sb: ReturnType<typeof admin>, dossierId: string): 
   const { data } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      'reference, organization_id, learner:learners(email), formation:formations(title), organization:organizations(contact_email)',
+    .select('reference, organization_id, learner:learners!dossiers_learner_id_fkey(email), formation:formations(title), organization:organizations(contact_email)',
     )
     .eq('id', dossierId)
     .maybeSingle();

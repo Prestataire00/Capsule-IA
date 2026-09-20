@@ -90,7 +90,7 @@ async function destinataire(
   const { data } = await supabaseAdmin()
     .schema('app')
     .from('dossiers')
-    .select('learner:learners(first_name, last_name, email), company:companies(contact_email), contact:contacts(email)')
+    .select('learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), company:companies(contact_email), contact:contacts(email)')
     .eq('id', dossierId)
     .maybeSingle();
 

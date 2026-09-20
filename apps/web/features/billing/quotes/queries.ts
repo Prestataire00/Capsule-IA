@@ -203,7 +203,7 @@ export async function loadQuoteDetail(sb: Sb, quoteId: string, organizationId: s
     ? await sb
         .schema('app')
         .from('dossiers')
-        .select('id, reference, learner:learners(first_name, last_name)')
+        .select('id, reference, learner:learners!dossiers_learner_id_fkey(first_name, last_name)')
         .in('id', dossierIds)
     : { data: [] };
 

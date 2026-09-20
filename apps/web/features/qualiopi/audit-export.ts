@@ -133,9 +133,8 @@ export async function buildAuditExport(organizationId: string): Promise<{ bytes:
       'dossiers',
       app()
         .from('dossiers')
-        .select(
-          `reference, status, qualiopi_ready,
-           learner:learners(first_name, last_name),
+        .select(`reference, status, qualiopi_ready,
+           learner:learners!dossiers_learner_id_fkey(first_name, last_name),
            formation:formations(title),
            checklist:qualiopi_dossier_checklists(total_indicators, satisfied_indicators, blocking_missing)`,
         )

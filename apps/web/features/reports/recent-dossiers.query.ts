@@ -48,8 +48,7 @@ export async function getRecentDossiers(
   const { data, error } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      'id, reference, status, total_hours, learner:learners(first_name, last_name), formation:formations(title), company:companies(name)',
+    .select('id, reference, status, total_hours, learner:learners!dossiers_learner_id_fkey(first_name, last_name), formation:formations(title), company:companies(name)',
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })

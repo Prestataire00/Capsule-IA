@@ -49,7 +49,7 @@ async function loadDossiers() {
   const { data } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, formation:formations(title), learner:learners(first_name, last_name)')
+    .select('id, reference, formation:formations(title), learner:learners!dossiers_learner_id_fkey(first_name, last_name)')
     .in('status', ['active', 'scheduled', 'completed', 'closed'])
     .order('created_at', { ascending: false })
     .limit(50);

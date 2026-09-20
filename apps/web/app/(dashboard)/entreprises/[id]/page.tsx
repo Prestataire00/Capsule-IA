@@ -62,7 +62,7 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
     sb
       .schema('app')
       .from('dossiers')
-      .select('id, reference, status, learner:learners(first_name, last_name), formation:formations(title)')
+      .select('id, reference, status, learner:learners!dossiers_learner_id_fkey(first_name, last_name), formation:formations(title)')
       .eq('company_id', params.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),

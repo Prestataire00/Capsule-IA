@@ -62,10 +62,9 @@ export async function resolveDossierVariables(
   const { data: dRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      `reference, start_date, end_date, total_hours, modality, total_amount_cents, currency,
+    .select(`reference, start_date, end_date, total_hours, modality, total_amount_cents, currency,
        organization_id,
-       learner:learners(first_name, last_name, email, birth_date, address),
+       learner:learners!dossiers_learner_id_fkey(first_name, last_name, email, birth_date, address),
        company:companies(name, siret, address),
        formation:formations(title, objectives, prerequisites, target_audience, evaluation_method, pedagogical_method)`,
     )

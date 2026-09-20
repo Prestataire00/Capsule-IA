@@ -21,7 +21,7 @@ export async function loadDossiers(): Promise<DossierChoice[]> {
   const { data } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, learner:learners(first_name, last_name)')
+    .select('id, reference, learner:learners!dossiers_learner_id_fkey(first_name, last_name)')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(200);

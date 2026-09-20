@@ -25,7 +25,7 @@ export const assignLearnerQuestionnaire = authActionClient
     const { data: dossier } = await sb
       .schema('app')
       .from('dossiers')
-      .select('id, organization_id, learner_id, learner:learners(first_name, last_name, email)')
+      .select('id, organization_id, learner_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email)')
       .eq('id', parsedInput.dossierId)
       .maybeSingle();
     const d = dossier as {

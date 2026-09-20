@@ -20,7 +20,7 @@ async function loadContext(token: string) {
     .from('dossiers')
     .select(`
       id, reference,
-      learner:learners(first_name, last_name),
+      learner:learners!dossiers_learner_id_fkey(first_name, last_name),
       formation:formations(title)
     `)
     .eq('id', verified.value.dossierId)

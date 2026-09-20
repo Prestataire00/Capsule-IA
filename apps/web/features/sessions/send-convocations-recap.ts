@@ -78,8 +78,7 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
   const { data: dossiersData, error: errD } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      'id, company_id, learner:learners(first_name, last_name, email), formation:formations(title), company:companies(name, contact_name, contact_email)',
+    .select('id, company_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), formation:formations(title), company:companies(name, contact_name, contact_email)',
     )
     .eq('organization_id', session.organization_id)
     .is('deleted_at', null)

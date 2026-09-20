@@ -38,7 +38,7 @@ export async function buildConventionInput(
     .select(`
       reference, start_date, end_date, total_hours, modality, modalities, total_amount_cents, currency, accessibility_notes,
       organization_id, learner_id, company_id,
-      learner:learners(first_name, last_name, email, birth_date, address),
+      learner:learners!dossiers_learner_id_fkey(first_name, last_name, email, birth_date, address),
       company:companies(name, siret, address, contact_name),
       formation:formations(title, description, objectives, prerequisites, target_audience, evaluation_method, pedagogical_method)
     `)

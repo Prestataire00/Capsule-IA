@@ -54,7 +54,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
   const { data: dRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select('formation_id, company_id, learner:learners(email), company:companies(name, contact_email)')
+    .select('formation_id, company_id, learner:learners!dossiers_learner_id_fkey(email), company:companies(name, contact_email)')
     .eq('id', params.id)
     .maybeSingle();
   const dossier = dRow as unknown as {

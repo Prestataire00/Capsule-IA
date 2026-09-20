@@ -122,8 +122,7 @@ export async function sendNeedsAnalysisForDossier(opts: {
   const { data: dossierRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      'id, organization_id, learner_id, learner:learners(first_name, last_name, email), formation:formations(title)',
+    .select('id, organization_id, learner_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), formation:formations(title)',
     )
     .eq('id', opts.dossierId)
     .maybeSingle();

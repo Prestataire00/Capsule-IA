@@ -27,7 +27,7 @@ export async function generateApprenantLink(dossierId: string): Promise<Generate
   const { data, error } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, organization_id, learner_id, learner:learners(first_name, last_name, email)')
+    .select('id, organization_id, learner_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email)')
     .eq('id', dossierId)
     .maybeSingle();
 
@@ -189,7 +189,7 @@ export async function sendWelcomePacketEmail(dossierId: string): Promise<SendWel
     .select(`
       id, organization_id, start_date, end_date, total_hours, modality,
       learner_id,
-      learner:learners(first_name, last_name, email),
+      learner:learners!dossiers_learner_id_fkey(first_name, last_name, email),
       formation:formations(title)
     `)
     .eq('id', dossierId)

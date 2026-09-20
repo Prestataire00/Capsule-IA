@@ -85,8 +85,7 @@ async function buildAttestationInput(
   const { data } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      'reference, start_date, end_date, total_hours, modality, organization_id, learner:learners(first_name, last_name, email, birth_date), formation:formations(title, objectives)',
+    .select('reference, start_date, end_date, total_hours, modality, organization_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email, birth_date), formation:formations(title, objectives)',
     )
     .eq('id', dossierId)
     .maybeSingle();

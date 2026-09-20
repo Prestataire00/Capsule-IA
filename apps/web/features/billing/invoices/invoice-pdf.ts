@@ -93,7 +93,7 @@ export async function resolveInvoiceRecipient(sb: Sb, inv: InvoiceParties): Prom
     ? await sb
         .schema('app')
         .from('dossiers')
-        .select('learner:learners(first_name, last_name, email, address)')
+        .select('learner:learners!dossiers_learner_id_fkey(first_name, last_name, email, address)')
         .eq('id', inv.dossier_id)
         .maybeSingle()
     : { data: null };

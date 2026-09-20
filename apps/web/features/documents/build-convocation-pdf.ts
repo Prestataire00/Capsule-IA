@@ -70,7 +70,7 @@ export async function buildConvocationPdf(
   const { data: dRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, organization_id, learner:learners(first_name, last_name, email), formation:formations(title)')
+    .select('id, reference, organization_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), formation:formations(title)')
     .eq('id', args.dossierId)
     .eq('organization_id', session.organization_id)
     .maybeSingle();

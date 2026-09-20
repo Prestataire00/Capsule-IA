@@ -100,7 +100,7 @@ export async function GET(req: Request) {
   let qDossiers = sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, learner_id, learner:learners(first_name, last_name, email), company:companies(name), formation:formations(title)')
+    .select('id, reference, learner_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), company:companies(name), formation:formations(title)')
     .eq('organization_id', org)
     .is('deleted_at', null);
   if (learnerId) qDossiers = qDossiers.eq('learner_id', learnerId);

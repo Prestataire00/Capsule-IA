@@ -81,8 +81,7 @@ export async function buildGroupConventions(sessionId: string): Promise<GroupCon
   const { data, error } = await sb
     .schema('app')
     .from('dossiers')
-    .select(
-      'id, company_id, total_amount_cents, total_hours, learner:learners(first_name, last_name, email, birth_date), company:companies(name)',
+    .select('id, company_id, total_amount_cents, total_hours, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email, birth_date), company:companies(name)',
     )
     .eq('organization_id', seance.organizationId)
     .is('deleted_at', null)

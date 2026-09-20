@@ -23,7 +23,7 @@ async function loadContext(token: string) {
     const { data: dossier } = await sb
       .schema('app')
       .from('dossiers')
-      .select('id, learner:learners(first_name, last_name), formation:formations(title)')
+      .select('id, learner:learners!dossiers_learner_id_fkey(first_name, last_name), formation:formations(title)')
       .eq('id', verified.value.dossierId)
       .maybeSingle();
     if (!dossier) return { kind: 'invalid' as const, reason: 'not_found' };
