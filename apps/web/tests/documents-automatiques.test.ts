@@ -42,10 +42,21 @@ describe('les liens envoyés au stagiaire', () => {
 });
 
 describe('archivage automatique des pièces', () => {
-  it('la convocation envoyée laisse un PDF archivé', () => {
+  it('la convocation laisse un PDF archivé', () => {
     // Sans pièce archivée, l'organisme n'a rien à produire en audit Qualiopi.
     expect(CRON).toContain("type: 'convocation'");
     expect(CRON).toContain('archiverDocument');
+  });
+
+  it('archive même quand un courrier n’arrive pas', () => {
+    // L'archivage était placé dans la branche « envoi réussi » : un stagiaire
+    // injoignable privait donc l'organisme de la pièce. Or la preuve demandée
+    // en audit est le document ; l'envoi, lui, est prouvé par le journal.
+    expect(CRON).toContain('quel que soit le sort');
+    const bloc = CRON.slice(CRON.indexOf('const dossierId of new Set'));
+    expect(bloc.slice(0, 300)).toContain("type: 'convocation'");
+    // Une fois par séance, pas une fois par stagiaire.
+    expect(CRON).toContain('new Set(sessionDossiers.map((d) => d.id))');
   });
 
   it('l’attestation de fin est produite à l’envoi, plus au clic', () => {

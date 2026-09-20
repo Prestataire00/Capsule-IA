@@ -385,24 +385,25 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
           // cron le même jour n'en envoient plus deux (0180).
           idempotencyKey: `convocation_j7:${session.id}:${learner.id}`,
         });
-        if (r.ok) {
-          sent++;
-          // La convocation envoyée prouve l'indicateur 9 : sans PDF archivé,
-          // l'organisme n'a rien à produire en audit. Idempotent par sourceKey.
-          const dossierDeLApprenant = dossierByLearner.get(learner.id);
-          if (dossierDeLApprenant) {
-            const a = await archiverDocument(sb as unknown as SupabaseClient, {
-              type: 'convocation',
-              dossierId: dossierDeLApprenant,
-              sessionId: session.id,
-            });
-            if (!a.ok) errors.push(`convocation ${session.id}: archivage — ${a.raison}`);
-          }
-        } else if (r.reason !== 'no_api_key')
+        if (r.ok) sent++;
+        else if (r.reason !== 'no_api_key')
           errors.push(`convocation ${session.id} / ${cible.destinataires.join(', ')}: send_failed`);
       } catch (e) {
         errors.push(`convocation ${session.id} / ${learner.email}: ${(e as Error).message}`);
       }
+    }
+
+    // La convocation est archivée une fois par séance, quel que soit le sort
+    // des envois : la pièce doit exister même si un courrier n'arrive pas —
+    // c'est elle que l'audit réclame, l'envoi étant prouvé par le journal.
+    // Idempotent par sourceKey : repasser remplace la version courante.
+    for (const dossierId of new Set(sessionDossiers.map((d) => d.id))) {
+      const a = await archiverDocument(sb as unknown as SupabaseClient, {
+        type: 'convocation',
+        dossierId,
+        sessionId: session.id,
+      });
+      if (!a.ok) errors.push(`convocation ${session.id}: archivage — ${a.raison}`);
     }
   }
 
