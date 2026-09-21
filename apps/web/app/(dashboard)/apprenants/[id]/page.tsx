@@ -12,6 +12,8 @@ import { ClientFormationsSection } from '@/features/formations/ui/client-formati
 import { LearnerHeader } from './learner-header';
 import { DossierCard } from './dossier-card';
 import { buildLearnerSummary, normalizeOne, type LearnerDossier } from './summary';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { Rattachements } from './rattacher.client';
 
 const OWNER_ADMIN = ['owner', 'admin'];
 
@@ -38,16 +40,27 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lr = learnerRow as any;
 
-  const { data: dossierRows } = await sb
+  // Dossiers de l'apprenant : ceux dont il est titulaire ET ceux où il figure
+  // dans le groupe (0175/0187). Lire le seul `learner_id` laissait la fiche
+  // vide pour un stagiaire inscrit à un dossier qui ne porte pas son nom.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: idsRows } = await (sb as any)
+    .schema('app')
+    .rpc('apprenant_dossier_ids', { p_learner_id: params.id });
+  const dossierIds = ((idsRows ?? []) as Array<{ dossier_id: string }>).map((r) => r.dossier_id);
+
+  const { data: dossierRows } = dossierIds.length
+    ? await sb
     .schema('app')
     .from('dossiers')
     .select(
       'id, reference, status, modality, start_date, end_date, total_hours, total_amount_cents, ' +
         'formation:formations(title), hours:dossier_hours_tracking(hours_planned, hours_attended, attendance_rate, at_risk)',
     )
-    .eq('learner_id', params.id)
+    .in('id', dossierIds)
     .is('deleted_at', null)
-    .order('start_date', { ascending: false });
+    .order('start_date', { ascending: false })
+    : { data: [] };
 
   const dossiers: LearnerDossier[] = ((dossierRows ?? []) as unknown[]).map((row) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,6 +93,36 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
   const isOwnerAdmin = !!member && OWNER_ADMIN.includes(member.role);
 
   const company = normalizeOne(lr.company) as { name: string } | null;
+
+  // Dossiers auxquels il n'est pas encore rattaché, et entreprises de
+  // l'organisme : les deux listes du bloc de rattachement.
+  const { data: tousDossiers } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('id, reference, formation:formations!dossiers_formation_id_fkey(title)')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  const dejaDedans = new Set(dossierIds);
+  const dossiersDisponibles = ((tousDossiers ?? []) as unknown as Array<{
+    id: string;
+    reference: string;
+    formation: { title: string } | null;
+  }>)
+    .filter((d) => !dejaDedans.has(d.id))
+    .map((d) => ({ id: d.id, label: `${d.reference} — ${d.formation?.title ?? 'Formation'}` }));
+
+  const { data: toutesEntreprises } = await sb
+    .schema('app')
+    .from('companies')
+    .select('id, name')
+    .is('deleted_at', null)
+    .order('name', { ascending: true })
+    .limit(300);
+  const entreprisesOptions = ((toutesEntreprises ?? []) as Array<{ id: string; name: string }>).map((c) => ({
+    id: c.id,
+    label: c.name,
+  }));
 
   return (
     <div className="min-h-[calc(100vh-3rem)]">
@@ -121,6 +164,19 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
           clientId={lr.id}
           clientName={`${lr.first_name} ${lr.last_name}`.trim()}
         />
+
+        {/* Rattacher depuis la fiche de la personne : c'est là qu'on constate
+            le manque, pas depuis le dossier. */}
+        <ManageOnly section="dossiers">
+          <div className="mt-8">
+            <Rattachements
+              learnerId={params.id}
+              dossiersDisponibles={dossiersDisponibles}
+              entreprises={entreprisesOptions}
+              entrepriseActuelle={lr.company_id ?? null}
+            />
+          </div>
+        </ManageOnly>
 
         <section className="mt-10">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">

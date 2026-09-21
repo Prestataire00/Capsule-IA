@@ -103,3 +103,43 @@ describe('les chemins applicatifs concernés', () => {
     expect(src).toContain("from('session_participants')");
   });
 });
+
+// Constat du 21/09/2026 : Alice, ajoutée comme apprenante d'un dossier, ne le
+// voyait pas sur sa fiche. La page ne lisait que `dossiers.learner_id` — le
+// titulaire — alors qu'elle figurait dans le groupe. Même origine que la 0175.
+describe('la fiche d’un apprenant', () => {
+  const app = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
+  const PAGE = app('../app/(dashboard)/apprenants/[id]/page.tsx');
+  const ACTIONS = app('../app/(dashboard)/apprenants/[id]/rattacher-actions.ts');
+
+  it('montre les dossiers où il est simplement membre du groupe', () => {
+    expect(PAGE).toContain("rpc('apprenant_dossier_ids'");
+    expect(PAGE).not.toContain(".eq('learner_id', params.id)");
+  });
+
+  it('permet de le rattacher à un dossier et à une entreprise', () => {
+    expect(ACTIONS).toContain('export async function rattacherAuDossier');
+    expect(ACTIONS).toContain('export async function rattacherAEntreprise');
+    expect(PAGE).toContain('<Rattachements');
+  });
+
+  it('le rattachement l’inscrit aussi aux séances déjà planifiées', () => {
+    // Sans cela il est sur le dossier mais absent des feuilles d'émargement.
+    expect(ACTIONS).toContain("from('session_participants')");
+    expect(ACTIONS).toContain("source: 'manual_add' as const");
+  });
+
+  it('vérifie que la cible appartient bien à l’organisme', () => {
+    expect(ACTIONS).toContain("eq('organization_id', organizationId)");
+    expect(ACTIONS.match(/memeOrganisme\(/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('laisse détacher d’une entreprise', () => {
+    // Un salarié qui quitte son entreprise reste apprenant de l'organisme.
+    expect(ACTIONS).toContain('company_id: companyId || null');
+  });
+
+  it('ne propose que les dossiers où il ne figure pas déjà', () => {
+    expect(PAGE).toContain('!dejaDedans.has(d.id)');
+  });
+});
