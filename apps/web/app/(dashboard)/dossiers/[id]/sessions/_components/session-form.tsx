@@ -4,7 +4,15 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarPlus, Loader2, Video, Check } from 'lucide-react';
 import { FormField, inputClass } from '@/shared/ui/form-field';
-import { createSession, generateMeetForSession } from '../session-actions';
+import { creerSeancesEnSerie, generateMeetForSession } from '../session-actions';
+import {
+  genererSeances,
+  resumePlanification,
+  MESSAGES_PLANIFICATION,
+  JOURS_SEMAINE,
+  JOURS_OUVRES,
+  type Creneau,
+} from '@/features/sessions/planification';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
 
 const MODALITIES = [
@@ -23,6 +31,8 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
     modality: 'distanciel',
     location: '',
     date: '',
+    dateFin: '',
+    jours: JOURS_OUVRES as number[],
     morning: true,
     afternoon: false,
     mStart: '09:00',
@@ -34,41 +44,50 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
   const [form, setForm] = useState(initialForm);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+  const creneaux: Creneau[] = [
+    ...(form.morning ? [{ debut: form.mStart, fin: form.mEnd, libelle: 'matin' }] : []),
+    ...(form.afternoon ? [{ debut: form.aStart, fin: form.aEnd, libelle: 'après-midi' }] : []),
+  ];
+
+  // Aperçu calculé par la même fonction que le serveur : l'écran ne peut pas
+  // annoncer un nombre de séances différent de celui qui sera créé.
+  const plan =
+    form.date && creneaux.length > 0
+      ? genererSeances({
+          dateDebut: form.date,
+          dateFin: form.dateFin || form.date,
+          jours: form.dateFin && form.dateFin !== form.date ? form.jours : [1, 2, 3, 4, 5, 6, 7],
+          creneaux,
+        })
+      : null;
+  const apercu = plan ? (plan.ok ? resumePlanification(plan.seances) : MESSAGES_PLANIFICATION[plan.erreur]) : null;
+
   function submit() {
     setError(null);
     if (!form.title.trim()) return setError('Intitulé requis');
     if (!form.date) return setError('Date requise');
-    if (!form.morning && !form.afternoon) return setError('Choisissez au moins le matin ou l’après-midi.');
+    if (!plan) return setError('Choisissez au moins le matin ou l’après-midi.');
+    if (!plan.ok) return setError(MESSAGES_PLANIFICATION[plan.erreur]);
     const priceCents = form.price.trim() ? parseEurosToCents(form.price) : null;
     if (form.price.trim() && priceCents == null) return setError('Tarif invalide (ex. 850 ou 850,50).');
 
-    // Une session par demi-journée sélectionnée (matin et/ou après-midi).
-    const blocks: { label: string; start: string; end: string }[] = [];
-    if (form.morning) blocks.push({ label: 'matin', start: form.mStart, end: form.mEnd });
-    if (form.afternoon) blocks.push({ label: 'après-midi', start: form.aStart, end: form.aEnd });
-    const both = blocks.length > 1;
-
-    for (const b of blocks) {
-      if (new Date(`${form.date}T${b.end}`) <= new Date(`${form.date}T${b.start}`)) {
-        return setError(`Horaires du ${b.label} invalides (fin avant début).`);
-      }
-    }
-
     start(async () => {
-      for (const b of blocks) {
-        const res = await createSession({
-          dossierId,
-          title: both ? `${form.title} (${b.label})` : form.title,
-          modality: form.modality,
-          startsAt: new Date(`${form.date}T${b.start}`).toISOString(),
-          endsAt: new Date(`${form.date}T${b.end}`).toISOString(),
-          location: form.location,
-          priceCents,
-        });
-        if (!res.ok) {
-          setError(res.error);
-          return;
-        }
+      // Une journée unique est le cas simple de la série : un seul chemin de
+      // création, donc un seul comportement à vérifier.
+      const res = await creerSeancesEnSerie({
+        dossierId,
+        title: form.title,
+        modality: form.modality,
+        location: form.location,
+        priceCents,
+        dateDebut: form.date,
+        dateFin: form.dateFin || form.date,
+        jours: form.dateFin && form.dateFin !== form.date ? form.jours : [1, 2, 3, 4, 5, 6, 7],
+        creneaux,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
       }
       setOpen(false);
       setForm(initialForm);
@@ -96,9 +115,64 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
       <FormField label="Intitulé" required>
         <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Séance 1 — …" className={inputClass} />
       </FormField>
-      <FormField label="Date" required>
-        <input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} className={inputClass} />
-      </FormField>
+      <div className="grid grid-cols-2 gap-3">
+        <FormField label="Du" required>
+          <input
+            type="date"
+            value={form.date}
+            onChange={(e) => {
+              const d = e.target.value;
+              // La fin suit le début tant qu'on ne l'a pas fixée : le cas
+              // courant reste la journée unique.
+              setForm((f) => ({ ...f, date: d, dateFin: !f.dateFin || f.dateFin < d ? d : f.dateFin }));
+            }}
+            className={inputClass}
+          />
+        </FormField>
+        <FormField label="Au">
+          <input
+            type="date"
+            value={form.dateFin}
+            min={form.date || undefined}
+            onChange={(e) => set('dateFin', e.target.value)}
+            className={inputClass}
+          />
+        </FormField>
+      </div>
+
+      {form.dateFin && form.dateFin !== form.date && (
+        <div>
+          <p className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Jours de formation</p>
+          <div className="flex gap-1.5">
+            {JOURS_SEMAINE.map((j) => {
+              const actif = form.jours.includes(j.valeur);
+              return (
+                <button
+                  key={j.valeur}
+                  type="button"
+                  title={j.long}
+                  onClick={() =>
+                    set(
+                      'jours',
+                      actif ? form.jours.filter((v) => v !== j.valeur) : [...form.jours, j.valeur].sort(),
+                    )
+                  }
+                  className={`w-9 h-9 rounded-lg text-[13px] font-semibold transition ${
+                    actif
+                      ? 'bg-orange-500 text-white'
+                      : 'border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-orange-300'
+                  }`}
+                >
+                  {j.court}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+            Les horaires ci-dessous sont repris à l’identique sur chaque jour coché.
+          </p>
+        </div>
+      )}
       <FormField label="Tarif de la session (€ HT par stagiaire)">
         <input
           value={form.price}
@@ -138,8 +212,10 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
           )}
         </div>
 
-        {form.morning && form.afternoon && (
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Deux sessions seront créées : une le matin, une l’après-midi.</p>
+        {apercu && (
+          <p className="text-[12px] font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-lg px-3 py-2">
+            {apercu}
+          </p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">

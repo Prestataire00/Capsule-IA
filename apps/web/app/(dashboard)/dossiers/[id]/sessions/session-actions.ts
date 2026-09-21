@@ -9,6 +9,8 @@ import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-clien
 import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
+import { parisIso } from '@/features/import/paris-time';
+import { genererSeances, MESSAGES_PLANIFICATION, type Creneau } from '@/features/sessions/planification';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -198,4 +200,72 @@ export async function generateMeetForSession(sessionId: string, dossierId: strin
   if (meet === 'skipped') return { ok: false, error: 'Votre Google Agenda n’est pas connecté (Paramètres → Intégrations)' };
   if (meet === 'failed') return { ok: false, error: 'Échec de la création du lien Google Meet' };
   return { ok: true, sessionId, meet };
+}
+
+/**
+ * Création d'une série de séances sur une période : « du 6 au 10 octobre,
+ * 9h–12h30 et 14h–17h30 ».
+ *
+ * La conversion en instants se fait ICI, au fuseau de Paris, et non dans le
+ * navigateur : `new Date('2026-10-06T09:00')` côté client dépend du fuseau du
+ * poste, ce qui décalerait les séances d'un administrateur en déplacement. Et
+ * `parisIso` tient compte du changement d'heure, qu'une période d'automne
+ * traverse régulièrement.
+ *
+ * Création séquentielle plutôt qu'en lot : chaque séance déclenche ses propres
+ * effets (feuilles d'émargement par trigger, participants, devis). Un échec
+ * s'arrête net et dit combien de séances ont déjà été créées — mieux vaut une
+ * série incomplète annoncée qu'un doute.
+ */
+export async function creerSeancesEnSerie(input: {
+  dossierId: string;
+  title: string;
+  modality: string;
+  location?: string;
+  priceCents?: number | null;
+  dateDebut: string;
+  dateFin: string;
+  jours: number[];
+  creneaux: Creneau[];
+}): Promise<{ ok: true; creees: number } | { ok: false; error: string; creees?: number }> {
+  if (!input.title.trim()) return { ok: false, error: 'Intitulé requis' };
+
+  const plan = genererSeances({
+    dateDebut: input.dateDebut,
+    dateFin: input.dateFin,
+    jours: input.jours,
+    creneaux: input.creneaux,
+  });
+  if (!plan.ok) return { ok: false, error: MESSAGES_PLANIFICATION[plan.erreur] };
+
+  const plusieursCreneaux = input.creneaux.length > 1;
+  let creees = 0;
+  for (const s of plan.seances) {
+    const debut = parisIso(s.date, s.debut);
+    const fin = parisIso(s.date, s.fin);
+    if (!debut || !fin) return { ok: false, error: `Horaires illisibles au ${s.date}.`, creees };
+
+    const res = await createSession({
+      dossierId: input.dossierId,
+      // Le libellé du créneau ne s'ajoute que s'il y en a deux : sinon il
+      // alourdit chaque intitulé sans rien distinguer.
+      title: plusieursCreneaux ? `${input.title.trim()} (${s.libelle})` : input.title.trim(),
+      modality: input.modality,
+      startsAt: debut,
+      endsAt: fin,
+      location: input.location,
+      priceCents: input.priceCents ?? null,
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: creees > 0 ? `${res.error} — ${creees} séance(s) déjà créée(s).` : res.error,
+        creees,
+      };
+    }
+    creees += 1;
+  }
+
+  revalidatePath(`/dossiers/${input.dossierId}/sessions`);
+  return { ok: true, creees };
 }
