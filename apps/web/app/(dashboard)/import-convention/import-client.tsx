@@ -35,6 +35,9 @@ const ERREURS: Record<string, string> = {
   extraction_failed: 'La lecture des documents a échoué. Réessayez, ou vérifiez que le PDF n’est pas une image scannée illisible.',
   apply_failed: 'La création dans le CRM a échoué.',
   bad_payload: 'Les données relues sont invalides.',
+  // Sans cette ligne, un refus de débit tombait sur « La lecture a échoué » :
+  // le message n'aidait pas à comprendre qu'il suffisait d'attendre.
+  rate_limited: 'Trop d’imports en peu de temps. Réessayez dans un moment.',
 };
 
 const euros = (cents: number | null): string => (cents == null ? '' : (cents / 100).toString());
