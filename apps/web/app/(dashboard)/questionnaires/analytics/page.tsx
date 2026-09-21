@@ -6,6 +6,7 @@ import { ArrowLeft, BarChart3, TrendingUp, ClipboardList, Star, Smile } from 'lu
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { QuestionnairesTabs } from '../questionnaires-tabs.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,8 @@ export default async function QuestionnaireAnalyticsPage() {
           </span>
         </p>
       </header>
+
+      <QuestionnairesTabs />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" aria-label="Synthèse">
         <KpiCard label="Questionnaires" value={total} icon={ClipboardList} accent="blue" />

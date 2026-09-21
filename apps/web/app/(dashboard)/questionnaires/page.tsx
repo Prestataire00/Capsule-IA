@@ -4,13 +4,14 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ClipboardList, ClipboardCheck, Star, Send, Plus, BarChart3, Eye, Target, Smile, GraduationCap, Landmark } from 'lucide-react';
+import { ClipboardList, ClipboardCheck, Star, Send, Plus, Eye, Target, Smile, GraduationCap, Landmark } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { KpiCard, AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { IdPill } from '@/shared/ui/id-pill';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { QuestionnairesTabs } from './questionnaires-tabs.client';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { TemplatesSection, type TemplateItem } from './templates-section';
 import { FilterDropdown } from '@/shared/components/filters/filter-dropdown.client';
@@ -131,12 +132,6 @@ export default async function QuestionnairesPage({
         <div className="flex items-center gap-2 flex-wrap">
           <SeedQuestionnairesButton />
           <Link
-            href="/questionnaires/analytics"
-            className="inline-flex items-center gap-2 text-[13px] font-semibold px-4 h-10 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
-          >
-            <BarChart3 className="w-4 h-4" /> Statistiques
-          </Link>
-          <Link
             href="/questionnaires/nouveau"
             className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
           >
@@ -144,6 +139,8 @@ export default async function QuestionnairesPage({
           </Link>
         </div>
       </header>
+
+      <QuestionnairesTabs />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" aria-label="Synthèse">
         <KpiCard label="Questionnaires assignés" value={all.length} icon={ClipboardList} accent="blue" href="/questionnaires" />

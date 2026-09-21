@@ -102,6 +102,10 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   // `/planning-formateurs` ne serait rattaché à rien sans cette ligne.
   ['/planning-formateurs', 'dossiers'],
   ['/apprenants', 'dossiers'],
+  // Avant `/formateurs` : la recherche retient le premier préfixe qui colle.
+  // Les notes et frais des formateurs relèvent de la facturation — c'est le
+  // comptable qui les traite, pas celui qui suit les dossiers.
+  ['/formateurs/facturation', 'billing'],
   ['/formateurs', 'dossiers'],
   ['/heures-risque', 'dossiers'],
   // Ajouts 2026-08-30 (audit) : ces racines n'étaient associées à aucune section,
@@ -109,7 +113,6 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   ['/agenda', 'dossiers'],
   ['/sessions', 'dossiers'],
   ['/emails', 'crm'],
-  ['/fiches-besoin', 'qualiopi'],
   ['/amelioration-continue', 'qualiopi'],
   ['/tracabilite', 'qualiopi'],
   ['/bpf', 'billing'],

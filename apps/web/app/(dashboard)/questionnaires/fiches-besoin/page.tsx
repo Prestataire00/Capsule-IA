@@ -6,6 +6,7 @@ import { fr } from 'date-fns/locale';
 import { ClipboardList, GraduationCap, User, Building2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { QuestionnairesTabs } from '../questionnaires-tabs.client';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
@@ -168,6 +169,8 @@ export default async function FichesBesoinPage() {
           Analyse des besoins recueillie auprès des apprenants et des inscrits, regroupée par formation.
         </p>
       </header>
+
+      <QuestionnairesTabs />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <KpiCard icon={ClipboardList} label="Fiches besoin" value={fiches.length} accent="purple" />

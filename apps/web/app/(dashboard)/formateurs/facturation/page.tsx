@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, FileText, Paperclip } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { FacturationTabs } from '../../factures/facturation-tabs.client';
 import { canManageSection, requireAccess } from '@/shared/lib/auth/require-access';
 import { libre } from '@/features/trainer-space/billing';
 import { CATEGORIES_FRAIS, CLASSES_TON, STATUT_FACTURE, STATUT_FRAIS, formatEuros } from '@/features/trainer-space/billing-rules';
@@ -99,6 +100,8 @@ export default async function FacturationFormateursPage({ searchParams }: { sear
           {filtre && <Link href="/formateurs/facturation" className="underline">tout afficher</Link>}
         </p>
       </header>
+
+      <FacturationTabs />
 
       <section className="space-y-3">
         <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Factures d’honoraires</h2>

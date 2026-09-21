@@ -9,7 +9,7 @@ import {
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, Hourglass,
-  TrendingUp, FileSignature, ListChecks, Trash2, Sparkles, BookCheck,
+  TrendingUp, ListChecks, Trash2, Sparkles, BookCheck,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -84,7 +84,6 @@ export const GROUPS: Group[] = [
       { href: '/sessions', icon: CalendarClock, label: 'Séances' },
       { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
       { href: '/supports', icon: BookCheck, label: 'Supports à valider' },
-      { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
       { href: '/heures-risque', icon: Hourglass, label: 'Heures à risque' },
     ],
     countKeys: ['emargementsPending', 'supportsAValider'],
@@ -121,7 +120,8 @@ export const GROUPS: Group[] = [
     short: 'Gestion',
     icon: Briefcase,
     items: [
-      { href: '/devis', icon: FileSignature, label: 'Devis' },
+      // Devis, factures et notes des formateurs sont trois onglets d'un même
+      // pôle : une seule porte suffit.
       { href: '/factures', icon: Receipt, label: 'Facturation' },
       { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/bpf', icon: FileText, label: 'BPF' },

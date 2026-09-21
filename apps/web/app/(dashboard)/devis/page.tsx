@@ -7,6 +7,7 @@ import { requireAccess } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { FacturationTabs } from '../factures/facturation-tabs.client';
 import { StatCard } from '@/shared/ui/stat-card';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -55,6 +56,8 @@ export default async function DevisPage({ searchParams }: { searchParams: { stat
           relisez, puis « Valider et envoyer » l’adresse au client pour signature. La signature crée la facture.
         </p>
       </header>
+
+      <FacturationTabs />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <StatCard label="À relire" value={drafts.length} hint={formatEuros(sum(drafts)) + ' HT'} />

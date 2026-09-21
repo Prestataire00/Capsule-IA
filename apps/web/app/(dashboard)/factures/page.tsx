@@ -6,6 +6,7 @@ import { fr } from 'date-fns/locale';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { FacturationTabs } from './facturation-tabs.client';
 import { StatCard } from '@/shared/ui/stat-card';
 import { IdPill } from '@/shared/ui/id-pill';
 import { InvoiceStatusControl } from './invoice-status-control.client';
@@ -204,6 +205,8 @@ export default async function FacturesPage({
           </ManageOnly>
         </div>
       </header>
+
+      <FacturationTabs />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <StatCard label="Émises" value={formatEuros(totalIssued)} hint={`${issued.length} facture${issued.length > 1 ? 's' : ''}`} />

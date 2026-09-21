@@ -1,8 +1,13 @@
 import { notFound } from 'next/navigation';
-import { Clock, CalendarClock, Users } from 'lucide-react';
+import { Clock, CalendarClock, Users, UserCheck } from 'lucide-react';
 import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession } from '@/features/sessions/load-session';
+import {
+  heuresManquantes,
+  heuresStagiaires,
+  tauxDeRealisation,
+} from '@/features/attendance/heures-stagiaires';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,14 +22,43 @@ export default async function SessionHoursTab({ params }: { params: { id: string
   const { session, sheets, learners } = loaded;
 
   const hours = Number(session.duration_hours ?? 0);
-  const totalStagiaireHours = hours * learners.length;
+  // Le « heures × stagiaires » d'avant multipliait la durée par les INSCRITS et
+  // ignorait l'émargement : il annonçait le plein même quand la moitié du groupe
+  // manquait. Prévu et réalisé sont désormais distingués — c'est l'écart qui
+  // compte, pour le BPF comme pour la facturation.
+  const heures = heuresStagiaires({
+    dureeHeures: hours,
+    inscrits: learners.length,
+    feuilles: sheets.map((s) => ({ demiJournee: s.half_day, presents: s.signed })),
+  });
+  const manquantes = heuresManquantes(heures);
+  const taux = tauxDeRealisation(heures);
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard icon={CalendarClock} accent="blue" label="Créneau" value={`${timeFmt.format(new Date(session.starts_at))} – ${timeFmt.format(new Date(session.ends_at))}`} />
         <KpiCard icon={Clock} accent="sky" label="Heures de formation" value={`${hours} h`} />
-        <KpiCard icon={Users} accent="rose" label="Heures × stagiaires" value={`${totalStagiaireHours} h`} hint={`${learners.length} stagiaire${learners.length > 1 ? 's' : ''}`} />
+        <KpiCard
+          icon={Users}
+          accent="rose"
+          label="Heures-stagiaires prévues"
+          value={`${heures.prevues} h`}
+          hint={`${learners.length} inscrit${learners.length > 1 ? 's' : ''}`}
+        />
+        <KpiCard
+          icon={UserCheck}
+          accent={!heures.mesurable ? 'sky' : manquantes > 0 ? 'amber' : 'emerald'}
+          label="Heures-stagiaires réalisées"
+          value={heures.mesurable ? `${heures.realisees} h` : '—'}
+          hint={
+            !heures.mesurable
+              ? 'Aucun émargement encore'
+              : manquantes > 0
+                ? `${manquantes} h non suivies · ${taux}%`
+                : 'Tout le monde était présent'
+          }
+        />
       </div>
 
       <div>
