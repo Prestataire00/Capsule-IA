@@ -103,7 +103,9 @@ export async function convertProspectToDossier(
   const learners = ((learnersData ?? []) as Array<{ id: string; email: string; last_name: string }>).map<LearnerCandidate>(
     (l) => ({ id: l.id, email: l.email, lastName: l.last_name }),
   );
-  const lm = matchLearner(prospect.email, learners);
+  // Le nom compte autant que l'adresse : une boîte partagée sert à
+  // plusieurs personnes.
+  const lm = matchLearner(prospect.email, learners, prospect.lastName);
   let learnerId: string;
   let learnerOutcome: 'reused' | 'created';
   if (lm.action === 'reuse') {

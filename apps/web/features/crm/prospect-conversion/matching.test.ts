@@ -47,3 +47,43 @@ describe('detectPotentialDuplicates', () => {
     expect(detectPotentialDuplicates(prospect, learners, [])).toEqual([]);
   });
 });
+
+// Constat du 21/09/2026 : la demande de « Nath Laurel » a ouvert un dossier au
+// nom d'« Anissa Apprenant ». Les deux partageaient une adresse e-mail, et le
+// rapprochement ne regardait que celle-ci — alors que le nom était disponible.
+describe('matchLearner : boîte partagée', () => {
+  const surLaMemeBoite = [
+    { id: 'anissa', email: 'boite@exemple.fr', lastName: 'Apprenant' },
+    { id: 'nath', email: 'boite@exemple.fr', lastName: 'Laurel' },
+  ];
+
+  it('ne confond plus deux personnes sur la même adresse', () => {
+    expect(matchLearner('boite@exemple.fr', [surLaMemeBoite[0]!], 'Laurel')).toEqual({ action: 'create' });
+  });
+
+  it('retrouve la bonne personne quand elle existe déjà', () => {
+    expect(matchLearner('boite@exemple.fr', surLaMemeBoite, 'Laurel')).toEqual({ action: 'reuse', id: 'nath' });
+    expect(matchLearner('boite@exemple.fr', surLaMemeBoite, 'Apprenant')).toEqual({ action: 'reuse', id: 'anissa' });
+  });
+
+  it('ignore la casse et les espaces de saisie', () => {
+    expect(matchLearner('  BOITE@exemple.FR ', surLaMemeBoite, '  laurel  ')).toEqual({ action: 'reuse', id: 'nath' });
+  });
+
+  it('sans nom fourni, s’en tient à l’adresse plutôt que de créer un doublon', () => {
+    expect(matchLearner('boite@exemple.fr', surLaMemeBoite, '')).toEqual({ action: 'reuse', id: 'anissa' });
+    expect(matchLearner('boite@exemple.fr', surLaMemeBoite, null)).toEqual({ action: 'reuse', id: 'anissa' });
+  });
+
+  it('rattache une fiche existante dont le nom manque', () => {
+    // Un apprenant importé sans nom ne doit pas provoquer un doublon.
+    expect(matchLearner('x@exemple.fr', [{ id: 'sansnom', email: 'x@exemple.fr', lastName: '' }], 'Durand')).toEqual({
+      action: 'reuse',
+      id: 'sansnom',
+    });
+  });
+
+  it('une adresse vide ne rapproche rien', () => {
+    expect(matchLearner('', surLaMemeBoite, 'Laurel')).toEqual({ action: 'create' });
+  });
+});
