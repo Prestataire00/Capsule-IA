@@ -88,3 +88,43 @@ describe('ce que l’écran montre', () => {
     expect(CLIENT).not.toContain('font-mono');
   });
 });
+
+describe('repère visuel, bannière et liste', () => {
+  const LAYOUT = lire('../app/(dashboard)/dossiers/[id]/layout.tsx');
+  const LISTE = lire('../app/(dashboard)/dossiers/page.tsx');
+  const PASTILLE = lire('../features/funders/pastille-financement.tsx');
+  const CHARGEUR = lire('../features/funders/charger-etats.ts');
+
+  it('les deux écrans lisent le même chargeur', () => {
+    // Deux requêtes écrites séparément finiraient par annoncer deux restes à
+    // payer différents.
+    expect(LAYOUT).toContain('chargerEtatsFinancement');
+    expect(LISTE).toContain('chargerEtatsFinancement');
+  });
+
+  it('la liste ne fait qu’une requête pour tous les dossiers', () => {
+    expect(CHARGEUR).toContain(".in('dossier_id', ids)");
+    expect(LISTE).toContain('chargerEtatsFinancement(sb as any, rows)');
+  });
+
+  it('une lecture impossible n’emporte pas l’écran', () => {
+    // Le financement est une information de confort sur la liste : son absence
+    // ne doit pas empêcher de voir ses dossiers.
+    expect(CHARGEUR).toMatch(/if \(error\) \{[\s\S]{0,160}return new Map\(\)/);
+  });
+
+  it('la pastille dit l’attente avant le reste à payer', () => {
+    // C'est la réponse manquante qui bloque la facturation.
+    expect(PASTILLE.indexOf('enAttenteDeReponse')).toBeLessThan(PASTILLE.indexOf('resteAPayerCents === 0'));
+  });
+
+  it('distingue « rien n’est pris en charge » de « il reste un solde »', () => {
+    expect(PASTILLE).toContain('bg-red-50');
+    expect(PASTILLE).toContain('bg-blue-50');
+    expect(PASTILLE).toContain('bg-emerald-50');
+  });
+
+  it('porte une explication au survol, la pastille étant courte', () => {
+    expect(PASTILLE).toContain('title={r.titre}');
+  });
+});

@@ -16,6 +16,8 @@ import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusFilter } from './status-filter.client';
+import { chargerEtatsFinancement } from '@/features/funders/charger-etats';
+import { PastilleFinancement } from '@/features/funders/pastille-financement';
 import { DossierStatusControl } from './[id]/dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -133,6 +135,11 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
 
   const { data } = await query;
   const rows = (data as Row[] | null) ?? [];
+
+  // Financement de chaque dossier, en une requête : c'est ce qui permet de
+  // repérer d'un coup d'œil ceux dont l'OPCO n'a pas répondu.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const etatsFinancement = await chargerEtatsFinancement(sb as any, rows);
 
   // Référents (0167), en requête séparée et tolérante : la colonne n'existe pas
   // sur une base où la migration n'est pas encore appliquée, et la liste des
@@ -355,8 +362,13 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                     <p className="text-zinc-500 dark:text-zinc-400 mt-1">→ {fmtDate(d.end_date)}</p>
                   </div>
 
-                  <div className={`text-right text-[15px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>
-                    {fmtEuros(d.total_amount_cents)}
+                  <div className="text-right">
+                    <p className={`text-[15px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>
+                      {fmtEuros(d.total_amount_cents)}
+                    </p>
+                    {etatsFinancement.get(d.id) && (
+                      <PastilleFinancement etat={etatsFinancement.get(d.id)!} className="mt-1" />
+                    )}
                   </div>
 
                   <div>

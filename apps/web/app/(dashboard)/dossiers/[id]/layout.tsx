@@ -8,6 +8,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { nomDuDossier } from '@/features/dossier/referent';
 import { canManageSection } from '@/shared/lib/auth/require-access';
+import { PastilleFinancement } from '@/features/funders/pastille-financement';
+import { chargerEtatsFinancement } from '@/features/funders/charger-etats';
 import { FormateurChip } from './formateur-chip.client';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -49,6 +51,18 @@ export default async function DossierLayout({
     throw new Error(`Fiche du dossier illisible : ${error.message}`);
   }
   if (!data) notFound();
+
+  // Financement du dossier, lu par le chargeur commun à la liste : deux
+  // écrans ne doivent pas annoncer deux restes à payer différents.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const etats = await chargerEtatsFinancement(sb as any, [
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { id: params.id, total_amount_cents: (data as any).total_amount_cents },
+  ]);
+  const etatFinancement = etats.get(params.id) ?? {
+    acquisCents: 0, enAttenteCents: 0, refuseCents: 0, resteAPayerCents: 0,
+    resteSiToutAccordeCents: 0, sansFinanceur: true, enAttenteDeReponse: false,
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d = data as any;
 
@@ -193,7 +207,11 @@ export default async function DossierLayout({
               {modalityLabel(d.modality)}
             </span>
           </KpiCard>
-          <KpiCard icon={Banknote} label="Montant" accent="emerald" value={fmtEuros(d.total_amount_cents)} />
+          <KpiCard icon={Banknote} label="Montant" accent="emerald" value={fmtEuros(d.total_amount_cents)}>
+            {/* Où en est le financement : la question se pose en même temps
+                que le montant, elle se lit donc au même endroit. */}
+            <PastilleFinancement etat={etatFinancement} className="mt-1.5" />
+          </KpiCard>
         </section>
 
         <TabsNav baseHref={`/dossiers/${params.id}`} />
