@@ -8,6 +8,9 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ACCENTS } from '@/shared/ui/kpi-card';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { etatFinancement, resumeFinancement } from '@/features/funders/prise-en-charge';
+import { PriseEnCharge, type LigneAffichee } from './prise-en-charge.client';
 import { prepareFunderTaskDraft, sendFunderTask } from './actions';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -24,7 +27,7 @@ export default async function FinanceursPage({ params }: { params: { id: string 
   const sb = supabaseServer();
 
   const { data: dossier, error: erreurLecture } = await sb.schema('app').from('dossiers')
-    .select('id').eq('id', params.id).maybeSingle();
+    .select('id, total_amount_cents').eq('id', params.id).maybeSingle();
   // Une requête en échec n'est pas une ligne absente : sans cette
   // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
   if (erreurLecture) {
@@ -42,8 +45,71 @@ export default async function FinanceursPage({ params }: { params: { id: string 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (tasks as any[]) ?? [];
 
+  // Prise en charge : où en est le financement, et combien reste à payer.
+  const { data: financeurs } = await sb
+    .schema('app')
+    .from('dossier_funders')
+    .select('id, status, amount_cents, granted_cents, decision_note, external_file_number, funder:funders(name)')
+    .eq('dossier_id', params.id)
+    .order('created_at', { ascending: true });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lignesBrutes = (financeurs as any[]) ?? [];
+  const lignes: LigneAffichee[] = lignesBrutes.map((f) => ({
+    id: f.id as string,
+    funderName: (f.funder?.name as string) ?? 'Financeur',
+    amountCents: Number(f.amount_cents ?? 0),
+    grantedCents: f.granted_cents == null ? null : Number(f.granted_cents),
+    status: (f.status as string) ?? 'pending',
+    decisionNote: (f.decision_note as string | null) ?? null,
+    externalFileNumber: (f.external_file_number as string | null) ?? null,
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const total = Number((dossier as any).total_amount_cents ?? 0);
+  const etat = etatFinancement(total, lignes);
+  const gerer = (await canManageSection('billing')) === true;
+
   return (
     <div className="space-y-5">
+
+      {/* Prise en charge : l'état du financement avant les tâches d'envoi —
+          c'est la question qu'on se pose en ouvrant cet onglet. */}
+      <section className="rounded-2xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-zinc-200/70 dark:border-zinc-800 bg-gradient-to-br from-emerald-50/70 to-white dark:from-emerald-950/25 dark:to-zinc-900">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
+              <Landmark className="w-4 h-4" />
+            </span>
+            <SectionLabel>Prise en charge</SectionLabel>
+            <span className="text-[12px] text-zinc-500 dark:text-zinc-400">{resumeFinancement(etat)}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+            <Chiffre libelle="Coût total" valeur={total} />
+            <Chiffre libelle="Pris en charge" valeur={etat.acquisCents} ton="text-emerald-700 dark:text-emerald-300" />
+            <Chiffre libelle="En attente" valeur={etat.enAttenteCents} ton="text-amber-700 dark:text-amber-300" />
+            <Chiffre
+              libelle="Reste à payer"
+              valeur={etat.resteAPayerCents}
+              ton={etat.resteAPayerCents > 0 ? 'text-zinc-900 dark:text-zinc-100' : 'text-emerald-700 dark:text-emerald-300'}
+              fort
+            />
+          </div>
+          {etat.enAttenteDeReponse && etat.resteSiToutAccordeCents !== etat.resteAPayerCents && (
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
+              Si tout ce qui est en attente est accordé, il restera {euros(etat.resteSiToutAccordeCents)}.
+            </p>
+          )}
+        </div>
+        <div className="px-5">
+          {lignes.length === 0 ? (
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 py-5">
+              Aucun financeur rattaché : le client règle la totalité.
+            </p>
+          ) : (
+            <PriseEnCharge dossierId={params.id} lignes={lignes} gerer={gerer} />
+          )}
+        </div>
+      </section>
+
       <div className="flex items-center gap-2.5">
         <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.emerald.soft}`}>
           <Landmark className="w-4 h-4" />
@@ -127,6 +193,19 @@ export default async function FinanceursPage({ params }: { params: { id: string 
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const euros = (cents: number) => (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+function Chiffre({ libelle, valeur, ton, fort }: { libelle: string; valeur: number; ton?: string; fort?: boolean }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-[0.06em] font-semibold text-zinc-500 dark:text-zinc-400">{libelle}</p>
+      <p className={`${fort ? 'text-[20px]' : 'text-[17px]'} font-semibold tabular-nums mt-0.5 ${ton ?? 'text-zinc-900 dark:text-zinc-100'}`}>
+        {euros(valeur)}
+      </p>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { sendEmail, type EmailAttachment } from '@/shared/lib/email/resend';
 import { funderEmail } from '@/shared/lib/email/templates';
 import { decideTransport } from '@/shared/lib/funders/attachments';
 import { guardRowAction } from '@/shared/lib/auth/guard-action';
+import { estStatutFinancement, estDecide } from '@/features/funders/prise-en-charge';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -171,5 +172,69 @@ export async function sendFunderTask(taskId: string, dossierId: string): Promise
   });
 
   revalidatePath(`/dossiers/${dossierId}`);
+  return { ok: true };
+}
+
+/**
+ * Décision du financeur sur un dossier : accord, refus, montant réellement
+ * accordé.
+ *
+ * C'est une affaire de facturation — le reste à payer du client en dépend —
+ * d'où la section `billing` plutôt que `dossiers` : le comptable doit pouvoir
+ * la saisir, le formateur jamais.
+ *
+ * Le dossier porte la garde d'organisation ; la ligne financeur est ensuite
+ * vérifiée comme lui appartenant, sans quoi un identifiant deviné suffirait à
+ * modifier la prise en charge d'un autre organisme.
+ */
+export async function enregistrerDecisionFinanceur(input: {
+  dossierId: string;
+  ligneId: string;
+  statut: string;
+  montantAccordeCents: number | null;
+  note: string;
+}): Promise<ActionResult> {
+  if (!estStatutFinancement(input.statut)) return { ok: false, error: 'Statut inconnu.' };
+  if (input.montantAccordeCents !== null && (!Number.isFinite(input.montantAccordeCents) || input.montantAccordeCents < 0)) {
+    return { ok: false, error: 'Le montant accordé doit être positif.' };
+  }
+  if (input.note.length > 1000) return { ok: false, error: 'La note est trop longue (1 000 caractères).' };
+
+  const garde = await guardRowAction('dossiers', input.dossierId, 'billing');
+  if (!garde.ok) return { ok: false, error: garde.error };
+
+  const sb = admin();
+  const { data: ligne } = await sb
+    .schema('app')
+    .from('dossier_funders')
+    .select('id, dossier_id, status, submitted_at')
+    .eq('id', input.ligneId)
+    .eq('dossier_id', input.dossierId)
+    .maybeSingle();
+  if (!ligne) return { ok: false, error: 'Ligne de financement introuvable.' };
+  const actuelle = ligne as { status: string; submitted_at: string | null };
+
+  const maintenant = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    status: input.statut,
+    decision_note: input.note.trim() || null,
+    updated_at: maintenant,
+    // Le montant accordé n'a de sens qu'une fois la décision prise : le garder
+    // après un retour en arrière laisserait croire à un accord disparu.
+    granted_cents: estDecide(input.statut) ? input.montantAccordeCents : null,
+    // Horodatages posés au premier passage, jamais réécrits : ils racontent
+    // depuis quand on attend, ce qu'un audit regarde.
+    decided_at: estDecide(input.statut) ? maintenant : null,
+  };
+  if (input.statut !== 'pending' && !actuelle.submitted_at) patch.submitted_at = maintenant;
+
+  const { error } = await sb.schema('app').from('dossier_funders').update(patch).eq('id', input.ligneId);
+  if (error) {
+    console.error('[financement] décision non enregistrée', input.ligneId, error.message);
+    return { ok: false, error: "La décision n'a pas pu être enregistrée." };
+  }
+
+  revalidatePath(`/dossiers/${input.dossierId}/financeurs`);
+  revalidatePath(`/dossiers/${input.dossierId}`);
   return { ok: true };
 }
