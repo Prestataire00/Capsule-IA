@@ -166,11 +166,11 @@ export default async function Home({
             {start} – {end}
           </span>
           <Link
-            href="/dossiers/nouveau"
+            href="/prospects/nouvelle"
             className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Nouveau dossier
+            Nouvelle demande
           </Link>
         </div>
       </header>

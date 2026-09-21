@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/shared/lib/cn';
 
 const suggestions = [
-  { href: '/dossiers/nouveau', icon: Plus, label: 'Créer un dossier', kbd: '⌘N' },
+  { href: '/prospects/nouvelle', icon: Plus, label: 'Nouvelle demande', kbd: '⌘N' },
   { href: '/dossiers', icon: FolderOpen, label: 'Voir tous les dossiers', kbd: '⌘D' },
   { href: '/apprenants', icon: Users, label: 'Apprenants' },
   { href: '/qualiopi', icon: ShieldCheck, label: 'Tableau Qualiopi' },

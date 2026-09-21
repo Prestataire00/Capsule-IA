@@ -259,6 +259,16 @@ export function NewDossierForm({
                 <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
                   Dites pour qui, quelle formation, et sur quelle période.
                 </p>
+                {/* Les deux écrans de création se ressemblaient sans dire
+                    lequel prendre. Celui-ci suppose que l'apprenant et
+                    l'entreprise existent déjà : sinon, la demande les crée. */}
+                <p className="text-[12px] text-zinc-400 mt-3">
+                  L&apos;apprenant n&apos;existe pas encore chez vous ?{' '}
+                  <Link href="/prospects/nouvelle" className="text-orange-600 dark:text-orange-400 hover:underline">
+                    Passez par une demande
+                  </Link>{' '}
+                  — elle crée la fiche, détecte les doublons, et ouvre le dossier.
+                </p>
               </div>
 
               <div className="space-y-4">

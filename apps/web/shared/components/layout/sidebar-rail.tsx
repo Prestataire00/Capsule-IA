@@ -253,12 +253,14 @@ export function SidebarRail({
             </span>
           </Link>
 
-          {/* CTA Nouveau dossier */}
+          {/* Une seule porte d'entrée : tout commence par une demande, qu'on
+              convertit en dossier. Deux boutons de création côte à côte
+              obligeaient à choisir un chemin avant de savoir lequel convenait. */}
           <Link
-            href="/dossiers/nouveau"
+            href="/prospects/nouvelle"
             className="group mt-2 mb-3 w-10 h-10 rounded-xl bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center shadow-sm transition"
-            aria-label="Nouveau dossier"
-            title="Nouveau dossier"
+            aria-label="Nouvelle demande"
+            title="Nouvelle demande"
           >
             <Plus className="w-4 h-4 transition group-hover:rotate-90" />
           </Link>
