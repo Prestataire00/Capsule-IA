@@ -83,3 +83,23 @@ describe('jointures entre dossiers et apprenants', () => {
     expect(src).not.toContain('dossier_learners_learner_id_fkey');
   });
 });
+
+// Un 404 est une réponse : « j'ai cherché, il n'y a rien ». Quand la recherche
+// elle-même échoue, le dire — sinon l'écran affirme qu'un dossier n'existe pas
+// alors qu'il vient d'être créé (incident du 21/09/2026).
+describe('erreur de lecture contre dossier absent', () => {
+  const layout = fs.readFileSync(
+    path.join(RACINE, 'app/(dashboard)/dossiers/[id]/layout.tsx'),
+    'utf-8',
+  );
+
+  it('la fiche du dossier ne jette plus l’erreur de sa requête', () => {
+    expect(layout).toContain('const { data, error } = await sb');
+    expect(layout).toMatch(/if \(error\) \{[\s\S]{0,200}throw new Error/);
+  });
+
+  it('et distingue toujours le dossier réellement absent', () => {
+    expect(layout).toContain('if (!data) notFound();');
+    expect(layout.indexOf('if (error)')).toBeLessThan(layout.indexOf('if (!data) notFound();'));
+  });
+});

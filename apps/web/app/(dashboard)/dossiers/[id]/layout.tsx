@@ -32,7 +32,7 @@ export default async function DossierLayout({
   params: { id: string };
 }) {
   const sb = supabaseServer();
-  const { data } = await sb
+  const { data, error } = await sb
     .schema('app')
     .from('dossiers')
     .select(
@@ -41,6 +41,13 @@ export default async function DossierLayout({
     )
     .eq('id', params.id)
     .maybeSingle();
+  // Une requête en échec n'est pas un dossier absent. L'erreur était jetée
+  // ici, si bien qu'une jointure cassée s'affichait comme « ce dossier
+  // n'existe pas » — sur un dossier qui venait d'être créé (21/09/2026).
+  if (error) {
+    console.error('[dossier] fiche illisible', params.id, error.code, error.message);
+    throw new Error(`Fiche du dossier illisible : ${error.message}`);
+  }
   if (!data) notFound();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d = data as any;
