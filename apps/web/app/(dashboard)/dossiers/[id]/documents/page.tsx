@@ -7,6 +7,9 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { Paperclip } from 'lucide-react';
+import { TEMPLATE_KINDS, TEMPLATE_KIND_LABELS } from '@/app/(dashboard)/documents/modeles/schema';
+import { DeposerPiece } from './deposer-piece.client';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { GenerateFromTemplate, type TemplateChoice } from './_components/generate-from-template';
 import { GenerateWithAi } from './_components/generate-with-ai';
@@ -136,8 +139,43 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       title: t.formation_id && t.formation_id === formationId ? `★ ${t.title}` : t.title,
     }));
 
+  // Indicateurs Qualiopi que la pièce peut justifier. Seuls ceux de portée
+  // « dossier » : les autres se prouvent au niveau de l'organisme.
+  const { data: indicateursRows } = await sb
+    .schema('app')
+    .from('qualiopi_indicators')
+    .select('id, number, title')
+    .eq('scope', 'dossier')
+    .eq('is_active', true)
+    // Deux versions du référentiel coexistent pendant la transition (v9 jusqu'au
+    // 31/10/2026, v10 ensuite) : sans ce filtre, chaque indicateur apparaîtrait
+    // deux fois. `effective_until IS NULL` désigne celle en vigueur.
+    .is('effective_until', null)
+    .order('number', { ascending: true });
+  const indicateursDossier = ((indicateursRows ?? []) as unknown as Array<{
+    id: string;
+    number: number;
+    title: string;
+  }>).map((i) => ({ id: i.id, numero: i.number, libelle: i.title }));
+
   return (
     <div className="space-y-8">
+      {/* Dépôt d'une pièce reçue : l'onglet ne savait que générer, alors que le
+          guidage Qualiopi y renvoyait pour « ajouter la preuve ». */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.teal.soft}`}>
+            <Paperclip className="w-4 h-4" />
+          </span>
+          <SectionLabel>Déposer une pièce</SectionLabel>
+        </div>
+        <DeposerPiece
+          dossierId={params.id}
+          types={TEMPLATE_KINDS.map((k) => ({ valeur: k, label: TEMPLATE_KIND_LABELS[k] }))}
+          indicateurs={indicateursDossier}
+        />
+      </section>
+
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
