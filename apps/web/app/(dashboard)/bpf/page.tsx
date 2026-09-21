@@ -4,7 +4,7 @@
 // en vue de la télédéclaration. Lecture seule + impression.
 import Link from 'next/link';
 import type { ComponentType } from 'react';
-import { TrendingUp, Users, Clock, UserCog, Banknote, GraduationCap } from 'lucide-react';
+import { TrendingUp, Users, Clock, UserCog, Banknote, GraduationCap, Wallet, AlertTriangle } from 'lucide-react';
 import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -22,7 +22,7 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
   const currentYear = new Date().getFullYear();
   const year = searchParams.year && /^\d{4}$/.test(searchParams.year) ? Number(searchParams.year) : currentYear;
   const sb = supabaseServer();
-  const { financial, pedago, formateurs } = await loadBpfAggregates(sb as never, year);
+  const { financial, pedago, formateurs, charges, chargesSansAnnee } = await loadBpfAggregates(sb as never, year);
   const years = [currentYear, currentYear - 1, currentYear - 2];
 
   const lineMax = Math.max(0, ...BPF_LINES.map((l) => financial.lines[l.key]));
@@ -134,6 +134,43 @@ export default async function BpfPage({ searchParams }: { searchParams: { year?:
           <Row label="Formateurs externes (sous-traitance / vacataires)" value={String(formateurs.externes)} />
           <Row label="Total formateurs intervenus" value={String(formateurs.total)} />
         </ul>
+      </section>
+
+      {/* Cadre F — Charges. Elles n'existaient que dans le PDF : impossible de
+          vérifier à l'écran ce qui allait être déclaré. */}
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+          <CadreTitre icon={Wallet} accent="amber">
+            Cadre F — Charges de l&apos;organisme
+          </CadreTitre>
+        </div>
+        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[13px]">
+          <Row label="Salaires des formateurs" value={eur(charges.salairesFormateursCents)} />
+          <Row label="Achats de formation" value={eur(charges.achatsFormationCents)} />
+          <Row
+            label="Sous-traitance confiée"
+            value={`${eur(charges.sousTraitanceConfieeCents)}${charges.sousTraitanceConfieeHeures > 0 ? ` · ${charges.sousTraitanceConfieeHeures} h` : ''}`}
+          />
+          <Row label="Autres charges" value={eur(charges.autresCents)} />
+          <Row label="Total des charges" value={eur(charges.totalCents)} />
+        </ul>
+        <p className="px-5 py-3 text-[12px] text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800/80">
+          Dépenses saisies sur les dossiers et sur les séances, rattachées à l&apos;année par leur date
+          de charge — à défaut, par la date de la séance ou du dossier qui les porte.
+        </p>
+        {chargesSansAnnee.nombre > 0 && (
+          <p className="px-5 py-3 text-[12px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200/70 dark:border-amber-900/50 flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>
+              <span className="tabular-nums font-semibold">{chargesSansAnnee.nombre}</span> dépense
+              {chargesSansAnnee.nombre > 1 ? 's' : ''} sans date, pour{' '}
+              <span className="tabular-nums font-semibold">{eur(chargesSansAnnee.totalCents)}</span>, ne
+              {chargesSansAnnee.nombre > 1 ? ' sont' : " n'est"} comptée
+              {chargesSansAnnee.nombre > 1 ? 's' : ''} dans aucun exercice. Datez-l
+              {chargesSansAnnee.nombre > 1 ? 'es' : 'a'} pour {chargesSansAnnee.nombre > 1 ? "qu'elles apparaissent" : "qu'elle apparaisse"} ici.
+            </span>
+          </p>
+        )}
       </section>
 
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">

@@ -120,7 +120,58 @@ export type BpfCharges = {
   autresCents: number;
 };
 
-/** Ventile dépenses (dossier_expenses) d'une année vers les postes de charges BPF. */
+export type DepenseBpf = {
+  readonly kind: string;
+  readonly amountCents: number;
+  readonly hours: number | null;
+  /** Date de la charge, quand elle a été saisie. */
+  readonly incurredOn: string | null;
+  /**
+   * Date de l'objet qui porte la charge — fin du dossier, début de la séance.
+   * Sert de rattachement de repli quand la charge n'est pas datée.
+   */
+  readonly rattachementOn: string | null;
+};
+
+export type TriDepenses = {
+  readonly retenues: DepenseBpf[];
+  /**
+   * Charges qu'aucune date ne permet de rattacher à une année. Elles sont
+   * écartées du BPF — mais comptées, parce qu'un total silencieusement
+   * incomplet est pire qu'un total accompagné de son manque.
+   */
+  readonly sansAnnee: DepenseBpf[];
+};
+
+/**
+ * Quelles charges appartiennent à l'exercice.
+ *
+ * Deux tables alimentent ce tri : les dépenses d'un dossier
+ * (`dossier_expenses`) et celles d'une séance ou d'une formation
+ * (`formation_expenses`). Les secondes étaient purement absentes du BPF — une
+ * salle louée pour une session de groupe ne se rattache à aucun dossier, elle
+ * disparaissait donc du cadre des charges.
+ *
+ * La date de la charge prime ; à défaut, on rattache par l'objet porteur. Une
+ * charge sans aucune date n'est pas rangée dans l'année en cours par défaut :
+ * elle gonflerait chaque exercice à tour de rôle.
+ */
+export function depensesDeLAnnee(
+  depenses: readonly DepenseBpf[],
+  debut: string,
+  fin: string,
+): TriDepenses {
+  const retenues: DepenseBpf[] = [];
+  const sansAnnee: DepenseBpf[] = [];
+  for (const d of depenses) {
+    const date = d.incurredOn ?? d.rattachementOn;
+    if (date === null) sansAnnee.push(d);
+    else if (date >= debut && date <= fin) retenues.push(d);
+  }
+  return { retenues, sansAnnee };
+}
+
+/** Ventile des dépenses déjà rattachées à l'année vers les postes de charges BPF. */
 export function buildBpfCharges(
   expenses: Array<{ kind: string; amountCents: number; hours: number | null }>,
 ): BpfCharges {

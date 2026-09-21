@@ -37,7 +37,10 @@ export async function Topbar() {
     <header className="h-16 flex-shrink-0 border-b border-zinc-200/70 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl backdrop-saturate-150 sticky top-0 z-40 flex items-center px-6 gap-4">
       <div className="flex-1" />
 
-      <form action="/dossiers" method="get" className="relative w-full max-w-md">
+      {/* La barre promettait « dossier, apprenant, formation » mais n'interrogeait
+          que les dossiers : /recherche cherche aussi les entreprises et les
+          apprenants, et n'était reliée à rien. */}
+      <form action="/recherche" method="get" className="relative w-full max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
         <input
           type="search"

@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { History, Zap } from 'lucide-react';
+import { History, Zap, CalendarCog } from 'lucide-react';
 
-// Deux questions distinctes : « qu'est-ce qui est parti ? » (le journal) et
-// « qu'est-ce qui part tout seul, et quand ? » (le catalogue).
+// Tout ce qui touche aux e-mails en un seul endroit : ce qui est parti (le
+// journal), ce qui part tout seul (les envois intégrés), et ce que l'organisme
+// a programmé lui-même. C'étaient trois entrées de menu pour une seule question.
 const TABS = [
   { href: '/emails', label: 'Historique', icon: History, iconCls: 'text-sky-500 dark:text-sky-400' },
   { href: '/emails/automatiques', label: 'Envois automatiques', icon: Zap, iconCls: 'text-amber-500 dark:text-amber-400' },
+  { href: '/emails/programmation', label: 'Mes règles', icon: CalendarCog, iconCls: 'text-purple-500 dark:text-purple-400' },
 ];
 
 export function EmailsTabs() {

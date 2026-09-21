@@ -113,6 +113,8 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   ['/amelioration-continue', 'qualiopi'],
   ['/tracabilite', 'qualiopi'],
   ['/bpf', 'billing'],
+  // Conservée pour la redirection vers /emails/programmation ; le pôle Emails
+  // lui-même est couvert par l'entrée ['/emails', 'crm'] plus haut.
   ['/programmation', 'crm'],
   ['/rgpd', 'settings'],
 ];

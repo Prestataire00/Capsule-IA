@@ -54,7 +54,7 @@ export const createSchedule = authActionClient
         enabled: true,
       } as never);
     if (error) return { ok: false as const, error: error.message };
-    revalidatePath('/programmation');
+    revalidatePath('/emails/programmation');
     return { ok: true as const };
   });
 
@@ -76,7 +76,7 @@ export const updateSchedule = authActionClient
       } as never)
       .eq('id', parsedInput.id);
     if (error) return { ok: false as const, error: error.message };
-    revalidatePath('/programmation');
+    revalidatePath('/emails/programmation');
     return { ok: true as const };
   });
 
@@ -89,7 +89,7 @@ export const toggleSchedule = authActionClient
       .update({ enabled: parsedInput.enabled, updated_at: new Date().toISOString() } as never)
       .eq('id', parsedInput.id);
     if (error) return { ok: false as const, error: error.message };
-    revalidatePath('/programmation');
+    revalidatePath('/emails/programmation');
     return { ok: true as const };
   });
 
@@ -102,6 +102,6 @@ export const deleteSchedule = authActionClient
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq('id', parsedInput.id);
     if (error) return { ok: false as const, error: error.message };
-    revalidatePath('/programmation');
+    revalidatePath('/emails/programmation');
     return { ok: true as const };
   });

@@ -145,7 +145,7 @@ export default async function EnvoisAutomatiquesPage({
           value={programmees?.envoyes ?? 0}
           icon={CalendarCog}
           accent="purple"
-          href="/programmation"
+          href="/emails/programmation"
           hint="Envois issus de vos propres règles"
         />
       </div>

@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   buildBpfFinancial,
   buildBpfCharges,
+  depensesDeLAnnee,
   TRAINEE_CATEGORY_LABEL,
   ACTION_TYPE_LABEL,
   TRAINEE_CATEGORY_ORDER,
@@ -12,6 +13,7 @@ import {
   type BpfBreakdownRow,
   type BpfNsfRow,
   type BpfCharges,
+  type DepenseBpf,
 } from './bpf';
 import { NSF_CODES } from '@/features/formations/constants';
 
@@ -25,6 +27,11 @@ export type BpfAggregates = {
   byActionType: BpfBreakdownRow[];
   byNsf: BpfNsfRow[];
   charges: BpfCharges;
+  /**
+   * Charges qu'aucune date ne rattache à un exercice : elles ne sont comptées
+   * nulle part, et le BPF doit le dire plutôt que d'afficher un total muet.
+   */
+  chargesSansAnnee: { nombre: number; totalCents: number };
 };
 
 const NSF_LABEL = new Map<string, string>(NSF_CODES.map((o) => [o.value as string, o.label]));
@@ -152,9 +159,12 @@ export async function loadBpfAggregates(sb: SupabaseClient, year: number): Promi
     for (const isInternal of seen.values()) isInternal ? internes++ : externes++;
   }
 
-  // Charges — dépenses des dossiers de l'année (par date de charge, ou non datées
-  // rattachées à un dossier de l'année).
-  let charges = buildBpfCharges([]);
+  // Charges — DEUX sources. Les dépenses d'un dossier (`dossier_expenses`) et
+  // celles d'une séance ou d'une formation (`formation_expenses`). Seules les
+  // premières étaient lues : une salle louée pour une session de groupe, qui ne
+  // se rattache à aucun dossier, n'apparaissait dans aucun BPF.
+  const brutes: DepenseBpf[] = [];
+
   if (dossierIds.length > 0) {
     const { data: expRows } = await sb
       .schema('app')
@@ -162,16 +172,70 @@ export async function loadBpfAggregates(sb: SupabaseClient, year: number): Promi
       .select('kind, amount_cents, hours, incurred_on')
       .in('dossier_id', dossierIds)
       .is('deleted_at', null);
-    const expenses = ((expRows ?? []) as Array<{
+    for (const e of (expRows ?? []) as Array<{
       kind: string;
       amount_cents: number;
       hours: number | null;
       incurred_on: string | null;
-    }>)
-      .filter((e) => e.incurred_on == null || (e.incurred_on >= start && e.incurred_on <= end))
-      .map((e) => ({ kind: e.kind, amountCents: e.amount_cents, hours: e.hours }));
-    charges = buildBpfCharges(expenses);
+    }>) {
+      // Le dossier porteur appartient déjà à l'exercice : il sert de
+      // rattachement pour une charge non datée, comme avant.
+      brutes.push({
+        kind: e.kind,
+        amountCents: e.amount_cents,
+        hours: e.hours,
+        incurredOn: e.incurred_on,
+        rattachementOn: e.incurred_on ?? start,
+      });
+    }
   }
+
+  // Pas d'embed PostgREST ici : un cache de schéma périmé le ferait échouer en
+  // silence, et le BPF repartirait incomplet sans que rien ne le signale. Les
+  // séances sont donc résolues par une seconde requête à plat.
+  const { data: formExpRows } = await sb
+    .schema('app')
+    .from('formation_expenses')
+    .select('kind, amount_cents, hours, incurred_on, session_id')
+    .is('deleted_at', null);
+  const depensesSeance = (formExpRows ?? []) as unknown as Array<{
+    kind: string;
+    amount_cents: number;
+    hours: number | null;
+    incurred_on: string | null;
+    session_id: string | null;
+  }>;
+
+  const sessionIds = [...new Set(depensesSeance.map((e) => e.session_id).filter((x): x is string => Boolean(x)))];
+  const { data: seanceRows } = sessionIds.length
+    ? await sb.schema('app').from('sessions').select('id, starts_at').in('id', sessionIds)
+    : { data: [] };
+  const jourDeLaSeance = new Map(
+    ((seanceRows ?? []) as unknown as Array<{ id: string; starts_at: string }>).map((s) => [
+      s.id,
+      s.starts_at.slice(0, 10),
+    ]),
+  );
+
+  for (const e of depensesSeance) {
+    brutes.push({
+      kind: e.kind,
+      amountCents: e.amount_cents,
+      hours: e.hours,
+      incurredOn: e.incurred_on,
+      // Une charge de séance non datée se rattache au jour de la séance. Une
+      // charge de formation sans séance ni date ne se rattache à rien : elle
+      // ressortira dans `chargesSansAnnee` plutôt que d'être rangée au hasard.
+      rattachementOn: e.session_id ? (jourDeLaSeance.get(e.session_id) ?? null) : null,
+    });
+  }
+
+  const tri = depensesDeLAnnee(brutes, start, end);
+  const charges = buildBpfCharges(tri.retenues);
+  const chargesSansAnnee = {
+    nombre: tri.sansAnnee.length,
+    totalCents: tri.sansAnnee.reduce((t, d) => t + Math.max(0, Math.round(d.amountCents)), 0),
+  };
 
   return {
     financial,
@@ -181,5 +245,6 @@ export async function loadBpfAggregates(sb: SupabaseClient, year: number): Promi
     byActionType,
     byNsf,
     charges,
+    chargesSansAnnee,
   };
 }

@@ -4,7 +4,8 @@
 
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Mail, MailX, MailOpen, Inbox, MousePointerClick, CheckCheck } from 'lucide-react';
+import Link from 'next/link';
+import { Mail, MailX, MailOpen, Inbox, MousePointerClick, CheckCheck, PenLine } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -93,15 +94,26 @@ export default async function EmailsPage({
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-9">
-      <header className="mb-7">
-        <SectionLabel className="mb-2">Notifications</SectionLabel>
-        <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Historique des envois</h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
-          Journal d'audit de tous les emails envoyés par votre organisation.{' '}
-          <span className="tabular-nums">
-            {rows.length} trace{rows.length > 1 ? 's' : ''}
-          </span>
-        </p>
+      <header className="mb-7 flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <SectionLabel className="mb-2">Notifications</SectionLabel>
+          <h1 className="text-[30px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Emails</h1>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
+            Journal d'audit de tous les emails envoyés par votre organisation.{' '}
+            <span className="tabular-nums">
+              {rows.length} trace{rows.length > 1 ? 's' : ''}
+            </span>
+          </p>
+        </div>
+        {/* Rédiger est une action, pas un endroit : elle quitte le menu pour
+            venir ici, là où l'on regarde déjà ses e-mails. */}
+        <Link
+          href="/emails/nouveau"
+          className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold shadow-sm transition"
+        >
+          <PenLine className="w-4 h-4" />
+          Rédiger un email
+        </Link>
       </header>
 
       <EmailsTabs />

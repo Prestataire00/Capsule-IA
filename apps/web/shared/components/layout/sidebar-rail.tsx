@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2, Globe,
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
-  Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, PenLine,
+  Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, Hourglass,
   TrendingUp, FileSignature, ListChecks, Trash2, Sparkles, BookCheck,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
@@ -72,21 +72,32 @@ export const GROUPS: Group[] = [
     ],
     countKeys: ['demandesPending'],
   },
+  // Le dossier est l'objet central — tout s'y rattache. Il était le 4e item d'un
+  // groupe nommé « Formations » : on le sort en tête, à sa place.
+  { key: 'dossiers', label: 'Dossiers', icon: FolderOpen, href: '/dossiers' },
   {
-    key: 'formations',
-    label: 'Formations',
+    key: 'exploitation',
+    label: 'Déroulement des formations',
+    short: 'Déroulement',
+    icon: CalendarClock,
+    items: [
+      { href: '/sessions', icon: CalendarClock, label: 'Séances' },
+      { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
+      { href: '/supports', icon: BookCheck, label: 'Supports à valider' },
+      { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
+      { href: '/heures-risque', icon: Hourglass, label: 'Heures à risque' },
+    ],
+    countKeys: ['emargementsPending', 'supportsAValider'],
+  },
+  {
+    key: 'catalogue',
+    label: 'Catalogue',
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
-      { href: '/import-convention', icon: Sparkles, label: 'Importer une convention' },
       { href: '/catalogue-public', icon: Globe, label: 'Catalogue public' },
-      { href: '/dossiers', icon: FolderOpen, label: 'Dossiers' },
-      { href: '/fiches-besoin', icon: ClipboardList, label: 'Fiches besoin' },
-      { href: '/sessions', icon: CalendarClock, label: 'Sessions' },
-      { href: '/emargements', icon: ClipboardCheck, label: 'Émargements' },
-      { href: '/supports', icon: BookCheck, label: 'Supports à valider' },
+      { href: '/import-convention', icon: Sparkles, label: 'Importer une convention' },
     ],
-    countKeys: ['emargementsPending', 'supportsAValider'],
   },
   {
     key: 'docs-comm',
@@ -96,9 +107,10 @@ export const GROUPS: Group[] = [
     items: [
       { href: '/documents', icon: FileText, label: 'Documents' },
       { href: '/questionnaires', icon: ClipboardList, label: 'Questionnaires' },
-      { href: '/emails/nouveau', icon: PenLine, label: 'Rédiger un email' },
+      // Une seule entrée pour les e-mails : historique, envois automatiques et
+      // règles personnalisées sont trois onglets du même pôle. « Rédiger » est
+      // une action, elle vit en bouton sur la page, pas dans le menu.
       { href: '/emails', icon: Mail, label: 'Emails' },
-      { href: '/programmation', icon: CalendarClock, label: 'Programmation' },
       { href: '/tracabilite', icon: Eye, label: 'Traçabilité des documents' },
     ],
     countKeys: ['questionnairesActive'],

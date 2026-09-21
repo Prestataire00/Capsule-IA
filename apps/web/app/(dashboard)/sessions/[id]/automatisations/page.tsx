@@ -87,7 +87,7 @@ export default async function SessionAutomatisations({ params }: { params: { id:
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Programmations de l’organisme</h2>
-          <Link href="/programmation" className="text-[12px] text-orange-600 dark:text-orange-400 hover:underline">
+          <Link href="/emails/programmation" className="text-[12px] text-orange-600 dark:text-orange-400 hover:underline">
             Gérer les programmations →
           </Link>
         </div>
