@@ -3,7 +3,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { verifyFicheBesoinToken } from '@/shared/lib/fiche-besoin-token';
-import { CHAMPS_FICHE_BESOIN, type ReponsesFicheBesoin } from '@/features/questionnaire/fiche-besoin';
+import {
+  nettoyerReponses,
+  type EnregistrerResult,
+  type ReponsesFicheBesoin,
+} from '@/features/questionnaire/fiche-besoin';
 
 /**
  * Enregistrement de la fiche besoin d'une DEMANDE, par le client lui-même.
@@ -22,24 +26,6 @@ const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-
-export type EnregistrerResult = { ok: true } | { ok: false; error: string };
-
-/** Ne garde que les champs connus, bornés : l'entrée vient du dehors. */
-export function nettoyerReponses(brut: ReponsesFicheBesoin): Record<string, string | number> {
-  const out: Record<string, string | number> = {};
-  for (const c of CHAMPS_FICHE_BESOIN) {
-    const v = brut[c.cle];
-    if (v === undefined || v === null || v === '') continue;
-    if (c.type === 'rating') {
-      const n = Math.round(Number(v));
-      if (Number.isFinite(n) && n >= 1 && n <= 5) out[c.cle] = n;
-    } else {
-      out[c.cle] = String(v).trim().slice(0, 2000);
-    }
-  }
-  return out;
-}
 
 export async function enregistrerFicheBesoinDemande(
   token: string,

@@ -85,3 +85,27 @@ export function questionsDuSchema(schema: unknown): Question[] {
 
   return [];
 }
+
+export type EnregistrerResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Ne garde que les champs connus, bornés : l'entrée vient du dehors.
+ *
+ * Vit ici et non dans le module `'use server'` qui l'utilisait : un fichier de
+ * Server Actions ne peut exporter que des fonctions asynchrones, et Next refuse
+ * de compiler dès qu'il y trouve un type ou une fonction pure.
+ */
+export function nettoyerReponses(brut: ReponsesFicheBesoin): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  for (const c of CHAMPS_FICHE_BESOIN) {
+    const v = brut[c.cle];
+    if (v === undefined || v === null || v === '') continue;
+    if (c.type === 'rating') {
+      const n = Math.round(Number(v));
+      if (Number.isFinite(n) && n >= 1 && n <= 5) out[c.cle] = n;
+    } else {
+      out[c.cle] = String(v).trim().slice(0, 2000);
+    }
+  }
+  return out;
+}

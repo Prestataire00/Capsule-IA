@@ -118,9 +118,15 @@ describe('le retour vers la demande', () => {
   });
 
   it('le formulaire de demande borne ce qu’il accepte du dehors', () => {
-    expect(DEMANDE).toContain('export function nettoyerReponses');
-    expect(DEMANDE).toContain('.slice(0, 2000)');
-    expect(DEMANDE).toContain('n >= 1 && n <= 5');
+    // `nettoyerReponses` a quitté le module `'use server'` — Next refuse d'y
+    // compiler autre chose que des fonctions asynchrones — mais la demande
+    // continue de l'appliquer, et le bornage vit désormais dans le module
+    // partagé des champs.
+    const CHAMPS = lire('../features/questionnaire/fiche-besoin.ts');
+    expect(DEMANDE).toContain('nettoyerReponses(reponses)');
+    expect(CHAMPS).toContain('export function nettoyerReponses');
+    expect(CHAMPS).toContain('.slice(0, 2000)');
+    expect(CHAMPS).toContain('n >= 1 && n <= 5');
   });
 
   it('son jeton a une audience distincte des autres liens publics', () => {

@@ -9,7 +9,7 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { generateFicheBesoinUrl } from '@/shared/lib/fiche-besoin-token';
 import { resolvePublicOrigin } from '@/shared/lib/http/public-origin';
 import { type ReponsesFicheBesoin } from '@/features/questionnaire/fiche-besoin';
-import { nettoyerReponses } from '@/app/questionnaire/besoin-demande/[token]/actions';
+import { nettoyerReponses } from '@/features/questionnaire/fiche-besoin';
 
 /**
  * Fiche besoin d'une demande : l'envoyer au client, ou la remplir soi-même.
