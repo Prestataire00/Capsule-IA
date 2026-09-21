@@ -9,6 +9,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { QuestionRenderer } from '@/features/questionnaire/question-renderer';
 import type { QuestionnaireSchema } from '@/features/questionnaire/schema';
 import { saveManualResponse } from './actions';
+import { questionsDuSchema } from '@/features/questionnaire/fiche-besoin';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +74,7 @@ export default async function ManualEntryPage({
           <form action={saveManualResponse} className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
             <input type="hidden" name="assignmentId" value={params.assignmentId} />
             <input type="hidden" name="dossierId" value={params.id} />
-            <QuestionRenderer questions={a.template.schema.questions} />
+            <QuestionRenderer questions={questionsDuSchema(a.template.schema)} />
             <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950/40 flex items-center justify-end rounded-b-xl">
               <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 inline-flex items-center gap-2">
                 Enregistrer la réponse

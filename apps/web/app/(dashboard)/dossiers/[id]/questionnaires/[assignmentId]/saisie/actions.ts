@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { validateAnswers, type Answers, type QuestionnaireSchema } from '@/features/questionnaire/schema';
+import { questionsDuSchema } from '@/features/questionnaire/fiche-besoin';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'];
 
@@ -66,10 +67,10 @@ export async function saveManualResponse(formData: FormData): Promise<void> {
     .select('schema')
     .eq('id', assignment!.template_id)
     .maybeSingle();
-  const schema = ((t as { schema: QuestionnaireSchema } | null)?.schema ?? { questions: [] }) as QuestionnaireSchema;
+  const schema = ((t as { schema: QuestionnaireSchema } | null)?.schema ?? {}) as QuestionnaireSchema;
 
   const answers: Answers = {};
-  for (const q of schema.questions) {
+  for (const q of questionsDuSchema(schema)) {
     const raw = formData.get(q.id);
     if (raw === null || raw === '') continue;
     answers[q.id] = q.type === 'nps' || q.type === 'rating' ? Number(raw) : String(raw);
@@ -77,11 +78,11 @@ export async function saveManualResponse(formData: FormData): Promise<void> {
   const validation = validateAnswers(schema, answers);
   if (!validation.ok) redirect(`${base}/${assignmentId}/saisie?error=incomplete`);
 
-  const ratings = schema.questions
+  const ratings = questionsDuSchema(schema)
     .filter((q) => q.type === 'rating')
     .map((q) => Number(answers[q.id]))
     .filter((n) => Number.isFinite(n));
-  const npsQ = schema.questions.find((q) => q.type === 'nps');
+  const npsQ = questionsDuSchema(schema).find((q) => q.type === 'nps');
   const nps = npsQ && answers[npsQ.id] !== undefined ? Number(answers[npsQ.id]) : null;
   const score = ratings.length ? (ratings.reduce((s, n) => s + n, 0) / ratings.length) * 20 : null;
 

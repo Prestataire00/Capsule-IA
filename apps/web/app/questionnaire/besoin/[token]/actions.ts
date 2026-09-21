@@ -109,6 +109,44 @@ export async function submitNeedsAnalysis(formData: FormData): Promise<void> {
     console.error('[besoin] bascule du statut en « completed » échouée', statutErr);
   }
 
+  // Retour vers la demande d'origine. Le flux était à sens unique : le client
+  // répondait, et sa fiche de demande continuait d'afficher « Aucune fiche
+  // besoin renseignée ». Non bloquant — la réponse est déjà enregistrée, et une
+  // demande peut légitimement ne pas exister (dossier créé sans demande).
+  try {
+    const { data: demande } = await sb
+      .schema('app')
+      .from('prospects')
+      .select('id, needs_analysis')
+      .eq('organization_id', organizationId)
+      .eq('converted_dossier_id', dossierId)
+      .maybeSingle();
+    const d = demande as { id: string; needs_analysis: Record<string, unknown> | null } | null;
+    if (d) {
+      await sb
+        .schema('app')
+        .from('prospects')
+        .update({
+          needs_analysis: {
+            // Ce que la demande portait déjà est conservé : le formulaire du
+            // dossier ne pose pas la question de typologie.
+            ...(d.needs_analysis ?? {}),
+            currentLevel: data.currentLevel,
+            objectives: data.objectives,
+            expectations: data.expectations || null,
+            constraints: data.constraints || null,
+            accommodations: data.accommodations || null,
+            rempliLe: new Date().toISOString(),
+            rempliPar: 'client',
+          },
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq('id', d.id);
+    }
+  } catch (e) {
+    console.error('[besoin] report vers la demande impossible', e);
+  }
+
   // Analyse du besoin reçue : si la session est déjà planifiée, le devis s'établit (étape 4).
   if (dossierId) await tryEnsureQuoteForDossier(sb, dossierId);
 

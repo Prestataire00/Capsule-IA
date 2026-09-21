@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Calendar, Clock, FileText, Users as UsersIcon, Banknote } from 'lucide-react';
+import { ArrowLeft, Calendar, ClipboardList, Clock, FileText, Users as UsersIcon, Banknote } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { nomDuDossier } from '@/features/dossier/referent';
@@ -64,7 +64,20 @@ export default async function DossierLayout({
     resteSiToutAccordeCents: 0, sansFinanceur: true, enAttenteDeReponse: false,
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const libreDemande = sb as unknown as SupabaseClient<any, any, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d = data as any;
+  // Demande d'origine : un dossier naît souvent d'une demande, et on doit
+  // pouvoir y revenir — la fiche besoin et l'historique commercial y vivent.
+  // Lecture tolérante : un dossier importé d'une convention n'en a aucune.
+  const { data: demandeRow } = await libreDemande
+    .schema('app')
+    .from('prospects')
+    .select('id, first_name, last_name')
+    .eq('converted_dossier_id', params.id)
+    .maybeSingle();
+  const demande = demandeRow as { id: string; first_name: string | null; last_name: string | null } | null;
+
   // Formation ouverte par l'import d'une convention sans programme annexé :
   // le dossier existe, le programme reste à écrire.
   const programmeACompleter = Boolean(d.formation?.metadata?.catalog?.programmeACompleter);
@@ -171,6 +184,15 @@ export default async function DossierLayout({
                 <span className="font-bold text-zinc-800 dark:text-zinc-200">—</span>
               )}
               {d.company?.name && <span>{' · '}{d.company.name}</span>}
+              {demande && (
+                <Link
+                  href={`/prospects/${demande.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/80 transition"
+                  title="Ouvrir la demande dont ce dossier est issu"
+                >
+                  <ClipboardList className="w-3 h-3" aria-hidden /> Demande d’origine
+                </Link>
+              )}
               {programmeACompleter && d.formation?.id && (
                 <Link
                   href={`/formations/${d.formation.id}/programme`}

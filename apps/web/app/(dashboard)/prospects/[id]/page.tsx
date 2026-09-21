@@ -15,6 +15,8 @@ import { requiredDocs } from '@/features/prospect/funding';
 import { ProspectDetailActions, type DocChecklistItem } from './prospect-detail-actions';
 import { ConvertButton } from '../convert-button';
 import { QUOTE_STATUS_LABELS, type QuoteStatus } from '@/features/billing/domain/quote';
+import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { FicheBesoinControls } from './fiche-besoin-controls.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -395,8 +397,27 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                 <Answer label="Contexte / typologie" value={n.typologyContext} />
               </div>
             ) : (
-              <p className="text-[13px] text-zinc-400">Aucune fiche besoin renseignée.</p>
+              <p className="text-[13px] text-zinc-400">
+                Aucune fiche besoin renseignée — envoyez-la au client, ou remplissez-la pendant l’appel.
+              </p>
             )}
+
+            {/* L'analyse du besoin précède la décision : c'est elle qui dit
+                quelle formation vendre. Elle ne partait jusqu'ici qu'à la
+                création du dossier, donc trop tard. */}
+            <ManageOnly section="crm">
+              <FicheBesoinControls
+                prospectId={prospect.id}
+                reponses={
+                  n
+                    ? Object.fromEntries(
+                        Object.entries(n).filter(([, v]) => v !== null && v !== undefined && v !== ''),
+                      )
+                    : null
+                }
+                aUneAdresse={Boolean(prospect.email)}
+              />
+            </ManageOnly>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 rounded-lg border border-zinc-200/70 dark:border-zinc-800 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden bg-zinc-50/60 dark:bg-zinc-950/40">
               <KeyFact label="Situation" value={`${situationLabel}${prospect.company_batch_id ? ' · entreprise' : ''}`} />
@@ -539,6 +560,22 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               Relancer par e-mail
             </a>
           </section>
+
+          {/* La demande constitue le dossier : le fil entre les deux doit se
+              suivre dans les deux sens, sinon la continuité se perd. */}
+          {convertedDossierId && (
+            <Link
+              href={`/dossiers/${convertedDossierId}`}
+              className="group block rounded-xl border border-orange-200/70 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/25 dark:to-zinc-900 p-4 shadow-sm hover:shadow-md transition"
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-orange-700 dark:text-orange-400">
+                Dossier
+              </p>
+              <p className="text-[13px] text-zinc-800 dark:text-zinc-200 mt-1 font-medium">
+                Cette demande a été convertie — ouvrir son dossier
+              </p>
+            </Link>
+          )}
 
           {convertedDossierId && (
             <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-2">
