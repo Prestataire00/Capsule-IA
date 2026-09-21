@@ -125,7 +125,6 @@ export const GROUPS: Group[] = [
       { href: '/factures', icon: Receipt, label: 'Facturation' },
       { href: '/reclamations', icon: MessageSquareWarning, label: 'Réclamations' },
       { href: '/bpf', icon: FileText, label: 'BPF' },
-      { href: '/corbeille', icon: Trash2, label: 'Corbeille' },
     ],
     countKeys: ['invoicesOverdue', 'reclamationsActive'],
   },
@@ -318,8 +317,28 @@ export function SidebarRail({
             })}
           </div>
 
-          {/* Réglages */}
+          {/* Corbeille — hors catégorie : on n'y va pas pour travailler, on y va
+              pour rattraper une suppression. Sa place est en pied, à côté des
+              réglages, pas dans la gestion administrative. */}
           <div className="w-full px-2 pt-2">
+            <Link
+              href="/corbeille"
+              className={cn(
+                'flex flex-col items-center gap-0.5 py-2 rounded-xl cursor-pointer transition-all duration-150',
+                isActive('/corbeille')
+                  ? 'bg-orange-500 text-white shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/15'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-orange-100/50 dark:hover:bg-orange-950/30 hover:text-orange-700 dark:hover:text-orange-300',
+              )}
+              onMouseEnter={() => setHovered(null)}
+              aria-label="Corbeille"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span className="text-[11px] font-medium leading-tight">Corbeille</span>
+            </Link>
+          </div>
+
+          {/* Réglages */}
+          <div className="w-full px-2">
             <Link
               href="/parametres"
               className={cn(
