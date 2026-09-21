@@ -41,13 +41,18 @@ export default async function ExercicesPage({ params }: { params: { id: string }
   const sb = supabaseServer();
 
   // Vérifie que le dossier existe + récupère organization_id
-  const { data: dossierRaw } = await sb
+  const { data: dossierRaw, error: erreurLecture } = await sb
     .schema('app')
     .from('dossiers')
     .select('id, organization_id')
     .eq('id', params.id)
     .maybeSingle();
-
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[exercices du dossier] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (exercices du dossier) : ${erreurLecture.message}`);
+  }
   if (!dossierRaw) notFound();
   const dossier = dossierRaw as { id: string; organization_id: string };
 

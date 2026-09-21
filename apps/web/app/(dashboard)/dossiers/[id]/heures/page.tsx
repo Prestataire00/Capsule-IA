@@ -11,8 +11,14 @@ import { markDossierAbandoned, recomputeHoursNow } from './actions';
 
 export default async function HeuresPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
-  const { data: dossier } = await sb.schema('app').from('dossiers')
+  const { data: dossier, error: erreurLecture } = await sb.schema('app').from('dossiers')
     .select('id, total_hours, abandoned_at, abandon_reason').eq('id', params.id).maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[heures du dossier] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (heures du dossier) : ${erreurLecture.message}`);
+  }
   if (!dossier) notFound();
 
   // Prod-safe : snapshot absent (table non migrée / jamais calculé) → valeurs 0.

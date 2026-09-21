@@ -25,8 +25,14 @@ const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_150px_72px_minmax(0,1.4fr)_104px
 export default async function SessionsPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
 
-  const { data: dossier } = await sb.schema('app').from('dossiers')
+  const { data: dossier, error: erreurLecture } = await sb.schema('app').from('dossiers')
     .select('id, total_hours').eq('id', params.id).maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[séances du dossier] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (séances du dossier) : ${erreurLecture.message}`);
+  }
   if (!dossier) notFound();
 
   // Une séance tient à son dossier par deux chemins, et les deux comptent :

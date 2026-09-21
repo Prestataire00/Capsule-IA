@@ -39,9 +39,15 @@ type RefRow = VersionRow & { id: string; number: number; title: string; criterio
 export default async function QualiopiPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
 
-  const { data: dossier } = await sb
+  const { data: dossier, error: erreurLecture } = await sb
     .schema('app').from('dossiers')
     .select('id, status, formation_id').eq('id', params.id).maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[conformité du dossier] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (conformité du dossier) : ${erreurLecture.message}`);
+  }
   if (!dossier) notFound();
   const status = (dossier as { status: string }).status;
   const formationId = (dossier as { formation_id?: string | null }).formation_id ?? undefined;

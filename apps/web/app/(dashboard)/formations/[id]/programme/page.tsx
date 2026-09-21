@@ -31,7 +31,7 @@ export default async function ProgrammeEditPage({ params }: { params: { id: stri
   const sb = supabaseServer();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: fRow } = await (sb as any)
+  const { data: fRow, error: erreurLecture } = await (sb as any)
     .schema('app')
     .from('formations')
     .select(
@@ -42,6 +42,12 @@ export default async function ProgrammeEditPage({ params }: { params: { id: stri
     .eq('organization_id', me.organizationId)
     .is('deleted_at', null)
     .maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[programme de la formation] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (programme de la formation) : ${erreurLecture.message}`);
+  }
   if (!fRow) notFound();
 
   // Les résultats du programme sont ceux de la page Indicateurs, et non plus un

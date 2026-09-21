@@ -18,7 +18,7 @@ const OWNER_ADMIN = ['owner', 'admin'];
 export default async function ApprenantDetailPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
 
-  const { data: learnerRow } = await sb
+  const { data: learnerRow, error: erreurLecture } = await sb
     .schema('app')
     .from('learners')
     .select(
@@ -28,7 +28,12 @@ export default async function ApprenantDetailPage({ params }: { params: { id: st
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
-
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[fiche apprenant] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (fiche apprenant) : ${erreurLecture.message}`);
+  }
   if (!learnerRow) notFound();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lr = learnerRow as any;

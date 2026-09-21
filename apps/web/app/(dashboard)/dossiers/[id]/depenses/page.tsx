@@ -10,7 +10,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function DepensesPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer() as unknown as SupabaseClient;
-  const { data: dossier } = await sb.schema('app').from('dossiers').select('id').eq('id', params.id).maybeSingle();
+  const { data: dossier, error: erreurLecture } = await sb.schema('app').from('dossiers').select('id').eq('id', params.id).maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[dépenses du dossier] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (dépenses du dossier) : ${erreurLecture.message}`);
+  }
   if (!dossier) notFound();
 
   const { data: rows } = await sb

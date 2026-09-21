@@ -23,8 +23,14 @@ const ROW_GRID = 'grid grid-cols-[minmax(0,2.2fr)_110px_100px_150px_minmax(0,1.3
 export default async function FinanceursPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
 
-  const { data: dossier } = await sb.schema('app').from('dossiers')
+  const { data: dossier, error: erreurLecture } = await sb.schema('app').from('dossiers')
     .select('id').eq('id', params.id).maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette
+  // distinction, toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[financeurs du dossier] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (financeurs du dossier) : ${erreurLecture.message}`);
+  }
   if (!dossier) notFound();
 
   // Prod-safe : si dossier_funder_tasks n'est pas encore migrée, data=null → liste vide.
