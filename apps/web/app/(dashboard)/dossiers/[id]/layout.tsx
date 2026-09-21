@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Calendar, Clock, Users as UsersIcon, Banknote } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, FileText, Users as UsersIcon, Banknote } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { nomDuDossier } from '@/features/dossier/referent';
@@ -39,7 +39,7 @@ export default async function DossierLayout({
     .from('dossiers')
     .select(
       'reference, status, modality, start_date, end_date, total_hours, total_amount_cents, ' +
-        'learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), company:companies(name), formation:formations(title)',
+        'learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), company:companies(name), formation:formations(id, title, metadata)',
     )
     .eq('id', params.id)
     .maybeSingle();
@@ -65,6 +65,9 @@ export default async function DossierLayout({
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d = data as any;
+  // Formation ouverte par l'import d'une convention sans programme annexé :
+  // le dossier existe, le programme reste à écrire.
+  const programmeACompleter = Boolean(d.formation?.metadata?.catalog?.programmeACompleter);
 
   // Référent du client (0167), lu à part et sans faire tomber la fiche si la
   // colonne n'existe pas encore sur cette base.
@@ -154,9 +157,28 @@ export default async function DossierLayout({
               <IdPill>{d.reference}</IdPill>
             </div>
             <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{learner}</h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
-              <span className="font-bold text-zinc-800 dark:text-zinc-200">{d.formation?.title ?? '—'}</span>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 flex items-center gap-2 flex-wrap">
+              {/* Le programme d'une formation sur mesure s'écrit souvent après
+                  la convention : la fiche du dossier y mène directement. */}
+              {d.formation?.id ? (
+                <Link
+                  href={`/formations/${d.formation.id}/programme`}
+                  className="font-bold text-zinc-800 dark:text-zinc-200 hover:text-orange-600 dark:hover:text-orange-400 transition"
+                >
+                  {d.formation.title}
+                </Link>
+              ) : (
+                <span className="font-bold text-zinc-800 dark:text-zinc-200">—</span>
+              )}
               {d.company?.name && <span>{' · '}{d.company.name}</span>}
+              {programmeACompleter && d.formation?.id && (
+                <Link
+                  href={`/formations/${d.formation.id}/programme`}
+                  className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/70 transition"
+                >
+                  <FileText className="w-3 h-3" aria-hidden /> Programme à écrire
+                </Link>
+              )}
             </p>
             {referent && (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1.5">

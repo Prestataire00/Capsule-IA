@@ -369,7 +369,49 @@ export async function applyConventionImport(
     if (creee) resume.formations.push({ id: creee.id, title: f.title.trim() });
   }
 
-  const formationId = resume.formations[0]?.id ?? null;
+  // Formation sur mesure : la convention n'annexe pas toujours son programme,
+  // et beaucoup d'affaires intra n'en ont pas au moment de la signature. Le
+  // dossier exige pourtant une formation (`formation_id NOT NULL`) : plutôt
+  // que d'échouer — et de ne rien créer du tout — on en ouvre une au nom de
+  // l'objet écrit dans la convention, hors catalogue, à compléter depuis le
+  // dossier quand le programme sera écrit.
+  let formationId = resume.formations[0]?.id ?? null;
+  if (!formationId) {
+    const titre = (payload.dossier.objective || '').trim() || `Formation sur mesure — ${payload.client.name.trim() || 'client'}`;
+    const code = await codeDisponible(sb, organizationId, titre);
+    const { data, error } = await sb
+      .schema('app')
+      .from('formations')
+      .insert({
+        organization_id: organizationId,
+        code,
+        slug: slugify(code),
+        title: titre.slice(0, 200),
+        default_modality: 'presentiel',
+        default_duration_hours: 0,
+        is_published: false,
+        metadata: {
+          catalog: {
+            importedFrom: 'convention',
+            // Repéré par l'écran du dossier, qui propose alors d'écrire le
+            // programme ou de l'importer depuis un PDF.
+            programmeACompleter: true,
+            priceEntrepriseCents: payload.pricing.totalHtCents,
+          },
+        },
+      } as never)
+      .select('id')
+      .single();
+    if (error || !data) {
+      resume.warnings.push("La formation du dossier n'a pas pu être ouverte : le dossier n'a pas été créé.");
+    } else {
+      formationId = (data as { id: string }).id;
+      resume.formations.push({ id: formationId, title: titre });
+      resume.warnings.push(
+        'Aucun programme dans la convention : une formation sur mesure a été ouverte pour ce client, à compléter depuis le dossier.',
+      );
+    }
+  }
 
   // ── Apprenants nommés (rare : la liste est souvent annexée plus tard) ─────
   const learnerIds: string[] = [];
