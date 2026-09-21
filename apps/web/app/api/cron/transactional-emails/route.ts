@@ -31,6 +31,7 @@ import { sendCertificatToCompany } from '@/features/documents/send-certificat-to
 import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automation/session-automations';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { delaisAConsiderer, doitPartirAujourdhui } from '@/features/emails/programmation-envois';
+import { automatisationApplicable } from '@/features/dossier/saisie-retroactive';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { archiverDocument } from '@/features/documents/archiver-automatiquement';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
@@ -60,6 +61,8 @@ type DossierRow = {
   learner_id: string;
   formation_id: string;
   organization_id: string;
+  /** Sert à écarter les dossiers saisis après la formation. */
+  created_at: string;
 };
 
 type LearnerRow = {
@@ -454,7 +457,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
   const { data: dossiers, error: dErr } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, status, end_date, total_hours, learner_id, formation_id, organization_id')
+    .select('id, reference, status, end_date, total_hours, learner_id, formation_id, organization_id, created_at')
     .in('end_date', datesDeFin)
     .eq('status', 'completed');
 
@@ -463,7 +466,12 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     return { candidates: 0, satisfactionSent: 0, certificateSent: 0, errors: [dErr.message] };
   }
 
-  const rows = (dossiers ?? []) as unknown as DossierRow[];
+  // Un dossier saisi après la formation n'a pas de fin à annoncer : ni
+  // questionnaire « à chaud » des semaines plus tard, ni attestation déclenchée
+  // par une date qui appartient à l'histoire.
+  const rows = ((dossiers ?? []) as unknown as DossierRow[]).filter((d) =>
+    automatisationApplicable({ statut: d.status, datePivot: d.end_date, creeLe: d.created_at }),
+  );
   if (rows.length === 0) {
     return { candidates: 0, satisfactionSent: 0, certificateSent: 0, errors: [] };
   }
@@ -654,9 +662,34 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
 
   // Alerte coupée pour la séance dans l'onglet Automatisations (0156).
   const alerteOff = await sessionsAutomationOff(sb, sessionIds, 'alerte_emargement');
+
+  // Réclamer un émargement pour une séance saisie après coup n'a pas de sens :
+  // la feuille ne sera jamais signée, et l'alerte reviendrait chaque nuit.
+  const dossierIdsSeances = [
+    ...new Set([...sessById.values()].map((s) => s.dossier_id).filter((x): x is string => Boolean(x))),
+  ];
+  const { data: dossiersRaw } = dossierIdsSeances.length
+    ? await sb.schema('app').from('dossiers').select('id, status, created_at').in('id', dossierIdsSeances)
+    : { data: [] };
+  const dossierParId = new Map(
+    ((dossiersRaw ?? []) as unknown as Array<{ id: string; status: string; created_at: string }>).map(
+      (d) => [d.id, d] as const,
+    ),
+  );
+
   const candidates = sheets.filter((sh) => {
     const sess = sessById.get(sh.session_id);
-    return !!sess && sess.status !== 'cancelled' && sess.ends_at < nowISO && !alerteOff.has(sh.session_id);
+    if (!sess || sess.status === 'cancelled' || sess.ends_at >= nowISO) return false;
+    if (alerteOff.has(sh.session_id)) return false;
+    const dossier = sess.dossier_id ? dossierParId.get(sess.dossier_id) : null;
+    // Séance sans dossier : rien ne permet de dire qu'elle est rétroactive, on
+    // alerte comme avant plutôt que de taire un oubli réel.
+    if (!dossier) return true;
+    return automatisationApplicable({
+      statut: dossier.status,
+      datePivot: sess.ends_at,
+      creeLe: dossier.created_at,
+    });
   });
   if (candidates.length === 0) return { candidates: 0, alerted: 0, errors: [] };
 
@@ -818,11 +851,20 @@ async function runTrainerSatisfaction(): Promise<{ candidates: number; sent: num
   const { data: dossiers, error } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, organization_id, formation_id, end_date, status')
+    .select('id, organization_id, formation_id, end_date, status, created_at')
     .eq('end_date', yesterdayISO)
     .eq('status', 'completed');
   if (error) return { candidates: 0, sent: 0, errors: [error.message] };
-  const rows = (dossiers ?? []) as unknown as { id: string; organization_id: string; formation_id: string }[];
+  const rows = (
+    (dossiers ?? []) as unknown as Array<{
+      id: string;
+      organization_id: string;
+      formation_id: string;
+      end_date: string;
+      status: string;
+      created_at: string;
+    }>
+  ).filter((d) => automatisationApplicable({ statut: d.status, datePivot: d.end_date, creeLe: d.created_at }));
   if (rows.length === 0) return { candidates: 0, sent: 0, errors: [] };
 
   const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -910,10 +952,17 @@ async function runNeedsAnalysisOnEnrollment(): Promise<{ candidates: number; sen
   const { data, error } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id')
+    .select('id, status, start_date, created_at')
     .gte('created_at', cutoff);
   if (error) return { candidates: 0, sent: 0, errors: [error.message] };
-  const rows = (data ?? []) as { id: string }[];
+  // La fiche besoin précède la formation. Sur un dossier saisi après coup, elle
+  // demanderait ses attentes à quelqu'un qui a déjà terminé : le pivot est donc
+  // le DÉBUT de la formation, pas la création du dossier.
+  const rows = (
+    (data ?? []) as { id: string; status: string; start_date: string; created_at: string }[]
+  ).filter((d) =>
+    automatisationApplicable({ statut: d.status, datePivot: d.start_date, creeLe: d.created_at }),
+  );
 
   let sent = 0;
   const errors: string[] = [];
@@ -1016,14 +1065,30 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
         sb
           .schema('app')
           .from('dossiers')
-          .select('start_date, formation:formations(title)')
+          .select('start_date, status, created_at, formation:formations(title)')
           .eq('id', dossierId)
           .maybeSingle(),
         sb.schema('app').from('learners').select('first_name, email').eq('id', ctx.learnerId).maybeSingle(),
       ]);
-      const dossier = dossierRow as { start_date: string; formation: { title: string } | null } | null;
+      const dossier = dossierRow as {
+        start_date: string;
+        status: string;
+        created_at: string;
+        formation: { title: string } | null;
+      } | null;
       const learner = learnerRow as { first_name: string; email: string } | null;
       if (!dossier || !learner?.email) continue;
+      // Attester l'entrée en formation d'un dossier saisi après coup n'a pas de
+      // sens : l'émargement rattrapé est de l'archive, pas un démarrage.
+      if (
+        !automatisationApplicable({
+          statut: dossier.status,
+          datePivot: dossier.start_date,
+          creeLe: dossier.created_at,
+        })
+      ) {
+        continue;
+      }
       const espaceEntree = await espaceUrlFor(ctx.learnerId, dossierId, ctx.organizationId);
 
       const tpl = startOfTrainingEmail({
@@ -1248,6 +1313,30 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
     // Programmation coupée séance par séance (0156).
     const coupes = await dossiersAutomationOff(sb, dossierIds, kind);
     dossierIds = dossierIds.filter((id) => !coupes.has(id));
+
+    // Une règle personnalisée ne rattrape pas le passé non plus. Quelle que
+    // soit son ancre, un dossier dont TOUTE la formation précède la saisie est
+    // de l'archive : la fin de formation sert ici de pivot commun.
+    if (dossierIds.length > 0) {
+      const { data: etats } = await sb
+        .schema('app')
+        .from('dossiers')
+        .select('id, status, end_date, created_at')
+        .in('id', dossierIds);
+      const vivants = new Set(
+        ((etats ?? []) as unknown as Array<{
+          id: string;
+          status: string;
+          end_date: string;
+          created_at: string;
+        }>)
+          .filter((d) =>
+            automatisationApplicable({ statut: d.status, datePivot: d.end_date, creeLe: d.created_at }),
+          )
+          .map((d) => d.id),
+      );
+      dossierIds = dossierIds.filter((id) => vivants.has(id));
+    }
     candidates += dossierIds.length;
 
     for (const dossierId of dossierIds) {

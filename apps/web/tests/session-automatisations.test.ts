@@ -93,7 +93,10 @@ describe('crons respectant le réglage', () => {
 
   it('alerte émargement manquant', () => {
     expect(cron).toContain("sessionsAutomationOff(sb, sessionIds, 'alerte_emargement')");
-    expect(cron).toContain('!alerteOff.has(sh.session_id)');
+    // Le filtre est passé d'une expression unique à un bloc (il écarte aussi
+    // les dossiers saisis après coup) ; la coupure par séance reste le verrou
+    // vérifié ici.
+    expect(cron).toContain('if (alerteOff.has(sh.session_id)) return false;');
   });
 
   it('programmations de l’organisme', () => {

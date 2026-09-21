@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateDossierReference } from '@/features/crm/prospect-conversion/dossier-reference';
 import { sendNeedsAnalysisForDossier } from '@/features/questionnaire/needs-analysis';
 import { DOMAINE_PROVISOIRE } from '@/features/dossier/referent';
+import { statutALaCreation } from '@/features/dossier/saisie-retroactive';
 import { CreateDossierSchema, type CustomFormationValue } from './schema';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
@@ -187,7 +188,17 @@ export const createDossierAction = authActionClient
       status: 'pending',
     }));
 
+    // Une formation déjà terminée au moment de la saisie ne va pas « se
+    // dérouler » : elle entre directement en archive. Aucune automatisation ne
+    // s'y déclenchera, et les documents restent produisibles.
+    const statut = statutALaCreation({
+      statutDemande: 'draft',
+      finFormation: parsedInput.endDate,
+      aujourdhui: new Date(),
+    });
+
     const metadata: Record<string, unknown> = {};
+    if (statut === 'archived') metadata.saisie_retroactive = true;
 
     const { error } = await sb.rpc('save_dossier' as never, {
       p_dossier: {
@@ -197,7 +208,7 @@ export const createDossierAction = authActionClient
         learner_id: learnerId,
         company_id: parsedInput.companyId,
         formation_id: formationId,
-        status: 'draft',
+        status: statut,
         modality: parsedInput.modality,
         start_date: parsedInput.startDate,
         end_date: parsedInput.endDate,
@@ -252,10 +263,16 @@ export const createDossierAction = authActionClient
     // Fiche besoin (analyse des besoins) envoyée automatiquement à l'apprenant
     // dès son rattachement à un dossier. Non bloquant + idempotent ; le cron
     // transactional-emails sert de filet si l'envoi échoue ici.
-    try {
-      await sendNeedsAnalysisForDossier({ dossierId });
-    } catch (e) {
-      console.error('[createDossierAction] envoi fiche besoin échoué', e);
+    //
+    // Sauf sur un dossier archivé d'emblée : demander ses attentes à quelqu'un
+    // qui a terminé sa formation il y a trois mois. Le cron applique la même
+    // règle, mais cet envoi-ci ne passe pas par lui.
+    if (statut !== 'archived') {
+      try {
+        await sendNeedsAnalysisForDossier({ dossierId });
+      } catch (e) {
+        console.error('[createDossierAction] envoi fiche besoin échoué', e);
+      }
     }
 
     revalidatePath('/dossiers');
