@@ -147,3 +147,35 @@ describe('le fil demande ↔ dossier', () => {
     expect(LAYOUT).toContain('Demande d’origine');
   });
 });
+
+// Une demande doit pouvoir être supprimée depuis sa fiche : c'est là qu'on
+// constate qu'elle fait doublon ou qu'elle a été saisie par erreur. Le bouton
+// n'existait que dans la liste.
+describe('supprimer une demande', () => {
+  const PAGE = lire('../app/(dashboard)/prospects/[id]/page.tsx');
+  const ENTITES = lire('../features/corbeille/entities.ts');
+  const ACTIONS = lire('../features/corbeille/actions.ts');
+
+  it('le bouton est sur la fiche, pas seulement dans la liste', () => {
+    expect(PAGE).toContain('<DeleteEntityButton');
+    expect(PAGE).toContain('entite="demande"');
+    expect(PAGE).toContain('redirigerVers="/prospects"');
+  });
+
+  it('réservé à qui gère le CRM', () => {
+    expect(PAGE).toMatch(/<ManageOnly section="crm">[\s\S]{0,400}<DeleteEntityButton/);
+    expect(ENTITES).toMatch(/demande: \{[\s\S]{0,200}section: 'crm'/);
+  });
+
+  it('la suppression reste réversible : la demande rejoint la corbeille', () => {
+    // Rien n'est effacé — c'est la règle de toutes les entités.
+    expect(ACTIONS).toContain('deleted_at');
+    expect(ENTITES).toMatch(/demande: \{[\s\S]{0,200}table: 'prospects'/);
+  });
+
+  it('une demande supprimée ne s’affiche plus comme lien depuis son dossier', () => {
+    const LAYOUT = lire('../app/(dashboard)/dossiers/[id]/layout.tsx');
+    const bloc = LAYOUT.slice(LAYOUT.indexOf("eq('converted_dossier_id', params.id)"));
+    expect(bloc.slice(0, 200)).toContain("is('deleted_at', null)");
+  });
+});

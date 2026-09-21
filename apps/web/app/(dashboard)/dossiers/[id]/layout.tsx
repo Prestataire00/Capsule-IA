@@ -75,6 +75,8 @@ export default async function DossierLayout({
     .from('prospects')
     .select('id, first_name, last_name')
     .eq('converted_dossier_id', params.id)
+    // Une demande mise à la corbeille ne doit plus être proposée en lien.
+    .is('deleted_at', null)
     .maybeSingle();
   const demande = demandeRow as { id: string; first_name: string | null; last_name: string | null } | null;
 

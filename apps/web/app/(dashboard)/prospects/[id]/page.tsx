@@ -16,6 +16,7 @@ import { ProspectDetailActions, type DocChecklistItem } from './prospect-detail-
 import { ConvertButton } from '../convert-button';
 import { QUOTE_STATUS_LABELS, type QuoteStatus } from '@/features/billing/domain/quote';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { FicheBesoinControls } from './fiche-besoin-controls.client';
 
 export const dynamic = 'force-dynamic';
@@ -341,6 +342,22 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                     ? 'Refusée'
                     : 'En attente'}
               </StatusPill>
+              {/* Supprimer depuis la fiche, et pas seulement depuis la liste :
+                  c'est ici qu'on constate qu'une demande est un doublon ou une
+                  erreur de saisie. Suppression réversible — elle rejoint la
+                  corbeille, comme toutes les autres entités. */}
+              <span className="ml-auto shrink-0">
+                <ManageOnly section="crm">
+                  <DeleteEntityButton
+                    entite="demande"
+                    id={params.id}
+                    nom={`${prospect.first_name ?? ''} ${prospect.last_name ?? ''}`.trim() || 'cette demande'}
+                    article="cette demande"
+                    variant="button"
+                    redirigerVers="/prospects"
+                  />
+                </ManageOnly>
+              </span>
             </div>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
               Reçue le {new Date(prospect.created_at).toLocaleDateString('fr-FR')}
