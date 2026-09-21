@@ -130,7 +130,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   const { data: dossierData } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, reference, status, total_amount_cents, learner_id, learner:learners(first_name, last_name, email)')
+    .select('id, reference, status, total_amount_cents, learner_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email)')
     .eq('formation_id', id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });

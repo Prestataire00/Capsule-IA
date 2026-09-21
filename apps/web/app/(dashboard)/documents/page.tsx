@@ -96,7 +96,7 @@ export default async function DocumentsPage({
     .from('documents')
     .select(
       'id, title, kind, status, created_at, version, source_url, ' +
-        'dossier:dossiers(id, reference, learner:learners(first_name, last_name)), ' +
+        'dossier:dossiers(id, reference, learner:learners!dossiers_learner_id_fkey(first_name, last_name)), ' +
         'signatures:document_signatures(status)',
     )
     .is('deleted_at', null)

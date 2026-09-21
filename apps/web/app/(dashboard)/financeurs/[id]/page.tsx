@@ -121,7 +121,7 @@ export default async function FinanceurDetailPage({
     .from('dossier_funders')
     .select(
       'amount_cents, status, external_file_number, ' +
-        'dossier:dossiers(id, reference, status, learner:learners(first_name, last_name), formation:formations(title))',
+        'dossier:dossiers(id, reference, status, learner:learners!dossiers_learner_id_fkey(first_name, last_name), formation:formations(title))',
     )
     .eq('funder_id', params.id);
   const links = ((linkRows as unknown as LinkRow[] | null) ?? []).filter((l) => l.dossier);

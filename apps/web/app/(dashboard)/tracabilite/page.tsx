@@ -53,7 +53,7 @@ async function loadAccess(dossier?: string): Promise<AccessRow[]> {
     .schema('app')
     .from('resource_access_log' as never)
     .select(
-      'id, target_kind, action, actor_kind, dossier_id, occurred_at, dossier:dossiers(reference, learner:learners(first_name, last_name))',
+      'id, target_kind, action, actor_kind, dossier_id, occurred_at, dossier:dossiers(reference, learner:learners!dossiers_learner_id_fkey(first_name, last_name))',
     )
     .eq('target_kind', 'document')
     .order('occurred_at', { ascending: false })

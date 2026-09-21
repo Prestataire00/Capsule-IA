@@ -27,34 +27,45 @@ function sources(dir: string): string[] {
 
 const FICHIERS = DOSSIERS.flatMap((d) => sources(path.join(RACINE, d)));
 
-/** Chaque `.from('X')` suivi de son `.select('…')`. */
-function requetes(src: string): { table: string; select: string }[] {
-  const out: { table: string; select: string }[] = [];
-  const re = /\.from\(\s*'([a-z_]+)'\s*\)([\s\S]{0,400}?)\.select\(\s*(['"`])([\s\S]*?)\3/g;
+/**
+ * Chaque mention d'apprenants, avec le texte qui la précède.
+ *
+ * On ne découpe plus par `.select(...)` : un select écrit en deux littéraux
+ * concaténés (`'a, ' + 'learner:learners(...)'`) échappait à cette lecture, et
+ * c'est précisément ce qui a laissé passer six jointures — dont celle de la
+ * fiche d'un dossier, qui renvoyait « introuvable » en production le
+ * 21/09/2026. On regarde donc le texte brut autour de chaque occurrence.
+ */
+function mentionsApprenants(src: string): { avant: string; hint: boolean }[] {
+  const out: { avant: string; hint: boolean }[] = [];
+  const re = /(?<!dossier_)\blearners(!?[A-Za-z_]*)\(/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(src)) !== null) out.push({ table: m[1] ?? '', select: m[4] ?? '' });
+  while ((m = re.exec(src)) !== null) {
+    out.push({
+      avant: src.slice(Math.max(0, m.index - 400), m.index),
+      hint: (m[1] ?? '').includes('dossiers_learner_id_fkey'),
+    });
+  }
   return out;
 }
 
+/** La mention part-elle d'un dossier — directement, ou par imbrication ? */
+const depuisUnDossier = (avant: string): boolean =>
+  /\.from\(\s*'dossiers'\s*\)/.test(avant) || /\bdossiers\(/.test(avant);
+
 describe('jointures entre dossiers et apprenants', () => {
   it('le dépôt en contient bien (le détecteur n’est pas muet)', () => {
-    // `learners(` a disparu au profit de `learners!…(` : on compte donc
-    // toute mention d'apprenants dans une requête partant d'un dossier.
-    const total = FICHIERS.flatMap((f) => requetes(fs.readFileSync(f, 'utf-8'))).filter(
-      (q) => q.table === 'dossiers' && /(?<!dossier_)\blearners[!(]/.test(q.select),
+    const total = FICHIERS.flatMap((f) => mentionsApprenants(fs.readFileSync(f, 'utf-8'))).filter((m) =>
+      depuisUnDossier(m.avant),
     );
-    expect(total.length).toBeGreaterThan(15);
+    expect(total.length).toBeGreaterThan(25);
   });
 
   it('nomment toutes la clé étrangère visée', () => {
     const fautives: string[] = [];
     for (const f of FICHIERS) {
-      const src = fs.readFileSync(f, 'utf-8');
-      for (const q of requetes(src)) {
-        if (q.table !== 'dossiers') continue;
-        // `dossier_learners(` est une autre table : elle n'est pas ambiguë.
-        const ambigu = /(?<!dossier_)\blearners\(/.test(q.select) && !q.select.includes('!dossiers_learner_id_fkey');
-        if (ambigu) fautives.push(path.relative(RACINE, f));
+      for (const m of mentionsApprenants(fs.readFileSync(f, 'utf-8'))) {
+        if (depuisUnDossier(m.avant) && !m.hint) fautives.push(path.relative(RACINE, f));
       }
     }
     expect(

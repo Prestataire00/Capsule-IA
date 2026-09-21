@@ -123,7 +123,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
     .from('dossiers')
     .select(
       'id, reference, start_date, end_date, total_amount_cents, status, qualiopi_ready, ' +
-        'learner:learners(first_name, last_name, email), company:companies(name), formation:formations(title)',
+        'learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), company:companies(name), formation:formations(title)',
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })

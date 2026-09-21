@@ -37,7 +37,7 @@ export default async function DossierLayout({
     .from('dossiers')
     .select(
       'reference, status, modality, start_date, end_date, total_hours, total_amount_cents, ' +
-        'learner:learners(first_name, last_name, email), company:companies(name), formation:formations(title)',
+        'learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), company:companies(name), formation:formations(title)',
     )
     .eq('id', params.id)
     .maybeSingle();
