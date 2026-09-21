@@ -5,15 +5,20 @@ import { Loader2, QrCode } from 'lucide-react';
 import { forgetRoomIdentity, identifyInRoom } from './actions';
 
 const MESSAGES: Record<string, string> = {
-  room_email_invalid: 'Cette adresse e-mail n’est pas valide.',
-  room_email_unknown: 'Aucun apprenant de cette séance n’a cette adresse. Vérifiez-la, ou demandez au formateur de vous faire signer.',
-  room_email_ambiguous: 'Plusieurs apprenants partagent cette adresse : demandez au formateur de vous faire signer sur sa tablette.',
+  room_name_invalid: 'Indiquez votre prénom et votre nom.',
+  room_name_unknown:
+    'Aucun apprenant de cette séance ne porte ce nom. Vérifiez l’orthographe, ou demandez au formateur de vous faire signer.',
+  room_name_ambiguous:
+    'Plusieurs apprenants portent ce nom sur cette séance : demandez au formateur de vous faire signer sur sa tablette.',
   room_pass_expired: 'Le délai est dépassé. Scannez à nouveau le QR code affiché à l’écran.',
   room_device_used:
     'Ce téléphone a déjà servi à émarger une autre personne sur cette demi-journée. Chaque apprenant émarge avec son propre téléphone.',
   room_not_expected: 'Vous n’êtes pas attendu(e) sur cette séance. Signalez-le au formateur.',
   attendance_sheet_finalized: 'Cette feuille de présence est clôturée.',
 };
+
+const CHAMP =
+  'w-full text-[16px] px-3 h-12 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition';
 
 export function RoomIdentifyForm({
   sheetId,
@@ -30,7 +35,8 @@ export function RoomIdentifyForm({
   organizationName: string;
   warning: string | null;
 }) {
-  const [email, setEmail] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [nom, setNom] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -42,7 +48,7 @@ export function RoomIdentifyForm({
           e.preventDefault();
           setErreur(null);
           start(async () => {
-            const r = await identifyInRoom({ sheetId, pass, email });
+            const r = await identifyInRoom({ sheetId, pass, prenom, nom });
             if (r.ok) window.location.assign(r.path);
             else setErreur(MESSAGES[r.error] ?? 'L’identification a échoué. Réessayez ou demandez au formateur.');
           });
@@ -61,21 +67,38 @@ export function RoomIdentifyForm({
           </p>
         )}
 
-        <label className="block space-y-1.5">
-          <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">Votre adresse e-mail</span>
-          <input
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            required
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full text-[16px] px-3 h-12 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10 transition"
-            placeholder="prenom.nom@exemple.fr"
-          />
-          <span className="block text-[12px] text-zinc-500">Celle que vous avez donnée à l’inscription. Ce téléphone s’en souviendra.</span>
-        </label>
+        {/* 16px : en dessous, Safari iOS zoome à la prise de focus, et la salle
+            émarge au téléphone. Voir la règle des deux exceptions du DESIGN.md. */}
+        <div className="space-y-3">
+          <label className="block space-y-1.5">
+            <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">Votre prénom</span>
+            <input
+              type="text"
+              autoComplete="given-name"
+              required
+              autoFocus
+              value={prenom}
+              onChange={(e) => setPrenom(e.target.value)}
+              className={CHAMP}
+              placeholder="Léa"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">Votre nom</span>
+            <input
+              type="text"
+              autoComplete="family-name"
+              required
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              className={CHAMP}
+              placeholder="Zola"
+            />
+          </label>
+          <span className="block text-[12px] text-zinc-500">
+            Tels qu’ils ont été donnés à l’inscription. Ce téléphone s’en souviendra.
+          </span>
+        </div>
 
         {erreur && (
           <p role="alert" className="text-[13px] text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">
@@ -85,7 +108,7 @@ export function RoomIdentifyForm({
 
         <button
           type="submit"
-          disabled={pending || email.trim().length === 0}
+          disabled={pending || prenom.trim().length === 0 || nom.trim().length === 0}
           className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white text-[15px] font-semibold rounded-lg inline-flex items-center justify-center gap-2 disabled:opacity-40 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
         >
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -103,7 +126,7 @@ export function RoomIdentifyForm({
         )}
 
         <p className="text-[11px] text-zinc-400 text-center">
-          Votre e-mail sert uniquement à vous reconnaître sur la feuille de présence de {organizationName || 'l’organisme'}.
+          Votre nom sert uniquement à vous reconnaître sur la feuille de présence de {organizationName || 'l’organisme'}.
         </p>
       </form>
     </div>

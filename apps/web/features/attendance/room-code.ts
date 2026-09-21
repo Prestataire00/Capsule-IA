@@ -67,6 +67,43 @@ export function readLearnerCookie(key: string, value: unknown, now: number): str
 }
 
 /** « Anissa Fiévé » → « Anissa F. » : assez pour se reconnaître à l'écran. */
+/**
+ * Identification par le nom, et non par l'e-mail : un stagiaire est parfois
+ * inscrit sans adresse — l'entreprise ne donne que des noms (migration 0176,
+ * `learners.email` nullable). Lui réclamer un e-mail en salle le laissait
+ * alors dehors, sans recours autre que la tablette du formateur.
+ *
+ * Le nom se saisit sur un téléphone, debout, en trente secondes : on compare
+ * donc sur une forme normalisée — sans accents, sans casse, sans ponctuation,
+ * espaces réduits. « Anne-Marie O'BRIEN » et « anne marie obrien » sont la
+ * même personne.
+ */
+export function normaliserNom(v: string): string {
+  return v
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    // Séparateurs SUPPRIMÉS, et non remplacés par une espace : le trait d'union,
+    // l'apostrophe et l'espace varient d'une saisie à l'autre pour un même nom.
+    // « Anne-Marie », « anne marie » et « annemarie » se rejoignent ainsi.
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * Deux identités désignent-elles la même personne ? La comparaison ignore
+ * l'ordre des champs : sur un formulaire, un prénom se saisit une fois sur dix
+ * dans la case du nom, et refuser pour ça ferait appeler le formateur.
+ */
+export function memeIdentite(
+  a: { prenom: string; nom: string },
+  b: { prenom: string; nom: string },
+): boolean {
+  const na = [normaliserNom(a.prenom), normaliserNom(a.nom)];
+  const nb = [normaliserNom(b.prenom), normaliserNom(b.nom)];
+  if (na.some((x) => x === '') || nb.some((x) => x === '')) return false;
+  return (na[0] === nb[0] && na[1] === nb[1]) || (na[0] === nb[1] && na[1] === nb[0]);
+}
+
 export function nomProjete(fullName: string): string {
   const mots = fullName.trim().split(/\s+/);
   if (mots.length < 2) return mots[0] ?? '';

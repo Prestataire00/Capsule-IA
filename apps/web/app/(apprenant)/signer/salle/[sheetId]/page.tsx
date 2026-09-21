@@ -29,7 +29,7 @@ function Message({ icon, title, children }: { icon: React.ReactNode; title: stri
 /**
  * Scan du QR projeté. Le code doit dater de moins de vingt secondes : c'est ce
  * qui prouve la présence dans la salle. Un apprenant déjà reconnu sur ce
- * téléphone va droit à la signature ; sinon il s'identifie par son e-mail.
+ * téléphone va droit à la signature ; sinon il s'identifie par son nom.
  */
 export default async function SalleScanPage({ params, searchParams }: { params: { sheetId: string }; searchParams: { c?: string } }) {
   const now = Date.now();

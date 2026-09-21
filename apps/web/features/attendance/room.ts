@@ -2,7 +2,7 @@ import 'server-only';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link';
-import { roomCode, roomSlot } from '@/features/attendance/room-code';
+import { memeIdentite, roomCode, roomSlot } from '@/features/attendance/room-code';
 
 /**
  * Émargement en salle : admission d'un apprenant qui a scanné le QR projeté.
@@ -61,17 +61,37 @@ async function apprenantsAttendus(sessionId: string): Promise<string[]> {
     .map((e) => e.participant_id);
 }
 
-export type FindLearnerResult = { ok: true; learnerId: string } | { ok: false; error: 'room_email_unknown' | 'room_email_ambiguous' };
+export type FindLearnerResult =
+  | { ok: true; learnerId: string }
+  | { ok: false; error: 'room_name_unknown' | 'room_name_ambiguous' };
 
 /** Apprenant attendu sur la séance dont l'e-mail correspond (casse ignorée). */
-export async function findExpectedLearnerByEmail(sessionId: string, email: string): Promise<FindLearnerResult> {
+/**
+ * Reconnaît l'apprenant à son nom parmi ceux attendus sur la séance.
+ *
+ * L'e-mail ne convenait pas : un stagiaire inscrit sans adresse — cas courant
+ * quand l'entreprise ne transmet que des noms — ne pouvait pas émarger seul.
+ *
+ * Le nom collant davantage que l'adresse, l'homonymie est traitée pour ce
+ * qu'elle est : on refuse plutôt que de faire signer la mauvaise personne, et
+ * on renvoie vers le formateur, qui a la liste sous les yeux.
+ */
+export async function findExpectedLearnerByName(
+  sessionId: string,
+  identite: { prenom: string; nom: string },
+): Promise<FindLearnerResult> {
   const ids = await apprenantsAttendus(sessionId);
-  if (ids.length === 0) return { ok: false, error: 'room_email_unknown' };
-  const { data } = await supabaseAdmin().schema('app').from('learners').select('id, email').in('id', ids);
-  const cible = email.trim().toLowerCase();
-  const trouves = ((data ?? []) as { id: string; email: string | null }[]).filter((l) => l.email?.trim().toLowerCase() === cible);
-  if (trouves.length === 0) return { ok: false, error: 'room_email_unknown' };
-  if (trouves.length > 1) return { ok: false, error: 'room_email_ambiguous' };
+  if (ids.length === 0) return { ok: false, error: 'room_name_unknown' };
+  const { data } = await supabaseAdmin()
+    .schema('app')
+    .from('learners')
+    .select('id, first_name, last_name')
+    .in('id', ids);
+  const trouves = ((data ?? []) as { id: string; first_name: string; last_name: string }[]).filter((l) =>
+    memeIdentite(identite, { prenom: l.first_name ?? '', nom: l.last_name ?? '' }),
+  );
+  if (trouves.length === 0) return { ok: false, error: 'room_name_unknown' };
+  if (trouves.length > 1) return { ok: false, error: 'room_name_ambiguous' };
   return { ok: true, learnerId: trouves[0]!.id };
 }
 

@@ -7,7 +7,9 @@ import {
   checkRoomCode,
   checkRoomPass,
   learnerCookie,
+  memeIdentite,
   nomProjete,
+  normaliserNom,
   readLearnerCookie,
   roomCode,
   roomPass,
@@ -80,5 +82,48 @@ describe('garde-fous', () => {
     const ecran = lire('../app/(projection)/projection/[sheetId]/room-projector.tsx');
     expect(ecran).not.toContain('room-code');
     expect(lire('../features/attendance/room-live.ts')).not.toContain('import');
+  });
+});
+
+// Identification par le NOM et non par l'e-mail : un stagiaire est parfois
+// inscrit sans adresse — l'entreprise ne transmet que des noms (0176, colonne
+// `learners.email` nullable). Lui réclamer un e-mail en salle le laissait
+// dehors (demande Ismael, 2026-09-21).
+describe('identification par le nom', () => {
+  it('ignore accents, casse, traits d’union et apostrophes', () => {
+    expect(normaliserNom('Léa')).toBe('lea');
+    expect(normaliserNom('Anne-Marie')).toBe(normaliserNom('anne marie'));
+    expect(normaliserNom("O'BRIEN")).toBe('obrien');
+    expect(normaliserNom('  Zola  ')).toBe('zola');
+  });
+
+  it('reconnaît la personne quel que soit l’ordre des deux cases', () => {
+    const lea = { prenom: 'Léa', nom: 'Zola' };
+    expect(memeIdentite(lea, { prenom: 'lea', nom: 'ZOLA' })).toBe(true);
+    expect(memeIdentite(lea, { prenom: 'Zola', nom: 'Lea' })).toBe(true);
+  });
+
+  it('ne confond pas deux personnes différentes', () => {
+    expect(memeIdentite({ prenom: 'Léa', nom: 'Zola' }, { prenom: 'Léa', nom: 'Durand' })).toBe(false);
+    expect(memeIdentite({ prenom: 'Léa', nom: 'Zola' }, { prenom: 'Theo', nom: 'Blanc' })).toBe(false);
+  });
+
+  it('refuse une case vide plutôt que de faire correspondre n’importe qui', () => {
+    expect(memeIdentite({ prenom: '', nom: 'Zola' }, { prenom: '', nom: 'Zola' })).toBe(false);
+    expect(memeIdentite({ prenom: 'Léa', nom: '   ' }, { prenom: 'Léa', nom: '' })).toBe(false);
+  });
+
+  it('l’écran demande le nom, plus l’adresse', () => {
+    const ui = lire('../app/(apprenant)/signer/salle/[sheetId]/identify-form.tsx');
+    expect(ui).toContain('Votre prénom');
+    expect(ui).toContain('Votre nom');
+    expect(ui).not.toContain('Votre adresse e-mail');
+    expect(ui).toContain('room_name_ambiguous');
+  });
+
+  it('l’homonymie renvoie au formateur, jamais à une signature au hasard', () => {
+    const src = lire('../features/attendance/room.ts');
+    expect(src).toContain("if (trouves.length > 1) return { ok: false, error: 'room_name_ambiguous' }");
+    expect(src).not.toContain('findExpectedLearnerByEmail');
   });
 });
