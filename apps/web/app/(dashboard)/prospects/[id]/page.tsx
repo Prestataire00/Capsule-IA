@@ -4,7 +4,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import { ArrowLeft, ClipboardList, History, FileCheck2 } from 'lucide-react';
+import { ArrowLeft, ClipboardList, History, FileCheck2, Pencil } from 'lucide-react';
 import { env } from '@/env.mjs';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ProspectNoteForm } from './note-form.client';
@@ -346,7 +346,15 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                   c'est ici qu'on constate qu'une demande est un doublon ou une
                   erreur de saisie. Suppression réversible — elle rejoint la
                   corbeille, comme toutes les autres entités. */}
-              <span className="ml-auto shrink-0">
+              <span className="ml-auto shrink-0 flex items-center gap-2">
+                <ManageOnly section="crm">
+                  <Link
+                    href={`/prospects/${params.id}/modifier`}
+                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
+                  >
+                    <Pencil className="w-3.5 h-3.5" /> Modifier
+                  </Link>
+                </ManageOnly>
                 <ManageOnly section="crm">
                   <DeleteEntityButton
                     entite="demande"

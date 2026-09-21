@@ -28,35 +28,63 @@ const input =
 const label = 'text-[12px] font-semibold text-zinc-700 dark:text-zinc-300';
 const card = 'bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4';
 
-export function DemandeForm({ formations }: { formations: FormationOption[] }) {
+export type ValeursDemande = {
+  civility: string; firstName: string; lastName: string; email: string; phone: string;
+  birthDate: string; rqth: boolean; situation: string; funderKind: string;
+  companyName: string; companySiret: string; conventionCollective: string;
+  referentName: string; referentEmail: string; referentPhone: string;
+  formationMode: 'catalogue' | 'sur-mesure' | 'plus-tard';
+  formationId: string; customTitle: string; customHours: string; customPrice: string;
+  preferredModality: string; preferredStartDate: string; message: string;
+};
+
+/**
+ * Le formulaire d'une demande, pour la créer comme pour la modifier.
+ *
+ * Un second formulaire d'édition aurait fini par diverger de celui-ci — champs
+ * oubliés d'un côté, règles de validation différentes de l'autre.
+ */
+export function DemandeForm({
+  formations,
+  valeurs,
+  enregistrer,
+  libelleBouton,
+}: {
+  formations: FormationOption[];
+  /** Demande existante à modifier ; absent = création. */
+  valeurs?: ValeursDemande;
+  /** Action de remplacement ; absente = création. */
+  enregistrer?: (v: ValeursDemande) => Promise<{ ok: true } | { ok: false; error: string }>;
+  libelleBouton?: string;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
-    civility: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    birthDate: '',
-    rqth: false,
-    situation: 'salarie' as (typeof SITUATIONS)[number]['value'],
-    funderKind: 'opco' as string,
-    companyName: '',
-    companySiret: '',
-    conventionCollective: '',
-    referentName: '',
-    referentEmail: '',
-    referentPhone: '',
+    civility: valeurs?.civility ?? '',
+    firstName: valeurs?.firstName ?? '',
+    lastName: valeurs?.lastName ?? '',
+    email: valeurs?.email ?? '',
+    phone: valeurs?.phone ?? '',
+    birthDate: valeurs?.birthDate ?? '',
+    rqth: valeurs?.rqth ?? false,
+    situation: (valeurs?.situation ?? 'salarie') as (typeof SITUATIONS)[number]['value'],
+    funderKind: (valeurs?.funderKind ?? 'opco') as string,
+    companyName: valeurs?.companyName ?? '',
+    companySiret: valeurs?.companySiret ?? '',
+    conventionCollective: valeurs?.conventionCollective ?? '',
+    referentName: valeurs?.referentName ?? '',
+    referentEmail: valeurs?.referentEmail ?? '',
+    referentPhone: valeurs?.referentPhone ?? '',
     // 'catalogue' | 'sur-mesure' | 'plus-tard'
-    formationMode: 'catalogue' as 'catalogue' | 'sur-mesure' | 'plus-tard',
-    formationId: '',
-    customTitle: '',
-    customHours: '',
-    customPrice: '',
-    preferredModality: '',
-    preferredStartDate: '',
-    message: '',
+    formationMode: (valeurs?.formationMode ?? 'catalogue') as 'catalogue' | 'sur-mesure' | 'plus-tard',
+    formationId: valeurs?.formationId ?? '',
+    customTitle: valeurs?.customTitle ?? '',
+    customHours: valeurs?.customHours ?? '',
+    customPrice: valeurs?.customPrice ?? '',
+    preferredModality: valeurs?.preferredModality ?? '',
+    preferredStartDate: valeurs?.preferredStartDate ?? '',
+    message: valeurs?.message ?? '',
     convertNow: false,
   });
 
@@ -73,6 +101,39 @@ export function DemandeForm({ formations }: { formations: FormationOption[] }) {
     }
 
     start(async () => {
+      if (enregistrer) {
+        const r = await enregistrer({
+          civility: form.civility,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          phone: form.phone,
+          birthDate: form.birthDate,
+          rqth: form.rqth,
+          situation: form.situation,
+          funderKind: form.funderKind,
+          companyName: form.companyName,
+          companySiret: form.companySiret,
+          conventionCollective: form.conventionCollective,
+          referentName: form.referentName,
+          referentEmail: form.referentEmail,
+          referentPhone: form.referentPhone,
+          formationMode: form.formationMode,
+          formationId: form.formationId,
+          customTitle: form.customTitle,
+          customHours: form.customHours,
+          customPrice: form.customPrice,
+          preferredModality: form.preferredModality,
+          preferredStartDate: form.preferredStartDate,
+          message: form.message,
+        });
+        if (!r.ok) {
+          setError(r.error);
+          return;
+        }
+        router.refresh();
+        return;
+      }
       const res = await createDemande({
         civility: form.civility as 'm' | 'mme' | '',
         firstName: form.firstName,
@@ -342,7 +403,7 @@ export function DemandeForm({ formations }: { formations: FormationOption[] }) {
           className="h-10 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 transition inline-flex items-center gap-2"
         >
           {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          Enregistrer la demande
+          {libelleBouton ?? 'Enregistrer la demande'}
         </button>
         <button type="button" onClick={() => router.back()} className="text-[13px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
           Annuler

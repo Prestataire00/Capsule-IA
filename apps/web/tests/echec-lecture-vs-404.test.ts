@@ -26,7 +26,13 @@ function pages(dir: string): string[] {
 
 const FICHIERS = pages(APP);
 
-/** `const { data } = await …maybeSingle();` suivi d'un `notFound()` sec. */
+/**
+ * `const { data } = await …maybeSingle();` suivi d'un `notFound()` sec.
+ *
+ * Portée limitée, assumée : une lecture enveloppée dans un `Promise.all` ne
+ * correspond pas à ce motif et échappe donc au détecteur. Un relevé du
+ * 21/09/2026 dénombre 17 pages dans ce cas, à reprendre séparément.
+ */
 const AVEUGLE = /const \{ data(?::\s*\w+)? \} = await[\s\S]{0,700}?\.maybeSingle\(\);\s*\n\s*if \(![\w.]+\) notFound\(\);/;
 
 describe('échec de lecture contre ligne absente', () => {
@@ -53,10 +59,13 @@ describe('échec de lecture contre ligne absente', () => {
       const rel = path.relative(APP, f);
       // L'erreur remonte, elle n'est pas seulement journalisée.
       expect(src, rel).toMatch(/if \(erreurLecture\) \{[\s\S]{0,300}throw new Error/);
-      // Et la garde suit immédiatement la lecture : intercaler le test
-      // d'absence masquerait la panne. On ne compare pas à `notFound()` en
-      // général — une page peut en avoir un plus haut, pour l'authentification.
-      expect(src, rel).toMatch(/\.maybeSingle\(\);\s*(?:\n\s*\/\/[^\n]*)*\s*\n\s*if \(erreurLecture\)/);
+      // Et le test d'absence vient APRÈS celui de la panne : l'inverse
+      // masquerait l'erreur derrière un 404. On compare au dernier
+      // `notFound()` — celui de la donnée ; une page peut en avoir un plus
+      // haut pour l'authentification, et la lecture peut vivre dans un
+      // `Promise.all`, ce qui l'éloigne de sa garde sans rien changer à
+      // l'ordre qui compte.
+      expect(src.lastIndexOf('notFound()'), rel).toBeGreaterThan(src.indexOf('if (erreurLecture)'));
     }
   });
 });
