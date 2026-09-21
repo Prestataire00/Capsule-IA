@@ -225,6 +225,20 @@ export async function convertProspectToDossier(
     }));
   if (!formationId) return { ok: false, error: 'formation_create_failed' };
 
+  // Durée réelle de la formation choisie au catalogue. `null` pour une
+  // formation sur mesure : ses heures viennent alors de la demande.
+  let dureeCatalogue: number | null = null;
+  if (p.formation_id) {
+    const { data: f } = await sb
+      .schema('app')
+      .from('formations')
+      .select('default_duration_hours')
+      .eq('id', p.formation_id)
+      .maybeSingle();
+    const h = Number((f as { default_duration_hours: number | null } | null)?.default_duration_hours ?? 0);
+    dureeCatalogue = Number.isFinite(h) && h > 0 ? h : null;
+  }
+
   const dossierId = randomUUID();
   const year = Number(new Date().getFullYear());
   const reference = generateDossierReference(prospect.id, year);
@@ -241,7 +255,11 @@ export async function convertProspectToDossier(
       modality: prospect.preferredModality ?? 'distanciel',
       start_date: startDate,
       end_date: startDate,
-      total_hours: p.formation_id ? 1 : hours,
+      // La durée de la formation du catalogue était ignorée : tout dossier né
+      // d'une demande naissait à 1 heure — un chiffre qui remonte ensuite au
+      // BPF, au suivi des heures et aux attestations. On lit la valeur qui
+      // existe déjà sur la formation ; on n'en déduit rien.
+      total_hours: dureeCatalogue ?? hours,
       metadata: { from_prospect: prospect.id, funder_kind: prospect.funderKind },
     },
     p_events: [],
