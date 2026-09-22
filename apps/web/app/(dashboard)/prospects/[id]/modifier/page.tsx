@@ -21,6 +21,7 @@ type Ligne = {
   phone: string | null;
   birth_date: string | null;
   rqth: boolean | null;
+  candidate_is_learner: boolean | null;
   situation: string;
   funder_kind: string;
   company_name: string | null;
@@ -48,7 +49,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
       .schema('app')
       .from('prospects')
       .select(
-        'id, civility, first_name, last_name, email, phone, birth_date, rqth, situation, funder_kind, ' +
+        'id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, situation, funder_kind, ' +
           'company_name, company_siret, convention_collective, referent_name, referent_email, referent_phone, ' +
           'formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, ' +
           'preferred_modality, preferred_start_date, message, converted_dossier_id',
@@ -97,6 +98,8 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
     phone: d.phone ?? '',
     birthDate: d.birth_date ?? '',
     rqth: Boolean(d.rqth),
+    // Ajouté par l'autre instance : le candidat n'est pas toujours le stagiaire.
+    candidateIsLearner: d.candidate_is_learner ?? true,
     situation: d.situation,
     funderKind: d.funder_kind,
     companyName: d.company_name ?? '',

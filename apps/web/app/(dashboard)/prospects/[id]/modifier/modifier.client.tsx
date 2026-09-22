@@ -35,6 +35,7 @@ export function ModifierDemande({
           phone: v.phone,
           birthDate: v.birthDate,
           rqth: v.rqth,
+          candidateIsLearner: v.candidateIsLearner,
           situation: v.situation,
           funderKind: v.funderKind,
           companyName: v.companyName,

@@ -32,6 +32,7 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
     location: '',
     date: '',
     dateFin: '',
+    plusieursJours: false,
     jours: JOURS_OUVRES as number[],
     morning: true,
     afternoon: false,
@@ -55,8 +56,8 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
     form.date && creneaux.length > 0
       ? genererSeances({
           dateDebut: form.date,
-          dateFin: form.dateFin || form.date,
-          jours: form.dateFin && form.dateFin !== form.date ? form.jours : [1, 2, 3, 4, 5, 6, 7],
+          dateFin: form.plusieursJours ? form.dateFin || form.date : form.date,
+          jours: form.plusieursJours ? form.jours : [1, 2, 3, 4, 5, 6, 7],
           creneaux,
         })
       : null;
@@ -81,8 +82,8 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
         location: form.location,
         priceCents,
         dateDebut: form.date,
-        dateFin: form.dateFin || form.date,
-        jours: form.dateFin && form.dateFin !== form.date ? form.jours : [1, 2, 3, 4, 5, 6, 7],
+        dateFin: form.plusieursJours ? form.dateFin || form.date : form.date,
+        jours: form.plusieursJours ? form.jours : [1, 2, 3, 4, 5, 6, 7],
         creneaux,
       });
       if (!res.ok) {
@@ -129,18 +130,46 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
             className={inputClass}
           />
         </FormField>
-        <FormField label="Au">
-          <input
-            type="date"
-            value={form.dateFin}
-            min={form.date || undefined}
-            onChange={(e) => set('dateFin', e.target.value)}
-            className={inputClass}
-          />
-        </FormField>
+        {form.plusieursJours && (
+          <FormField label="Au" required>
+            <input
+              type="date"
+              value={form.dateFin}
+              min={form.date || undefined}
+              onChange={(e) => set('dateFin', e.target.value)}
+              className={inputClass}
+            />
+          </FormField>
+        )}
       </div>
 
-      {form.dateFin && form.dateFin !== form.date && (
+      {/* Case explicite plutôt qu'un affichage déduit d'une date de fin
+          différente : le geste doit être visible avant d'être compris. */}
+      <label className="flex items-start gap-2.5 cursor-pointer rounded-lg border border-zinc-200/70 dark:border-zinc-800 p-3">
+        <input
+          type="checkbox"
+          checked={form.plusieursJours}
+          onChange={(e) =>
+            setForm((f) => ({
+              ...f,
+              plusieursJours: e.target.checked,
+              dateFin: e.target.checked ? f.dateFin || f.date : '',
+            }))
+          }
+          className="w-4 h-4 accent-orange-500 mt-0.5"
+        />
+        <span>
+          <span className="block text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">
+            Formation sur plusieurs jours
+          </span>
+          <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+            Les horaires ci-dessous sont repris sur chaque jour coché. Une séance, son lien visio et ses feuilles
+            d’émargement sont créés pour chacun.
+          </span>
+        </span>
+      </label>
+
+      {form.plusieursJours && (
         <div>
           <p className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Jours de formation</p>
           <div className="flex gap-1.5">
@@ -168,9 +197,7 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
               );
             })}
           </div>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5">
-            Les horaires ci-dessous sont repris à l’identique sur chaque jour coché.
-          </p>
+
         </div>
       )}
       <FormField label="Tarif de la session (€ HT par stagiaire)">
@@ -213,9 +240,17 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
         </div>
 
         {apercu && (
-          <p className="text-[12px] font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-lg px-3 py-2">
-            {apercu}
-          </p>
+          <div className="text-[12px] bg-blue-50 dark:bg-blue-950/40 rounded-lg px-3 py-2">
+            <p className="font-medium text-blue-700 dark:text-blue-300">{apercu}</p>
+            {plan?.ok && (
+              // Dire ce qui est créé en plus des séances : l'automatisme est
+              // invisible sinon, et on le refait à la main par précaution.
+              <p className="text-blue-600/90 dark:text-blue-400/90 mt-0.5">
+                Feuilles d’émargement créées automatiquement
+                {isRemote ? ' · un lien visio par séance' : ''}.
+              </p>
+            )}
+          </div>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
