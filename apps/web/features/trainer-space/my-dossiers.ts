@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { hasTrainerSpace } from '@/shared/lib/auth/landing';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { estTitulaireProvisoire } from '@/features/dossier/referent';
 
 /**
@@ -90,7 +91,9 @@ export async function requireMyTrainerDossier(
   if (!user || !(await hasTrainerSpace(user.id))) return { ok: false };
 
   const { data: ids, error } = await sb.schema('app').rpc('my_trainer_dossier_ids' as never);
-  if (error || !((ids ?? []) as string[]).includes(dossierId)) return { ok: false };
+  // Un refus doit venir de la liste, pas d'une panne.
+  exigerLecture('dossiers du formateur', error);
+  if (!((ids ?? []) as string[]).includes(dossierId)) return { ok: false };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { ok: true, sb: sb as unknown as SupabaseClient<any, any, any>, userId: user.id };
 }
@@ -183,13 +186,14 @@ export async function loadMyDossiers(sb: Client): Promise<DossierConfie[]> {
 }
 
 export async function loadMyDossier(sb: Client, dossierId: string): Promise<DossierDetail | null> {
-  const { data } = await sb
+  const { data, error: erreurDossier } = await sb
     .schema('app')
     .from('dossiers')
     .select(COLONNES_DOSSIER)
     .eq('id', dossierId)
     .is('deleted_at', null)
     .maybeSingle();
+  exigerLecture('dossier du formateur', erreurDossier);
   const d = data as unknown as LigneDossier | null;
   if (!d) return null;
 

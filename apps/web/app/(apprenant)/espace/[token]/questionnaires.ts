@@ -1,6 +1,7 @@
 import 'server-only';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import type { QuestionnaireSchema } from '@/features/questionnaire/schema';
 
 export type QuestionnaireStatus = 'pending' | 'in_progress' | 'completed' | 'expired';
@@ -69,22 +70,28 @@ export async function loadApprenantQuestionnaire(
   if (!verified.ok) return { state: 'invalid' };
 
   const admin = supabaseAdmin();
-  const { data: a } = await admin
+  const { data: a, error: erreurAssignation } = await admin
     .schema('app')
     .from('questionnaire_assignments')
     .select('id, recipient_learner_id, template_id')
     .eq('id', assignmentId)
     .maybeSingle();
 
+  // Sans cette garde, une panne rendait « lien invalide » : l'apprenant
+  // renonçait à un questionnaire qui l'attendait pourtant.
+  exigerLecture('questionnaire de l’apprenant', erreurAssignation);
   const assignment = a as { recipient_learner_id: string | null; template_id: string } | null;
   if (!assignment) return { state: 'invalid' };
   if (assignment.recipient_learner_id !== verified.value.learnerId) return { state: 'forbidden' };
 
-  const [{ data: existing }, { data: t }] = await Promise.all([
+  const [{ data: existing, error: erreurReponse }, { data: t, error: erreurModele }] = await Promise.all([
     admin.schema('app').from('questionnaire_responses').select('id').eq('assignment_id', assignmentId).maybeSingle(),
     admin.schema('app').from('questionnaire_templates').select('title, schema').eq('id', assignment.template_id).maybeSingle(),
   ]);
 
+  // Une réponse illisible ferait rouvrir un questionnaire déjà rempli.
+  exigerLecture('réponse au questionnaire', erreurReponse);
+  exigerLecture('modèle de questionnaire', erreurModele);
   const tpl = t as { title: string; schema: QuestionnaireSchema } | null;
   const title = tpl?.title ?? 'Questionnaire';
   if (existing) return { state: 'answered', title };

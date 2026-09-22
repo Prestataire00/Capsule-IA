@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, FileText, ShieldCheck, ExternalLink, Check } from 'lucide-react';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { DocumentSignerForm } from './document-signer-form';
 import { SIGNABLE_DOCUMENT_KINDS } from './signable';
 
@@ -25,13 +26,16 @@ export default async function SignDocumentPage({ params }: { params: { token: st
   if (!verified.ok) return notFound();
 
   const admin = supabaseAdmin();
-  const { data: doc } = await admin
+  const { data: doc, error: erreurDocument } = await admin
     .schema('app')
     .from('documents')
     .select('id, dossier_id, kind, title')
     .eq('id', params.docId)
     .is('deleted_at', null)
     .maybeSingle();
+  // Une panne rendait la page introuvable : l'apprenant croyait le document
+  // retiré et ne signait pas.
+  exigerLecture('document à signer', erreurDocument);
   const document = doc as { dossier_id: string; kind: string; title: string | null } | null;
 
   if (
@@ -42,13 +46,16 @@ export default async function SignDocumentPage({ params }: { params: { token: st
     return notFound();
   }
 
-  const { data: existing } = await admin
+  const { data: existing, error: erreurSignature } = await admin
     .schema('app')
     .from('document_signatures')
     .select('status')
     .eq('document_id', params.docId)
     .eq('signer_learner_id', verified.value.learnerId)
     .maybeSingle();
+  // Illisible, la signature existante repasserait pour absente : on
+  // redemanderait à l'apprenant de signer ce qu'il a déjà signé.
+  exigerLecture('signature du document', erreurSignature);
   const alreadySigned = (existing as { status: string } | null)?.status === 'signed';
 
   const back = `/espace/${params.token}/documents`;

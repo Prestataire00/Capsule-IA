@@ -1,4 +1,5 @@
 import 'server-only';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 
 // Charge une session et son entourage SANS embed PostgREST sur `sessions`
 // (le cache de schéma peut casser les relations de `sessions` depuis la migration
@@ -61,7 +62,7 @@ export type LoadedSession = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadSession(sb: any, id: string): Promise<LoadedSession | null> {
-  const { data: sRow } = await sb
+  const { data: sRow, error: erreurSeance } = await sb
     .schema('app')
     .from('sessions')
     .select(
@@ -69,6 +70,8 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
     )
     .eq('id', id)
     .maybeSingle();
+  // La lecture qui identifie la séance : au-delà, `null` veut dire « absente ».
+  exigerLecture('séance', erreurSeance);
   if (!sRow) return null;
   const session = sRow as LoadedSession['session'];
 

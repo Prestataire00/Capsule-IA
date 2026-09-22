@@ -9,6 +9,7 @@ import 'server-only';
 // sensible, borné aux formations publiées par la RPC).
 
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { deriveProgramme, type OrgAddress, type ProgrammeFormation, type ProgrammeOrg } from './from-formation';
@@ -209,7 +210,10 @@ export async function getPublicProgramme(formationId: string): Promise<PublicPro
   if (!id) return null;
 
   const sb = supabaseServer();
-  const { data } = await sb.rpc('get_published_formation_full' as never, { p_id: id } as never);
+  const { data, error } = await sb.rpc('get_published_formation_full' as never, { p_id: id } as never);
+  // Page publique : une panne y affichait « formation introuvable », ce qui
+  // laissait croire le programme retiré du catalogue.
+  exigerLecture('programme public', error);
   const row = (data as unknown as FullRow | null) ?? null;
   if (!row || !row.id) return null;
 

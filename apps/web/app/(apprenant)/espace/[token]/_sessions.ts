@@ -1,6 +1,7 @@
 import 'server-only';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 
 /**
  * Les séances auxquelles donne droit un jeton d'espace apprenant.
@@ -45,20 +46,27 @@ export async function resolveAccesApprenant(token: string): Promise<AccesApprena
       .eq('participant_kind', 'learner'),
   ]);
 
+  // Les trois chemins doivent répondre : un seul en panne retirerait des
+  // séances à l'apprenant sans que rien ne le signale.
+  exigerLecture('séances du dossier', parDossier.error);
+  exigerLecture('séances liées au dossier', parJonction.error);
+  exigerLecture('inscriptions nominatives', parParticipation.error);
+
   const ids = new Set<string>();
   for (const r of (parDossier.data ?? []) as Array<{ id: string }>) ids.add(r.id);
   for (const r of (parJonction.data ?? []) as unknown as Array<{ session_id: string }>) ids.add(r.session_id);
   for (const r of (parParticipation.data ?? []) as Array<{ session_id: string }>) ids.add(r.session_id);
 
-  const { data: learnerRow } = await admin
+  const { data: learnerRow, error: erreurApprenant } = await admin
     .schema('app')
     .from('learners')
     .select('first_name, last_name')
     .eq('id', learnerId)
     .maybeSingle();
+  exigerLecture('apprenant', erreurApprenant);
   const l = learnerRow as { first_name: string | null; last_name: string | null } | null;
 
-  const { data: seancesData } = ids.size
+  const { data: seancesData, error: erreurSeances } = ids.size
     ? await admin
         .schema('app')
         .from('sessions')
@@ -66,7 +74,8 @@ export async function resolveAccesApprenant(token: string): Promise<AccesApprena
         .in('id', [...ids])
         .neq('status', 'cancelled')
         .order('starts_at', { ascending: true })
-    : { data: [] };
+    : { data: [], error: null };
+  exigerLecture('séances de l’apprenant', erreurSeances);
 
   return {
     learnerId,

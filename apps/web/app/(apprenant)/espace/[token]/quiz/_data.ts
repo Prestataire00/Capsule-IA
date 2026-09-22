@@ -1,6 +1,7 @@
 import 'server-only';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { lireQuestions } from '@/features/pedagogie/store';
 import { sansLesReponses, baremeTotal, type QuestionPourApprenant } from '@/features/pedagogie/quiz';
 import { estForme, type ContenuExercice, type Forme } from '@/features/pedagogie/kinds';
@@ -45,12 +46,13 @@ export async function resolveQuizApprenant(token: string): Promise<ContexteQuiz 
   const admin = supabaseAdmin();
 
   // Les dossiers de l'apprenant : celui du jeton, et ceux où il est titulaire.
-  const { data: dossiersData } = await admin
+  const { data: dossiersData, error: erreurDossiers } = await admin
     .schema('app')
     .from('dossiers')
     .select('id')
     .eq('learner_id', learnerId)
     .is('deleted_at', null);
+  exigerLecture('dossiers de l’apprenant', erreurDossiers);
   const dossierIds = [
     ...new Set([dossierId, ...(((dossiersData ?? []) as Array<{ id: string }>).map((d) => d.id))]),
   ];
@@ -66,10 +68,9 @@ export async function resolveQuizApprenant(token: string): Promise<ContexteQuiz 
     .eq('validation_status', 'valide')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error('[quiz apprenant] lecture impossible', learnerId, error.message);
-    return { learnerId, organizationId, quiz: [] };
-  }
+  // Rendre une liste vide revenait à dire à l'apprenant qu'il n'a rien à faire,
+  // alors que la lecture a échoué.
+  exigerLecture('quiz de l’apprenant', error);
 
   const rows = (data ?? []) as unknown as Array<{
     id: string;

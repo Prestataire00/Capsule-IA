@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { loadSessionsByIds } from '@/features/trainer-space/my-sessions';
 import { adresseLignes, estTarifBase, ligneSeance, type LigneCalculee, type TarifBase } from '@/features/trainer-space/billing-rules';
@@ -57,7 +58,7 @@ export type TrainerFiche = {
 
 /** Fiche formateur ouverte du compte dans cet organisme. */
 export async function ficheDansOrganisme(userId: string, organizationId: string): Promise<TrainerFiche | null> {
-  const { data } = await libre(supabaseAdmin())
+  const { data, error } = await libre(supabaseAdmin())
     .schema('app')
     .from('trainers')
     .select('id, organization_id, first_name, last_name, email, tarif_base, tarif_cents')
@@ -66,6 +67,9 @@ export async function ficheDansOrganisme(userId: string, organizationId: string)
     .is('deleted_at', null)
     .is('space_disabled_at', null)
     .maybeSingle();
+  // Sans fiche, le formateur ne peut pas facturer : une panne le lui dirait
+  // en 404, comme si son organisme l'avait retiré.
+  exigerLecture('fiche du formateur', error);
   const f = data as (Omit<TrainerFiche, 'tarif_base'> & { tarif_base: string | null }) | null;
   if (!f) return null;
   return { ...f, tarif_base: estTarifBase(f.tarif_base) ? f.tarif_base : null, tarif_cents: f.tarif_cents === null ? null : Number(f.tarif_cents) };

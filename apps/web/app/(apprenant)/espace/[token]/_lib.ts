@@ -1,6 +1,7 @@
 import 'server-only';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 
 // Charge le logo de l'organisme pour l'espace apprenant. L'apprenant n'est pas
 // membre de l'org : on passe par le service role (bucket org_assets privé) et on
@@ -131,10 +132,10 @@ export async function resolveApprenantContext(token: string): Promise<ApprenantC
       sb.schema('app').rpc('get_apprenant_dashboard' as never, { p_learner_id: verified.value.learnerId } as never),
       sb.schema('app').rpc('get_learner_complaints' as never, { p_learner_id: verified.value.learnerId } as never),
     ])) as unknown as [Rpc, Rpc];
-    if (dash.error) {
-      console.error('[espace-apprenant] RPC get_apprenant_dashboard a échoué:', dash.error);
-      return null;
-    }
+    // Une RPC en échec n'est pas un lien invalide. Rendre `null` ici conduisait
+    // l'apprenant à « ce lien n'est plus valable » alors que son lien l'est :
+    // il en redemandait un, qui échouait pareil.
+    exigerLecture('espace apprenant', dash.error);
     if (dash.data) {
       const d = dash.data as unknown as RealDashboard;
       // `get_apprenant_dashboard` ignore le dossier inscrit dans le jeton : elle

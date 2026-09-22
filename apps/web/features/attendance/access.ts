@@ -3,6 +3,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
 import { hasTrainerSpace } from '@/shared/lib/auth/landing';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 
 /**
  * Garde des actions d'émargement.
@@ -50,22 +51,21 @@ async function roleAutorise(): Promise<Garde> {
 
 async function seanceDuFormateur(sessionId: string): Promise<boolean> {
   const { data, error } = await supabaseServer().schema('app').rpc('my_trainer_session_ids' as never);
-  if (error) {
-    console.error('[émargement] séances du formateur illisibles', error.message);
-    return false;
-  }
+  // Un refus doit venir de la liste, pas d'une panne.
+  exigerLecture('séances du formateur', error);
   return ((data ?? []) as string[]).includes(sessionId);
 }
 
 export async function accessibleSheet(sheetId: string): Promise<AccessResult<SheetRef>> {
   const role = await roleAutorise();
   if (!role.ok) return role;
-  const { data } = await supabaseServer()
+  const { data, error } = await supabaseServer()
     .schema('app')
     .from('attendance_sheets')
     .select('id, session_id, organization_id, dossier_id, status, half_day')
     .eq('id', sheetId)
     .maybeSingle();
+  exigerLecture('feuille d’émargement', error);
   if (!data) return { ok: false, error: 'forbidden' };
   const feuille = data as unknown as SheetRef;
   if (role.formateur && !(await seanceDuFormateur(feuille.session_id))) return { ok: false, error: 'forbidden' };
@@ -75,7 +75,8 @@ export async function accessibleSheet(sheetId: string): Promise<AccessResult<She
 export async function accessibleSession(sessionId: string): Promise<AccessResult<{ id: string; organization_id: string }>> {
   const role = await roleAutorise();
   if (!role.ok) return role;
-  const { data } = await supabaseServer().schema('app').from('sessions').select('id, organization_id').eq('id', sessionId).maybeSingle();
+  const { data, error } = await supabaseServer().schema('app').from('sessions').select('id, organization_id').eq('id', sessionId).maybeSingle();
+  exigerLecture('séance', error);
   if (!data) return { ok: false, error: 'forbidden' };
   if (role.formateur && !(await seanceDuFormateur(sessionId))) return { ok: false, error: 'forbidden' };
   return { ok: true, userId: role.userId, value: data as { id: string; organization_id: string } };

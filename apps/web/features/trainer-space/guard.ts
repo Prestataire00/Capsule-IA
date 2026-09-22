@@ -2,6 +2,7 @@ import 'server-only';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { hasTrainerSpace } from '@/shared/lib/auth/landing';
+import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 
 /**
  * Garde des actions de l'espace formateur sur une séance : compte connecté,
@@ -35,15 +36,19 @@ export async function requireMyTrainerSession(sessionId: string): Promise<Traine
   if (!(await hasTrainerSpace(user.id))) return { ok: false, error: 'forbidden' };
 
   const { data: ids, error } = await sb.schema('app').rpc('my_trainer_session_ids' as never);
-  if (error || !((ids ?? []) as string[]).includes(sessionId)) return { ok: false, error: 'forbidden' };
+  // Un refus doit venir de la liste, pas d'une panne : sinon le formateur
+  // s'entend dire que sa propre séance n'est pas la sienne.
+  exigerLecture('séances du formateur', error);
+  if (!((ids ?? []) as string[]).includes(sessionId)) return { ok: false, error: 'forbidden' };
 
   const admin = supabaseAdmin();
-  const { data: s } = await admin
+  const { data: s, error: erreurSeance } = await admin
     .schema('app')
     .from('sessions')
     .select('id, organization_id, dossier_id, formation_id, starts_at, ends_at')
     .eq('id', sessionId)
     .maybeSingle();
+  exigerLecture('séance du formateur', erreurSeance);
   const session = s as TrainerSessionRef | null;
   if (!session) return { ok: false, error: 'forbidden' };
 
