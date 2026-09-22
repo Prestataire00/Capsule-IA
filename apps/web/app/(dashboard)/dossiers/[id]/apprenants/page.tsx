@@ -26,13 +26,19 @@ type Apprenant = {
 export default async function DossierApprenantsPage({ params }: { params: { id: string } }) {
   // Lecture sous RLS : un dossier d'une autre organisation n'existe pas ici.
   const sb = supabaseServer();
-  const { data: dossierRow } = await sb
+  const { data: dossierRow, error: erreurLecture } = await sb
     .schema('app')
     .from('dossiers')
     .select('id, learner_id, company_id')
     .eq('id', params.id)
     .maybeSingle();
   const dossier = dossierRow as { learner_id: string | null; company_id: string | null } | null;
+  // Une requête en échec n'est pas un dossier absent : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[apprenants du dossier] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (apprenants du dossier) : ${erreurLecture.message}`);
+  }
   if (!dossier) notFound();
 
   const admin = supabaseAdmin();

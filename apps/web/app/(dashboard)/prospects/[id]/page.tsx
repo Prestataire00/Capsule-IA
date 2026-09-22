@@ -160,7 +160,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
   await requireAccess('crm');
   const sb = admin();
 
-  const { data: pRow } = await sb
+  const { data: pRow, error: erreurLecture } = await sb
     .schema('app')
     .from('prospects' as never)
     .select(
@@ -170,6 +170,12 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     .is('deleted_at', null)
     .maybeSingle();
   const prospect = pRow as unknown as Prospect | null;
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[demande] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (demande) : ${erreurLecture.message}`);
+  }
   if (!prospect) notFound();
 
   const [{ data: reviewRows }, { data: eventRows }] = await Promise.all([

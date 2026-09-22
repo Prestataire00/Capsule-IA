@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function EditQuestionnairePage({ params }: { params: { templateId: string } }) {
   const sb = supabaseServer();
-  const { data } = await sb
+  const { data, error: erreurLecture } = await sb
     .schema('app')
     .from('questionnaire_templates')
     .select('id, title, kind, schema, thank_you_message, organization_id')
@@ -30,6 +30,12 @@ export default async function EditQuestionnairePage({ params }: { params: { temp
     thank_you_message: string | null;
     organization_id: string | null;
   } | null;
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[modèle de questionnaire] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (modèle de questionnaire) : ${erreurLecture.message}`);
+  }
   if (!tpl) return notFound();
 
   const isSystem = tpl.organization_id === null;

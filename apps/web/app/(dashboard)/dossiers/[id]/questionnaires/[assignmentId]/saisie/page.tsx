@@ -21,7 +21,7 @@ export default async function ManualEntryPage({
   searchParams: { error?: string };
 }) {
   const sb = supabaseServer();
-  const { data } = await sb
+  const { data, error: erreurLecture } = await sb
     .schema('app')
     .from('questionnaire_assignments')
     .select('id, recipient_name, status, template:questionnaire_templates(title, schema)')
@@ -34,6 +34,12 @@ export default async function ManualEntryPage({
     status: string;
     template: { title: string; schema: QuestionnaireSchema } | null;
   } | null;
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[saisie du questionnaire] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (saisie du questionnaire) : ${erreurLecture.message}`);
+  }
   if (!a || !a.template) return notFound();
 
   const back = `/dossiers/${params.id}/questionnaires`;

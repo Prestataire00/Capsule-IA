@@ -64,7 +64,7 @@ export default async function FormationSupportsPage({
   const orgId = me.organizationId;
 
   // Formation
-  const { data: formation } = await sb
+  const { data: formation, error: erreurLecture } = await sb
     .schema('app')
     .from('formations')
     .select('id, title')
@@ -72,6 +72,12 @@ export default async function FormationSupportsPage({
     .eq('organization_id', orgId)
     .is('deleted_at', null)
     .maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[supports de la formation] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (supports de la formation) : ${erreurLecture.message}`);
+  }
   if (!formation) return notFound();
 
   // Modules de la formation

@@ -46,13 +46,19 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
   await requireAccess('crm');
   const sb = supabaseServer();
 
-  const { data: cRow } = await sb
+  const { data: cRow, error: erreurLecture } = await sb
     .schema('app')
     .from('companies')
     .select('id, name, legal_name, siret, naf_code, vat_number, contact_name, contact_email, contact_phone, website, address, notes')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[entreprise] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (entreprise) : ${erreurLecture.message}`);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c = cRow as any;
   if (!c) notFound();

@@ -29,11 +29,40 @@ const FICHIERS = pages(APP);
 /**
  * `const { data } = await …maybeSingle();` suivi d'un `notFound()` sec.
  *
- * Portée limitée, assumée : une lecture enveloppée dans un `Promise.all` ne
- * correspond pas à ce motif et échappe donc au détecteur. Un relevé du
- * 21/09/2026 dénombre 17 pages dans ce cas, à reprendre séparément.
+ * Première forme du motif, la plus littérale : la garde suit immédiatement la
+ * lecture.
  */
 const AVEUGLE = /const \{ data(?::\s*\w+)? \} = await[\s\S]{0,700}?\.maybeSingle\(\);\s*\n\s*if \(![\w.]+\) notFound\(\);/;
+
+/**
+ * Le même défaut, à travers un alias.
+ *
+ * La plupart des pages ne testent pas `data` mais un cast intermédiaire —
+ * `const c = cRow as any; if (!c) notFound();`. La garde est alors loin de sa
+ * lecture, et le détecteur littéral ne la voyait pas : un relevé du 21/09/2026
+ * annonçait 17 pages hors de portée. Le tri du 22/09 en a retenu dix
+ * réellement fautives, toutes de cette forme, désormais corrigées.
+ *
+ * On suit donc l'assignation : une destructuration sans `error`, puis les noms
+ * qui en dérivent, puis les `notFound()` qui les testent.
+ */
+function fautivesParAlias(src: string): string[] {
+  const sansErreur = new Set<string>();
+  for (const m of src.matchAll(/\{\s*data(?::\s*(\w+))?([^}]*)\}\s*=/g)) {
+    if ((m[2] ?? '').includes('error')) continue;
+    sansErreur.add(m[1] ?? 'data');
+  }
+  // `const c = cRow as any;` — trois passes suffisent aux chaînes réelles.
+  for (let i = 0; i < 3; i += 1) {
+    for (const m of src.matchAll(/const (\w+) = (\w+)\b/g)) {
+      if (m[2] && sansErreur.has(m[2]) && m[1]) sansErreur.add(m[1]);
+    }
+  }
+  const gardes = [...src.matchAll(/if \([^)]*?!(\w+)[^)]*\)\s*(?:\{\s*)?(?:return )?notFound\(\)/g)]
+    .map((m) => m[1])
+    .filter((n): n is string => Boolean(n));
+  return [...new Set(gardes.filter((n) => sansErreur.has(n)))];
+}
 
 describe('échec de lecture contre ligne absente', () => {
   it('le dépôt contient bien des lectures obligatoires', () => {
@@ -48,6 +77,16 @@ describe('échec de lecture contre ligne absente', () => {
     expect(
       fautives,
       'ces pages jettent l’erreur de leur requête : une panne s’y affichera en 404',
+    ).toEqual([]);
+  });
+
+  it('aucune page ne le fait non plus à travers un cast intermédiaire', () => {
+    const fautives = FICHIERS.map((f) => [path.relative(APP, f), fautivesParAlias(fs.readFileSync(f, 'utf-8'))] as const)
+      .filter(([, v]) => v.length > 0)
+      .map(([rel, v]) => `${rel} (${v.join(', ')})`);
+    expect(
+      fautives,
+      'ces pages testent le résultat d’une lecture dont l’erreur a été jetée',
     ).toEqual([]);
   });
 

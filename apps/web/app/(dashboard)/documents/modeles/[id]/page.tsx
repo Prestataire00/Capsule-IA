@@ -24,6 +24,7 @@ export default async function EditTemplatePage({ params }: { params: { id: strin
     loadDossiers(),
   ]);
 
+  const erreurLecture = tplRes.error;
   const row = tplRes.data as unknown as {
     id: string;
     kind: string;
@@ -32,6 +33,13 @@ export default async function EditTemplatePage({ params }: { params: { id: strin
     formation_id: string | null;
     category_id: string | null;
   } | null;
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026). La lecture vit dans
+  // un `Promise.all`, ce qui l'éloigne de sa garde sans rien changer à l'ordre.
+  if (erreurLecture) {
+    console.error('[modèle de document] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (modèle de document) : ${erreurLecture.message}`);
+  }
   if (!row) notFound();
 
   const template: EditorTemplate = {

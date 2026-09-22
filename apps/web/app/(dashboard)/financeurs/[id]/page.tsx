@@ -106,13 +106,19 @@ export default async function FinanceurDetailPage({
 }) {
   const sb = supabaseServer();
 
-  const { data: funderRow } = await sb
+  const { data: funderRow, error: erreurLecture } = await sb
     .schema('app')
     .from('funders')
     .select('id, name, kind, kinds, siret, contact_email, contact_phone, external_id')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[financeur] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (financeur) : ${erreurLecture.message}`);
+  }
   const funder = funderRow as unknown as FunderRow | null;
   if (!funder) notFound();
 

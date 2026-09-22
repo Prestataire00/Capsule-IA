@@ -58,7 +58,7 @@ function trainerPhotoUrl(path: string | null): string | null {
 
 export default async function FormateurDetailPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
-  const { data } = await sb
+  const { data, error: erreurLecture } = await sb
     .schema('app')
     .from('trainers')
     .select(
@@ -67,6 +67,12 @@ export default async function FormateurDetailPage({ params }: { params: { id: st
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[formateur] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (formateur) : ${erreurLecture.message}`);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const t = data as any as Trainer | null;
   if (!t) return notFound();

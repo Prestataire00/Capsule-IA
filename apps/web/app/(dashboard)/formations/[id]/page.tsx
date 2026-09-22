@@ -60,7 +60,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
   const sb = supabaseServer();
   const id = params.id;
 
-  const { data } = await sb
+  const { data, error: erreurLecture } = await sb
     .schema('app')
     .from('formations')
     .select(
@@ -71,6 +71,12 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     .eq('id', id)
     .is('deleted_at', null)
     .maybeSingle();
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[formation] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (formation) : ${erreurLecture.message}`);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const f = data as any;
   if (!f) return notFound();

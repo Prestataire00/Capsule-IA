@@ -23,7 +23,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
   // Client non typé pour les colonnes de versionnage (0158), absentes des
   // types générés tant que `pnpm db:types` n'a pas été rejoué.
   const sbDocs = sb as unknown as SupabaseClient;
-  const { data } = await sbDocs
+  const { data, error: erreurLecture } = await sbDocs
     .schema('app')
     .from('documents')
     .select(
@@ -47,6 +47,12 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     source_url: string | null;
     created_at: string | null;
   } | null;
+  // Une requête en échec n'est pas une ligne absente : sans cette distinction,
+  // toute panne s'affiche en 404 (incident du 21/09/2026).
+  if (erreurLecture) {
+    console.error('[aperçu du document] lecture impossible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (aperçu du document) : ${erreurLecture.message}`);
+  }
   if (!doc) notFound();
 
   // Historique : les versions précédentes du même document (même source).
