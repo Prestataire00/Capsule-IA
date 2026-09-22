@@ -52,18 +52,6 @@ export const NouvelleDemandeSchema = z
   .superRefine((v, ctx) => {
     // Une demande peut rester sans formation ; mais on ne peut pas ouvrir le
     // dossier tout de suite sans savoir sur quoi il porte.
-    // Un référent se range dans les contacts d'une entreprise (`contacts.company_id`
-    // est NOT NULL). Sans entreprise, une personne qui ne suit pas la formation
-    // ne serait ni stagiaire ni référent : elle disparaîtrait du dossier.
-    if (!v.candidateIsLearner && !v.companyName?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['companyName'],
-        message:
-          'Indiquez l’entreprise : une personne qui ne suit pas la formation en devient le référent, et un référent se rattache à une entreprise. Sinon, cochez qu’elle suit la formation.',
-      });
-    }
-
     if (v.convertNow && !v.formationId && !v.customFormationTitle) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

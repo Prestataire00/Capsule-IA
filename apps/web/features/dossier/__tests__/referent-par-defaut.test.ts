@@ -151,14 +151,27 @@ describe('le défaut de la case « suit aussi la formation »', () => {
   });
 });
 
-describe('le commanditaire ne peut pas disparaître du dossier', () => {
-  it('exige une entreprise quand la personne ne suit pas la formation', () => {
-    // `contacts.company_id` est NOT NULL : sans entreprise, cette personne ne
-    // serait ni stagiaire ni référent — elle ne figurerait nulle part.
-    const schema = readFileSync(
-      join(__dirname, '../../../app/(dashboard)/prospects/nouvelle/schema.ts'),
+describe('le commanditaire reste sur son dossier', () => {
+  it('reste le titulaire, il n’est simplement pas compté parmi les stagiaires', () => {
+    // Version précédente : on le sortait du dossier au profit d'un titulaire
+    // provisoire, ce qui obligeait à exiger une entreprise pour avoir où le
+    // ranger. Il reste titulaire et référent ; seul son décompte change.
+    const conversion = readFileSync(
+      join(__dirname, '../../../features/crm/prospect-conversion/convert-core.ts'),
       'utf8',
     );
-    expect(schema).toContain("!v.candidateIsLearner && !v.companyName?.trim()");
+    expect(conversion).toContain('holder_is_learner: candidatSuitLaFormation');
+    expect(conversion).not.toContain('titulaireProvisoire');
+  });
+
+  it('écrit le référent hors de save_dossier, qui l’ignorerait', () => {
+    // `save_dossier` a une liste de colonnes figée : `contact_id` passé dans
+    // son payload ne serait jamais enregistré.
+    const conversion = readFileSync(
+      join(__dirname, '../../../features/crm/prospect-conversion/convert-core.ts'),
+      'utf8',
+    );
+    expect(conversion).toContain('contact_id: contactId');
+    expect(conversion).toContain(".from('dossiers')");
   });
 });

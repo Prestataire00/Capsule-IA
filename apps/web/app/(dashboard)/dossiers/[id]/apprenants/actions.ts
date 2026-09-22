@@ -237,3 +237,45 @@ export async function retirerApprenant(input: { dossierId: string; learnerId: st
   revalidatePath(`/dossiers/${p.data.dossierId}/apprenants`);
   return { ok: true };
 }
+
+const titulaireSchema = z.object({
+  dossierId: z.string().uuid(),
+  suitLaFormation: z.boolean(),
+});
+
+/**
+ * Le titulaire suit-il lui-même la formation ? (0191)
+ *
+ * La case se coche à la création de la demande, mais un dossier déjà ouvert
+ * n'avait aucun moyen d'être corrigé — et le titulaire y restait compté parmi
+ * les stagiaires, sur les émargements comme dans les effectifs.
+ */
+export async function definirTitulaireStagiaire(input: {
+  dossierId: string;
+  suitLaFormation: boolean;
+}): Promise<SimpleResult> {
+  const p = titulaireSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Choix invalide.' };
+
+  const garde = await garder(p.data.dossierId);
+  if (!garde.ok) return garde;
+
+  const { error } = await supabaseAdmin()
+    .schema('app')
+    .from('dossiers')
+    .update({ holder_is_learner: p.data.suitLaFormation } as never)
+    .eq('id', p.data.dossierId);
+  if (error) {
+    const manquante = /holder_is_learner/.test(error.message) && /column/i.test(error.message);
+    return {
+      ok: false,
+      error: manquante
+        ? "La base n'est pas à jour (migration 0191) : ce réglage ne peut pas encore être enregistré."
+        : error.message,
+    };
+  }
+
+  revalidatePath(`/dossiers/${p.data.dossierId}`);
+  revalidatePath(`/dossiers/${p.data.dossierId}/apprenants`);
+  return { ok: true };
+}

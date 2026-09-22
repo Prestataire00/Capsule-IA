@@ -9,6 +9,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { TitulaireStagiaire } from './titulaire-stagiaire.client';
 import { estTitulaireProvisoire } from '@/features/dossier/referent';
 import { AjoutApprenants } from './ajout-apprenants.client';
 import { RetirerBouton } from './retirer-bouton.client';
@@ -29,10 +30,14 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
   const { data: dossierRow, error: erreurLecture } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, learner_id, company_id')
+    .select('id, learner_id, company_id, holder_is_learner')
     .eq('id', params.id)
     .maybeSingle();
-  const dossier = dossierRow as { learner_id: string | null; company_id: string | null } | null;
+  const dossier = dossierRow as {
+    learner_id: string | null;
+    company_id: string | null;
+    holder_is_learner: boolean | null;
+  } | null;
   // Une requête en échec n'est pas un dossier absent : sans cette distinction,
   // toute panne s'affiche en 404 (incident du 21/09/2026).
   if (erreurLecture) {
@@ -71,12 +76,34 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
     .select('learner_id')
     .eq('dossier_id', params.id);
 
+  // Le titulaire ne compte parmi les stagiaires que s'il suit lui-même la
+  // formation (0191). Un responsable qui inscrit son équipe reste le titulaire
+  // et le référent du dossier, sans figurer dans les effectifs ni sur les
+  // émargements. La colonne peut manquer tant que la 0191 n'est pas jouée :
+  // `!== false` conserve alors le comportement d'avant.
+  const titulaireEstStagiaire = dossier.holder_is_learner !== false;
   const ids = new Set<string>();
-  if (dossier.learner_id) ids.add(dossier.learner_id);
+  if (dossier.learner_id && titulaireEstStagiaire) ids.add(dossier.learner_id);
   for (const l of ((duGroupe ?? []) as unknown as Array<{ learner_id: string }>)) ids.add(l.learner_id);
   for (const p of ((participants ?? []) as Array<{ learner_id: string | null }>)) {
     if (p.learner_id) ids.add(p.learner_id);
   }
+
+  // Le titulaire est chargé dans tous les cas : qu'il suive ou non la
+  // formation, l'écran doit pouvoir dire qui il est et laisser basculer son
+  // décompte. Ne le charger que lorsqu'il est hors liste privait justement les
+  // dossiers existants du moyen de les corriger.
+  const { data: titulaireRow } = dossier.learner_id
+    ? await admin
+        .schema('app')
+        .from('learners')
+        .select('id, first_name, last_name, email')
+        .eq('id', dossier.learner_id)
+        .maybeSingle()
+    : { data: null };
+  const titulaire = titulaireRow as
+    | { id: string; first_name: string | null; last_name: string | null; email: string | null }
+    | null;
 
   const { data: rows } = ids.size
     ? await admin
@@ -107,6 +134,19 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
               : `${apprenants.length} stagiaire${apprenants.length > 1 ? 's' : ''} inscrit${apprenants.length > 1 ? 's' : ''}, sur ${sessionIds.length} séance${sessionIds.length > 1 ? 's' : ''}.`}
         </p>
       </div>
+
+      {titulaire && !estTitulaireProvisoire(titulaire.email) && (
+        <TitulaireStagiaire
+          dossierId={params.id}
+          nom={
+            [titulaire.first_name, titulaire.last_name].filter(Boolean).join(' ').trim() ||
+            titulaire.email ||
+            'Titulaire'
+          }
+          suitLaFormation={titulaireEstStagiaire}
+          peutModifier={peutModifier}
+        />
+      )}
 
       {enAttenteDeListe && (
         <p className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3 text-[13px] text-zinc-700 dark:text-zinc-300 inline-flex items-start gap-2">

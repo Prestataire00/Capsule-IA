@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { matchLearner, matchCompany, detectPotentialDuplicates } from './matching';
 import { generateDossierReference } from './dossier-reference';
 import { referentParDefaut, type ContactConnu } from '@/features/dossier/referent-par-defaut';
-import { titulaireProvisoire } from '@/features/dossier/titulaire-provisoire';
 import type {
   ProspectForConversion,
   LearnerCandidate,
@@ -119,12 +118,7 @@ export async function convertProspectToDossier(
   const lm = matchLearner(prospect.email, learners, prospect.lastName);
   let learnerId: string;
   let learnerOutcome: 'reused' | 'created';
-  if (!candidatSuitLaFormation) {
-    // Le titulaire provisoire est posé plus bas, une fois l'entreprise connue :
-    // il lui est rattaché pour ne pas en créer un par dossier.
-    learnerId = '';
-    learnerOutcome = 'created';
-  } else if (lm.action === 'reuse') {
+  if (lm.action === 'reuse') {
     learnerId = lm.id;
     learnerOutcome = 'reused';
   } else {
@@ -257,14 +251,6 @@ export async function convertProspectToDossier(
     dureeCatalogue = Number.isFinite(h) && h > 0 ? h : null;
   }
 
-  // Commanditaire seul : le dossier a besoin d'un titulaire, sans inscrire
-  // quiconque à tort.
-  if (!learnerId) {
-    const provisoire = await titulaireProvisoire(sb, orgId, companyId);
-    if (!provisoire) return { ok: false, error: 'learner_create_failed' };
-    learnerId = provisoire;
-  }
-
   // Référent du dossier : celui qui commande la formation. La demande a
   // recueilli son nom, son e-mail et son téléphone — jusqu'ici ils n'allaient
   // que sur la fiche entreprise, si bien que toutes les affaires d'un même
@@ -303,6 +289,7 @@ export async function convertProspectToDossier(
           email: prospect.email ?? p.referent_email,
           phone: prospect.phone ?? p.referent_phone,
         };
+
 
     const choix = referentParDefaut({ commanditaire, contacts: connus });
 
@@ -343,7 +330,6 @@ export async function convertProspectToDossier(
       company_id: companyId,
       formation_id: formationId,
       status: 'draft',
-      contact_id: contactId,
       modality: prospect.preferredModality ?? 'distanciel',
       start_date: startDate,
       end_date: startDate,
@@ -359,6 +345,23 @@ export async function convertProspectToDossier(
   if (dErr) {
     return { ok: false, error: 'dossier_create_failed', details: (dErr as { message?: string }).message };
   }
+
+  // `save_dossier` (0024, 0070) écrit une liste de colonnes figée et ignore en
+  // silence les clés qu'elle ne connaît pas : ni `contact_id` (0167) ni
+  // `holder_is_learner` (0191) n'y figurent. Les passer dans son payload ne
+  // faisait rien du tout — d'où cette écriture explicite.
+  const { error: majErr } = await sb
+    .schema('app')
+    .from('dossiers')
+    .update({
+      contact_id: contactId,
+      // Le titulaire reste celui qui commande : c'est son dossier et c'est lui
+      // le référent. Ce drapeau dit seulement s'il suit AUSSI la formation ;
+      // sinon il ne compte ni dans les effectifs ni sur les émargements.
+      holder_is_learner: candidatSuitLaFormation,
+    })
+    .eq('id', dossierId);
+  if (majErr) console.error('[conversion] référent / titulaire non enregistrés', dossierId, majErr.message);
 
   await sb
     .schema('app')
