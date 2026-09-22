@@ -7,6 +7,9 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { participantState, STATE_LABELS, type AttendanceStatus, type ParticipantState } from '@/features/attendance/completeness';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { loadGrilleDossier } from '@/features/attendance/queries/load-dossier-grille';
+import { GrilleEmargement } from './grille.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,6 +104,12 @@ export default async function EmargementsPage({ params }: { params: { id: string
 
   const aSigner = lignes.filter((l) => !l.finalized && (l.state === 'a_signer' || l.state === 'entree_seule')).length;
 
+  // Grille du dossier : les demi-journées en colonnes, les stagiaires en
+  // lignes. La liste qui suit reste utile pour l'état de chaque feuille.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const grille = await loadGrilleDossier(sb as any, params.id);
+  const peutAgir = await canManageSection('attendance');
+
   return (
     <div className="space-y-4">
       <header>
@@ -119,6 +128,19 @@ export default async function EmargementsPage({ params }: { params: { id: string
           )}
         </p>
       </header>
+
+      <GrilleEmargement
+        dossierId={params.id}
+        colonnes={grille.colonnes}
+        lignes={grille.lignes}
+        peutAgir={peutAgir}
+      />
+
+      <details className="group">
+        <summary className="cursor-pointer text-[12px] font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+          État de chaque feuille
+        </summary>
+        <div className="mt-3">
 
       {lignes.length === 0 ? (
         <div className="border border-dashed border-zinc-200/80 dark:border-zinc-800 rounded-xl px-6 py-10 text-center">
@@ -157,6 +179,8 @@ export default async function EmargementsPage({ params }: { params: { id: string
           })}
         </ul>
       )}
+        </div>
+      </details>
     </div>
   );
 }
