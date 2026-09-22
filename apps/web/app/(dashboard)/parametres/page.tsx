@@ -1,7 +1,7 @@
 // ARCHETYPE: shared
 // Justification: index des paramètres — une carte colorée par section de réglages.
 import Link from 'next/link';
-import { Building2, Users, ShieldCheck, Plug, Link2, Scale, ArrowUpRight } from 'lucide-react';
+import { Building2, Users, ShieldCheck, Plug, Link2, Scale, Trash2, ArrowUpRight } from 'lucide-react';
 import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { cn } from '@/shared/lib/cn';
 
@@ -47,6 +47,13 @@ const SECTIONS: { href: string; label: string; hint: string; icon: typeof Buildi
     hint: 'Règlement intérieur, CGV et livret d’accueil assistés par IA.',
     icon: Scale,
     accent: 'emerald',
+  },
+  {
+    href: '/parametres/corbeille',
+    label: 'Corbeille',
+    hint: 'Éléments supprimés, restaurables pendant leur délai de conservation.',
+    icon: Trash2,
+    accent: 'teal' as const,
   },
 ];
 

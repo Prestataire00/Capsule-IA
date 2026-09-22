@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Users, ShieldCheck, Plug, Link2 } from 'lucide-react';
+import { Building2, Users, ShieldCheck, Plug, Link2, Trash2 } from 'lucide-react';
 import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 
 const ITEMS: { href: string; label: string; icon: typeof Building2; accent: Accent }[] = [
@@ -11,6 +11,8 @@ const ITEMS: { href: string; label: string; icon: typeof Building2; accent: Acce
   { href: '/parametres/inscription', label: "Lien d'inscription", icon: Link2, accent: 'amber' },
   { href: '/parametres/securite', label: 'Sécurité', icon: ShieldCheck, accent: 'purple' },
   { href: '/parametres/integrations', label: 'Intégrations', icon: Plug, accent: 'blue' },
+  // Rattraper une suppression est un réglage, pas une rubrique de travail.
+  { href: '/parametres/corbeille', label: 'Corbeille', icon: Trash2, accent: 'teal' },
 ];
 
 export function ParametresSubnav() {

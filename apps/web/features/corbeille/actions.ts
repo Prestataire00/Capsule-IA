@@ -58,7 +58,7 @@ async function basculer(entite: string, id: string, versCorbeille: boolean): Pro
     return { ok: false, error: versCorbeille ? 'suppression_impossible' : 'restauration_impossible' };
   }
 
-  for (const chemin of [...def.revalider, '/corbeille']) revalidatePath(chemin);
+  for (const chemin of [...def.revalider, '/parametres/corbeille']) revalidatePath(chemin);
   return { ok: true };
 }
 
