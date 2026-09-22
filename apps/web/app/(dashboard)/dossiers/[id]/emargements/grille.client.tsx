@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, ChevronLeft, ChevronRight, Loader2, Send, Users, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Loader2, PenLine, QrCode, Send, Users, X } from 'lucide-react';
 import type { Colonne, LigneStagiaire } from '@/features/attendance/queries/load-dossier-grille';
 import { markAttendance, markAllPresent, sendSheetLinksAction } from './[sessionId]/actions';
 
@@ -50,11 +50,15 @@ export function GrilleEmargement({
   dossierId,
   colonnes,
   lignes,
+  vignettes,
+  formateurs,
   peutAgir,
 }: {
   dossierId: string;
   colonnes: Colonne[];
   lignes: LigneStagiaire[];
+  vignettes: Record<string, string>;
+  formateurs: { id: string; nom: string }[];
   peutAgir: boolean;
 }) {
   const router = useRouter();
@@ -186,6 +190,41 @@ export function GrilleEmargement({
                         )}
                         Tous présents
                       </button>
+                      {formateurs.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            agir(`trainer:${c.sheetId}`, () =>
+                              markAttendance({
+                                sheetId: c.sheetId,
+                                learnerId: formateurs[0]!.id,
+                                signerKind: 'trainer',
+                                status: 'present',
+                                captureMode: 'grille',
+                              }),
+                            )
+                          }
+                          disabled={enCours}
+                          title={`Marquer ${formateurs[0]!.nom} présent sur cette demi-journée`}
+                          className="w-full inline-flex items-center justify-center gap-1 h-7 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[11px] font-semibold hover:bg-purple-100 dark:hover:bg-purple-950/70 disabled:opacity-50"
+                        >
+                          {enCours && cible === `trainer:${c.sheetId}` ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <PenLine className="w-3 h-3" />
+                          )}
+                          Signer formateur
+                        </button>
+                      )}
+                      <a
+                        href={`/projection/${c.sheetId}`}
+                        target="_blank"
+                        rel="noopener"
+                        title="Projeter le QR code en salle"
+                        className="w-full inline-flex items-center justify-center gap-1 h-7 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-[11px] font-semibold hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      >
+                        <QrCode className="w-3 h-3" /> QR
+                      </a>
                       <button
                         type="button"
                         onClick={() => agir(`send:${c.sheetId}`, () => sendSheetLinksAction({ sheetId: c.sheetId }))}
@@ -246,8 +285,20 @@ export function GrilleEmargement({
                         ) : null}
                         {present ? 'Présent' : cellule?.statut ? 'Absent' : '—'}
                       </button>
-                      {signe && (
-                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">✓ Signé</p>
+                      {vignettes[`${l.id}|${c.sheetId}`] ? (
+                        <>
+                          {/* Image de signature servie par une URL signée de dix
+                              minutes : le bucket est privé. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={vignettes[`${l.id}|${c.sheetId}`]}
+                            alt={`Signature de ${l.nom}`}
+                            className="mt-1 h-10 w-full object-contain rounded border border-emerald-200 dark:border-emerald-900/50 bg-white"
+                          />
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400">✓ Signé</p>
+                        </>
+                      ) : (
+                        signe && <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">✓ Signé</p>
                       )}
                     </td>
                   );

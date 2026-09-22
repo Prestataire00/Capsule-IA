@@ -47,9 +47,15 @@ export type LigneStagiaire = {
 export type GrilleDossier = {
   readonly colonnes: Colonne[];
   readonly lignes: LigneStagiaire[];
+  /** URL signées des signatures, indexées `learnerId|sheetId`. Dix minutes. */
+  readonly vignettes: Record<string, string>;
+  /** Formateurs du dossier : ce sont eux qui signent la feuille. */
+  readonly formateurs: { id: string; nom: string }[];
 };
 
 export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<GrilleDossier> {
+  const vide: GrilleDossier = { colonnes: [], lignes: [], vignettes: {}, formateurs: [] };
+
   const { data: seancesRows, error: erreurSeances } = await sb
     .schema('app')
     .from('sessions')
@@ -59,10 +65,10 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
     .order('starts_at', { ascending: true });
   if (erreurSeances) {
     console.error('[émargement] séances illisibles', erreurSeances.message);
-    return { colonnes: [], lignes: [] };
+    return vide;
   }
   const seances = (seancesRows ?? []) as Array<{ id: string; starts_at: string; ends_at: string }>;
-  if (seances.length === 0) return { colonnes: [], lignes: [] };
+  if (seances.length === 0) return vide;
 
   const parSeance = new Map(seances.map((s) => [s.id, s]));
   const seanceIds = seances.map((s) => s.id);
@@ -102,7 +108,7 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
     .schema('app')
     .rpc('dossier_apprenants', { p_dossier_id: dossierId });
   const learnerIds = [...new Set(((idsRows ?? []) as Array<{ learner_id: string }>).map((r) => r.learner_id))];
-  if (learnerIds.length === 0) return { colonnes, lignes: [] };
+  if (learnerIds.length === 0) return { ...vide, colonnes };
 
   const [{ data: gensRows }, { data: signaturesRows }] = await Promise.all([
     sb.schema('app').from('learners').select('id, first_name, last_name, email').in('id', learnerIds),
@@ -151,5 +157,39 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
     }))
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 
-  return { colonnes, lignes };
+  // Vignettes de signature : URL signées de dix minutes, comme l'écran d'une
+  // séance. Le bucket est privé — une URL publique exposerait la signature
+  // manuscrite de chaque stagiaire.
+  const vignettes: Record<string, string> = {};
+  const chemins = signatures
+    .filter((s) => s.learner_id && s.signature_image_path)
+    .map((s) => ({ cle: `${s.learner_id}|${s.attendance_sheet_id}`, chemin: s.signature_image_path! }));
+  if (chemins.length > 0) {
+    const { data } = await sb.storage.from('signatures').createSignedUrls(
+      chemins.map((c) => c.chemin),
+      600,
+    );
+    const parChemin = new Map(((data ?? []) as Array<{ path: string; signedUrl: string }>).map((d) => [d.path, d.signedUrl]));
+    for (const c of chemins) {
+      const url = parChemin.get(c.chemin);
+      if (url) vignettes[c.cle] = url;
+    }
+  }
+
+  // Formateurs du dossier : « signer formateur » les marque présents sur la
+  // demi-journée, ce qui vaut sa signature sur la feuille.
+  const { data: liens } = await sb
+    .schema('app')
+    .from('dossier_trainers')
+    .select('trainer_id')
+    .eq('dossier_id', dossierId);
+  const trainerIds = ((liens ?? []) as Array<{ trainer_id: string }>).map((l) => l.trainer_id);
+  const { data: formateursRows } = trainerIds.length
+    ? await sb.schema('app').from('trainers').select('id, first_name, last_name').in('id', trainerIds)
+    : { data: [] };
+  const formateurs = ((formateursRows ?? []) as Array<{ id: string; first_name: string | null; last_name: string | null }>).map(
+    (t) => ({ id: t.id, nom: `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || 'Formateur' }),
+  );
+
+  return { colonnes, lignes, vignettes, formateurs };
 }

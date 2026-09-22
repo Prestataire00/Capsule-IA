@@ -133,6 +133,8 @@ export default async function EmargementsPage({ params }: { params: { id: string
         dossierId={params.id}
         colonnes={grille.colonnes}
         lignes={grille.lignes}
+        vignettes={grille.vignettes}
+        formateurs={grille.formateurs}
         peutAgir={peutAgir}
       />
 
