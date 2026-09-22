@@ -9,6 +9,8 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { loadSession } from '@/features/sessions/load-session';
 import { loadSessionNeeds } from '@/features/questionnaire/session-needs';
 import { NeedsCard } from '@/features/questionnaire/ui/needs-card';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { ActionsFiche } from './actions-fiche.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +34,7 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
     dossierIds,
   });
   const recues = fiches.filter((f) => f.statut === 'recue').length;
+  const peutAgir = await canManageSection('qualiopi');
 
   return (
     <div className="space-y-4">
@@ -55,6 +58,18 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
               <Link href={`/dossiers/${f.dossierId}`} className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 hover:underline">
                 {f.name}
               </Link>
+            }
+            actions={
+              // C'est en préparant la séance qu'on voit qui n'a pas répondu.
+              peutAgir ? (
+                <ActionsFiche
+                  learnerId={f.learnerId}
+                  dossierId={f.dossierId}
+                  sessionId={params.id}
+                  reponses={f.statut === 'recue' ? (f.answers as never) : null}
+                  dejaRepondu={f.statut === 'recue'}
+                />
+              ) : null
             }
           />
         ))}

@@ -1,67 +1,89 @@
-// Fiches besoin visibles dans la séance (organisme) et dans l'espace formateur.
+// « Pareil pour les fiches besoin : on voit les réponses des apprenants sur la
+// session » — avec, comme chez RFC, une ligne par stagiaire, son statut, et de
+// quoi renvoyer ou remplir. Demande d'Ismael du 22/09/2026.
+//
+// L'écran savait déjà afficher les réponses reçues, en fusionnant les deux
+// sources (questionnaire et inscription). Ce qui manquait, ce sont les gestes.
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
+const ACTIONS = lire('../app/(dashboard)/sessions/[id]/fiches-besoin/actions.ts');
+const CLIENT = lire('../app/(dashboard)/sessions/[id]/fiches-besoin/actions-fiche.client.tsx');
+const PAGE = lire('../app/(dashboard)/sessions/[id]/fiches-besoin/page.tsx');
+const CARTE = lire('../features/questionnaire/ui/needs-card.tsx');
 
-describe('chargement des fiches besoin d’une séance', () => {
-  const src = lire('../features/questionnaire/session-needs.ts');
-
-  it('lit les réponses au positionnement puis, à défaut, celles de l’inscription', () => {
-    expect(src).toContain("eq('kind', 'positionnement')");
-    expect(src).toContain("from('questionnaire_responses')");
-    expect(src).toContain("from('prospects')");
-    expect(src).toContain('needs_analysis');
+describe('les deux gestes par stagiaire', () => {
+  it('renvoyer la fiche, ou la remplir pour lui', () => {
+    expect(ACTIONS).toContain('export async function renvoyerFicheBesoin');
+    expect(ACTIONS).toContain('export async function saisirFicheBesoinApprenant');
+    expect(CLIENT).toContain('Renvoyer');
+    expect(CLIENT).toContain('Remplir');
   });
 
-  it('borne le repli inscription à l’organisme et aux e-mails des participants', () => {
-    expect(src).toContain(".eq('organization_id', opts.organizationId)");
-    expect(src).toContain(".in('email', emails)");
+  it('réutilise l’envoi existant plutôt que d’en réécrire un', () => {
+    expect(ACTIONS).toContain('sendNeedsAnalysisForLearner({ learnerId, sb })');
   });
 
-  it('préfère le prospect converti sur le dossier du participant', () => {
-    expect(src).toContain('x.converted_dossier_id === p.dossierId');
+  it('dit pourquoi rien n’est parti, au lieu d’un silence', () => {
+    // « Rien envoyé » sans raison laisse croire à une panne.
+    for (const cas of ['reused_inscription', 'skipped_existing', 'no_email', 'no_base_url']) {
+      expect(ACTIONS, cas).toContain(cas);
+    }
   });
 
-  it('distingue fiche reçue, envoyée sans réponse, et absente', () => {
-    for (const s of ["'recue'", "'envoyee'", "'absente'"]) expect(src).toContain(s);
-  });
-
-  it('restitue la situation professionnelle saisie à l’inscription', () => {
-    expect(src).toContain('typologyContext');
-  });
-});
-
-describe('onglet Fiches besoin de la séance', () => {
-  const page = lire('../app/(dashboard)/sessions/[id]/fiches-besoin/page.tsx');
-
-  it('utilise le chargeur partagé et la carte partagée', () => {
-    expect(page).toContain('loadSessionNeeds');
-    expect(page).toContain('NeedsCard');
-  });
-
-  it('lit avec le client de la requête (RLS), jamais en service role', () => {
-    expect(page).toContain('supabaseServer()');
-    expect(page).not.toContain('supabaseAdmin');
+  it('distingue une adresse manquante d’un envoi réussi', () => {
+    expect(ACTIONS).toContain("r.status === 'no_email' || r.status === 'no_base_url' || r.status === 'not_found'");
   });
 });
 
-describe('fiches besoin dans l’espace formateur', () => {
-  const page = lire('../app/(formateur)/seance/[id]/fiches-besoin/page.tsx');
-
-  it('garde la séance du formateur avant toute lecture en service role', () => {
-    expect(page).toContain('requireMyTrainerSession');
-    expect(page.indexOf('requireMyTrainerSession')).toBeLessThan(page.indexOf('supabaseAdmin()'));
-    expect(page).toContain('if (!acces.ok) notFound();');
+describe('la saisie par l’organisme', () => {
+  it('écrit là où l’écran lit', () => {
+    // Dans l'assignation et sa réponse, pas dans la demande : à ce stade le
+    // dossier existe, et c'est lui qui porte la preuve attendue en audit.
+    expect(ACTIONS).toContain("from('questionnaire_responses')");
+    expect(ACTIONS).toContain("from('questionnaire_assignments')");
   });
 
-  it('affiche les mêmes fiches que la séance côté organisme', () => {
-    expect(page).toContain('loadSessionNeeds');
-    expect(page).toContain('NeedsCard');
+  it('crée l’assignation si elle manque, sans en faire deux', () => {
+    expect(ACTIONS).toContain("eq('recipient_learner_id', learnerId)");
+    expect(ACTIONS).toContain("onConflict: 'assignment_id'");
   });
 
-  it('est accessible depuis la carte de séance du formateur', () => {
-    expect(lire('../features/trainer-space/session-card.tsx')).toContain('/fiches-besoin');
+  it('trace que la réponse a été notée par l’organisme', () => {
+    // En audit, ce n'est pas la même preuve que la parole du stagiaire.
+    expect(ACTIONS).toContain("input_by: 'admin'");
+  });
+
+  it('borne ce qui est enregistré', () => {
+    expect(ACTIONS).toContain('nettoyerReponses(reponses)');
+  });
+
+  it('vérifie que le stagiaire est bien de l’organisme', () => {
+    // L'identifiant vient de l'écran : il ne prouve rien.
+    expect(ACTIONS.match(/apprenantDeLOrganisme\(/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('réservé à qui gère la conformité', () => {
+    expect(ACTIONS.match(/guardAction\('qualiopi'\)/g)?.length).toBe(2);
+    expect(PAGE).toContain("canManageSection('qualiopi')");
+  });
+});
+
+describe('l’écran', () => {
+  it('garde le statut par stagiaire, déjà en place', () => {
+    expect(CARTE).toContain('Envoyée, en attente');
+    expect(CARTE).toContain('Non envoyée');
+  });
+
+  it('accueille les actions sans les imposer', () => {
+    // L'espace formateur affiche la même carte, en lecture seule.
+    expect(CARTE).toContain('actions?: React.ReactNode');
+    expect(PAGE).toContain('peutAgir ? (');
+  });
+
+  it('ne pré-remplit le formulaire que d’une fiche réellement reçue', () => {
+    expect(PAGE).toContain("f.statut === 'recue' ? (f.answers as never) : null");
   });
 });

@@ -19,7 +19,16 @@ function Ligne({ label, valeur }: { label: string; valeur: string | null | undef
   );
 }
 
-export function NeedsCard({ fiche, entete }: { fiche: FicheBesoin; entete?: React.ReactNode }) {
+export function NeedsCard({
+  fiche,
+  entete,
+  actions,
+}: {
+  fiche: FicheBesoin;
+  entete?: React.ReactNode;
+  /** Gestes possibles sur cette fiche — absents dans l'espace formateur. */
+  actions?: React.ReactNode;
+}) {
   const niveau = fiche.answers.currentLevel
     ? (NIVEAUX[fiche.answers.currentLevel] ?? String(fiche.answers.currentLevel))
     : null;
@@ -56,6 +65,8 @@ export function NeedsCard({ fiche, entete }: { fiche: FicheBesoin; entete?: Reac
             : 'Aucune analyse des besoins pour ce participant.'}
         </p>
       )}
+
+      {actions}
     </li>
   );
 }
