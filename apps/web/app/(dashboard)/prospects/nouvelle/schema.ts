@@ -15,11 +15,17 @@ export const NouvelleDemandeSchema = z
     birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide').optional().or(z.literal('')),
     rqth: z.boolean().default(false),
     /**
-     * La personne saisie suit-elle la formation ? Décochée, elle n'est que le
-     * commanditaire : le dossier reçoit un titulaire provisoire et elle en
-     * devient le référent. Vrai par défaut — cas de l'inscription individuelle.
+     * La personne saisie suit-elle la formation ?
+     *
+     * **Faux par défaut** : on ne l'inscrit pas comme stagiaire sans qu'on
+     * l'ait dit. Celui qui appelle est le plus souvent le responsable qui
+     * inscrit son équipe ; le supposer stagiaire le comptait dans les
+     * effectifs, sur les émargements et au BPF sans qu'il ait suivi la
+     * formation. Le tunnel d'inscription public, lui, ne passe pas par ce
+     * schéma : là, la personne s'inscrit pour elle-même et la colonne garde
+     * son défaut à `true`.
      */
-    candidateIsLearner: z.boolean().default(true),
+    candidateIsLearner: z.boolean().default(false),
 
     situation: z.enum(PROSPECT_SITUATIONS),
     funderKind: z.enum(FUNDER_VALUES),

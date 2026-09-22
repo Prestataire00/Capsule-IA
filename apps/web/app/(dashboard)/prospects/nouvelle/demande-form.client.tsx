@@ -68,7 +68,7 @@ export function DemandeForm({
     phone: valeurs?.phone ?? '',
     birthDate: valeurs?.birthDate ?? '',
     rqth: valeurs?.rqth ?? false,
-    candidateIsLearner: valeurs?.candidateIsLearner ?? true,
+    candidateIsLearner: valeurs?.candidateIsLearner ?? false,
     situation: (valeurs?.situation ?? 'salarie') as (typeof SITUATIONS)[number]['value'],
     funderKind: (valeurs?.funderKind ?? 'opco') as string,
     companyName: valeurs?.companyName ?? '',
@@ -176,7 +176,9 @@ export function DemandeForm({
   return (
     <div className="space-y-5">
       <section className={card}>
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Candidat</h2>
+        {/* « Candidat » supposait que cette personne suivait la formation. Elle
+            est d'abord celle qui la demande ; qu'elle la suive se coche. */}
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Qui demande la formation</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <label className={label}>
             Civilité
@@ -224,12 +226,12 @@ export function DemandeForm({
           />
           <span>
             <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-              Cette personne suit la formation
+              Cette personne suit aussi la formation
             </span>
             <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
               {form.candidateIsLearner
-                ? 'Elle sera inscrite comme stagiaire du dossier.'
-                : 'Elle ne sera pas inscrite comme stagiaire : elle devient le référent du dossier — destinataire de la convention, des devis et des factures. Les stagiaires s’ajoutent ensuite.'}
+                ? 'Elle sera inscrite comme stagiaire, en plus d’être le référent du dossier.'
+                : 'Elle est le référent du dossier — destinataire de la convention, des devis et des factures — sans être comptée parmi les stagiaires. Ceux-ci s’inscrivent ensuite.'}
             </span>
           </span>
         </label>

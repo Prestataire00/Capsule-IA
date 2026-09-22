@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   decouperNom,
   memeContact,
@@ -133,5 +135,18 @@ describe('le référent posé à la création', () => {
         contacts: [],
       }),
     ).toEqual({ action: 'aucun' });
+  });
+});
+
+describe('le défaut de la case « suit aussi la formation »', () => {
+  it('est décochée : on n’inscrit personne comme stagiaire sans l’avoir dit', () => {
+    // Demande d'Ismael du 2026-09-22 : celui qui commande ne doit pas être
+    // compté d'office parmi les stagiaires. Le défaut vit dans le schéma de la
+    // demande ; ce test le verrouille, parce qu'un `true` y passerait inaperçu.
+    const schema = readFileSync(
+      join(__dirname, '../../../app/(dashboard)/prospects/nouvelle/schema.ts'),
+      'utf8',
+    );
+    expect(schema).toContain('candidateIsLearner: z.boolean().default(false)');
   });
 });
