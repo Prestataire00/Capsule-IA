@@ -51,7 +51,12 @@ export async function POST(req: NextRequest) {
 
   const res = await extractConvention(pdfs);
   if (!res.ok) {
-    return NextResponse.json({ error: res.reason }, { status: res.reason === 'no_api_key' ? 503 : 502 });
+    // `detail` dit ce que l'API a répondu. Sans lui, un refus de requête et un
+    // PDF illisible portaient le même message, et l'écran accusait le document.
+    return NextResponse.json(
+      { error: res.reason, detail: res.detail },
+      { status: res.reason === 'no_api_key' ? 503 : 502 },
+    );
   }
   return NextResponse.json({ ok: true, data: res.data });
 }

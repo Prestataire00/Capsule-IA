@@ -54,18 +54,28 @@ export function ImportConventionClient() {
   const [payload, setPayload] = useState<ConventionImport | null>(null);
   const [resume, setResume] = useState<ImportSummary | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Le message technique de l'API : c'est lui qu'on recopiera pour comprendre
+  // un refus. Affiché en second plan, il n'encombre pas la lecture normale.
+  const [detail, setDetail] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
   const lire = async () => {
     setErreur(null);
+    setDetail(null);
     setEnCours(true);
     try {
       const body = new FormData();
       for (const f of fichiers) body.append('files', f);
       const res = await fetch('/api/import/convention', { method: 'POST', body });
-      const json = (await res.json()) as { ok?: boolean; data?: ConventionImport; error?: string };
+      const json = (await res.json()) as {
+        ok?: boolean;
+        data?: ConventionImport;
+        error?: string;
+        detail?: string;
+      };
       if (!res.ok || !json.ok || !json.data) {
         setErreur(ERREURS[json.error ?? ''] ?? 'La lecture a échoué.');
+        setDetail(json.detail ?? null);
         return;
       }
       setPayload(json.data);
@@ -432,7 +442,14 @@ export function ImportConventionClient() {
           </p>
         )}
 
-        {erreur && <p role="alert" className="text-[13px] font-semibold text-rose-600 dark:text-rose-400">{erreur}</p>}
+        {erreur && (
+          <div role="alert">
+            <p className="text-[13px] font-semibold text-rose-600 dark:text-rose-400">{erreur}</p>
+            {detail && (
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 break-words">{detail}</p>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-3 flex-wrap">
           <button
@@ -481,7 +498,14 @@ export function ImportConventionClient() {
           </ul>
         )}
 
-        {erreur && <p role="alert" className="text-[13px] font-semibold text-rose-600 dark:text-rose-400">{erreur}</p>}
+        {erreur && (
+          <div role="alert">
+            <p className="text-[13px] font-semibold text-rose-600 dark:text-rose-400">{erreur}</p>
+            {detail && (
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 break-words">{detail}</p>
+            )}
+          </div>
+        )}
 
         <button
           type="button"
