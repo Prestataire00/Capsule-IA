@@ -150,3 +150,15 @@ describe('le défaut de la case « suit aussi la formation »', () => {
     expect(schema).toContain('candidateIsLearner: z.boolean().default(false)');
   });
 });
+
+describe('le commanditaire ne peut pas disparaître du dossier', () => {
+  it('exige une entreprise quand la personne ne suit pas la formation', () => {
+    // `contacts.company_id` est NOT NULL : sans entreprise, cette personne ne
+    // serait ni stagiaire ni référent — elle ne figurerait nulle part.
+    const schema = readFileSync(
+      join(__dirname, '../../../app/(dashboard)/prospects/nouvelle/schema.ts'),
+      'utf8',
+    );
+    expect(schema).toContain("!v.candidateIsLearner && !v.companyName?.trim()");
+  });
+});
