@@ -65,3 +65,17 @@ describe('la corbeille justifie son exemption', () => {
     expect(src).toContain("eq('organization_id', membre.orgId)");
   });
 });
+
+describe('la corbeille reste ouverte malgré son nouveau domicile', () => {
+  it('n’hérite pas du cloisonnement des Paramètres', () => {
+    // Rangée sous /parametres depuis le 2026-09-22, mais un gestionnaire doit
+    // pouvoir rattraper sa propre suppression sans appeler la direction.
+    expect(sectionForPath('/parametres/corbeille')).toBeNull();
+    expect(sectionForPath('/corbeille')).toBeNull();
+  });
+
+  it('sans ouvrir le reste des Paramètres', () => {
+    expect(sectionForPath('/parametres')).toBe('settings');
+    expect(sectionForPath('/parametres/membres')).toBe('settings');
+  });
+});

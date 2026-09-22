@@ -2,6 +2,7 @@
 // Justification: génération IA + validation des documents juridiques de l'OF.
 
 import { Scale, ScrollText, Receipt, BookOpen } from 'lucide-react';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { saveLegalDocEdit } from './actions';
@@ -15,6 +16,9 @@ const DOCS: { kind: LegalKind; label: string; icon: typeof Scale; tone: string }
 ];
 
 export default async function DocumentsLegauxPage() {
+  // Garde descendue du gabarit : la Corbeille partage désormais cette
+  // section sans en partager la restriction (voir OUVERT_A_TOUS).
+  await requireAccess('settings');
   const sb = supabaseServer();
   const { data: org } = await sb.schema('app').from('organizations').select('id').limit(1).maybeSingle();
   const orgId = (org as { id?: string } | null)?.id ?? '';

@@ -15,13 +15,17 @@ const ITEMS: { href: string; label: string; icon: typeof Building2; accent: Acce
   { href: '/parametres/corbeille', label: 'Corbeille', icon: Trash2, accent: 'teal' },
 ];
 
-export function ParametresSubnav() {
+export function ParametresSubnav({ peutRegler }: { peutRegler: boolean }) {
   const pathname = usePathname();
+  // Un gestionnaire n'atteint cette section que par la Corbeille : lui montrer
+  // les autres réglages reviendrait à lui offrir cinq liens qui le renvoient
+  // à l'accueil.
+  const items = peutRegler ? ITEMS : ITEMS.filter((i) => i.href === '/parametres/corbeille');
 
   return (
     <nav className="w-56 flex-shrink-0">
       <ul className="space-y-0.5 sticky top-4">
-        {ITEMS.map((item) => {
+        {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (

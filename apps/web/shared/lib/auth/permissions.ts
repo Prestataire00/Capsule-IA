@@ -122,7 +122,21 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   ['/rgpd', 'settings'],
 ];
 
+/**
+ * Chemins volontairement ouverts à tous les rôles, malgré le préfixe sous
+ * lequel ils vivent. Vérifiés AVANT `ROUTE_SECTION`, dont la recherche retient
+ * le premier préfixe qui colle.
+ *
+ * La corbeille en est le seul cas : elle est rangée dans les Paramètres, où
+ * l'on cherche naturellement ce genre d'outil, mais rattraper sa propre
+ * suppression ne doit pas exiger d'être propriétaire ou administrateur. Elle
+ * se protège elle-même à deux niveaux — `loadTrash` ne montre que ce que le
+ * rôle peut voir, et chaque restauration revérifie le droit.
+ */
+const OUVERT_A_TOUS = ['/parametres/corbeille', '/corbeille'];
+
 export function sectionForPath(path: string): Section | null {
+  if (OUVERT_A_TOUS.some((prefix) => path === prefix || path.startsWith(prefix + '/'))) return null;
   const hit = ROUTE_SECTION.find(([prefix]) => path === prefix || path.startsWith(prefix + '/'));
   return hit ? hit[1] : null;
 }

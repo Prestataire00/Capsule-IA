@@ -1,5 +1,6 @@
 // ARCHETYPE: command
 import { Award } from 'lucide-react';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { DataList, DataRow } from '@/shared/ui/data-row';
@@ -34,6 +35,9 @@ const addr = (address: Record<string, unknown> | null, key: string): string => {
 };
 
 export default async function ParametresOrganisationPage() {
+  // Garde descendue du gabarit : la Corbeille partage désormais cette
+  // section sans en partager la restriction (voir OUVERT_A_TOUS).
+  await requireAccess('settings');
   const sb = supabaseServer();
 
   // Organisation courante (RLS-scopé : un seul OF accessible par l'utilisateur).

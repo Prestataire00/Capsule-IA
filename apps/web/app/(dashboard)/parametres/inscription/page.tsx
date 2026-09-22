@@ -2,6 +2,7 @@
 // Justification: lien d'inscription public au niveau organisme à intégrer sur le site de l'OF.
 
 import { Link2 } from 'lucide-react';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { InscriptionLink } from './inscription-link';
@@ -9,6 +10,9 @@ import { InscriptionLink } from './inscription-link';
 export const dynamic = 'force-dynamic';
 
 export default async function ParametresInscriptionPage() {
+  // Garde descendue du gabarit : la Corbeille partage désormais cette
+  // section sans en partager la restriction (voir OUVERT_A_TOUS).
+  await requireAccess('settings');
   const sb = supabaseServer();
   // Organisation courante (RLS-scopé : un seul OF accessible par l'utilisateur).
   const { data } = await sb

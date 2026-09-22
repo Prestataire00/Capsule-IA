@@ -2,10 +2,13 @@
 import { Settings } from 'lucide-react';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ParametresSubnav } from './_components/parametres-subnav';
-import { requireAccess } from '@/shared/lib/auth/require-access';
+import { canManageSection } from '@/shared/lib/auth/require-access';
 
 export default async function ParametresLayout({ children }: { children: React.ReactNode }) {
-  await requireAccess('settings'); // owner/admin uniquement
+  // La garde a rejoint chaque sous-page. Elle vivait ici, ce qui interdisait
+  // d'exempter la Corbeille : rattraper sa propre suppression ne doit pas
+  // exiger d'être propriétaire ou administrateur.
+  const peutRegler = await canManageSection('settings');
   return (
     <div className="max-w-6xl w-full mx-auto px-8 py-9">
       <header className="mb-7 rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-orange-950/40 dark:via-zinc-900 dark:to-rose-950/30 px-7 py-6 flex items-center gap-5">
@@ -22,7 +25,7 @@ export default async function ParametresLayout({ children }: { children: React.R
       </header>
 
       <div className="flex gap-8 items-start">
-        <ParametresSubnav />
+        <ParametresSubnav peutRegler={peutRegler} />
         <div className="flex-1 min-w-0">{children}</div>
       </div>
     </div>

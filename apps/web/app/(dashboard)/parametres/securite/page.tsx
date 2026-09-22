@@ -1,10 +1,14 @@
 // ARCHETYPE: command
 import { ShieldCheck, Lock, History, FileCheck, KeyRound } from 'lucide-react';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { DataList, DataRow } from '@/shared/ui/data-row';
 import { ChangePasswordForm } from './_components/change-password-form.client';
 
-export default function ParametresSecuritePage() {
+export default async function ParametresSecuritePage() {
+  // Garde descendue du gabarit : la Corbeille partage désormais cette
+  // section sans en partager la restriction (voir OUVERT_A_TOUS).
+  await requireAccess('settings');
   return (
     <div className="space-y-8">
       <section>

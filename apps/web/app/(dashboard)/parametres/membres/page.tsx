@@ -1,5 +1,6 @@
 // ARCHETYPE: command
 import { Users, MailPlus } from 'lucide-react';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { MemberRowActions } from './member-row-actions';
@@ -44,6 +45,9 @@ type ProfileRow = {
 };
 
 export default async function ParametresMembresPage() {
+  // Garde descendue du gabarit : la Corbeille partage désormais cette
+  // section sans en partager la restriction (voir OUVERT_A_TOUS).
+  await requireAccess('settings');
   const sb = supabaseServer();
 
   const { data: auth } = await sb.auth.getUser();

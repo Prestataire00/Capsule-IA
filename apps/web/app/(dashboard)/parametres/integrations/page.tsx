@@ -1,5 +1,6 @@
 // ARCHETYPE: command
 import Link from 'next/link';
+import { requireAccess } from '@/shared/lib/auth/require-access';
 import { Plug, Mail, Video, CreditCard, ArrowUpRight, Settings, CalendarDays } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SectionLabel } from '@/shared/ui/section-label';
@@ -109,6 +110,9 @@ const STATUS_STYLES: Record<IntegrationStatus, { tone: 'success' | 'warning' | '
 };
 
 export default async function ParametresIntegrationsPage() {
+  // Garde descendue du gabarit : la Corbeille partage désormais cette
+  // section sans en partager la restriction (voir OUVERT_A_TOUS).
+  await requireAccess('settings');
   const zoomConfigured = await loadZoomConfigured();
   const googleConfigured = await loadGoogleConfigured();
   const integrations = baseIntegrations(zoomConfigured, googleConfigured);
