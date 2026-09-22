@@ -157,6 +157,13 @@ export async function convertProspectToDossier(
   const individual = p.situation === 'particulier' || p.situation === 'demandeur';
   const siret = (p.company_siret ?? '').replace(/\s+/g, '');
   const validSiret = /^\d{14}$/.test(siret) ? siret : null;
+  // Une coquille disparaissait ici sans un mot, et l'entreprise se créait sans
+  // SIRET. La saisie la refuse désormais (schéma de la demande) ; restent les
+  // demandes enregistrées avant, dont on veut au moins savoir qu'elles
+  // arrivent amputées.
+  if (siret !== '' && !validSiret) {
+    console.warn('[conversion] SIRET écarté, format invalide', prospectId, siret);
+  }
   const referent = {
     contact_name: p.referent_name?.trim() || null,
     contact_email: p.referent_email?.trim() || null,

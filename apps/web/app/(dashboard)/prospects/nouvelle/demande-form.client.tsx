@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { FUNDER_OPTIONS } from '@/features/prospect/funding';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
+import { siretValide } from '@/shared/lib/siret';
 import { createDemande } from './actions';
 
 export type FormationOption = { id: string; title: string; code: string | null; priceCents: number; hours: number };
@@ -171,7 +172,15 @@ export function DemandeForm({
     });
   };
 
-  const entreprise = form.situation === 'salarie' || form.funderKind === 'entreprise' || form.funderKind === 'opco';
+  // Le bloc suit la règle du schéma, sinon le SIRET deviendrait obligatoire
+  // dans un champ masqué — impasse : rien ne s'enregistre et rien ne l'explique.
+  const entreprise =
+    form.situation === 'salarie' ||
+    form.funderKind === 'entreprise' ||
+    form.funderKind === 'opco' ||
+    form.companyName.trim() !== '';
+  const siretSaisi = form.companySiret.trim();
+  const siretFaux = siretSaisi !== '' && !siretValide(siretSaisi);
 
   return (
     <div className="space-y-5">
@@ -269,7 +278,19 @@ export function DemandeForm({
             </label>
             <label className={label}>
               SIRET
-              <input value={form.companySiret} onChange={(e) => set('companySiret', e.target.value)} maxLength={20} className={input} />
+              <input
+                value={form.companySiret}
+                onChange={(e) => set('companySiret', e.target.value)}
+                maxLength={20}
+                placeholder="123 456 789 00012"
+                aria-invalid={siretFaux}
+                className={siretFaux ? `${input} border-rose-400 dark:border-rose-500` : input}
+              />
+              <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                {siretFaux
+                  ? 'Clé incorrecte : vérifiez les 14 chiffres.'
+                  : 'Obligatoire : il identifie le client sur la convention, la facture et au BPF.'}
+              </span>
             </label>
             <label className={label}>
               Convention collective

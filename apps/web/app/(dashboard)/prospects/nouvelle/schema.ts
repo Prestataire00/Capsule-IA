@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { FUNDER_VALUES } from '@/features/prospect/funding';
 import { PROSPECT_MODALITIES, PROSPECT_SITUATIONS } from '@/app/inscription/schema';
+import { siretValide } from '@/shared/lib/siret';
 
 // Demande enregistrée par l'organisme (au téléphone, par mail, en direct).
 // La formation est FACULTATIVE : soit une formation du catalogue, soit un
@@ -57,6 +58,45 @@ export const NouvelleDemandeSchema = z
         code: z.ZodIssueCode.custom,
         path: ['customFormationTitle'],
         message: 'Pour créer le dossier tout de suite, indiquez une formation (catalogue ou intitulé libre).',
+      });
+    }
+
+    // SIRET.
+    //
+    // Le tunnel public l'exigeait déjà du salarié ; la saisie par l'organisme,
+    // non. Le même organisme refusait donc sur son site ce qu'il acceptait au
+    // téléphone, et la demande partait en dossier sans le numéro qui identifie
+    // le client sur la convention, la facture et au BPF.
+    //
+    // On l'exige dès qu'une entreprise est en jeu : le salarié a un employeur,
+    // un nom d'entreprise saisi désigne le client, et un financement OPCO ou
+    // employeur ne s'instruit pas sans lui. Le particulier, l'indépendant et
+    // l'autofinancement restent libres.
+    const siret = (v.companySiret ?? '').trim();
+    const entrepriseEnJeu =
+      v.situation === 'salarie' ||
+      (v.companyName ?? '').trim() !== '' ||
+      v.funderKind === 'opco' ||
+      v.funderKind === 'entreprise';
+
+    if (siret === '') {
+      if (entrepriseEnJeu) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['companySiret'],
+          message: 'SIRET requis dès qu’une entreprise est concernée.',
+        });
+      }
+      return;
+    }
+    // Contrôlé même lorsqu'il n'est pas obligatoire : un numéro faux est pire
+    // qu'absent. La conversion l'effaçait en silence (`/^\d{14}$/` sinon null),
+    // et l'entreprise se créait sans SIRET, sans que la coquille se voie.
+    if (!siretValide(siret)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['companySiret'],
+        message: 'SIRET invalide : 14 chiffres, et la clé doit tomber juste.',
       });
     }
   });
