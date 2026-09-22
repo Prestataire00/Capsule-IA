@@ -6,7 +6,7 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateDossierReference } from '@/features/crm/prospect-conversion/dossier-reference';
 import { sendNeedsAnalysisForDossier } from '@/features/questionnaire/needs-analysis';
-import { DOMAINE_PROVISOIRE } from '@/features/dossier/referent';
+import { titulaireProvisoire } from '@/features/dossier/titulaire-provisoire';
 import { statutALaCreation } from '@/features/dossier/saisie-retroactive';
 import { CreateDossierSchema, type CustomFormationValue } from './schema';
 
@@ -98,45 +98,6 @@ async function creerFormationSurMesure(
   return (data as { id: string }).id;
 }
 
-/**
- * `dossiers.learner_id` est obligatoire, mais une commande d'entreprise
- * s'ouvre avant que les noms soient connus. On pose alors un titulaire
- * provisoire sur une adresse en `.invalid` (RFC 2606) : aucun envoi ne partira
- * vers un destinataire inventé, et les écrans l'affichent comme « à désigner ».
- */
-async function titulaireProvisoire(organizationId: string, companyId: string | null): Promise<string | null> {
-  const admin = supabaseAdmin();
-  const email = `stagiaires-a-designer.${(companyId ?? organizationId).slice(0, 8)}${DOMAINE_PROVISOIRE}`;
-
-  const { data: existant } = await admin
-    .schema('app')
-    .from('learners')
-    .select('id')
-    .eq('organization_id', organizationId)
-    .eq('email', email)
-    .is('deleted_at', null)
-    .maybeSingle();
-  if (existant) return (existant as { id: string }).id;
-
-  const { data, error } = await admin
-    .schema('app')
-    .from('learners')
-    .insert({
-      organization_id: organizationId,
-      company_id: companyId,
-      first_name: 'Stagiaires',
-      last_name: 'à désigner',
-      email,
-    } as never)
-    .select('id')
-    .single();
-  if (error || !data) {
-    console.error('[dossier] titulaire provisoire non créé', error?.message);
-    return null;
-  }
-  return (data as { id: string }).id;
-}
-
 export const createDossierAction = authActionClient
   .schema(CreateDossierSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -157,7 +118,7 @@ export const createDossierAction = authActionClient
     const learnerId =
       parsedInput.learnerId ??
       parsedInput.learnerIds[0] ??
-      (await titulaireProvisoire(orgId, parsedInput.companyId));
+      (await titulaireProvisoire(supabaseAdmin(), orgId, parsedInput.companyId));
     if (!learnerId) return { ok: false as const, error: 'learner_missing' };
 
     const dossierId = randomUUID();

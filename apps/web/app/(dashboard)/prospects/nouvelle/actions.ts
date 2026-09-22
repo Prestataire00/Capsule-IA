@@ -55,6 +55,7 @@ export async function createDemande(input: NouvelleDemandeValues): Promise<Creat
       phone: orNull(v.phone),
       birth_date: orNull(v.birthDate),
       rqth: v.rqth,
+      candidate_is_learner: v.candidateIsLearner,
       situation: v.situation,
       funder_kind: v.funderKind,
       company_name: orNull(v.companyName),

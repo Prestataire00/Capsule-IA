@@ -2,6 +2,8 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { matchLearner, matchCompany, detectPotentialDuplicates } from './matching';
 import { generateDossierReference } from './dossier-reference';
+import { referentParDefaut, type ContactConnu } from '@/features/dossier/referent-par-defaut';
+import { titulaireProvisoire } from '@/features/dossier/titulaire-provisoire';
 import type {
   ProspectForConversion,
   LearnerCandidate,
@@ -31,7 +33,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -52,6 +54,7 @@ export async function convertProspectToDossier(
     company_siret: string | null;
     convention_collective: string | null;
     company_address: unknown;
+    candidate_is_learner: boolean | null;
     referent_name: string | null;
     referent_email: string | null;
     referent_phone: string | null;
@@ -94,6 +97,14 @@ export async function convertProspectToDossier(
     convertedDossierId: null,
   };
 
+  // Celui qui commande la formation ne la suit pas forcément (0190). Quand il
+  // n'est que commanditaire, on ne l'inscrit pas comme stagiaire : il serait
+  // compté dans les effectifs, sur les émargements et au BPF sans avoir mis
+  // les pieds en formation. Le dossier reçoit un titulaire provisoire, et la
+  // personne en devient le référent — c'est bien elle qui reçoit la
+  // convention, les devis et les factures.
+  const candidatSuitLaFormation = p.candidate_is_learner !== false;
+
   // Apprenant : match / create
   const { data: learnersData } = await sb
     .schema('app')
@@ -108,7 +119,12 @@ export async function convertProspectToDossier(
   const lm = matchLearner(prospect.email, learners, prospect.lastName);
   let learnerId: string;
   let learnerOutcome: 'reused' | 'created';
-  if (lm.action === 'reuse') {
+  if (!candidatSuitLaFormation) {
+    // Le titulaire provisoire est posé plus bas, une fois l'entreprise connue :
+    // il lui est rattaché pour ne pas en créer un par dossier.
+    learnerId = '';
+    learnerOutcome = 'created';
+  } else if (lm.action === 'reuse') {
     learnerId = lm.id;
     learnerOutcome = 'reused';
   } else {
@@ -208,7 +224,9 @@ export async function convertProspectToDossier(
 
     // Le salarié est rattaché à son entreprise (fiche entreprise, récap des
     // convocations, catégorie BPF) — sans écraser un rattachement existant.
-    await sb.schema('app').from('learners').update({ company_id: companyId }).eq('id', learnerId).is('company_id', null);
+    if (learnerId) {
+      await sb.schema('app').from('learners').update({ company_id: companyId }).eq('id', learnerId).is('company_id', null);
+    }
   }
 
   const signals = detectPotentialDuplicates(prospect, learners, companies);
@@ -239,6 +257,79 @@ export async function convertProspectToDossier(
     dureeCatalogue = Number.isFinite(h) && h > 0 ? h : null;
   }
 
+  // Commanditaire seul : le dossier a besoin d'un titulaire, sans inscrire
+  // quiconque à tort.
+  if (!learnerId) {
+    const provisoire = await titulaireProvisoire(sb, orgId, companyId);
+    if (!provisoire) return { ok: false, error: 'learner_create_failed' };
+    learnerId = provisoire;
+  }
+
+  // Référent du dossier : celui qui commande la formation. La demande a
+  // recueilli son nom, son e-mail et son téléphone — jusqu'ici ils n'allaient
+  // que sur la fiche entreprise, si bien que toutes les affaires d'un même
+  // client partageaient le même destinataire de convention et de facture.
+  let contactId: string | null = null;
+  if (companyId) {
+    const { data: contactsRows } = await sb
+      .schema('app')
+      .from('contacts')
+      .select('id, first_name, last_name, email, is_primary')
+      .eq('company_id', companyId)
+      .is('deleted_at', null);
+    const connus: ContactConnu[] = (
+      (contactsRows ?? []) as unknown as Array<{
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        email: string | null;
+        is_primary: boolean | null;
+      }>
+    ).map((c) => ({
+      id: c.id,
+      firstName: c.first_name,
+      lastName: c.last_name,
+      email: c.email,
+      isPrimary: c.is_primary ?? false,
+    }));
+
+    // Qui a commandé ? La personne de la demande quand elle ne suit pas la
+    // formation — c'est précisément ce que dit la case décochée. Sinon le
+    // responsable renseigné dans le volet entreprise.
+    const commanditaire = candidatSuitLaFormation
+      ? { nom: p.referent_name, email: p.referent_email, phone: p.referent_phone }
+      : {
+          nom: [prospect.firstName, prospect.lastName].filter(Boolean).join(' ') || p.referent_name,
+          email: prospect.email ?? p.referent_email,
+          phone: prospect.phone ?? p.referent_phone,
+        };
+
+    const choix = referentParDefaut({ commanditaire, contacts: connus });
+
+    if (choix.action === 'designer') {
+      contactId = choix.contactId;
+    } else if (choix.action === 'creer') {
+      const { data: nouveau, error: cErr } = await sb
+        .schema('app')
+        .from('contacts')
+        .insert({
+          organization_id: orgId,
+          company_id: companyId,
+          first_name: choix.nom.firstName,
+          last_name: choix.nom.lastName,
+          email: choix.email,
+          phone: choix.phone,
+          is_primary: connus.length === 0,
+        })
+        .select('id')
+        .single();
+      // Le référent est un confort, pas une condition : son échec ne doit pas
+      // empêcher le dossier d'exister. On retombe sur le contact de l'entreprise.
+      if (cErr || !nouveau) console.error('[conversion] référent non créé', cErr?.message);
+      else contactId = (nouveau as { id: string }).id;
+    }
+  }
+
   const dossierId = randomUUID();
   const year = Number(new Date().getFullYear());
   const reference = generateDossierReference(prospect.id, year);
@@ -252,6 +343,7 @@ export async function convertProspectToDossier(
       company_id: companyId,
       formation_id: formationId,
       status: 'draft',
+      contact_id: contactId,
       modality: prospect.preferredModality ?? 'distanciel',
       start_date: startDate,
       end_date: startDate,

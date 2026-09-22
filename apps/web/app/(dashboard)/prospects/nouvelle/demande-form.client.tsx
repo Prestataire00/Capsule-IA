@@ -30,7 +30,7 @@ const card = 'bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zi
 
 export type ValeursDemande = {
   civility: string; firstName: string; lastName: string; email: string; phone: string;
-  birthDate: string; rqth: boolean; situation: string; funderKind: string;
+  birthDate: string; rqth: boolean; candidateIsLearner: boolean; situation: string; funderKind: string;
   companyName: string; companySiret: string; conventionCollective: string;
   referentName: string; referentEmail: string; referentPhone: string;
   formationMode: 'catalogue' | 'sur-mesure' | 'plus-tard';
@@ -68,6 +68,7 @@ export function DemandeForm({
     phone: valeurs?.phone ?? '',
     birthDate: valeurs?.birthDate ?? '',
     rqth: valeurs?.rqth ?? false,
+    candidateIsLearner: valeurs?.candidateIsLearner ?? true,
     situation: (valeurs?.situation ?? 'salarie') as (typeof SITUATIONS)[number]['value'],
     funderKind: (valeurs?.funderKind ?? 'opco') as string,
     companyName: valeurs?.companyName ?? '',
@@ -110,6 +111,7 @@ export function DemandeForm({
           phone: form.phone,
           birthDate: form.birthDate,
           rqth: form.rqth,
+          candidateIsLearner: form.candidateIsLearner,
           situation: form.situation,
           funderKind: form.funderKind,
           companyName: form.companyName,
@@ -142,6 +144,7 @@ export function DemandeForm({
         phone: form.phone,
         birthDate: form.birthDate,
         rqth: form.rqth,
+        candidateIsLearner: form.candidateIsLearner,
         situation: form.situation,
         funderKind: form.funderKind as never,
         companyName: form.companyName,
@@ -208,6 +211,28 @@ export function DemandeForm({
             RQTH / adaptation
           </label>
         </div>
+
+        {/* Celui qui commande n'est pas toujours celui qui suit : un
+            responsable qui inscrit son équipe se retrouvait compté parmi les
+            stagiaires, sur les émargements et au BPF. */}
+        <label className="flex items-start gap-3 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={form.candidateIsLearner}
+            onChange={(e) => set('candidateIsLearner', e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-orange-500"
+          />
+          <span>
+            <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+              Cette personne suit la formation
+            </span>
+            <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+              {form.candidateIsLearner
+                ? 'Elle sera inscrite comme stagiaire du dossier.'
+                : 'Elle ne sera pas inscrite comme stagiaire : elle devient le référent du dossier — destinataire de la convention, des devis et des factures. Les stagiaires s’ajoutent ensuite.'}
+            </span>
+          </span>
+        </label>
       </section>
 
       <section className={card}>
