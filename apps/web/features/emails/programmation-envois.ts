@@ -40,6 +40,10 @@ export type Reglable = {
  */
 export const REGLABLES: Readonly<Record<string, Reglable>> = {
   fiche_besoin: { coupable: false, delai: null },
+  // Alerte interne : elle part au moment où le client répond, il n'y a rien à
+  // décaler. La couper reviendrait à ne pas être prévenu du tout.
+  fiche_besoin_completee: { coupable: false, delai: null },
+  nouvelle_demande: { coupable: false, delai: null },
   convocation_j7: {
     coupable: true,
     delai: { defaut: 7, min: 1, max: 60, sens: 'avant', libelle: 'avant le début de la séance' },

@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { guardAction } from '@/shared/lib/auth/guard-action';
 import { convertProspectToDossier } from '@/features/crm/prospect-conversion/convert-core';
+import { notifyOrgStaffOfNewDemande } from '@/shared/lib/notifications/notify-staff';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { NouvelleDemandeSchema, type NouvelleDemandeValues } from './schema';
 
@@ -87,6 +88,21 @@ export async function createDemande(input: NouvelleDemandeValues): Promise<Creat
     return { ok: false, error: `Enregistrement impossible : ${error?.message ?? 'erreur inconnue'}` };
   }
   const prospectId = (inserted as { id: string }).id;
+
+  // Une demande saisie par l'organisme ne prévenait personne : seul le tunnel
+  // public notifiait. Le gestionnaire qui suit les demandes doit l'apprendre,
+  // qu'elle vienne du site ou du téléphone.
+  await notifyOrgStaffOfNewDemande({
+    organizationId: orgId,
+    prospectId,
+    exclureUserId: guard.member.userId,
+    summary: {
+      name: `${v.firstName} ${v.lastName}`.trim(),
+      situationLabel: v.situation,
+      companyName: orNull(v.companyName),
+      employeesCount: null,
+    },
+  });
 
   let dossierId: string | null = null;
   if (v.convertNow) {

@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { verifyFicheBesoinToken } from '@/shared/lib/fiche-besoin-token';
+import { notifyOrgStaffOfFicheBesoin } from '@/shared/lib/notifications/notify-staff';
 import {
   nettoyerReponses,
   type EnregistrerResult,
@@ -58,5 +59,32 @@ export async function enregistrerFicheBesoinDemande(
     console.error('[fiche besoin] réponse non enregistrée', verifie.value.prospectId, error.message);
     return { ok: false, error: 'Vos réponses n’ont pas pu être enregistrées. Réessayez dans un instant.' };
   }
+
+  // Prévenir l'organisme : sans cela, la réponse dort sur la demande jusqu'à ce
+  // que quelqu'un pense à la rouvrir.
+  const { data: fiche } = await admin()
+    .schema('app')
+    .from('prospects')
+    .select('first_name, last_name, company_name, formation:formations(title), custom_formation_title')
+    .eq('id', verifie.value.prospectId)
+    .maybeSingle();
+  const d = fiche as {
+    first_name: string | null;
+    last_name: string | null;
+    company_name: string | null;
+    formation: { title: string } | null;
+    custom_formation_title: string | null;
+  } | null;
+
+  await notifyOrgStaffOfFicheBesoin({
+    organizationId: verifie.value.organizationId,
+    prospectId: verifie.value.prospectId,
+    nom:
+      [d?.first_name, d?.last_name].filter(Boolean).join(' ').trim() ||
+      d?.company_name ||
+      'Une demande',
+    formation: d?.formation?.title ?? d?.custom_formation_title ?? null,
+  });
+
   return { ok: true };
 }
