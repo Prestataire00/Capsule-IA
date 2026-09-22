@@ -36,7 +36,14 @@
       "features/formations/programme/programme-document.tsx",
       "app/(dashboard)/parametres/inscription/inscription-link.tsx"
     ],
-    "ignoreValues": []
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "roboto",
+        "createdAt": "2026-09-22T12:25:14.434Z",
+        "reason": "page HTML autonome servie par une route API, hors du pipeline next/font : la pile système est le seul choix disponible, déjà celle des e-mails transactionnels"
+      }
+    ]
   },
   "_motifsDesRegles": {
     "gray-on-color": "Vérifié le 2026-09-19 : 97 signalements, 97 faux positifs. La règle apparie des noms de classes dans une même chaîne sans modéliser les variantes Tailwind. Elle lit « zinc-400 sur orange-50 » là où `dark:text-zinc-400` ne vaut qu'en thème sombre (fond orange-950) et où `hover:bg-orange-50` s'accompagne toujours d'un `hover:text-orange-600`. Les deux derniers cas opposaient un pseudo-élément `file:` au texte du champ. Le contraste réel est tenu par la règle du 500 du DESIGN.md : sur fond teinté, jamais sous horizon-500 (5:1).",
