@@ -32,7 +32,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, message',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -63,6 +63,8 @@ export async function convertProspectToDossier(
     custom_formation_title: string | null;
     custom_formation_hours: number | string | null;
     custom_formation_price_cents: number | string | null;
+    /** « Note interne » saisie sur la demande. */
+    message: string | null;
   };
 
   if (p.converted_dossier_id) {
@@ -357,6 +359,7 @@ export async function convertProspectToDossier(
   // silence les clés qu'elle ne connaît pas : ni `contact_id` (0167) ni
   // `holder_is_learner` (0191) n'y figurent. Les passer dans son payload ne
   // faisait rien du tout — d'où cette écriture explicite.
+  const noteInterne = (p.message ?? '').trim() || null;
   const { error: majErr } = await sb
     .schema('app')
     .from('dossiers')
@@ -366,6 +369,11 @@ export async function convertProspectToDossier(
       // le référent. Ce drapeau dit seulement s'il suit AUSSI la formation ;
       // sinon il ne compte ni dans les effectifs ni sur les émargements.
       holder_is_learner: candidatSuitLaFormation,
+      // La note interne de la demande suit le dossier. Elle s'arrêtait à la
+      // conversion : ce qui avait été noté pendant l'appel — le contexte,
+      // l'interlocuteur, une contrainte — disparaissait au moment précis où le
+      // dossier commençait à servir.
+      notes: noteInterne,
     })
     .eq('id', dossierId);
   if (majErr) console.error('[conversion] référent / titulaire non enregistrés', dossierId, majErr.message);

@@ -65,6 +65,8 @@ type Prospect = {
   validation_rejected_reason: string | null;
   documents: ProspectDoc[] | null;
   needs_analysis: NeedsAnalysis | null;
+  /** « Note interne » du formulaire : contexte, contraintes, interlocuteur. */
+  message: string | null;
   created_at: string;
 };
 
@@ -164,7 +166,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     .schema('app')
     .from('prospects' as never)
     .select(
-      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, created_at',
+      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, message, created_at',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -449,6 +451,19 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                 aUneAdresse={Boolean(prospect.email)}
               />
             </ManageOnly>
+
+            {/* La « note interne » du formulaire ne se lisait nulle part : il
+                fallait rouvrir « Modifier » pour la retrouver. Ce qu'on écrit
+                pendant l'appel — le contexte, l'interlocuteur, une contrainte —
+                doit se voir là où l'on reprend le dossier. */}
+            {prospect.message && (
+              <div className={`rounded-lg border p-3 ${ACCENTS.amber.card}`}>
+                <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-amber-700 dark:text-amber-400 mb-1">
+                  Note interne
+                </p>
+                <p className="text-[13px] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{prospect.message}</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 rounded-lg border border-zinc-200/70 dark:border-zinc-800 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden bg-zinc-50/60 dark:bg-zinc-950/40">
               <KeyFact label="Situation" value={`${situationLabel}${prospect.company_batch_id ? ' · entreprise' : ''}`} />

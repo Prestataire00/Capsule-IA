@@ -5,7 +5,7 @@ import { Calendar, FileText, Users as UsersIcon } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { KpiCard, type Accent } from '@/shared/ui/kpi-card';
+import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { loadDossierProgress } from '@/features/dossier/load-progress';
 import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
 import { canManageSection } from '@/shared/lib/auth/require-access';
@@ -41,10 +41,14 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
     compteSessions(),
     count('documents'),
     count('dossier_funders'),
-    sb.schema('app').from('dossiers').select('tags, action_type, trainee_category, company_id, contact_id').eq('id', id).maybeSingle(),
+    sb.schema('app').from('dossiers').select('tags, action_type, trainee_category, company_id, contact_id, notes').eq('id', id).maybeSingle(),
     loadDossierProgress(sb, id),
   ]);
   const tags = ((dossier.data?.tags as string[] | null) ?? []);
+  // La note du dossier — reprise de la demande, ou posée par l'import d'une
+  // convention. Le formateur la lisait dans son espace ; l'organisme, lui, ne
+  // la voyait nulle part.
+  const notes = ((dossier.data?.notes as string | null) ?? '').trim();
   const actionType = (dossier.data?.action_type as string | null) ?? null;
   const traineeCategory = (dossier.data?.trainee_category as string | null) ?? null;
 
@@ -111,6 +115,15 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
         companyName={companyName}
         peutModifier={peutModifier}
       />
+      {notes && (
+        <section className={`rounded-xl border p-4 shadow-sm ${ACCENTS.amber.card}`}>
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.06em] text-amber-700 dark:text-amber-400 mb-1.5">
+            Note interne
+          </h2>
+          <p className="text-[13px] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{notes}</p>
+        </section>
+      )}
+
       <BpfFieldsEditor dossierId={id} initialActionType={actionType} initialTraineeCategory={traineeCategory} />
       <TagsEditor dossierId={id} initialTags={tags} />
 
