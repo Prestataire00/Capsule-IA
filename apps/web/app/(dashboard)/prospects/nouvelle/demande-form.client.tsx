@@ -18,6 +18,48 @@ const SITUATIONS = [
   { value: 'particulier', label: 'Particulier' },
 ] as const;
 
+/**
+ * Pour qui est la demande.
+ *
+ * Le formulaire présentait tout à tout le monde : on demandait sa situation à
+ * une entreprise, et un SIRET à un particulier. Le premier choix commande
+ * désormais la suite — c'est aussi lui qui dit si l'annuaire des entreprises a
+ * quelque chose à remplir.
+ *
+ * Il ne s'enregistre pas : il se déduit de `situation`, qui existe déjà et que
+ * les écrans, le BPF et la conversion utilisent. Une colonne de plus aurait dit
+ * deux fois la même chose, avec le risque qu'elles se contredisent.
+ */
+const TYPES = [
+  {
+    value: 'entreprise',
+    titre: 'Une entreprise',
+    detail: 'Elle inscrit ses salariés. Nom ou SIRET suffisent : le reste vient de l’annuaire.',
+    situation: 'salarie',
+    financement: 'opco',
+  },
+  {
+    value: 'particulier',
+    titre: 'Un particulier',
+    detail: 'Il s’inscrit pour lui-même et finance sa formation.',
+    situation: 'particulier',
+    financement: 'autofinancement',
+  },
+  {
+    value: 'autre',
+    titre: 'Autre',
+    detail: 'Demandeur d’emploi, indépendant : la situation précise se choisit ensuite.',
+    situation: 'demandeur',
+    financement: '',
+  },
+] as const;
+
+type TypeDemandeur = (typeof TYPES)[number]['value'];
+
+/** Une demande existante n'a pas de type : il se relit dans sa situation. */
+const typeDepuisSituation = (situation: string): TypeDemandeur =>
+  situation === 'salarie' ? 'entreprise' : situation === 'particulier' ? 'particulier' : 'autre';
+
 const MODALITES = [
   { value: '', label: 'À définir' },
   { value: 'presentiel', label: 'Présentiel' },
@@ -175,8 +217,35 @@ export function DemandeForm({
 
   // Le bloc suit la règle du schéma, sinon le SIRET deviendrait obligatoire
   // dans un champ masqué — impasse : rien ne s'enregistre et rien ne l'explique.
+  const [type, setType] = useState<TypeDemandeur>(() => typeDepuisSituation(form.situation));
+
+  /**
+   * Changer de type repositionne la situation et propose un financement.
+   *
+   * Le financement n'est qu'une proposition : une entreprise peut payer
+   * elle-même, un particulier mobiliser son CPF. On ne l'impose donc pas, on
+   * évite seulement de faire ressaisir le cas courant.
+   */
+  const choisirType = (t: TypeDemandeur) => {
+    const def = TYPES.find((x) => x.value === t)!;
+    setType(t);
+    setForm((f) => ({
+      ...f,
+      situation: def.situation,
+      funderKind: def.financement || f.funderKind,
+      // Un particulier n'a pas d'entreprise cliente : garder ces champs
+      // laisserait un SIRET orphelin partir sur sa convention.
+      ...(t === 'particulier'
+        ? { companyName: '', companySiret: '', conventionCollective: '', referentName: '', referentEmail: '', referentPhone: '' }
+        : {}),
+    }));
+  };
+
+  // Le bloc entreprise suit la règle du schéma, et non le seul type choisi :
+  // un financement OPCO ou employeur exige un SIRET, que le champ soit affiché
+  // ou non. Sans cet accord, l'obligation tomberait dans un champ masqué.
   const entreprise =
-    form.situation === 'salarie' ||
+    type === 'entreprise' ||
     form.funderKind === 'entreprise' ||
     form.funderKind === 'opco' ||
     form.companyName.trim() !== '';
@@ -186,9 +255,125 @@ export function DemandeForm({
   return (
     <div className="space-y-5">
       <section className={card}>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Pour qui est cette demande ?</h2>
+        <div className="grid sm:grid-cols-3 gap-3">
+          {TYPES.map((t) => {
+            const actif = type === t.value;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => choisirType(t.value)}
+                aria-pressed={actif}
+                className={`text-left rounded-xl border p-3.5 transition ${
+                  actif
+                    ? 'border-orange-300 dark:border-orange-800 bg-orange-50/70 dark:bg-orange-950/30 shadow-sm'
+                    : 'border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40'
+                }`}
+              >
+                <span
+                  className={`block text-[13px] font-semibold ${
+                    actif ? 'text-orange-700 dark:text-orange-300' : 'text-zinc-900 dark:text-zinc-100'
+                  }`}
+                >
+                  {t.titre}
+                </span>
+                <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">{t.detail}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* « Autre » couvre deux situations que le BPF distingue. */}
+        {type === 'autre' && (
+          <label className={`${label} block max-w-xs`}>
+            Situation précise
+            <select
+              value={form.situation}
+              onChange={(e) => set('situation', e.target.value as typeof form.situation)}
+              className={input}
+            >
+              {SITUATIONS.filter((x) => x.value === 'demandeur' || x.value === 'independant').map((x) => (
+                <option key={x.value} value={x.value}>
+                  {x.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </section>
+
+      {entreprise && (
+        <section className={card}>
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">L’entreprise cliente</h2>
+          <div className="space-y-3">
+            {/* Le nom, le SIRET et la convention collective viennent de
+                l'annuaire des entreprises de l'État. Saisis à la main, ils
+                arrivaient avec leurs coquilles — un SIRET faux se paie au rejet
+                de la facture, une convention approximative à l'instruction du
+                dossier OPCO. La saisie manuelle reste possible juste en
+                dessous : l'annuaire ignore les entreprises très récentes. */}
+            <EntrepriseAutocomplete
+              placeholder="Nom ou SIRET de l’entreprise (3 caractères min)…"
+              onSelect={(c) =>
+                setForm((f) => ({
+                  ...f,
+                  companyName: c.name || f.companyName,
+                  companySiret: c.siret || f.companySiret,
+                  // On ne remplace pas une convention déjà saisie : l'INSEE ne
+                  // connaît que celle déclarée, l'organisme peut en savoir plus.
+                  conventionCollective: f.conventionCollective.trim() || (c.idcc ?? ''),
+                }))
+              }
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <label className={label}>
+                Entreprise
+                <input value={form.companyName} onChange={(e) => set('companyName', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                SIRET
+                <input
+                  value={form.companySiret}
+                  onChange={(e) => set('companySiret', e.target.value)}
+                  maxLength={20}
+                  placeholder="123 456 789 00012"
+                  aria-invalid={siretFaux}
+                  className={siretFaux ? `${input} border-rose-400 dark:border-rose-500` : input}
+                />
+                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  {siretFaux
+                    ? 'Clé incorrecte : vérifiez les 14 chiffres.'
+                    : 'Obligatoire : il identifie le client sur la convention, la facture et au BPF.'}
+                </span>
+              </label>
+              <label className={label}>
+                Convention collective
+                <input
+                  value={form.conventionCollective}
+                  onChange={(e) => set('conventionCollective', e.target.value)}
+                  maxLength={200}
+                  placeholder="1486 ou Bureaux d'études techniques"
+                  className={input}
+                />
+              </label>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className={card}>
         {/* « Candidat » supposait que cette personne suivait la formation. Elle
             est d'abord celle qui la demande ; qu'elle la suive se coche. */}
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Qui demande la formation</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+          {type === 'entreprise' ? 'Qui fait la demande, chez le client' : 'La personne concernée'}
+        </h2>
+        {type === 'entreprise' && (
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 -mt-2">
+            Son interlocuteur chez vous. Par défaut, c’est lui le référent du dossier : la convention, les devis et
+            les factures lui sont adressés.
+          </p>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <label className={label}>
             Civilité
@@ -245,21 +430,38 @@ export function DemandeForm({
             </span>
           </span>
         </label>
+
+        {/* Quand le demandeur suit lui-même la formation, il devient stagiaire :
+            quelqu'un d'autre reçoit alors la convention et les factures. C'est
+            exactement ce que la conversion va chercher ici. Le demander en
+            permanence faisait saisir deux fois la même personne. */}
+        {entreprise && form.candidateIsLearner && (
+          <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800 p-3.5 space-y-3">
+            <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
+              Cette personne étant stagiaire, indiquez qui suit le dossier côté client — sans quoi la convention
+              partirait à un stagiaire.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className={label}>
+                Référent du dossier
+                <input value={form.referentName} onChange={(e) => set('referentName', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                Son e-mail
+                <input type="email" value={form.referentEmail} onChange={(e) => set('referentEmail', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                Son téléphone
+                <input value={form.referentPhone} onChange={(e) => set('referentPhone', e.target.value)} className={input} />
+              </label>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className={card}>
-        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Situation et financement</h2>
+        <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Financement</h2>
         <div className="grid grid-cols-2 gap-3">
-          <label className={label}>
-            Situation
-            <select value={form.situation} onChange={(e) => set('situation', e.target.value as typeof form.situation)} className={input}>
-              {SITUATIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
           <label className={label}>
             Financement
             <select value={form.funderKind} onChange={(e) => set('funderKind', e.target.value)} className={input}>
@@ -271,73 +473,6 @@ export function DemandeForm({
             </select>
           </label>
         </div>
-        {entreprise && (
-          <div className="space-y-3">
-            {/* Le nom, le SIRET et la convention collective viennent de
-                l'annuaire des entreprises de l'État. Saisis à la main, ils
-                arrivaient avec leurs coquilles — un SIRET faux se paie au rejet
-                de la facture, une convention approximative à l'instruction du
-                dossier OPCO. La saisie manuelle reste possible juste en
-                dessous : l'annuaire ignore les entreprises très récentes. */}
-            <EntrepriseAutocomplete
-              placeholder="Nom ou SIRET de l’entreprise (3 caractères min)…"
-              onSelect={(c) =>
-                setForm((f) => ({
-                  ...f,
-                  companyName: c.name || f.companyName,
-                  companySiret: c.siret || f.companySiret,
-                  // On ne remplace pas une convention déjà saisie : l'INSEE ne
-                  // connaît que celle déclarée, l'organisme peut en savoir plus.
-                  conventionCollective: f.conventionCollective.trim() || (c.idcc ?? ''),
-                }))
-              }
-            />
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <label className={label}>
-                Entreprise
-                <input value={form.companyName} onChange={(e) => set('companyName', e.target.value)} className={input} />
-              </label>
-              <label className={label}>
-                SIRET
-                <input
-                  value={form.companySiret}
-                  onChange={(e) => set('companySiret', e.target.value)}
-                  maxLength={20}
-                  placeholder="123 456 789 00012"
-                  aria-invalid={siretFaux}
-                  className={siretFaux ? `${input} border-rose-400 dark:border-rose-500` : input}
-                />
-                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
-                  {siretFaux
-                    ? 'Clé incorrecte : vérifiez les 14 chiffres.'
-                    : 'Obligatoire : il identifie le client sur la convention, la facture et au BPF.'}
-                </span>
-              </label>
-              <label className={label}>
-                Convention collective
-                <input
-                  value={form.conventionCollective}
-                  onChange={(e) => set('conventionCollective', e.target.value)}
-                  maxLength={200}
-                  placeholder="1486 ou Bureaux d'études techniques"
-                  className={input}
-                />
-              </label>
-              <label className={label}>
-                Responsable formation
-                <input value={form.referentName} onChange={(e) => set('referentName', e.target.value)} className={input} />
-              </label>
-              <label className={label}>
-                E-mail du responsable
-                <input type="email" value={form.referentEmail} onChange={(e) => set('referentEmail', e.target.value)} className={input} />
-              </label>
-              <label className={label}>
-                Téléphone du responsable
-                <input value={form.referentPhone} onChange={(e) => set('referentPhone', e.target.value)} className={input} />
-              </label>
-            </div>
-          </div>
-        )}
       </section>
 
       <section className={card}>
@@ -456,6 +591,33 @@ export function DemandeForm({
             </span>
           </span>
         </label>
+
+        {/* Quand le demandeur suit lui-même la formation, il devient stagiaire :
+            quelqu'un d'autre reçoit alors la convention et les factures. C'est
+            exactement ce que la conversion va chercher ici. Le demander en
+            permanence faisait saisir deux fois la même personne. */}
+        {entreprise && form.candidateIsLearner && (
+          <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800 p-3.5 space-y-3">
+            <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
+              Cette personne étant stagiaire, indiquez qui suit le dossier côté client — sans quoi la convention
+              partirait à un stagiaire.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className={label}>
+                Référent du dossier
+                <input value={form.referentName} onChange={(e) => set('referentName', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                Son e-mail
+                <input type="email" value={form.referentEmail} onChange={(e) => set('referentEmail', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                Son téléphone
+                <input value={form.referentPhone} onChange={(e) => set('referentPhone', e.target.value)} className={input} />
+              </label>
+            </div>
+          </div>
+        )}
       </section>
 
       {error && (
