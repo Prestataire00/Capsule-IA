@@ -1,13 +1,19 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fusionnerAvancement, type Origine, type ValidationManuelle } from './avancement-manuel';
 
 /**
  * Avancement d'un dossier, de sa création à la facture réglée.
  *
  * Chaque étape est **déduite des données réelles** (questionnaires, sessions,
- * documents, signatures, émargements, factures) : rien à cocher à la main, donc
- * rien qui puisse mentir sur l'état d'un dossier. La date affichée est celle du
+ * documents, signatures, émargements, factures). La date affichée est celle du
  * fait qui a validé l'étape.
+ *
+ * S'y ajoutent depuis la 0194 les étapes validées à la main, pour ce qui se
+ * passe hors de l'application — une convention signée sur papier, un règlement
+ * par chèque. Elles ne se déguisent pas en faits constatés : `origine` dit
+ * laquelle des deux a franchi l'étape, et la déduction reprend la main dès que
+ * la preuve arrive.
  */
 export type ProgressStep = {
   key: string;
@@ -17,6 +23,12 @@ export type ProgressStep = {
   done: boolean;
   at: string | null;
   href: string | null;
+  /** `null` quand l'étape n'est pas franchie. */
+  origine?: Origine | null;
+  validePar?: string | null;
+  note?: string | null;
+  /** Validée à la main, puis constatée dans les données. */
+  confirmeeDepuis?: boolean;
 };
 
 export type DossierProgress = {
@@ -253,9 +265,46 @@ export async function loadDossierProgress(
     },
   ];
 
+  // Validations manuelles (0194). La table peut manquer tant que la migration
+  // n'est pas jouée : l'avancement doit s'afficher quand même, sans elles.
+  let manuelles: ValidationManuelle[] = [];
+  const { data: overrides, error: erreurOverrides } = await sb
+    .schema('app')
+    .from('dossier_progress_overrides' as never)
+    .select('step_key, validated_at, note, validated_by')
+    .eq('dossier_id', dossierId);
+  if (erreurOverrides) {
+    console.error('[avancement] validations manuelles illisibles', dossierId, erreurOverrides.message);
+  } else {
+    const lignes = (overrides ?? []) as unknown as Array<{
+      step_key: string;
+      validated_at: string;
+      note: string | null;
+      validated_by: string | null;
+    }>;
+    const auteurs = [...new Set(lignes.map((l) => l.validated_by).filter((v): v is string => Boolean(v)))];
+    const { data: profils } = auteurs.length
+      ? await sb.schema('app').from('profiles').select('user_id, full_name').in('user_id', auteurs)
+      : { data: [] };
+    const nomDe = new Map(
+      ((profils ?? []) as unknown as Array<{ user_id: string; full_name: string | null }>).map((p) => [
+        p.user_id,
+        p.full_name,
+      ]),
+    );
+    manuelles = lignes.map((l) => ({
+      stepKey: l.step_key,
+      validatedAt: l.validated_at,
+      par: l.validated_by ? (nomDe.get(l.validated_by) ?? null) : null,
+      note: l.note,
+    }));
+  }
+
+  const fusionnees = fusionnerAvancement(steps, manuelles);
+
   return {
-    steps,
-    doneCount: steps.filter((s) => s.done).length,
-    current: steps.find((s) => !s.done) ?? null,
+    steps: fusionnees,
+    doneCount: fusionnees.filter((s) => s.done).length,
+    current: fusionnees.find((s) => !s.done) ?? null,
   };
 }

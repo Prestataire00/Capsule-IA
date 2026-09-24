@@ -102,7 +102,7 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
   return (
     <div className="space-y-6">
       <SectionLabel>Vue d'ensemble</SectionLabel>
-      <DossierProgressTracker progress={progress} />
+      <DossierProgressTracker progress={progress} dossierId={params.id} peutValider={peutModifier} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {cards.map(({ icon, label, value, href, accent }) => (
           <KpiCard key={href} icon={icon} label={label} value={value} accent={accent} href={`/dossiers/${id}/${href}`} />
