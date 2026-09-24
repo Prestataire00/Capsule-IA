@@ -21,14 +21,23 @@ function cleValide(chiffres: string): boolean {
   if (chiffres.startsWith('356000000') && chiffres.length === 14) {
     return [...chiffres].reduce((n, c) => n + Number(c), 0) % 5 === 0;
   }
-  // Les chiffres de rang PAIR en partant de la GAUCHE sont doublés. La nuance
-  // compte : sur un SIREN (9 chiffres) le dernier est de rang impair et n'est
-  // pas doublé, sur un SIRET (14) il l'est. Compter depuis la droite, comme le
-  // fait le Luhn des cartes bancaires, donne un faux sur l'une des deux longueurs.
+  // On double un chiffre sur deux EN PARTANT DE LA DROITE, le chiffre-clé
+  // n'étant jamais doublé.
+  //
+  // Le compte se faisait depuis la gauche, à rang pair. Juste sur un SIREN,
+  // faux sur un SIRET : à quatorze chiffres, le rang pair depuis la gauche
+  // tombe sur le chiffre-clé, que Luhn laisse justement intact. Huit SIRET
+  // réels sur dix étaient refusés — dont celui de la demande du 24/09/2026,
+  // pourtant bien celui de SOLUTIONS TERRAIN. Le test ne l'avait pas vu : son
+  // exemple « réel » était un numéro inventé, qui satisfaisait la règle fausse.
+  //
+  // Compter depuis la droite couvre les deux longueurs sans les distinguer :
+  // sur neuf chiffres cela revient au rang pair depuis la gauche, sur quatorze
+  // au rang impair.
   let somme = 0;
   for (let i = 0; i < chiffres.length; i++) {
     let n = Number(chiffres[i]);
-    if ((i + 1) % 2 === 0) {
+    if ((chiffres.length - i) % 2 === 0) {
       n *= 2;
       if (n > 9) n -= 9;
     }
