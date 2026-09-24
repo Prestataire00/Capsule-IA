@@ -133,8 +133,16 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
   if (statuses.length) query = query.in('status', statuses as DossierStatus[]);
   if (q) query = query.ilike('reference', `%${q}%`);
 
-  const { data } = await query;
-  const rows = (data as Row[] | null) ?? [];
+  const { data, error: erreurLecture } = await query;
+  // Une liste vide dit « vous n'avez aucun dossier ». C'est ce qu'elle a dit le
+  // 21/09/2026 alors qu'une jointure était devenue ambiguë (PGRST201, corrigée
+  // en 413cdb9) : les dossiers existaient, la requête échouait, et l'écran
+  // annonçait le vide. Laurie a cherché ses dossiers, pas une panne.
+  if (erreurLecture) {
+    console.error('[dossiers] liste illisible', erreurLecture.code, erreurLecture.message);
+    throw new Error(`Lecture impossible (liste des dossiers) : ${erreurLecture.message}`);
+  }
+  const rows = (data as unknown as Row[] | null) ?? [];
 
   // Financement de chaque dossier, en une requête : c'est ce qui permet de
   // repérer d'un coup d'œil ceux dont l'OPCO n'a pas répondu.

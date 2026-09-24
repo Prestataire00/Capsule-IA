@@ -73,8 +73,8 @@ export function EditLearnerDialog({ learner }: Props) {
         <FormField label="Nom" required>
           <input name="lastName" defaultValue={learner.last_name} className={inputClass} />
         </FormField>
-        <FormField label="Email" required>
-          <input name="email" type="email" defaultValue={learner.email} className={inputClass} />
+        <FormField label="Email">
+          <input name="email" type="email" defaultValue={learner.email ?? ''} className={inputClass} />
         </FormField>
         <FormField label="Téléphone">
           <input name="phone" defaultValue={learner.phone ?? ''} className={inputClass} />

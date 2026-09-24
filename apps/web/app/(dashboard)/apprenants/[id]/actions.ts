@@ -15,7 +15,13 @@ export const updateLearner = authActionClient
       .update({
         first_name: parsedInput.firstName,
         last_name: parsedInput.lastName,
-        email: parsedInput.email,
+        // Vide plutôt que null, l'index unique compterait deux chaînes vides
+        // comme un doublon (0176).
+        //
+        // Le cast est là parce que `shared/types/database.ts` date d'avant la
+        // 0176 et annonce encore `email: string` : la base accepte NULL, les
+        // types non. À lever au prochain `pnpm db:types`.
+        email: (parsedInput.email?.trim() || null) as unknown as string,
         phone: parsedInput.phone ?? null,
         position: parsedInput.position ?? null,
         statut: parsedInput.statut ?? null,

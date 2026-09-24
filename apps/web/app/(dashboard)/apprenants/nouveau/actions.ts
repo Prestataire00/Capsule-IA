@@ -66,7 +66,10 @@ export async function createLearner(fd: FormData): Promise<void> {
   const firstName = str(fd, 'firstName');
   const lastName = str(fd, 'lastName');
   const email = str(fd, 'email');
-  if (!firstName || !lastName || !email) redirect('/apprenants/nouveau?error=missing');
+  // L'adresse n'est plus exigée (0176) : sans elle, aucun envoi automatique ne
+  // concerne ce stagiaire, mais il existe et s'émarge — par son nom, décidé en
+  // réunion du 21/09/2026.
+  if (!firstName || !lastName) redirect('/apprenants/nouveau?error=missing');
 
   const statutRaw = str(fd, 'statut');
   const statut = statutRaw && (STATUTS as readonly string[]).includes(statutRaw) ? statutRaw : null;
@@ -78,7 +81,10 @@ export async function createLearner(fd: FormData): Promise<void> {
       organization_id: orgId,
       first_name: firstName,
       last_name: lastName,
-      email,
+      // Vide plutôt que null, l'index unique compterait deux chaînes vides
+      // comme un doublon : deux stagiaires sans adresse ne pourraient pas
+      // coexister (0176).
+      email: email || null,
       phone: str(fd, 'phone'),
       birth_date: str(fd, 'birthDate'),
       company_id: str(fd, 'companyId'),

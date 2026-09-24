@@ -104,6 +104,12 @@ describe('échec de lecture contre ligne absente', () => {
       // haut pour l'authentification, et la lecture peut vivre dans un
       // `Promise.all`, ce qui l'éloigne de sa garde sans rien changer à
       // l'ordre qui compte.
+      //
+      // Une liste n'a pas de `notFound()` : son absence de résultat est un
+      // résultat. La garde y sert à ne pas annoncer « aucun dossier » quand la
+      // requête a échoué — c'est ce qui a fait croire à Laurie, le 21/09/2026,
+      // que ses dossiers avaient disparu. Rien à ordonner dans ce cas.
+      if (!src.includes('notFound()')) continue;
       expect(src.lastIndexOf('notFound()'), rel).toBeGreaterThan(src.indexOf('if (erreurLecture)'));
     }
   });

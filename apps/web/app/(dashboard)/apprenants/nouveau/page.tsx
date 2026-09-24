@@ -15,7 +15,7 @@ export default async function NouvelApprenantPage({ searchParams }: { searchPara
   const sb = supabaseServer();
   const errorMsg = searchParams.error
     ? searchParams.error === 'missing'
-      ? 'Prénom, nom et email sont obligatoires.'
+      ? 'Le prénom et le nom sont obligatoires.'
       : searchParams.error === 'no_org'
         ? 'Organisation introuvable.'
         : `Erreur : ${decodeURIComponent(searchParams.error)}`
@@ -66,13 +66,12 @@ export default async function NouvelApprenantPage({ searchParams }: { searchPara
                 <input type="text" name="lastName" required placeholder="Martin" className={inputClass} />
               </FormField>
             </div>
-            <FormField label="Email" required>
+            <FormField label="Email" hint="Sans adresse, aucun envoi automatique ne le concernera. Il s’émarge par son nom.">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
                 <input
                   type="email"
                   name="email"
-                  required
                   placeholder="alice.martin@email.com"
                   className={`${inputClass} pl-9`}
                 />
