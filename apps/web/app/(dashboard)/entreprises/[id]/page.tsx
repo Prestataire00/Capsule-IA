@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, Globe, Hash, MapPin, User, Users, FolderOpen, Download, Building2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Globe, Hash, MapPin, User, Users, FolderOpen, Download, Building2, Pencil } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
@@ -11,6 +11,7 @@ import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { updateCompany } from './actions';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { ClientFormationsSection } from '@/features/formations/ui/client-formations-section';
 
@@ -28,6 +29,33 @@ function Line({ icon: Icon, children }: { icon: typeof Mail; children: React.Rea
   );
 }
 
+function Champ({
+  label,
+  name,
+  defaultValue,
+  type = 'text',
+  placeholder,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string | null;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-1">{label}</span>
+      <input
+        name={name}
+        type={type}
+        defaultValue={defaultValue ?? ''}
+        placeholder={placeholder}
+        className="w-full h-9 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-[13px]"
+      />
+    </label>
+  );
+}
+
 const AVATARS = [
   'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
   'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
@@ -42,14 +70,20 @@ function avatarTone(name: string): string {
   return AVATARS[h] ?? AVATARS[0];
 }
 
-export default async function EntrepriseDetailPage({ params }: { params: { id: string } }) {
+export default async function EntrepriseDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { saved?: string; error?: string };
+}) {
   await requireAccess('crm');
   const sb = supabaseServer();
 
   const { data: cRow, error: erreurLecture } = await sb
     .schema('app')
     .from('companies')
-    .select('id, name, legal_name, siret, naf_code, vat_number, contact_name, contact_email, contact_phone, website, address, notes')
+    .select('id, name, legal_name, siret, naf_code, vat_number, contact_name, contact_email, contact_phone, website, address, notes, convention_collective, opco')
     .eq('id', params.id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -122,6 +156,52 @@ export default async function EntrepriseDetailPage({ params }: { params: { id: s
           </span>
         </p>
       </header>
+
+      {searchParams?.saved && (
+        <p className="rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-2.5 text-[13px] text-emerald-800 dark:text-emerald-200">
+          Fiche enregistrée.
+        </p>
+      )}
+      {searchParams?.error && (
+        <p className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-2.5 text-[13px] text-red-800 dark:text-red-200">
+          <span className="font-semibold">Fiche non enregistrée.</span>{' '}
+          {searchParams.error === 'name' ? 'Le nom est obligatoire.' : searchParams.error}
+        </p>
+      )}
+
+      {/* La fiche était en lecture seule : une faute de frappe à la création
+          restait définitive, et partait ensuite sur les conventions et les
+          factures. */}
+      <ManageOnly section="crm">
+        <details className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
+          <summary className="cursor-pointer select-none px-5 py-3.5 text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <Pencil className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+            Modifier la fiche
+          </summary>
+          <form action={updateCompany} className="px-5 pb-5 pt-1 space-y-4">
+            <input type="hidden" name="id" value={params.id} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Champ label="Nom *" name="name" defaultValue={c.name} />
+              <Champ label="Raison sociale" name="legalName" defaultValue={c.legal_name} />
+              <Champ label="SIRET" name="siret" defaultValue={c.siret} />
+              <Champ label="OPCO" name="opco" defaultValue={c.opco} />
+              <Champ label="Convention collective" name="conventionCollective" defaultValue={c.convention_collective} />
+              <Champ label="Responsable" name="contactName" defaultValue={c.contact_name} placeholder="Signataire des conventions" />
+              <Champ label="E-mail" name="email" type="email" defaultValue={c.contact_email} />
+              <Champ label="Téléphone" name="phone" defaultValue={c.contact_phone} />
+              <Champ label="Adresse" name="address" defaultValue={c.address?.line1 ?? ''} />
+              <Champ label="Code postal" name="postalCode" defaultValue={c.address?.postal_code ?? ''} />
+              <Champ label="Ville" name="city" defaultValue={c.address?.city ?? ''} />
+            </div>
+            <button
+              type="submit"
+              className="h-9 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold transition"
+            >
+              Enregistrer
+            </button>
+          </form>
+        </details>
+      </ManageOnly>
 
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard label="Apprenants" value={learners.length} icon={Users} accent="rose" hint="rattachés" />
