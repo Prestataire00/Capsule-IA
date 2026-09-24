@@ -107,6 +107,17 @@ export function GrilleEmargement({
     });
   };
 
+  /**
+   * Ce stagiaire est-il attendu sur cette demi-journée ?
+   *
+   * Une séance qui vise un groupe n'attend que lui (0194). Sans ce test, la
+   * grille laissait cocher n'importe qui sur n'importe quelle colonne : on
+   * aurait marqué présent, sur une séance du Groupe A, quelqu'un du Groupe B.
+   * La base ne l'aurait pas refusé — elle ne sait pas ce que la grille montre.
+   */
+  const attendu = (ligne: LigneStagiaire, c: Colonne) =>
+    c.groupe === null || ligne.groupes.includes(c.groupe.id);
+
   const bascule = (ligne: LigneStagiaire, c: Colonne) => {
     const actuel = ligne.cases[c.sheetId]?.statut;
     const suivant = actuel === 'present' ? 'absent' : 'present';
@@ -175,6 +186,9 @@ export function GrilleEmargement({
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                     {heure(c.debut)} – {heure(c.fin)}
                   </p>
+                  {c.groupe && (
+                    <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-300 mt-0.5">{c.groupe.nom}</p>
+                  )}
                   {peutAgir && !c.finalisee && (
                     <div className="mt-1.5 space-y-1">
                       <button
@@ -258,6 +272,20 @@ export function GrilleEmargement({
                   const cellule = l.cases[c.sheetId];
                   const present = cellule?.statut === 'present';
                   const signe = Boolean(cellule?.signeA);
+                  const concerne = attendu(l, c);
+                  if (!concerne) {
+                    // Barré plutôt que vide : une case vide se lit « pas encore
+                    // émargé » et se serait cliquée.
+                    return (
+                      <td
+                        key={c.sheetId}
+                        title={`${l.nom} n’est pas dans ${c.groupe?.nom ?? 'ce groupe'}`}
+                        className="px-2 py-2 border-b border-r border-zinc-200/70 dark:border-zinc-800 text-center align-top bg-zinc-50/70 dark:bg-zinc-950/40"
+                      >
+                        <span className="text-[11px] text-zinc-300 dark:text-zinc-600">—</span>
+                      </td>
+                    );
+                  }
                   return (
                     <td
                       key={c.sheetId}

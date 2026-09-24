@@ -3,7 +3,7 @@
 
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Video, ArrowUpRight, CalendarClock } from 'lucide-react';
+import { Video, ArrowUpRight, CalendarClock, Users } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -66,12 +66,16 @@ export default async function SessionsPage({ params }: { params: { id: string } 
 
   const { data: sessions } = sessionIds.length
     ? await sb.schema('app').from('sessions')
-        .select('id, title, modality, status, starts_at, ends_at, duration_hours, dossier_id, remote_url')
+        .select('id, title, modality, status, starts_at, ends_at, duration_hours, dossier_id, remote_url, groupe_id')
         .in('id', sessionIds).order('starts_at', { ascending: true })
     : { data: [] };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (sessions as any[]) ?? [];
+  // Quelle séance est pour quel groupe : sans cette ligne, la liste ne le
+  // disait pas — et le titre, seul endroit où le groupe se lisait jusqu'ici,
+  // n'est qu'un texte libre qu'on peut oublier de renseigner.
+  const nomDuGroupe = new Map(groupes.map((g) => [g.id, g.nom]));
   const coveredHours = rows.reduce((sum, s) => sum + Number(s.duration_hours ?? 0), 0);
   const totalHours = Number((dossier as { total_hours?: number }).total_hours ?? 0);
 
@@ -151,6 +155,15 @@ export default async function SessionsPage({ params }: { params: { id: string } 
                     <div className="text-[15px] font-bold text-sky-700 dark:text-sky-300 tabular-nums">{Number(s.duration_hours)} h</div>
 
                     <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                      {s.groupe_id && (
+                        <span
+                          title="Seuls les stagiaires de ce groupe sont attendus"
+                          className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-full text-[12px] font-semibold ${ACCENTS.rose.soft}`}
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          {nomDuGroupe.get(s.groupe_id) ?? 'Groupe'}
+                        </span>
+                      )}
                       <span className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-full text-[12px] font-semibold ${ACCENTS.purple.soft}`}>
                         {isRemote && <Video className="w-3.5 h-3.5" />}
                         {MODALITY_LABEL[s.modality] ?? s.modality}

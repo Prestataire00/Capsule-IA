@@ -16,9 +16,13 @@ const PAGE = lire('../app/(dashboard)/dossiers/[id]/emargements/page.tsx');
 describe('le chargement', () => {
   it('tient en un nombre fixe de requêtes, quelle que soit la durée', () => {
     // Une requête par séance rendrait l'écran inutilisable dès la deuxième
-    // semaine. Sept accès en tout, tous hors boucle : séances, feuilles,
-    // stagiaires, signatures, vignettes, liens formateurs, formateurs.
-    expect(LOADER.match(/\.from\('/g)?.length).toBeLessThanOrEqual(7);
+    // semaine. Neuf accès en tout, tous hors boucle : séances, feuilles,
+    // stagiaires, signatures, vignettes, liens formateurs, formateurs, puis
+    // les groupes et leurs membres (0194).
+    //
+    // C'est l'indépendance qui compte, pas le chiffre : neuf que la formation
+    // dure trois jours ou six semaines, qu'elle ait un groupe ou quatre.
+    expect(LOADER.match(/\.from\('/g)?.length).toBeLessThanOrEqual(9);
     // Feuilles et signatures se lisent en lot, par `in`, jamais séance par
     // séance : c'est ce qui rend le compte indépendant de la durée.
     expect(LOADER).toContain(".in('session_id', seanceIds)");

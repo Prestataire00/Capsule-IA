@@ -50,7 +50,7 @@ export default async function SessionOverview({ params }: { params: { id: string
   const db = sb as unknown as SupabaseClient<any, any, any>;
 
   const [{ data: extra }, { data: st }, { data: dt }, { data: devisData }, { data: form }, gerer, facts] = await Promise.all([
-    db.schema('app').from('sessions').select('price_cents, capacity_max, notes').eq('id', session.id).maybeSingle(),
+    db.schema('app').from('sessions').select('price_cents, capacity_max, notes, groupe_id').eq('id', session.id).maybeSingle(),
     db.schema('app').from('session_trainers').select('trainer_id, hourly_rate_cents, amount_cents').eq('session_id', session.id).is('deleted_at', null),
     dossierIds.length ? db.schema('app').from('dossier_trainers').select('trainer_id').in('dossier_id', dossierIds) : Promise.resolve({ data: [] }),
     db
@@ -64,7 +64,19 @@ export default async function SessionOverview({ params }: { params: { id: string
     canManageSection('dossiers'),
     loadBoardFacts(sb, loaded),
   ]);
-  const infos = (extra ?? {}) as { price_cents?: number | null; capacity_max?: number | null; notes?: string | null };
+  const infos = (extra ?? {}) as {
+    price_cents?: number | null;
+    capacity_max?: number | null;
+    notes?: string | null;
+    groupe_id?: string | null;
+  };
+
+  // Le groupe visé (0194) : la séance n'attend alors que lui, et il faut
+  // pouvoir le lire ici plutôt que de le déduire d'un titre.
+  const { data: groupeRow } = infos.groupe_id
+    ? await db.schema('app').from('dossier_groupes' as never).select('nom').eq('id', infos.groupe_id).maybeSingle()
+    : { data: null };
+  const nomGroupe = (groupeRow as { nom?: string } | null)?.nom ?? null;
   const seanceFormateurs = (st ?? []) as { trainer_id: string; hourly_rate_cents: number | null; amount_cents: number | null }[];
   const formateurId = seanceFormateurs[0]?.trainer_id ?? ((dt ?? []) as { trainer_id: string }[])[0]?.trainer_id ?? null;
   const { data: fData } = formateurId
@@ -142,6 +154,16 @@ export default async function SessionOverview({ params }: { params: { id: string
               </span>
             )}
           </Champ>
+          {nomGroupe && (
+            <Champ label="Groupe">
+              <span className="inline-flex items-center h-6 px-2 rounded-full text-[12px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                {nomGroupe}
+              </span>
+              <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
+                Seuls ses stagiaires sont attendus : participants, convocations et feuilles d’émargement.
+              </span>
+            </Champ>
+          )}
           <Champ label="Lieu">{session.location || <span className="text-zinc-400">{session.modality === 'distanciel' ? 'À distance' : 'Non défini'}</span>}</Champ>
           <Champ label="Capacité">
             {cap ? (

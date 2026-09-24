@@ -28,6 +28,8 @@ export type Colonne = {
   readonly debut: string;
   readonly fin: string;
   readonly finalisee: boolean;
+  /** Groupe visé par la séance (0194) ; null = tout le dossier. */
+  readonly groupe: { readonly id: string; readonly nom: string } | null;
 };
 
 export type CaseEmargement = {
@@ -42,6 +44,8 @@ export type LigneStagiaire = {
   readonly email: string | null;
   /** Indexé par `sheetId`. */
   readonly cases: Record<string, CaseEmargement>;
+  /** Groupes auxquels il appartient. Vide = il suit tout le dossier. */
+  readonly groupes: readonly string[];
 };
 
 export type GrilleDossier = {
@@ -56,10 +60,11 @@ export type GrilleDossier = {
 export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<GrilleDossier> {
   const vide: GrilleDossier = { colonnes: [], lignes: [], vignettes: {}, formateurs: [] };
 
+
   const { data: seancesRows, error: erreurSeances } = await sb
     .schema('app')
     .from('sessions')
-    .select('id, starts_at, ends_at, status')
+    .select('id, starts_at, ends_at, status, groupe_id')
     .eq('dossier_id', dossierId)
     .neq('status', 'cancelled')
     .order('starts_at', { ascending: true });
@@ -67,7 +72,12 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
     console.error('[émargement] séances illisibles', erreurSeances.message);
     return vide;
   }
-  const seances = (seancesRows ?? []) as Array<{ id: string; starts_at: string; ends_at: string }>;
+  const seances = (seancesRows ?? []) as Array<{
+    id: string;
+    starts_at: string;
+    ends_at: string;
+    groupe_id: string | null;
+  }>;
   if (seances.length === 0) return vide;
 
   const parSeance = new Map(seances.map((s) => [s.id, s]));
@@ -85,6 +95,18 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
     status: string;
   }>;
 
+  // Les groupes cités par ces séances : la colonne doit dire lequel elle vise,
+  // sans quoi on coche un stagiaire sur une demi-journée qui n'est pas la
+  // sienne sans que rien ne l'en empêche.
+  const groupeIds = [...new Set(seances.map((s) => s.groupe_id).filter((v): v is string => Boolean(v)))];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: groupesRows } = groupeIds.length
+    ? await (sb as any).schema('app').from('dossier_groupes').select('id, nom').in('id', groupeIds)
+    : { data: [] };
+  const nomsDeGroupe = new Map(
+    ((groupesRows ?? []) as Array<{ id: string; nom: string }>).map((g) => [g.id, g.nom]),
+  );
+
   const ORDRE: Record<string, number> = { morning: 0, full: 1, afternoon: 2, evening: 3 };
   const colonnes: Colonne[] = feuilles
     .map((f) => {
@@ -97,6 +119,7 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
         debut: s.starts_at,
         fin: s.ends_at,
         finalisee: f.status === 'finalized',
+        groupe: s.groupe_id ? { id: s.groupe_id, nom: nomsDeGroupe.get(s.groupe_id) ?? 'Groupe' } : null,
       };
     })
     .sort((a, b) => a.jour.localeCompare(b.jour) || (ORDRE[a.halfDay] ?? 9) - (ORDRE[b.halfDay] ?? 9));
@@ -142,6 +165,19 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: membresRows } = groupeIds.length
+    ? await (sb as any)
+        .schema('app')
+        .from('dossier_groupe_membres')
+        .select('groupe_id, learner_id')
+        .in('groupe_id', groupeIds)
+    : { data: [] };
+  const groupesParApprenant = new Map<string, string[]>();
+  for (const m of (membresRows ?? []) as Array<{ groupe_id: string; learner_id: string }>) {
+    groupesParApprenant.set(m.learner_id, [...(groupesParApprenant.get(m.learner_id) ?? []), m.groupe_id]);
+  }
+
   const lignes: LigneStagiaire[] = (
     (gensRows ?? []) as Array<{ id: string; first_name: string; last_name: string; email: string | null }>
   )
@@ -154,6 +190,7 @@ export async function loadGrilleDossier(sb: Client, dossierId: string): Promise<
           .map((c) => [c.sheetId, parCle.get(`${l.id}:${c.sheetId}`)] as const)
           .filter((e): e is [string, CaseEmargement] => Boolean(e[1])),
       ),
+      groupes: groupesParApprenant.get(l.id) ?? [],
     }))
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 

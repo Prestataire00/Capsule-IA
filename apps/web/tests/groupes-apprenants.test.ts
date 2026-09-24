@@ -97,6 +97,48 @@ describe('les gestes', () => {
   });
 });
 
+describe('on voit quelle séance est pour quel groupe', () => {
+  const LISTE = lire('../app/(dashboard)/dossiers/[id]/sessions/page.tsx');
+  const FICHE = lire('../app/(dashboard)/sessions/[id]/page.tsx');
+  const GRILLE = lire('../app/(dashboard)/dossiers/[id]/emargements/grille.client.tsx');
+  const CHARGEUR = lire('../features/attendance/queries/load-dossier-grille.ts');
+
+  it('dans la liste des séances du dossier', () => {
+    // Le titre était le seul endroit où le groupe se lisait — un texte libre
+    // qu'on peut oublier de renseigner.
+    expect(LISTE).toContain('groupe_id');
+    expect(LISTE).toContain('nomDuGroupe.get(s.groupe_id)');
+  });
+
+  it('sur la fiche de la séance', () => {
+    expect(FICHE).toContain('Champ label="Groupe"');
+    expect(FICHE).toContain('Seuls ses stagiaires sont attendus');
+  });
+
+  it('et en tête de colonne dans la grille d’émargement', () => {
+    expect(CHARGEUR).toContain('readonly groupe: { readonly id: string; readonly nom: string } | null;');
+    expect(GRILLE).toContain('{c.groupe.nom}');
+  });
+});
+
+describe('la grille n’émarge pas hors du groupe', () => {
+  const GRILLE = lire('../app/(dashboard)/dossiers/[id]/emargements/grille.client.tsx');
+
+  it('barre la case d’un stagiaire qui n’est pas du groupe', () => {
+    // Sans ce test, la grille laissait cocher n'importe qui sur n'importe
+    // quelle colonne : on aurait marqué présent, sur une séance du Groupe A,
+    // quelqu'un du Groupe B. La base ne l'aurait pas refusé — elle ne sait pas
+    // ce que la grille montre.
+    expect(GRILLE).toContain('const attendu = (ligne: LigneStagiaire, c: Colonne) =>');
+    expect(GRILLE).toContain('c.groupe === null || ligne.groupes.includes(c.groupe.id)');
+    expect(GRILLE).toContain('if (!concerne) {');
+  });
+
+  it('barrée, et non vide : une case vide se serait cliquée', () => {
+    expect(GRILLE).toMatch(/n’est pas dans \$\{c\.groupe\?\.nom/);
+  });
+});
+
 describe('la création d’une séance', () => {
   it('propose le groupe, et seulement s’il y en a', () => {
     expect(FORMULAIRE).toContain('Groupe concerné');
