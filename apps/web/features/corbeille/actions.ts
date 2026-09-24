@@ -55,6 +55,13 @@ async function basculer(entite: string, id: string, versCorbeille: boolean): Pro
     .eq('organization_id', membre.orgId);
   if (error) {
     console.error(`[corbeille] ${versCorbeille ? 'suppression' : 'restauration'} ${def.table} :`, error.message);
+    // Un dossier dont la convention est signée ne se supprime pas : la preuve
+    // doit rester (garde-fou 0073, exigence Qualiopi). Le refus arrivait sous
+    // le message générique « La suppression a échoué », qui laissait croire à
+    // une panne et faisait réessayer — signalé le 24/09/2026.
+    if (error.code === '23514' && /convention sign/i.test(String(error.message ?? ''))) {
+      return { ok: false, error: 'convention_signee' };
+    }
     return { ok: false, error: versCorbeille ? 'suppression_impossible' : 'restauration_impossible' };
   }
 

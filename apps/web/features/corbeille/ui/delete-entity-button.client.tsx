@@ -11,6 +11,8 @@ const ERREURS: Record<string, string> = {
   forbidden: 'Votre rôle ne permet pas cette suppression.',
   not_found: 'Introuvable.',
   entite_inconnue: 'Type d’élément inconnu.',
+  convention_signee:
+    'Sa convention est signée : Qualiopi impose d’en garder la preuve. Archivez le dossier — il quitte les listes sans rien effacer.',
   suppression_impossible: 'La suppression a échoué.',
   restauration_impossible: 'La restauration a échoué.',
 };
