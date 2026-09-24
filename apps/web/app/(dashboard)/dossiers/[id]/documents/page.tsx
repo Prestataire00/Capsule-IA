@@ -2,7 +2,7 @@
 // Justification: génération (modèles + IA + PDF) + liste réelle des documents du dossier.
 
 import Link from 'next/link';
-import { FileText, Download, Eye, Sparkles, FileDown, Files, CalendarClock, Building2 } from 'lucide-react';
+import { FileText, Download, Eye, Sparkles, FileDown, Files, CalendarClock, Building2, Users } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -96,6 +96,15 @@ export default async function DocumentsPage({ params }: { params: { id: string }
         .order('starts_at', { ascending: true })
     : { data: [] };
   const seances = (seancesData as unknown as Array<{ id: string; title: string | null; starts_at: string }>) ?? [];
+
+  // Les groupes du dossier (0194) : chacun peut avoir sa convention.
+  const { data: groupesRows } = await sb
+    .schema('app')
+    .from('dossier_groupes' as never)
+    .select('id, nom')
+    .eq('dossier_id', params.id)
+    .order('ordre', { ascending: true });
+  const groupesDuDossier = (groupesRows ?? []) as unknown as Array<{ id: string; nom: string }>;
 
   const [docsRes, tplRes] = await Promise.all([
     sb
@@ -234,6 +243,28 @@ export default async function DocumentsPage({ params }: { params: { id: string }
               </span>
               <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex-1 truncate tabular-nums">
                 {seances.length > 1 ? `Convocation — ${jourCourt(seance.starts_at)}` : 'Convocation (PDF)'}
+              </span>
+              <Download className="w-3.5 h-3.5 text-zinc-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition" />
+            </a>
+          ))}
+          {/* Une convention par groupe, à côté de celle du dossier (0194).
+              Elle ne liste que les stagiaires du groupe, et porte ses dates et
+              son volume horaire : une convention unique pour seize personnes
+              réparties en deux groupes annonce des journées qu'aucun des deux
+              ne suit. Celle du dossier reste, par le bouton « Conventions ». */}
+          {groupesDuDossier.map((g) => (
+            <a
+              key={g.id}
+              href={`/api/dossiers/${params.id}/convention.pdf?groupe=${g.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm px-4 h-11 hover:border-orange-300 dark:hover:border-orange-800 transition"
+            >
+              <span className={`w-7 h-7 rounded-lg grid place-items-center flex-shrink-0 ${ACCENTS.rose.soft}`}>
+                <Users className="w-3.5 h-3.5" />
+              </span>
+              <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 flex-1 truncate">
+                Convention — {g.nom}
               </span>
               <Download className="w-3.5 h-3.5 text-zinc-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition" />
             </a>

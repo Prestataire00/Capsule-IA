@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateConventionPDF } from '@/features/documents/generate-convention-pdf';
 import { buildConventionInput } from '@/features/documents/build-convention-input';
+import { buildConventionGroupe } from '@/features/documents/build-convention-groupe';
 import { loadDossierPayers, type DossierPayer } from '@/features/documents/dossier-payers';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
 import { canAccessDossier } from '@/features/documents/guard-dossier-access';
@@ -34,7 +35,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     selected = payers[0] ?? null;
   }
 
-  const built = await buildConventionInput(sb, params.id, selected);
+  // ?groupe=<id> : la convention d'un groupe du dossier (0194). Sans lui, celle
+  // du dossier entier — le comportement d'avant, inchangé.
+  const groupeParam = req.nextUrl.searchParams.get('groupe');
+  const groupe = groupeParam ? await buildConventionGroupe(sb, params.id, groupeParam, selected) : null;
+  if (groupeParam && !groupe) {
+    return NextResponse.json({ error: 'groupe_not_found' }, { status: 404 });
+  }
+
+  const built = groupe ?? (await buildConventionInput(sb, params.id, selected));
   if (!built) {
     return NextResponse.json({ error: 'dossier_not_found' }, { status: 404 });
   }
@@ -42,7 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const pdfBytes = await generateConventionPDF(input);
 
-  const titleSuffix = selected ? ` — ${selected.modeLabel}` : '';
+  const titleSuffix = `${groupe ? ` — ${groupe.nomGroupe}` : ''}${selected ? ` — ${selected.modeLabel}` : ''}`;
   try {
     await persistGeneratedDocument(sb as never, {
       organizationId,
@@ -51,11 +60,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       title: `Convention de formation${titleSuffix}`,
       bytes: pdfBytes,
       generationInput: input,
-      // Une entrée par convention (dossier + payeur), versionnée à chaque régénération.
-      sourceKey: `convention:${params.id}:${selected?.payer ?? 'reste'}`,
-      metadata: selected
-        ? { payer: selected.payer, funder_name: selected.funderName, mode_label: selected.modeLabel }
-        : { payer: null },
+      // Une entrée par convention (dossier + payeur + groupe), versionnée à
+      // chaque régénération. Le groupe DOIT figurer dans la clé : sans lui, la
+      // convention du Groupe B écraserait celle du Groupe A — même dossier,
+      // même payeur — et l'écrasement ne se verrait qu'à l'ouverture du PDF.
+      sourceKey: `convention:${params.id}:${selected?.payer ?? 'reste'}${groupeParam ? `:${groupeParam}` : ''}`,
+      metadata: {
+        ...(selected
+          ? { payer: selected.payer, funder_name: selected.funderName, mode_label: selected.modeLabel }
+          : { payer: null }),
+        ...(groupe ? { groupe_id: groupeParam, groupe_nom: groupe.nomGroupe, effectif: groupe.effectif } : {}),
+      },
     });
   } catch (e) {
     console.error('[convention] persist failed', e);
