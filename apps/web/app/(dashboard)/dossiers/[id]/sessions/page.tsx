@@ -11,6 +11,7 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { ACCENTS, AccentBar } from '@/shared/ui/kpi-card';
 import { unlinkDossierFromSession } from './actions';
 import { SessionForm, GenerateMeetButton } from './_components/session-form';
+import { ImportPlanning } from './import-planning.client';
 
 const STATUS: Record<string, { label: string; tone: 'info' | 'success' | 'neutral' | 'danger' }> = {
   planned: { label: 'Planifiée', tone: 'info' },
@@ -92,6 +93,10 @@ export default async function SessionsPage({ params }: { params: { id: string } 
       </header>
 
       <SessionForm dossierId={params.id} />
+
+      {/* Le calendrier arrive souvent tout fait, en pièce jointe : le ressaisir
+          séance par séance est long et se trompe. */}
+      <ImportPlanning dossierId={params.id} />
 
       {rows.length > 0 && (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
