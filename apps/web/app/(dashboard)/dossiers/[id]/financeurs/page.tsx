@@ -9,7 +9,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { canManageSection } from '@/shared/lib/auth/require-access';
-import { etatFinancement, resumeFinancement } from '@/features/funders/prise-en-charge';
+import { etatFinancement, financementArrete, resumeFinancement } from '@/features/funders/prise-en-charge';
 import { PriseEnCharge, type LigneAffichee } from './prise-en-charge.client';
 import { prepareFunderTaskDraft, sendFunderTask } from './actions';
 
@@ -66,6 +66,7 @@ export default async function FinanceursPage({ params }: { params: { id: string 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const total = Number((dossier as any).total_amount_cents ?? 0);
   const etat = etatFinancement(total, lignes);
+  const arrete = financementArrete(lignes.map((l) => l.status));
   const gerer = (await canManageSection('billing')) === true;
 
   return (
@@ -93,6 +94,15 @@ export default async function FinanceursPage({ params }: { params: { id: string 
               fort
             />
           </div>
+          {/* L'arrêt des envois doit se voir là où il se décide. Sans cette
+              ligne, on constaterait des semaines plus tard que plus aucune
+              convocation ne part, sans pouvoir relier cela au financement. */}
+          {arrete && (
+            <p className="text-[12px] font-semibold text-rose-700 dark:text-rose-300 mt-3">
+              Envois automatiques arrêtés : plus aucun financeur n’est en jeu. Convocations, liens d’émargement,
+              questionnaires et attestations ne partiront plus pour ce dossier. Rouvrir un financement les rétablit.
+            </p>
+          )}
           {etat.enAttenteDeReponse && etat.resteSiToutAccordeCents !== etat.resteAPayerCents && (
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-3 tabular-nums">
               Si tout ce qui est en attente est accordé, il restera {euros(etat.resteSiToutAccordeCents)}.

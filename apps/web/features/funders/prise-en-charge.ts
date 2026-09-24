@@ -11,6 +11,11 @@ export const STATUTS_FINANCEMENT = [
   { valeur: 'approved', label: 'Accordé', aide: 'Prise en charge acceptée.' },
   { valeur: 'refused', label: 'Refusé', aide: 'Prise en charge refusée : le reste à payer revient au client.' },
   { valeur: 'paid', label: 'Payé', aide: 'Le financeur a versé les fonds.' },
+  {
+    valeur: 'cancelled',
+    label: 'Annulé',
+    aide: 'Demande abandonnée ou retirée. Si plus aucun financeur n’est en jeu, les envois automatiques du dossier s’arrêtent.',
+  },
 ] as const;
 
 export type StatutFinancement = (typeof STATUTS_FINANCEMENT)[number]['valeur'];
@@ -23,10 +28,38 @@ export const libelleStatut = (v: string): string =>
 
 /** Couleur de la pastille : acquis en vert, attente en ambre, refus en rouge. */
 export const tonStatut = (v: string): 'success' | 'warning' | 'danger' | 'neutral' =>
-  v === 'approved' || v === 'paid' ? 'success' : v === 'refused' ? 'danger' : v === 'submitted' ? 'warning' : 'neutral';
+  v === 'approved' || v === 'paid'
+    ? 'success'
+    : v === 'refused' || v === 'cancelled'
+      ? 'danger'
+      : v === 'submitted'
+        ? 'warning'
+        : 'neutral';
 
 /** Une décision est-elle prise ? Tant qu'elle ne l'est pas, rien n'est acquis. */
 export const estDecide = (v: string): boolean => v === 'approved' || v === 'refused' || v === 'paid';
+
+/** Plus rien à attendre de cette ligne : refus du financeur, ou demande retirée. */
+export const estHorsJeu = (v: string): boolean => v === 'refused' || v === 'cancelled';
+
+/**
+ * Le financement de ce dossier est-il arrêté ?
+ *
+ * Demandé en réunion du 21/09/2026 : un statut qui stoppe les e-mails
+ * automatiques quand l'affaire s'arrête.
+ *
+ * **Toutes** les lignes doivent être hors jeu, pas une seule. Un OPCO qui
+ * refuse pendant que l'employeur paie n'arrête rien : la formation a lieu, et
+ * couper les convocations sur ce seul refus laisserait les stagiaires sans
+ * convocation ni lien d'émargement, sans que personne s'en aperçoive avant le
+ * jour J.
+ *
+ * Un dossier sans aucune ligne de financement n'est pas arrêté : rien n'a été
+ * décidé, il n'y a donc rien à interrompre.
+ */
+export function financementArrete(statuts: readonly string[]): boolean {
+  return statuts.length > 0 && statuts.every(estHorsJeu);
+}
 
 export type LigneFinanceur = {
   readonly status: string;

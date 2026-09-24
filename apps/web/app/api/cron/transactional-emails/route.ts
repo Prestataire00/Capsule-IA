@@ -32,6 +32,7 @@ import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automat
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { delaisAConsiderer, doitPartirAujourdhui } from '@/features/emails/programmation-envois';
 import { automatisationApplicable } from '@/features/dossier/saisie-retroactive';
+import { dossiersAuFinancementArrete } from '@/features/funders/arret-automatisations';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { archiverDocument } from '@/features/documents/archiver-automatiquement';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
@@ -469,8 +470,15 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
   // Un dossier saisi après la formation n'a pas de fin à annoncer : ni
   // questionnaire « à chaud » des semaines plus tard, ni attestation déclenchée
   // par une date qui appartient à l'histoire.
-  const rows = ((dossiers ?? []) as unknown as DossierRow[]).filter((d) =>
-    automatisationApplicable({ statut: d.status, datePivot: d.end_date, creeLe: d.created_at }),
+  const tous = (dossiers ?? []) as unknown as DossierRow[];
+  const arretes = await dossiersAuFinancementArrete(sb, tous.map((d) => d.id));
+  const rows = tous.filter((d) =>
+    automatisationApplicable({
+      statut: d.status,
+      datePivot: d.end_date,
+      creeLe: d.created_at,
+      financementArrete: arretes.has(d.id),
+    }),
   );
   if (rows.length === 0) {
     return { candidates: 0, satisfactionSent: 0, certificateSent: 0, errors: [] };
@@ -677,6 +685,10 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
     ),
   );
 
+  const arretes = await dossiersAuFinancementArrete(
+    sb,
+    [...sessById.values()].map((sess) => sess.dossier_id).filter((v): v is string => Boolean(v)),
+  );
   const candidates = sheets.filter((sh) => {
     const sess = sessById.get(sh.session_id);
     if (!sess || sess.status === 'cancelled' || sess.ends_at >= nowISO) return false;
@@ -689,6 +701,7 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
       statut: dossier.status,
       datePivot: sess.ends_at,
       creeLe: dossier.created_at,
+      financementArrete: sess.dossier_id ? arretes.has(sess.dossier_id) : false,
     });
   });
   if (candidates.length === 0) return { candidates: 0, alerted: 0, errors: [] };
@@ -855,16 +868,23 @@ async function runTrainerSatisfaction(): Promise<{ candidates: number; sent: num
     .eq('end_date', yesterdayISO)
     .eq('status', 'completed');
   if (error) return { candidates: 0, sent: 0, errors: [error.message] };
-  const rows = (
-    (dossiers ?? []) as unknown as Array<{
-      id: string;
-      organization_id: string;
-      formation_id: string;
-      end_date: string;
-      status: string;
-      created_at: string;
-    }>
-  ).filter((d) => automatisationApplicable({ statut: d.status, datePivot: d.end_date, creeLe: d.created_at }));
+  const rowsBruts = (dossiers ?? []) as unknown as Array<{
+    id: string;
+    organization_id: string;
+    formation_id: string;
+    end_date: string;
+    status: string;
+    created_at: string;
+  }>;
+  const arretes = await dossiersAuFinancementArrete(sb, rowsBruts.map((d) => d.id));
+  const rows = rowsBruts.filter((d) =>
+    automatisationApplicable({
+      statut: d.status,
+      datePivot: d.end_date,
+      creeLe: d.created_at,
+      financementArrete: arretes.has(d.id),
+    }),
+  );
   if (rows.length === 0) return { candidates: 0, sent: 0, errors: [] };
 
   const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -958,10 +978,15 @@ async function runNeedsAnalysisOnEnrollment(): Promise<{ candidates: number; sen
   // La fiche besoin précède la formation. Sur un dossier saisi après coup, elle
   // demanderait ses attentes à quelqu'un qui a déjà terminé : le pivot est donc
   // le DÉBUT de la formation, pas la création du dossier.
-  const rows = (
-    (data ?? []) as { id: string; status: string; start_date: string; created_at: string }[]
-  ).filter((d) =>
-    automatisationApplicable({ statut: d.status, datePivot: d.start_date, creeLe: d.created_at }),
+  const tous = (data ?? []) as { id: string; status: string; start_date: string; created_at: string }[];
+  const arretes = await dossiersAuFinancementArrete(sb, tous.map((d) => d.id));
+  const rows = tous.filter((d) =>
+    automatisationApplicable({
+      statut: d.status,
+      datePivot: d.start_date,
+      creeLe: d.created_at,
+      financementArrete: arretes.has(d.id),
+    }),
   );
 
   let sent = 0;
@@ -1078,6 +1103,9 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
       } | null;
       const learner = learnerRow as { first_name: string; email: string } | null;
       if (!dossier || !learner?.email) continue;
+      // Un seul dossier en main ici : la lecture est unitaire, mais la règle
+      // reste la même que sur les lots.
+      const arretes = await dossiersAuFinancementArrete(sb, [dossierId]);
       // Attester l'entrée en formation d'un dossier saisi après coup n'a pas de
       // sens : l'émargement rattrapé est de l'archive, pas un démarrage.
       if (
@@ -1085,6 +1113,7 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
           statut: dossier.status,
           datePivot: dossier.start_date,
           creeLe: dossier.created_at,
+          financementArrete: arretes.has(dossierId),
         })
       ) {
         continue;
@@ -1323,15 +1352,22 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
         .from('dossiers')
         .select('id, status, end_date, created_at')
         .in('id', dossierIds);
+      const etatsLus = (etats ?? []) as unknown as Array<{
+        id: string;
+        status: string;
+        end_date: string;
+        created_at: string;
+      }>;
+      const arretes = await dossiersAuFinancementArrete(sb, etatsLus.map((d) => d.id));
       const vivants = new Set(
-        ((etats ?? []) as unknown as Array<{
-          id: string;
-          status: string;
-          end_date: string;
-          created_at: string;
-        }>)
+        etatsLus
           .filter((d) =>
-            automatisationApplicable({ statut: d.status, datePivot: d.end_date, creeLe: d.created_at }),
+            automatisationApplicable({
+              statut: d.status,
+              datePivot: d.end_date,
+              creeLe: d.created_at,
+              financementArrete: arretes.has(d.id),
+            }),
           )
           .map((d) => d.id),
       );

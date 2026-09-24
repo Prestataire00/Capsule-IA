@@ -14,8 +14,9 @@
  * case à cocher aurait exigé qu'on y pense à chaque fois ; la date de création
  * est déjà là et ne ment pas.
  *
- * S'y ajoute la règle évidente : un dossier archivé, clôturé ou annulé ne
- * déclenche plus rien.
+ * S'y ajoutent deux règles évidentes : un dossier archivé, clôturé ou annulé ne
+ * déclenche plus rien, et un dossier dont le financement est arrêté non plus
+ * (21/09/2026).
  */
 
 /** États dans lesquels un dossier ne produit plus aucun envoi. */
@@ -39,6 +40,14 @@ export type ContexteAutomatisation = {
   readonly datePivot: string | null | undefined;
   /** Jour de saisie du dossier. */
   readonly creeLe: string | null | undefined;
+  /**
+   * Toutes les lignes de financement sont refusées ou annulées.
+   *
+   * Demandé en réunion du 21/09/2026 : un financement arrêté doit stopper les
+   * envois. La règle est calculée, jamais stockée — revenir sur un statut rend
+   * aussitôt les envois, sans qu'un drapeau oublié ne les retienne.
+   */
+  readonly financementArrete?: boolean;
 };
 
 /**
@@ -50,6 +59,7 @@ export type ContexteAutomatisation = {
  */
 export function automatisationApplicable(ctx: ContexteAutomatisation): boolean {
   if (estEtatTerminal(ctx.statut)) return false;
+  if (ctx.financementArrete) return false;
   if (!ctx.datePivot || !ctx.creeLe) return true;
   return jour(ctx.datePivot) >= jour(ctx.creeLe);
 }
@@ -57,6 +67,7 @@ export function automatisationApplicable(ctx: ContexteAutomatisation): boolean {
 /** Pourquoi un envoi a été retenu — pour l'écrire dans le rapport du cron. */
 export function motifDuBlocage(ctx: ContexteAutomatisation): string | null {
   if (estEtatTerminal(ctx.statut)) return `dossier ${ctx.statut}`;
+  if (ctx.financementArrete) return 'financement refusé ou annulé';
   if (!ctx.datePivot || !ctx.creeLe) return null;
   if (jour(ctx.datePivot) < jour(ctx.creeLe)) return 'saisi après la formation';
   return null;
