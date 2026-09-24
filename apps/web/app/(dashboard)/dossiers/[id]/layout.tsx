@@ -16,7 +16,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
-import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
+import { SupprimerOuArchiver } from './supprimer-ou-archiver.client';
 import { DossierStatusControl } from './dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -67,6 +67,31 @@ export default async function DossierLayout({
   const libreDemande = sb as unknown as SupabaseClient<any, any, any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d = data as any;
+
+  // Convention signée ? Elle ne change pas ce qui est permis — la mise à la
+  // corbeille est ouverte à tout dossier depuis la 0193 — mais ce qui est
+  // conseillé : une formation dont la convention est signée s'archive, ses
+  // preuves restant en place. Lecture en deux temps plutôt qu'une jointure
+  // imbriquée : `documents` et `document_signatures` ont déjà donné lieu à des
+  // ambiguïtés d'embed (PGRST201).
+  const { data: conventions } = await libreDemande
+    .schema('app')
+    .from('documents')
+    .select('id')
+    .eq('dossier_id', params.id)
+    .eq('kind', 'convention')
+    .is('deleted_at', null);
+  const conventionIds = ((conventions ?? []) as Array<{ id: string }>).map((c) => c.id);
+  const { data: signatures } = conventionIds.length
+    ? await libreDemande
+        .schema('app')
+        .from('document_signatures')
+        .select('document_id')
+        .in('document_id', conventionIds)
+        .eq('status', 'signed')
+        .limit(1)
+    : { data: [] };
+  const conventionSignee = ((signatures ?? []) as unknown[]).length > 0;
   // Demande d'origine : un dossier naît souvent d'une demande, et on doit
   // pouvoir y revenir — la fiche besoin et l'historique commercial y vivent.
   // Lecture tolérante : un dossier importé d'une convention n'en a aucune.
@@ -229,13 +254,10 @@ export default async function DossierLayout({
           <div className="flex items-center gap-2 flex-wrap">
             <DossierStatusControl dossierId={params.id} status={d.status as DossierStatus} />
             <ManageOnly section="dossiers">
-              <DeleteEntityButton
-                entite="dossier"
-                id={params.id}
-                nom={d.reference}
-                article="ce dossier"
-                variant="button"
-                redirigerVers="/dossiers"
+              <SupprimerOuArchiver
+                dossierId={params.id}
+                reference={d.reference}
+                conventionSignee={conventionSignee}
               />
             </ManageOnly>
           </div>
