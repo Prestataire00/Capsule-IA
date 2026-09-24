@@ -29,11 +29,32 @@ export function Reglage({
 }) {
   const [ouvert, setOuvert] = useState(false);
 
+  /**
+   * Cinq envois sur quatorze ne se règlent pas : ils partent au moment de leur
+   * déclencheur et ne peuvent pas être coupés — fiche besoin, alertes internes,
+   * devis, relance de facture.
+   *
+   * Le bouton « Régler » leur était proposé quand même, et ouvrait une boîte
+   * sans un seul champ : deux boutons, et rien entre eux. Signalé le 24/09/2026
+   * — « quand je clique sur régler, il ne se passe rien ». Ce n'était pas une
+   * panne : il n'y avait rien à montrer. Autant le dire.
+   */
+  const rienARegler = !reglable.coupable && !reglable.delai;
+
   if (!peutRegler) {
     return (
       <p className="text-[11px] text-zinc-400 mt-2.5 flex items-center gap-1.5">
         <Lock className="w-3 h-3 shrink-0" />
         {phrase ?? 'Réglé par votre organisme'} — seuls un propriétaire ou un administrateur peuvent le changer.
+      </p>
+    );
+  }
+
+  if (rienARegler) {
+    return (
+      <p className="text-[11px] text-zinc-400 mt-2.5 flex items-center gap-1.5">
+        <Lock className="w-3 h-3 shrink-0" />
+        Aucun réglage : il part au moment de son déclencheur, et ne peut pas être coupé.
       </p>
     );
   }
