@@ -80,7 +80,10 @@ describe('la donnée circule jusqu’au bout', () => {
   it('s’affiche sur la fiche de la demande dans le CRM', () => {
     const src = lire('../app/(dashboard)/prospects/[id]/page.tsx');
     expect(src).toContain('convention_collective, funder_kinds');
-    expect(src).toContain('<SummaryRow label="Convention collective"');
+    // On vérifie qu'elle est affichée, pas avec quel composant : elle est
+    // passée du bandeau de droite à la carte de tête le 24/09/2026, et le test
+    // épinglait `<SummaryRow>` — il tombait pour un écran pourtant correct.
+    expect(src).toMatch(/label="Convention collective"\s+value=\{prospect\.convention_collective/);
   });
 
   it('est reportée sur la fiche entreprise à la conversion', () => {

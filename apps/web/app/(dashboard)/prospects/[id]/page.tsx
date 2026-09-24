@@ -158,6 +158,15 @@ function KeyFact({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Intertitre du récapitulatif : il sépare trois sujets dans une même liste. */
+function GroupeRecap({ titre }: { titre: string }) {
+  return (
+    <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-400 dark:text-zinc-500 pt-3 pb-1 first:pt-0">
+      {titre}
+    </p>
+  );
+}
+
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
@@ -684,24 +693,22 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                       : 'En attente'
                 }
               />
-              {/* Ce qui est demandé se lisait uniquement en rouvrant
-                  « Modifier » : l'intitulé, la durée et le tarif ne figuraient
-                  même pas dans la requête de cette page. Or c'est sur eux que
-                  se décide le devis. */}
+              {/* Trois blocs plutôt qu'une liste de treize lignes : la
+                  formation, le client, la demande. Sans cette coupure, le SIRET
+                  se lisait entre la modalité et le financement, et on cherchait
+                  la ligne au lieu de la voir. */}
+              <GroupeRecap titre="La formation" />
               <SummaryRow
-                label="Formation"
-                value={formationCatalogue ?? prospect.custom_formation_title ?? '—'}
+                label="Intitulé"
+                value={formationCatalogue ?? prospect.custom_formation_title ?? 'À définir'}
               />
               {formationCatalogue && <SummaryRow label="Origine" value="Catalogue" />}
               <SummaryRow label="Durée prévue" value={heures(prospect.custom_formation_hours)} />
               <SummaryRow label="Tarif prévu" value={tarif(prospect.custom_formation_price_cents)} />
-              <SummaryRow
-                label="Modalité"
-                value={modalite(prospect.preferred_modality)}
-              />
+              <SummaryRow label="Modalité" value={modalite(prospect.preferred_modality)} />
               <SummaryRow label="Début souhaité" value={jourFr(prospect.preferred_start_date)} />
-              <SummaryRow label="Financement" value={funders.join(', ').toUpperCase() || '—'} />
-              <SummaryRow label="Situation" value={situationLabel} />
+
+              <GroupeRecap titre="Le client" />
               <SummaryRow label="Entreprise" value={prospect.company_name ?? '—'} />
               {/* Il identifie le client sur la convention, la facture et au BPF :
                   il se vérifie d'un coup d'œil, sans rouvrir le formulaire. */}
@@ -709,6 +716,20 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               {/* La branche détermine l'OPCO de rattachement et le barème :
                   elle sert à instruire le financement. */}
               <SummaryRow label="Convention collective" value={prospect.convention_collective ?? '—'} />
+              <SummaryRow label="Situation" value={situationLabel} />
+              <SummaryRow label="Financement" value={funders.join(', ').toUpperCase() || '—'} />
+
+              <GroupeRecap titre="La demande" />
+              <SummaryRow
+                label="Statut"
+                value={
+                  prospect.validation_status === 'validated'
+                    ? 'Validée'
+                    : prospect.validation_status === 'rejected'
+                      ? 'Refusée'
+                      : 'En attente'
+                }
+              />
               <SummaryRow label="Reçue le" value={new Date(prospect.created_at).toLocaleDateString('fr-FR')} />
               <SummaryRow
                 label="Suivi par"
