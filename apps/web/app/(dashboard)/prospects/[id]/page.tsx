@@ -9,6 +9,8 @@ import { env } from '@/env.mjs';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ProspectNoteForm } from './note-form.client';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { formaterSiret } from '@/shared/lib/siret';
+import { heures, jourFr, modalite, tarif } from '@/features/prospect/format-demande';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { AccentBar, ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { requiredDocs } from '@/features/prospect/funding';
@@ -67,6 +69,13 @@ type Prospect = {
   needs_analysis: NeedsAnalysis | null;
   /** « Note interne » du formulaire : contexte, contraintes, interlocuteur. */
   message: string | null;
+  /** Formation du catalogue ; null = besoin spécifique ou formation à définir. */
+  formation_id: string | null;
+  custom_formation_title: string | null;
+  custom_formation_hours: number | string | null;
+  custom_formation_price_cents: number | string | null;
+  preferred_modality: string | null;
+  preferred_start_date: string | null;
   created_at: string;
 };
 
@@ -166,7 +175,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     .schema('app')
     .from('prospects' as never)
     .select(
-      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, message, created_at',
+      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, message, formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, preferred_modality, preferred_start_date, created_at',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -179,6 +188,14 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     throw new Error(`Lecture impossible (demande) : ${erreurLecture.message}`);
   }
   if (!prospect) notFound();
+
+  // Une demande porte soit une formation du catalogue, soit un intitulé libre.
+  // N'afficher que l'intitulé libre laissait « — » sur toutes les demandes
+  // parties d'une formation existante.
+  const { data: formationRow } = prospect.formation_id
+    ? await sb.schema('app').from('formations').select('title').eq('id', prospect.formation_id).maybeSingle()
+    : { data: null };
+  const formationCatalogue = (formationRow as { title?: string } | null)?.title ?? null;
 
   const [{ data: reviewRows }, { data: eventRows }] = await Promise.all([
     sb.schema('app').from('prospect_document_reviews' as never).select('doc_key, status, rejected_reason').eq('prospect_id', params.id),
@@ -667,9 +684,28 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                       : 'En attente'
                 }
               />
+              {/* Ce qui est demandé se lisait uniquement en rouvrant
+                  « Modifier » : l'intitulé, la durée et le tarif ne figuraient
+                  même pas dans la requête de cette page. Or c'est sur eux que
+                  se décide le devis. */}
+              <SummaryRow
+                label="Formation"
+                value={formationCatalogue ?? prospect.custom_formation_title ?? '—'}
+              />
+              {formationCatalogue && <SummaryRow label="Origine" value="Catalogue" />}
+              <SummaryRow label="Durée prévue" value={heures(prospect.custom_formation_hours)} />
+              <SummaryRow label="Tarif prévu" value={tarif(prospect.custom_formation_price_cents)} />
+              <SummaryRow
+                label="Modalité"
+                value={modalite(prospect.preferred_modality)}
+              />
+              <SummaryRow label="Début souhaité" value={jourFr(prospect.preferred_start_date)} />
               <SummaryRow label="Financement" value={funders.join(', ').toUpperCase() || '—'} />
               <SummaryRow label="Situation" value={situationLabel} />
               <SummaryRow label="Entreprise" value={prospect.company_name ?? '—'} />
+              {/* Il identifie le client sur la convention, la facture et au BPF :
+                  il se vérifie d'un coup d'œil, sans rouvrir le formulaire. */}
+              <SummaryRow label="SIRET" value={formaterSiret(prospect.company_siret) ?? prospect.company_siret ?? '—'} />
               {/* La branche détermine l'OPCO de rattachement et le barème :
                   elle sert à instruire le financement. */}
               <SummaryRow label="Convention collective" value={prospect.convention_collective ?? '—'} />

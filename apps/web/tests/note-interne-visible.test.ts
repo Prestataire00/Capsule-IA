@@ -30,7 +30,14 @@ describe('la note interne de la demande', () => {
 
   it('est relue par la fiche, et non seulement par le formulaire', () => {
     // C'était la cause exacte : `message` ne figurait pas dans le select.
-    expect(FICHE_DEMANDE).toMatch(/needs_analysis, message, created_at/);
+    //
+    // On cherche la colonne dans la liste, sans épingler ses voisines : la
+    // première version de ce test exigeait « needs_analysis, message,
+    // created_at » et tombait dès qu'une colonne s'intercalait, pour une fiche
+    // pourtant correcte.
+    const colonnes = FICHE_DEMANDE.match(/\.select\(\s*'([^']+)'/)?.[1]?.split(',').map((c) => c.trim());
+    expect(colonnes, 'aucune liste de colonnes trouvée').toBeDefined();
+    expect(colonnes).toContain('message');
   });
 
   it('s’affiche sur la fiche', () => {
