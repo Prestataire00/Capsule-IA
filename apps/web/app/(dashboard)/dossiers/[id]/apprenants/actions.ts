@@ -24,6 +24,13 @@ type Contexte = {
   companyId: string | null;
   learnerId: string | null;
   sessionIds: string[];
+  /**
+   * Celles qui ne visent pas un groupe précis.
+   *
+   * L'inscription d'office ne concerne qu'elles ; le retrait, lui, porte sur
+   * toutes les séances — quitter le dossier, c'est quitter le Groupe A aussi.
+   */
+  sessionsOuvertes: string[];
 };
 
 async function garder(dossierId: string): Promise<{ ok: true; ctx: Contexte } | { ok: false; error: string }> {
@@ -57,9 +64,28 @@ async function garder(dossierId: string): Promise<{ ok: true; ctx: Contexte } | 
     ]),
   ];
 
+  // Une séance qui vise un groupe n'accueille que son groupe (0194).
+  //
+  // L'inscription d'office écrit des lignes `manual_add`, que la dérivation ne
+  // retire jamais — elle ne touche qu'aux lignes `derived`. Sans ce tri, ajouter
+  // un stagiaire au dossier l'aurait inscrit sur les séances du Groupe A comme
+  // sur celles du Groupe B, et le filtre par groupe n'aurait servi à rien : on
+  // l'aurait découvert feuille d'émargement en main.
+  const { data: seancesDeGroupe } = sessionIds.length
+    ? await admin.schema('app').from('sessions').select('id').in('id', sessionIds).not('groupe_id', 'is', null)
+    : { data: [] };
+  const aUnGroupe = new Set(((seancesDeGroupe ?? []) as Array<{ id: string }>).map((s) => s.id));
+  const sessionsOuvertes = sessionIds.filter((id) => !aUnGroupe.has(id));
+
   return {
     ok: true,
-    ctx: { organizationId: d.organization_id, companyId: d.company_id, learnerId: d.learner_id, sessionIds },
+    ctx: {
+      organizationId: d.organization_id,
+      companyId: d.company_id,
+      learnerId: d.learner_id,
+      sessionIds,
+      sessionsOuvertes,
+    },
   };
 }
 
@@ -84,7 +110,7 @@ export async function ajouterApprenants(input: {
 
   const garde = await garder(p.data.dossierId);
   if (!garde.ok) return garde;
-  const { organizationId, companyId, sessionIds } = garde.ctx;
+  const { organizationId, companyId, sessionsOuvertes } = garde.ctx;
   const admin = supabaseAdmin();
 
   // Une adresse déjà connue de l'organisme désigne la même personne : on la
@@ -172,9 +198,9 @@ export async function ajouterApprenants(input: {
     return { ok: false, error: "Les stagiaires n'ont pas pu être rattachés au dossier." };
   }
 
-  // Inscription à toutes les séances du dossier, quand il en a déjà.
-  if (sessionIds.length > 0) {
-    const lignes = sessionIds.flatMap((sessionId) =>
+  // Inscription aux séances du dossier qui ne visent pas un groupe précis.
+  if (sessionsOuvertes.length > 0) {
+    const lignes = sessionsOuvertes.flatMap((sessionId) =>
       ids.map((lid) => ({
         session_id: sessionId,
         organization_id: organizationId,

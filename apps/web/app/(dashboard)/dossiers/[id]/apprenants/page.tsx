@@ -12,6 +12,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { TitulaireStagiaire } from './titulaire-stagiaire.client';
 import { estTitulaireProvisoire } from '@/features/dossier/referent';
 import { AjoutApprenants } from './ajout-apprenants.client';
+import { Groupes, type GroupeAffiche } from './groupes.client';
 import { RetirerBouton } from './retirer-bouton.client';
 
 export const dynamic = 'force-dynamic';
@@ -122,6 +123,30 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
   const enAttenteDeListe = tous.some((l) => estTitulaireProvisoire(l.email));
   const peutModifier = await canManageSection('dossiers');
 
+  // Les groupes du dossier et leur composition (0194). Deux lectures : une
+  // jointure imbriquée sur ces tables toutes neuves n'apporterait rien et
+  // exposerait aux ambiguïtés d'embed déjà rencontrées (PGRST201).
+  const { data: groupesRows } = await admin
+    .schema('app')
+    .from('dossier_groupes' as never)
+    .select('id, nom')
+    .eq('dossier_id', params.id)
+    .order('ordre', { ascending: true });
+  const groupesBruts = (groupesRows ?? []) as unknown as Array<{ id: string; nom: string }>;
+  const { data: membresRows } = groupesBruts.length
+    ? await admin
+        .schema('app')
+        .from('dossier_groupe_membres' as never)
+        .select('groupe_id, learner_id')
+        .in('groupe_id', groupesBruts.map((g) => g.id))
+    : { data: [] };
+  const membres = (membresRows ?? []) as unknown as Array<{ groupe_id: string; learner_id: string }>;
+  const groupes: GroupeAffiche[] = groupesBruts.map((g) => ({
+    id: g.id,
+    nom: g.nom,
+    membres: membres.filter((m) => m.groupe_id === g.id).map((m) => m.learner_id),
+  }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -160,6 +185,17 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
       )}
 
       {peutModifier && <AjoutApprenants dossierId={params.id} />}
+
+      {peutModifier && (
+        <Groupes
+          dossierId={params.id}
+          groupes={groupes}
+          apprenants={apprenants.map((l) => ({
+            id: l.id,
+            nom: `${l.first_name ?? ''} ${l.last_name ?? ''}`.trim() || 'Stagiaire',
+          }))}
+        />
+      )}
 
       {apprenants.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 px-4 py-12 text-center">

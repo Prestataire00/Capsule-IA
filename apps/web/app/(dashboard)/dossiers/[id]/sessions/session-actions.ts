@@ -29,6 +29,8 @@ type CreateInput = {
   remoteUrl?: string;
   /** Tarif HT par stagiaire ; null = tarif catalogue de la formation. */
   priceCents?: number | null;
+  /** Groupe du dossier concerné ; absent = tout le dossier (0194). */
+  groupeId?: string | null;
 };
 
 type CreateResult =
@@ -154,6 +156,9 @@ export async function createSession(input: CreateInput): Promise<CreateResult> {
     location: input.location?.trim() || null,
     remote_url: manualRemote,
     price_cents: input.priceCents != null && input.priceCents >= 0 ? Math.round(input.priceCents) : null,
+    // Groupe visé (0194) : NULL = tout le dossier, cas courant. La dérivation
+    // des participants et des signataires attendus s'y réduit d'elle-même.
+    groupe_id: input.groupeId ?? null,
   } as never);
   if (insErr) return { ok: false, error: insErr.message };
 
@@ -227,6 +232,8 @@ export async function creerSeancesEnSerie(input: {
   dateFin: string;
   jours: number[];
   creneaux: Creneau[];
+  /** Groupe du dossier concerné ; absent = tout le dossier. */
+  groupeId?: string | null;
 }): Promise<{ ok: true; creees: number } | { ok: false; error: string; creees?: number }> {
   if (!input.title.trim()) return { ok: false, error: 'Intitulé requis' };
 
@@ -255,6 +262,7 @@ export async function creerSeancesEnSerie(input: {
       endsAt: fin,
       location: input.location,
       priceCents: input.priceCents ?? null,
+      groupeId: input.groupeId ?? null,
     });
     if (!res.ok) {
       return {

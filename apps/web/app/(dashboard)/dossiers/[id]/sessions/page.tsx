@@ -36,6 +36,15 @@ export default async function SessionsPage({ params }: { params: { id: string } 
   }
   if (!dossier) notFound();
 
+  // Les groupes du dossier (0194) : une séance peut n'en viser qu'un.
+  const { data: groupesRows } = await sb
+    .schema('app')
+    .from('dossier_groupes' as never)
+    .select('id, nom')
+    .eq('dossier_id', params.id)
+    .order('ordre', { ascending: true });
+  const groupes = (groupesRows ?? []) as unknown as Array<{ id: string; nom: string }>;
+
   // Une séance tient à son dossier par deux chemins, et les deux comptent :
   // la table de liaison `session_dossiers` (séance partagée entre plusieurs
   // dossiers) et la colonne `sessions.dossier_id` (séance propre au dossier,
@@ -92,7 +101,7 @@ export default async function SessionsPage({ params }: { params: { id: string } 
         </div>
       </header>
 
-      <SessionForm dossierId={params.id} />
+      <SessionForm dossierId={params.id} groupes={groupes} />
 
       {/* Le calendrier arrive souvent tout fait, en pièce jointe : le ressaisir
           séance par séance est long et se trompe. */}

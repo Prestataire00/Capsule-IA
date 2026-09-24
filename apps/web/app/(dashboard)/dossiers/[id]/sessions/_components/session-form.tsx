@@ -21,7 +21,16 @@ const MODALITIES = [
   { v: 'hybride', l: 'Hybride' },
 ];
 
-export function SessionForm({ dossierId }: { dossierId: string }) {
+export type GroupeOption = { id: string; nom: string };
+
+export function SessionForm({
+  dossierId,
+  groupes = [],
+}: {
+  dossierId: string;
+  /** Groupes du dossier (0194) ; vide = le choix ne se pose pas. */
+  groupes?: GroupeOption[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -41,6 +50,7 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
     aStart: '14:00',
     aEnd: '17:30',
     price: '',
+    groupeId: '',
   };
   const [form, setForm] = useState(initialForm);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -77,6 +87,7 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
       // création, donc un seul comportement à vérifier.
       const res = await creerSeancesEnSerie({
         dossierId,
+        groupeId: form.groupeId || null,
         title: form.title,
         modality: form.modality,
         location: form.location,
@@ -200,6 +211,24 @@ export function SessionForm({ dossierId }: { dossierId: string }) {
 
         </div>
       )}
+      {/* Le choix ne s'affiche que s'il se pose : sans groupe défini sur le
+          dossier, une liste à un seul choix serait une question sans objet. */}
+      {groupes.length > 0 && (
+        <FormField
+          label="Groupe concerné"
+          hint="Seuls ses stagiaires seront attendus : participants, convocations et feuilles d’émargement."
+        >
+          <select value={form.groupeId} onChange={(e) => set('groupeId', e.target.value)} className={inputClass}>
+            <option value="">Tout le dossier</option>
+            {groupes.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nom}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      )}
+
       <FormField label="Tarif de la session (€ HT par stagiaire)">
         <input
           value={form.price}
