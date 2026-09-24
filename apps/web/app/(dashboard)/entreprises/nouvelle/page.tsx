@@ -32,7 +32,10 @@ type SireneHit = {
   } | null;
 };
 
-const SEARCH_URL = 'https://recherche-entreprises.api.gouv.fr/search';
+// Par notre proxy, et non en direct depuis le navigateur : l'appel direct
+// dépend du CSP de la page, et consomme le quota de l'API de l'État sans
+// qu'aucun compteur ne le sache.
+const SEARCH_URL = '/api/sirene/search';
 
 export default function NouvelleEntreprisePage() {
   const errorParam = useSearchParams().get('error');

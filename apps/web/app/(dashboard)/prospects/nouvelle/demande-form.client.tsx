@@ -6,6 +6,7 @@ import { AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { FUNDER_OPTIONS } from '@/features/prospect/funding';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
 import { siretValide } from '@/shared/lib/siret';
+import { EntrepriseAutocomplete } from '@/app/inscription/entreprise-autocomplete';
 import { createDemande } from './actions';
 
 export type FormationOption = { id: string; title: string; code: string | null; priceCents: number; hours: number };
@@ -271,49 +272,70 @@ export function DemandeForm({
           </label>
         </div>
         {entreprise && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <label className={label}>
-              Entreprise
-              <input value={form.companyName} onChange={(e) => set('companyName', e.target.value)} className={input} />
-            </label>
-            <label className={label}>
-              SIRET
-              <input
-                value={form.companySiret}
-                onChange={(e) => set('companySiret', e.target.value)}
-                maxLength={20}
-                placeholder="123 456 789 00012"
-                aria-invalid={siretFaux}
-                className={siretFaux ? `${input} border-rose-400 dark:border-rose-500` : input}
-              />
-              <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
-                {siretFaux
-                  ? 'Clé incorrecte : vérifiez les 14 chiffres.'
-                  : 'Obligatoire : il identifie le client sur la convention, la facture et au BPF.'}
-              </span>
-            </label>
-            <label className={label}>
-              Convention collective
-              <input
-                value={form.conventionCollective}
-                onChange={(e) => set('conventionCollective', e.target.value)}
-                maxLength={200}
-                placeholder="1486 ou Bureaux d'études techniques"
-                className={input}
-              />
-            </label>
-            <label className={label}>
-              Responsable formation
-              <input value={form.referentName} onChange={(e) => set('referentName', e.target.value)} className={input} />
-            </label>
-            <label className={label}>
-              E-mail du responsable
-              <input type="email" value={form.referentEmail} onChange={(e) => set('referentEmail', e.target.value)} className={input} />
-            </label>
-            <label className={label}>
-              Téléphone du responsable
-              <input value={form.referentPhone} onChange={(e) => set('referentPhone', e.target.value)} className={input} />
-            </label>
+          <div className="space-y-3">
+            {/* Le nom, le SIRET et la convention collective viennent de
+                l'annuaire des entreprises de l'État. Saisis à la main, ils
+                arrivaient avec leurs coquilles — un SIRET faux se paie au rejet
+                de la facture, une convention approximative à l'instruction du
+                dossier OPCO. La saisie manuelle reste possible juste en
+                dessous : l'annuaire ignore les entreprises très récentes. */}
+            <EntrepriseAutocomplete
+              placeholder="Nom ou SIRET de l’entreprise (3 caractères min)…"
+              onSelect={(c) =>
+                setForm((f) => ({
+                  ...f,
+                  companyName: c.name || f.companyName,
+                  companySiret: c.siret || f.companySiret,
+                  // On ne remplace pas une convention déjà saisie : l'INSEE ne
+                  // connaît que celle déclarée, l'organisme peut en savoir plus.
+                  conventionCollective: f.conventionCollective.trim() || (c.idcc ?? ''),
+                }))
+              }
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <label className={label}>
+                Entreprise
+                <input value={form.companyName} onChange={(e) => set('companyName', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                SIRET
+                <input
+                  value={form.companySiret}
+                  onChange={(e) => set('companySiret', e.target.value)}
+                  maxLength={20}
+                  placeholder="123 456 789 00012"
+                  aria-invalid={siretFaux}
+                  className={siretFaux ? `${input} border-rose-400 dark:border-rose-500` : input}
+                />
+                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  {siretFaux
+                    ? 'Clé incorrecte : vérifiez les 14 chiffres.'
+                    : 'Obligatoire : il identifie le client sur la convention, la facture et au BPF.'}
+                </span>
+              </label>
+              <label className={label}>
+                Convention collective
+                <input
+                  value={form.conventionCollective}
+                  onChange={(e) => set('conventionCollective', e.target.value)}
+                  maxLength={200}
+                  placeholder="1486 ou Bureaux d'études techniques"
+                  className={input}
+                />
+              </label>
+              <label className={label}>
+                Responsable formation
+                <input value={form.referentName} onChange={(e) => set('referentName', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                E-mail du responsable
+                <input type="email" value={form.referentEmail} onChange={(e) => set('referentEmail', e.target.value)} className={input} />
+              </label>
+              <label className={label}>
+                Téléphone du responsable
+                <input value={form.referentPhone} onChange={(e) => set('referentPhone', e.target.value)} className={input} />
+              </label>
+            </div>
           </div>
         )}
       </section>
