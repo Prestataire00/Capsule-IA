@@ -51,9 +51,25 @@ export type CleFicheBesoin = (typeof CHAMPS_FICHE_BESOIN)[number]['cle'];
 
 export type ReponsesFicheBesoin = Partial<Record<CleFicheBesoin, string | number>>;
 
-/** Vrai dès qu'une réponse utile a été donnée — le niveau seul ne suffit pas. */
-export const ficheBesoinRemplie = (r: ReponsesFicheBesoin | null | undefined): boolean =>
-  Boolean(r && String(r.objectives ?? '').trim() !== '');
+/**
+ * Vrai dès qu'une réponse utile a été donnée.
+ *
+ * Longtemps : « objectives est rempli ». Ce champ est le pivot du modèle
+ * intégré, mais un organisme qui pose ses propres questions n'en a aucune qui
+ * s'appelle ainsi — sa fiche, pourtant remplie, aurait été comptée vide, et le
+ * système la lui aurait redemandée indéfiniment.
+ *
+ * On garde la primauté d'`objectives` pour le modèle intégré, et on accepte
+ * toute autre réponse de texte pour les modèles d'organisme. Le niveau seul ne
+ * suffit toujours pas : une note sur cinq ne dit pas un besoin.
+ */
+export const ficheBesoinRemplie = (r: ReponsesFicheBesoin | null | undefined): boolean => {
+  if (!r) return false;
+  if (String(r.objectives ?? '').trim() !== '') return true;
+  return Object.entries(r as Record<string, unknown>).some(
+    ([cle, v]) => cle !== 'currentLevel' && typeof v === 'string' && v.trim() !== '',
+  );
+};
 
 /**
  * Questions à afficher pour un modèle enregistré, quelle que soit sa forme.
@@ -89,13 +105,24 @@ export function questionsDuSchema(schema: unknown): Question[] {
 export type EnregistrerResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Ne garde que les champs connus, bornés : l'entrée vient du dehors.
+ * Ne garde que des champs bornés : l'entrée vient du dehors.
+ *
+ * Les six champs intégrés d'abord, puis les questions propres à l'organisme
+ * quand il en pose — sans cette seconde passe, les réponses d'un modèle
+ * personnalisé étaient silencieusement jetées ici : le stagiaire répondait à
+ * neuf questions, cinq arrivaient, quatre disparaissaient sans un mot.
+ *
+ * `clesSupplementaires` vient du modèle en cours, jamais du formulaire : une
+ * liste ouverte laisserait écrire n'importe quelle clé dans la colonne JSON.
  *
  * Vit ici et non dans le module `'use server'` qui l'utilisait : un fichier de
  * Server Actions ne peut exporter que des fonctions asynchrones, et Next refuse
  * de compiler dès qu'il y trouve un type ou une fonction pure.
  */
-export function nettoyerReponses(brut: ReponsesFicheBesoin): Record<string, string | number> {
+export function nettoyerReponses(
+  brut: ReponsesFicheBesoin,
+  clesSupplementaires: readonly string[] = [],
+): Record<string, string | number> {
   const out: Record<string, string | number> = {};
   for (const c of CHAMPS_FICHE_BESOIN) {
     const v = brut[c.cle];
@@ -106,6 +133,15 @@ export function nettoyerReponses(brut: ReponsesFicheBesoin): Record<string, stri
     } else {
       out[c.cle] = String(v).trim().slice(0, 2000);
     }
+  }
+
+  const connues = new Set<string>(CHAMPS_FICHE_BESOIN.map((c) => c.cle));
+  // Quarante questions au plus : au-delà, ce n'est plus une fiche besoin.
+  for (const cle of clesSupplementaires.slice(0, 40)) {
+    if (connues.has(cle)) continue;
+    const v = (brut as Record<string, unknown>)[cle];
+    if (v === undefined || v === null || v === '') continue;
+    out[cle] = typeof v === 'number' ? v : String(v).trim().slice(0, 2000);
   }
   return out;
 }

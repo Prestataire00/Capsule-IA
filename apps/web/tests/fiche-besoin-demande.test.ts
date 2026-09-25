@@ -123,7 +123,10 @@ describe('le retour vers la demande', () => {
     // continue de l'appliquer, et le bornage vit désormais dans le module
     // partagé des champs.
     const CHAMPS = lire('../features/questionnaire/fiche-besoin.ts');
-    expect(DEMANDE).toContain('nettoyerReponses(reponses)');
+    // `nettoyerReponses` prend désormais les clés autorisées en second
+    // argument : celles du modèle de l'organisme, quand il en a paramétré un.
+    // Sans elles, ses questions étaient jetées ici sans un mot (25/09/2026).
+    expect(DEMANDE).toContain('nettoyerReponses(reponses, clesDeQuestions(questions))');
     expect(CHAMPS).toContain('export function nettoyerReponses');
     expect(CHAMPS).toContain('.slice(0, 2000)');
     expect(CHAMPS).toContain('n >= 1 && n <= 5');

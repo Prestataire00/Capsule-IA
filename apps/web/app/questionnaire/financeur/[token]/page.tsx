@@ -49,6 +49,10 @@ async function loadContext(token: string) {
       (assignment as { recipient_kind?: string | null }).recipient_kind === 'company_rep'
         ? 'Questionnaire entreprise'
         : 'Questionnaire financeur',
+    base:
+      (assignment as { recipient_kind?: string | null }).recipient_kind === 'company_rep'
+        ? 'entreprise'
+        : 'financeur',
     completed: (assignment as { status: string }).status === 'completed',
     schema: (template as { schema: unknown }).schema as QuestionnaireSchema,
     title: (template as { title: string }).title,
@@ -149,6 +153,9 @@ export default async function FunderQuestionnairePage({
           className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm"
         >
           <input type="hidden" name="token" value={params.token} />
+          {/* Dit à l'action d'où vient la réponse : les redirections, dont
+              celle de fin, doivent ramener le client là où il a commencé. */}
+          <input type="hidden" name="base" value={ctx.base} />
 
           <QuestionRenderer questions={questions} />
 

@@ -8,7 +8,9 @@ import {
   nettoyerReponses,
   type EnregistrerResult,
   type ReponsesFicheBesoin,
+  ficheBesoinRemplie,
 } from '@/features/questionnaire/fiche-besoin';
+import { questionsFicheBesoin, clesDeQuestions } from '@/features/questionnaire/modele-fiche-besoin';
 
 /**
  * Enregistrement de la fiche besoin d'une DEMANDE, par le client lui-même.
@@ -40,9 +42,12 @@ export async function enregistrerFicheBesoinDemande(
     };
   }
 
-  const propres = nettoyerReponses(reponses);
-  if (String(propres.objectives ?? '').trim() === '') {
-    return { ok: false, error: 'Merci d’indiquer au moins vos objectifs.' };
+  // Les questions du modèle de l'organisme : sans elles, ses réponses seraient
+  // jetées ici, et le client aurait répondu pour rien.
+  const questions = await questionsFicheBesoin(admin() as never, verifie.value.organizationId);
+  const propres = nettoyerReponses(reponses, clesDeQuestions(questions));
+  if (!ficheBesoinRemplie(propres as ReponsesFicheBesoin)) {
+    return { ok: false, error: 'Merci de répondre à au moins une question.' };
   }
 
   const { error } = await admin()

@@ -57,7 +57,10 @@ describe('la saisie par l’organisme', () => {
   });
 
   it('borne ce qui est enregistré', () => {
-    expect(ACTIONS).toContain('nettoyerReponses(reponses)');
+    // `nettoyerReponses` prend désormais les clés autorisées en second
+    // argument : celles du modèle de l'organisme, quand il en a paramétré un.
+    // Sans elles, ses questions étaient jetées ici sans un mot (25/09/2026).
+    expect(ACTIONS).toContain('nettoyerReponses(reponses, clesDeQuestions(questions))');
   });
 
   it('vérifie que le stagiaire est bien de l’organisme', () => {

@@ -20,7 +20,37 @@ const admin = () =>
   });
 
 /** Crée (idempotent) le template système « fiche besoin » et renvoie son id. */
-export async function ensureNeedsAnalysisTemplate(sb: Sb): Promise<string> {
+/**
+ * Le modèle de fiche besoin à utiliser.
+ *
+ * Celui de l'organisme prime, quand il en a paramétré un. Jusqu'ici cette
+ * fonction ne regardait que le modèle intégré, par son code technique : Laurie
+ * a dupliqué la fiche besoin le 22/09/2026 et l'a portée de cinq à neuf
+ * questions — pour rien. Son modèle n'a jamais été choisi, et aucune de ses
+ * questions n'a jamais été posée. Le travail avait l'air fait, l'écran montrait
+ * un modèle, et le logiciel en envoyait un autre.
+ *
+ * Le plus récemment modifié l'emporte quand il y en a plusieurs : c'est celui
+ * qu'on vient de préparer. Sans `organizationId`, on garde le modèle intégré —
+ * les appels qui n'ont pas l'organisation sous la main ne changent pas de
+ * comportement.
+ */
+export async function ensureNeedsAnalysisTemplate(sb: Sb, organizationId?: string | null): Promise<string> {
+  if (organizationId) {
+    const { data: propre } = await sb
+      .schema('app')
+      .from('questionnaire_templates')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('kind', 'positionnement')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (propre) return (propre as { id: string }).id;
+  }
+
   const { data: existing } = await sb
     .schema('app')
     .from('questionnaire_templates')
@@ -137,7 +167,7 @@ export async function sendNeedsAnalysisForDossier(opts: {
   };
   if (!dossier.learner_id || !dossier.learner?.email) return { ok: true, status: 'no_email' };
 
-  const templateId = await ensureNeedsAnalysisTemplate(sb);
+  const templateId = await ensureNeedsAnalysisTemplate(sb, dossier.organization_id);
 
   // Réponses d'inscription (étape 3 « Fiche besoin ») déjà saisies pour cet apprenant.
   const inscriptionNa = await loadInscriptionNeedsAnalysis(sb, {
@@ -324,7 +354,7 @@ export async function sendNeedsAnalysisForLearner(opts: {
   };
   if (!learner.email) return { ok: true, status: 'no_email' };
 
-  const templateId = await ensureNeedsAnalysisTemplate(sb);
+  const templateId = await ensureNeedsAnalysisTemplate(sb, learner.organization_id);
 
   // Anti-doublon : une fiche besoin hors dossier par apprenant.
   const { data: existing } = await sb

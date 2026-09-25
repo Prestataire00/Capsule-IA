@@ -5,7 +5,12 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { guardAction } from '@/shared/lib/auth/guard-action';
 import { ensureNeedsAnalysisTemplate, sendNeedsAnalysisForLearner } from '@/features/questionnaire/needs-analysis';
-import { nettoyerReponses, type ReponsesFicheBesoin } from '@/features/questionnaire/fiche-besoin';
+import {
+  nettoyerReponses,
+  ficheBesoinRemplie,
+  type ReponsesFicheBesoin,
+} from '@/features/questionnaire/fiche-besoin';
+import { questionsFicheBesoin, clesDeQuestions } from '@/features/questionnaire/modele-fiche-besoin';
 
 /**
  * Fiche besoin d'un stagiaire, depuis la séance : la renvoyer, ou la remplir.
@@ -85,9 +90,10 @@ export async function saisirFicheBesoinApprenant(
   const garde = await guardAction('qualiopi');
   if (!garde.ok) return { ok: false, error: garde.error };
 
-  const propres = nettoyerReponses(reponses);
-  if (String(propres.objectives ?? '').trim() === '') {
-    return { ok: false, error: 'Indiquez au moins les objectifs.' };
+  const questions = await questionsFicheBesoin(admin() as never, garde.member.organizationId);
+  const propres = nettoyerReponses(reponses, clesDeQuestions(questions));
+  if (!ficheBesoinRemplie(propres as ReponsesFicheBesoin)) {
+    return { ok: false, error: 'Indiquez au moins une réponse.' };
   }
 
   const sb = admin();
@@ -96,7 +102,7 @@ export async function saisirFicheBesoinApprenant(
     return { ok: false, error: 'Stagiaire introuvable.' };
   }
 
-  const templateId = await ensureNeedsAnalysisTemplate(sb);
+  const templateId = await ensureNeedsAnalysisTemplate(sb, orgId);
 
   const { data: existante } = await sb
     .schema('app')

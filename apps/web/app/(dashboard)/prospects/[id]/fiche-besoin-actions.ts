@@ -9,7 +9,8 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { generateFicheBesoinUrl } from '@/shared/lib/fiche-besoin-token';
 import { resolvePublicOrigin } from '@/shared/lib/http/public-origin';
 import { type ReponsesFicheBesoin } from '@/features/questionnaire/fiche-besoin';
-import { nettoyerReponses } from '@/features/questionnaire/fiche-besoin';
+import { nettoyerReponses, ficheBesoinRemplie } from '@/features/questionnaire/fiche-besoin';
+import { questionsFicheBesoin, clesDeQuestions } from '@/features/questionnaire/modele-fiche-besoin';
 
 /**
  * Fiche besoin d'une demande : l'envoyer au client, ou la remplir soi-même.
@@ -94,9 +95,12 @@ export async function saisirFicheBesoinDemande(
   const garde = await guardAction('crm');
   if (!garde.ok) return { ok: false, error: garde.error };
 
-  const propres = nettoyerReponses(reponses);
-  if (String(propres.objectives ?? '').trim() === '') {
-    return { ok: false, error: 'Indiquez au moins les objectifs.' };
+  // Les questions du modèle de l'organisme, s'il en a paramétré un : sans
+  // elles, ses réponses seraient jetées ici sans un mot.
+  const questions = await questionsFicheBesoin(admin() as never, garde.member.organizationId);
+  const propres = nettoyerReponses(reponses, clesDeQuestions(questions));
+  if (!ficheBesoinRemplie(propres as ReponsesFicheBesoin)) {
+    return { ok: false, error: 'Indiquez au moins une réponse.' };
   }
 
   const { error } = await admin()

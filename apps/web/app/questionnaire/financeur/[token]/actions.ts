@@ -15,14 +15,23 @@ const admin = () =>
 
 export async function submitFunderQuestionnaire(formData: FormData): Promise<void> {
   const tokenStr = (formData.get('token') as string | null) ?? '';
+  // Le même formulaire sert le financeur et l'entreprise cliente. Sans ce
+  // champ, toutes les redirections repartaient vers « /questionnaire/financeur »
+  // — y compris celle de fin : l'entreprise se serait vue renvoyée, après avoir
+  // répondu, vers une adresse qui affirme qu'elle est un financeur, sur une
+  // page « merci » qui n'existe pas sous son chemin.
+  const base =
+    (formData.get('base') as string | null) === 'entreprise'
+      ? '/questionnaire/entreprise'
+      : '/questionnaire/financeur';
 
   if (!tokenStr) {
-    redirect('/questionnaire/financeur/invalid?error=invalid');
+    redirect(`${base}/invalid?error=invalid`);
   }
 
   const verified = await verifyQuestionnaireToken(tokenStr);
   if (!verified.ok) {
-    redirect(`/questionnaire/financeur/${tokenStr}?error=${verified.error}`);
+    redirect(`${base}/${tokenStr}?error=${verified.error}`);
   }
 
   const { assignmentId, dossierId, organizationId } = verified.value;
@@ -36,13 +45,13 @@ export async function submitFunderQuestionnaire(formData: FormData): Promise<voi
     .maybeSingle();
 
   if (!assignment) {
-    redirect(`/questionnaire/financeur/${tokenStr}?error=invalid_token`);
+    redirect(`${base}/${tokenStr}?error=invalid_token`);
   }
 
   const templateId = (assignment as { template_id: string }).template_id;
 
   if ((assignment as { status: string }).status === 'completed') {
-    redirect(`/questionnaire/financeur/${tokenStr}/merci?status=already`);
+    redirect(`${base}/${tokenStr}/merci?status=already`);
   }
 
   const { data: template } = await sb
@@ -53,7 +62,7 @@ export async function submitFunderQuestionnaire(formData: FormData): Promise<voi
     .maybeSingle();
 
   if (!template) {
-    redirect(`/questionnaire/financeur/${tokenStr}?error=invalid_token`);
+    redirect(`${base}/${tokenStr}?error=invalid_token`);
   }
 
   const schema = (template as { schema: unknown }).schema as QuestionnaireSchema;
@@ -78,7 +87,7 @@ export async function submitFunderQuestionnaire(formData: FormData): Promise<voi
 
   const validation = validateAnswers(schema, answers);
   if (!validation.ok) {
-    redirect(`/questionnaire/financeur/${tokenStr}?error=invalid`);
+    redirect(`${base}/${tokenStr}?error=invalid`);
   }
 
   const h = headers();
@@ -101,7 +110,7 @@ export async function submitFunderQuestionnaire(formData: FormData): Promise<voi
 
   if (insertErr) {
     console.error('[submitFunderQuestionnaire] insert failed', insertErr);
-    redirect(`/questionnaire/financeur/${tokenStr}?error=db`);
+    redirect(`${base}/${tokenStr}?error=db`);
   }
 
   // La réponse est enregistrée ; si cette bascule échoue en silence, l'assignation
@@ -116,5 +125,5 @@ export async function submitFunderQuestionnaire(formData: FormData): Promise<voi
     console.error('[financeur] bascule du statut en « completed » échouée', statutErr);
   }
 
-  redirect(`/questionnaire/financeur/${tokenStr}/merci`);
+  redirect(`${base}/${tokenStr}/merci`);
 }

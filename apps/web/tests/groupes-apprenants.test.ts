@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
-const MIGRATION = lire('../../../supabase/migrations/0194_groupes_dapprenants.sql');
+const MIGRATION = lire('../../../supabase/migrations/0195_groupes_dapprenants.sql');
 const ACTIONS = lire('../app/(dashboard)/dossiers/[id]/apprenants/groupes-actions.ts');
 const APPRENANTS = lire('../app/(dashboard)/dossiers/[id]/apprenants/actions.ts');
 const FORMULAIRE = lire('../app/(dashboard)/dossiers/[id]/sessions/_components/session-form.tsx');

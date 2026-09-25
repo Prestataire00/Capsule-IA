@@ -40,31 +40,48 @@ export async function ensureCompanySatisfactionTemplate(sb: Client): Promise<str
       title: 'Satisfaction entreprise — commanditaire de la formation',
       description:
         'Retour de l’entreprise cliente sur la formation qu’elle a commandée (Qualiopi, parties prenantes).',
+      // Forme `{ id, type, label, required }` — celle que lisent
+      // `QuestionRenderer` et `validateAnswers`. La forme `{ key, kind }` du
+      // modèle formateur ne se transpose PAS ici : sa page de réponse est
+      // écrite en dur, tandis que celle-ci rend le schéma. Avec `key`/`kind`,
+      // le formulaire se serait affiché vide — sept questions en base, aucune
+      // à l'écran, et personne pour s'en apercevoir avant le premier client.
       schema: {
-        version: 1,
         questions: [
-          { key: 'nps', label: 'Recommanderiez-vous cet organisme ?', kind: 'nps' },
+          { id: 'nps', type: 'nps', label: 'Recommanderiez-vous cet organisme ?', required: true },
           {
-            key: 'objectifsAtteints',
+            id: 'objectifsAtteints',
+            type: 'rating',
+            max: 5,
             label: 'Les objectifs annoncés ont-ils été atteints ?',
-            kind: 'rating_5',
+            required: true,
           },
           {
-            key: 'organisation',
+            id: 'organisation',
+            type: 'rating',
+            max: 5,
             label: 'Organisation avant et pendant la formation (planning, documents, interlocuteur)',
-            kind: 'rating_5',
+            required: false,
           },
           {
-            key: 'effetTerrain',
+            id: 'effetTerrain',
+            type: 'rating',
+            max: 5,
             label: 'Effet constaté sur le travail de vos équipes',
-            kind: 'rating_5',
+            required: false,
           },
-          { key: 'pointsForts', label: 'Ce qui vous a satisfait', kind: 'long_text' },
-          { key: 'pointsAmeliorer', label: 'Ce que nous devrions améliorer', kind: 'long_text' },
+          { id: 'pointsForts', type: 'text', label: 'Ce qui vous a satisfait', required: false },
           {
-            key: 'besoinsSuite',
+            id: 'pointsAmeliorer',
+            type: 'text',
+            label: 'Ce que nous devrions améliorer',
+            required: false,
+          },
+          {
+            id: 'besoinsSuite',
+            type: 'text',
             label: 'Besoins de formation à venir dans votre entreprise',
-            kind: 'long_text',
+            required: false,
           },
         ],
       },

@@ -14,7 +14,7 @@ const PAGE = lire('../app/(dashboard)/dossiers/[id]/questionnaires/page.tsx');
 const MODELE_ENTREPRISE = lire('../features/questionnaire/satisfaction-entreprise.ts');
 const MODELE_FORMATEUR = lire('../features/questionnaire/satisfaction-formateur.ts');
 const CRON = lire('../app/api/cron/transactional-emails/route.ts');
-const MIGRATION = lire('../../../supabase/migrations/0195_questionnaire_entreprise.sql');
+const MIGRATION = lire('../../../supabase/migrations/0196_questionnaire_entreprise.sql');
 const PAGE_PUBLIQUE = lire('../app/questionnaire/financeur/[token]/page.tsx');
 
 describe('le formateur', () => {

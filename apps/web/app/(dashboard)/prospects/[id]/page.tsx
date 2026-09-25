@@ -9,6 +9,12 @@ import { env } from '@/env.mjs';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ProspectNoteForm } from './note-form.client';
 import { SectionLabel } from '@/shared/ui/section-label';
+import {
+  CHAMPS_FICHE_BESOIN,
+  ficheBesoinRemplie,
+  questionsDuSchema,
+  type ReponsesFicheBesoin,
+} from '@/features/questionnaire/fiche-besoin';
 import { formaterSiret } from '@/shared/lib/siret';
 import { heures, jourFr, modalite, tarif } from '@/features/prospect/format-demande';
 import { StatusPill } from '@/shared/ui/status-pill';
@@ -305,6 +311,35 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
   const followedBy = events.find((e) => e.actor_user_id && actorNames.get(e.actor_user_id));
   const n = prospect.needs_analysis;
 
+  // Les questions que l'organisme a ajoutées à la fiche besoin. On lit son
+  // modèle pour retrouver leurs libellés : sans eux, l'écran afficherait une
+  // réponse sans sa question.
+  const CLES_INTEGREES = new Set(CHAMPS_FICHE_BESOIN.map((c) => c.cle as string));
+  const cleSupplementaires = Object.entries((n ?? {}) as Record<string, unknown>)
+    .filter(([cle, v]) => !CLES_INTEGREES.has(cle) && v !== null && v !== undefined && v !== '')
+    .map(([cle, v]) => ({ cle, valeur: typeof v === 'number' ? String(v) : String(v) }));
+
+  const { data: modeleRow } = cleSupplementaires.length
+    ? await sb
+        .schema('app')
+        .from('questionnaire_templates')
+        .select('schema')
+        .eq('organization_id', prospect.organization_id ?? '')
+        .eq('kind', 'positionnement')
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  const libelles = new Map(
+    questionsDuSchema((modeleRow as { schema?: unknown } | null)?.schema).map((q) => [q.id, q.label]),
+  );
+  const reponsesSupplementaires = cleSupplementaires.map((r) => ({
+    ...r,
+    label: libelles.get(r.cle) ?? r.cle,
+  }));
+
   // « Prochaine action » : ce qu'il faut faire maintenant, déduit de l'état réel
   // de la demande — pas une liste d'actions possibles.
   const nextAction: { title: string; why: string } = (() => {
@@ -447,13 +482,21 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               </div>
             </div>
 
-            {n && (n.objectives || n.expectations || n.constraints || n.accommodations || n.typologyContext) ? (
+            {ficheBesoinRemplie(n as ReponsesFicheBesoin | null) ? (
               <div className="space-y-3">
-                <Answer label="Objectifs" value={n.objectives} />
-                <Answer label="Attentes" value={n.expectations} />
-                <Answer label="Contraintes" value={n.constraints} />
-                <Answer label="Besoin d'aménagement" value={n.accommodations} />
-                <Answer label="Contexte / typologie" value={n.typologyContext} />
+                <Answer label="Objectifs" value={n?.objectives} />
+                <Answer label="Attentes" value={n?.expectations} />
+                <Answer label="Contraintes" value={n?.constraints} />
+                <Answer label="Besoin d'aménagement" value={n?.accommodations} />
+                <Answer label="Contexte / typologie" value={n?.typologyContext} />
+                {/* Les questions propres à l'organisme. Sans cette boucle, un
+                    stagiaire répondait à neuf questions et l'écran n'en
+                    montrait que cinq — les quatre autres étaient bien en base,
+                    invisibles. Le libellé vient du modèle ; à défaut, la clé,
+                    qui vaut mieux qu'une réponse sans question. */}
+                {reponsesSupplementaires.map(({ cle, label, valeur }) => (
+                  <Answer key={cle} label={label} value={valeur} />
+                ))}
               </div>
             ) : (
               <p className="text-[13px] text-zinc-400">
