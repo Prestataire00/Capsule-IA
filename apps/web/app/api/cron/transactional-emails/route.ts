@@ -17,6 +17,7 @@ import {
 import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
+import { ensureTrainerSatisfactionTemplate } from '@/features/questionnaire/satisfaction-formateur';
 import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
 import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
 import {
@@ -811,44 +812,6 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
   }
 
   return { candidates: candidates.length, alerted, errors };
-}
-
-const TRAINER_SAT_TEMPLATE_CODE = 'satisfaction_formateur_default';
-
-async function ensureTrainerSatisfactionTemplate(sb: ReturnType<typeof admin>): Promise<string> {
-  const { data: existing } = await sb
-    .schema('app')
-    .from('questionnaire_templates')
-    .select('id')
-    .is('organization_id', null)
-    .eq('code', TRAINER_SAT_TEMPLATE_CODE)
-    .maybeSingle();
-  if (existing) return (existing as { id: string }).id;
-
-  const { data: created } = await sb
-    .schema('app')
-    .from('questionnaire_templates')
-    .insert({
-      organization_id: null,
-      kind: 'satisfaction_formateur',
-      code: TRAINER_SAT_TEMPLATE_CODE,
-      title: 'Satisfaction formateur — fin de formation',
-      schema: {
-        version: 1,
-        fields: [
-          { key: 'nps', kind: 'nps' },
-          { key: 'overallRating', kind: 'rating_5' },
-          { key: 'organizationRating', kind: 'rating_5' },
-          { key: 'groupRating', kind: 'rating_5' },
-          { key: 'whatWorked', kind: 'long_text' },
-          { key: 'whatToImprove', kind: 'long_text' },
-        ],
-      },
-      is_active: true,
-    })
-    .select('id')
-    .single();
-  return (created as { id: string }).id;
 }
 
 // F-FOR-10 — satisfaction formateur : à la fin d'un dossier, chaque formateur du

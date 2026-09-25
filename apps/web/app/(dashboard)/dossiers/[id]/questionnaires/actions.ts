@@ -5,6 +5,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { generateQuestionnaireToken } from '@/shared/lib/questionnaire-token';
+import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
+import { ensureTrainerSatisfactionTemplate } from '@/features/questionnaire/satisfaction-formateur';
+import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
+import { sendEmail } from '@/shared/lib/email/resend';
+import { env } from '@/env.mjs';
 
 const SendSchema = z.object({
   dossierId: z.string().uuid(),
@@ -112,4 +117,127 @@ export const sendFunderQuestionnaire = authActionClient
 
     revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
     return { ok: true as const, link: `/questionnaire/financeur/${signed.token}` };
+  });
+
+
+const TrainerSchema = z.object({
+  dossierId: z.string().uuid(),
+  trainerId: z.string().uuid(),
+});
+
+/**
+ * Envoie le questionnaire de satisfaction à un formateur du dossier.
+ *
+ * Il partait déjà tout seul, le lendemain de la fin d'un dossier terminé
+ * (F-FOR-10). C'était le seul moment possible : un dossier clos sans que
+ * l'automatisation parte, une session qui s'est mal passée, un client qui
+ * s'interroge — rien ne permettait de le demander.
+ *
+ * Le modèle, le jeton et l'e-mail sont ceux de l'envoi automatique : deux
+ * questionnaires du même nom aux questions différentes rendraient les réponses
+ * incomparables d'une formation à l'autre.
+ */
+export const sendTrainerQuestionnaire = authActionClient
+  .schema(TrainerSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const sb = ctx.supabase;
+    const { data: dossier } = await sb
+      .schema('app')
+      .from('dossiers')
+      .select('id, organization_id, formation:formations(title)')
+      .eq('id', parsedInput.dossierId)
+      .maybeSingle();
+    if (!dossier) return { ok: false as const, error: 'dossier_not_found' };
+    const d = dossier as unknown as {
+      organization_id: string;
+      formation: { title: string } | { title: string }[] | null;
+    };
+    const formation = Array.isArray(d.formation) ? d.formation[0] : d.formation;
+
+    // Le formateur doit être celui du dossier : l'identifiant vient de l'écran.
+    const { data: lien } = await sb
+      .schema('app')
+      .from('dossier_trainers')
+      .select('trainer_id')
+      .eq('dossier_id', parsedInput.dossierId)
+      .eq('trainer_id', parsedInput.trainerId)
+      .maybeSingle();
+    if (!lien) return { ok: false as const, error: 'trainer_not_linked' };
+
+    const { data: trainerRow } = await sb
+      .schema('app')
+      .from('trainers')
+      .select('id, first_name, last_name, email')
+      .eq('id', parsedInput.trainerId)
+      .maybeSingle();
+    const t = trainerRow as { first_name: string; last_name: string; email: string | null } | null;
+    if (!t) return { ok: false as const, error: 'trainer_not_found' };
+
+    const templateId = await ensureTrainerSatisfactionTemplate(sb as never);
+
+    // Anti-doublon : une assignation par (modèle, dossier, formateur), comme le
+    // cron. Sans quoi deux liens vivraient en parallèle et deux réponses
+    // partielles se disputeraient la même case.
+    const { data: existante } = await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .select('id')
+      .eq('template_id', templateId)
+      .eq('dossier_id', parsedInput.dossierId)
+      .eq('recipient_kind', 'trainer' as never)
+      .eq('recipient_trainer_id', parsedInput.trainerId)
+      .maybeSingle();
+
+    let assignmentId = (existante as { id: string } | null)?.id ?? null;
+    if (!assignmentId) {
+      const { data: creee, error } = await sb
+        .schema('app')
+        .from('questionnaire_assignments')
+        .insert({
+          organization_id: d.organization_id,
+          template_id: templateId,
+          dossier_id: parsedInput.dossierId,
+          recipient_kind: 'trainer',
+          recipient_trainer_id: parsedInput.trainerId,
+          recipient_email: t.email,
+          recipient_name: `${t.first_name} ${t.last_name}`.trim(),
+          token_hash: `pending-${randomUUID()}`,
+          status: 'pending',
+        } as never)
+        .select('id')
+        .single();
+      if (error || !creee) return { ok: false as const, error: 'assignment_create_failed' };
+      assignmentId = (creee as { id: string }).id;
+    }
+
+    const signed = await generateTrainerSatisfactionUrl(
+      {
+        assignmentId,
+        dossierId: parsedInput.dossierId,
+        organizationId: d.organization_id,
+        trainerId: parsedInput.trainerId,
+      },
+      env.PUBLIC_APP_URL ?? '',
+    );
+    await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .update({ token_hash: createHash('sha256').update(signed.token).digest('hex') } as never)
+      .eq('id', assignmentId);
+
+    // Sans adresse, le lien reste affiché à l'écran : il se transmet à la main
+    // plutôt que de perdre le questionnaire.
+    let envoye = false;
+    if (t.email) {
+      const tpl = trainerSatisfactionEmail({
+        firstName: t.first_name,
+        formationTitle: formation?.title ?? 'la formation',
+        surveyUrl: signed.url,
+      });
+      const r = await sendEmail({ to: t.email, subject: tpl.subject, html: tpl.html });
+      envoye = r.ok;
+    }
+
+    revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
+    return { ok: true as const, envoye, lien: signed.url };
   });

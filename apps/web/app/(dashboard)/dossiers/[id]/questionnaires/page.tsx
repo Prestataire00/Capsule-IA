@@ -2,13 +2,14 @@
 // Justification: questionnaires du dossier — affectation apprenant, saisie manuelle, export PDF, financeur.
 
 import Link from 'next/link';
-import { ClipboardPen, FileText, UserRound, Landmark } from 'lucide-react';
+import { ClipboardPen, FileText, UserRound, Landmark, GraduationCap } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { SendFunder } from './send-funder';
 import { AssignLearner } from './assign-learner';
+import { SendTrainer } from './send-trainer';
 
 const KIND_LABEL: Record<string, string> = {
   positionnement: 'Positionnement',
@@ -64,6 +65,30 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
   const funders = ((funderLinks as { funder: { id: string; name: string } | null }[] | null) ?? [])
     .map((l) => l.funder)
     .filter((f): f is { id: string; name: string } => !!f);
+
+  // Formateurs du dossier et retours déjà demandés (F-FOR-10). L'envoi partait
+  // seul le lendemain d'un dossier terminé ; on peut désormais le demander
+  // quand on veut.
+  const { data: liensFormateur } = await sb
+    .schema('app')
+    .from('dossier_trainers')
+    .select('trainer:trainers(id, first_name, last_name, email)')
+    .eq('dossier_id', params.id);
+  const formateurs = (
+    (liensFormateur as { trainer: { id: string; first_name: string; last_name: string; email: string | null } | null }[] | null) ?? []
+  )
+    .map((l) => l.trainer)
+    .filter((t): t is { id: string; first_name: string; last_name: string; email: string | null } => !!t)
+    .map((t) => ({ id: t.id, nom: `${t.first_name} ${t.last_name}`.trim() || 'Formateur', email: t.email }));
+
+  const { data: retoursFormateur } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('id, status, recipient_name')
+    .eq('dossier_id', params.id)
+    .eq('recipient_kind', 'trainer' as never);
+  const retours =
+    (retoursFormateur as { id: string; status: string; recipient_name: string | null }[] | null) ?? [];
 
   const { data: funderAssignmentsData } = await sb
     .schema('app')
@@ -122,6 +147,39 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
                 </li>
               );
             })}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.purple.soft}`}>
+            <GraduationCap className="w-4 h-4" />
+          </span>
+          <SectionLabel>Questionnaires formateur</SectionLabel>
+          {retours.length > 0 && (
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.purple.soft}`}>
+              {retours.length}
+            </span>
+          )}
+        </div>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+          Il part aussi tout seul le lendemain d’un dossier terminé — ceci sert à le demander avant, ou à le
+          renvoyer.
+        </p>
+        <SendTrainer dossierId={params.id} formateurs={formateurs} />
+        {retours.length > 0 && (
+          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
+            {retours.map((r) => (
+              <li key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                <span className="text-[13px] text-zinc-800 dark:text-zinc-200 truncate">
+                  {r.recipient_name ?? 'Formateur'}
+                </span>
+                <StatusPill tone={r.status === 'completed' ? 'success' : 'neutral'}>
+                  {r.status === 'completed' ? 'rempli' : r.status}
+                </StatusPill>
+              </li>
+            ))}
           </ul>
         )}
       </div>
