@@ -139,6 +139,38 @@ describe('la grille n’émarge pas hors du groupe', () => {
   });
 });
 
+describe('le groupe se modifie après coup', () => {
+  const ACTION = lire('../app/(dashboard)/sessions/[id]/informations-actions.ts');
+  const EDITION = lire('../app/(dashboard)/sessions/[id]/session-info-edit.tsx');
+
+  it('depuis les informations de la séance', () => {
+    // Il ne se choisissait qu'à la création : six séances déjà créées n'avaient
+    // aucun moyen d'en recevoir un.
+    expect(EDITION).toContain('Groupe concerné');
+    expect(ACTION).toContain('groupe_id: groupeApres');
+  });
+
+  it('et les participants suivent le changement', () => {
+    // La dérivation ne retire que les lignes qu'elle a posées (`derived`).
+    // Celles écrites au rattachement d'un stagiaire (`manual_add`) auraient
+    // survécu, et la séance aurait continué d'attendre tout le dossier tout en
+    // affichant « Groupe A ».
+    expect(ACTION).toContain('async function accorderParticipantsAuGroupe');
+    expect(ACTION).toContain("neq('source', 'manual_remove')");
+    expect(ACTION).toContain("not('learner_id', 'in'");
+  });
+
+  it('une exclusion faite à la main reste une exclusion', () => {
+    expect(ACTION).toMatch(/manual_remove[\s\S]{0,200}Un groupe vide retire tout le monde/);
+  });
+
+  it('mais seulement si le groupe a vraiment changé', () => {
+    // Sinon, enregistrer une simple note retirerait un stagiaire ajouté exprès
+    // à la main — un geste sans rapport, aux conséquences invisibles.
+    expect(ACTION).toContain('if (groupeAvant !== groupeApres) await accorderParticipantsAuGroupe(');
+  });
+});
+
 describe('la création d’une séance', () => {
   it('propose le groupe, et seulement s’il y en a', () => {
     expect(FORMULAIRE).toContain('Groupe concerné');

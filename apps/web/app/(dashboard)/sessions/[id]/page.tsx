@@ -77,6 +77,18 @@ export default async function SessionOverview({ params }: { params: { id: string
     ? await db.schema('app').from('dossier_groupes' as never).select('nom').eq('id', infos.groupe_id).maybeSingle()
     : { data: null };
   const nomGroupe = (groupeRow as { nom?: string } | null)?.nom ?? null;
+
+  // Les groupes du dossier de la séance : c'est parmi eux qu'on choisit. Une
+  // séance sans dossier — séance libre — n'en a aucun.
+  const { data: groupesRows } = session.dossier_id
+    ? await db
+        .schema('app')
+        .from('dossier_groupes' as never)
+        .select('id, nom')
+        .eq('dossier_id', session.dossier_id)
+        .order('ordre', { ascending: true })
+    : { data: [] };
+  const groupesDuDossier = (groupesRows ?? []) as unknown as Array<{ id: string; nom: string }>;
   const seanceFormateurs = (st ?? []) as { trainer_id: string; hourly_rate_cents: number | null; amount_cents: number | null }[];
   const formateurId = seanceFormateurs[0]?.trainer_id ?? ((dt ?? []) as { trainer_id: string }[])[0]?.trainer_id ?? null;
   const { data: fData } = formateurId
@@ -133,7 +145,9 @@ export default async function SessionOverview({ params }: { params: { id: string
                 capacityMax: cap ? String(cap) : '',
                 priceEuros: infos.price_cents != null ? String(Number(infos.price_cents) / 100).replace('.', ',') : '',
                 notes: infos.notes ?? '',
+                groupeId: infos.groupe_id ?? '',
               }}
+              groupes={groupesDuDossier}
             />
           )}
         </div>

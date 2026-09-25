@@ -8,13 +8,16 @@ import { updateSessionInfo } from './informations-actions';
 const champ =
   'w-full text-[13px] px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/30';
 
-/** « Modifier » : capacité, tarif par participant et notes de la séance. */
+/** « Modifier » : capacité, tarif par participant, groupe visé et notes. */
 export function SessionInfoEdit({
   sessionId,
   initial,
+  groupes = [],
 }: {
   sessionId: string;
-  initial: { capacityMax: string; priceEuros: string; notes: string };
+  initial: { capacityMax: string; priceEuros: string; notes: string; groupeId: string };
+  /** Groupes du dossier (0194) ; vide = le choix ne se pose pas. */
+  groupes?: ReadonlyArray<{ id: string; nom: string }>;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -63,6 +66,30 @@ export function SessionInfoEdit({
         <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">Notes</span>
         <textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} rows={3} maxLength={2000} className={champ} />
       </label>
+
+      {/* Le groupe se choisissait à la création seulement : six séances déjà
+          créées n'avaient aucun moyen d'en recevoir un. */}
+      {groupes.length > 0 && (
+        <label className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
+          Groupe concerné
+          <select
+            value={f.groupeId}
+            onChange={(e) => setF({ ...f, groupeId: e.target.value })}
+            className={champ}
+          >
+            <option value="">Tout le dossier</option>
+            {groupes.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nom}
+              </option>
+            ))}
+          </select>
+          <span className="block text-[11px] font-normal text-zinc-500 dark:text-zinc-400 mt-1">
+            Changer le groupe met les participants à jour : ceux qui n’en sont pas cessent d’être attendus.
+          </span>
+        </label>
+      )}
+
       {erreur && <p role="alert" className="text-[12px] text-red-600 dark:text-red-400">{erreur}</p>}
       <div className="flex items-center gap-2">
         <button type="submit" disabled={pending} className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium px-4 py-2 rounded-lg disabled:opacity-40">
