@@ -17,6 +17,7 @@ import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { SupprimerOuArchiver } from './supprimer-ou-archiver.client';
+import { MontantModifiable } from './montant.client';
 import { DossierStatusControl } from './dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -134,6 +135,9 @@ export default async function DossierLayout({
   // Formateurs du dossier : lecture tolérante, la désignation vit dans la
   // bannière (un onglet pour un seul choix n'en valait pas la peine).
   const gererDossiers = await canManageSection('dossiers');
+  // Le montant relève de la facturation, pas du suivi de dossier : un
+  // formateur suit l'affaire sans toucher aux tarifs.
+  const gererFacturation = await canManageSection('billing');
   const [{ data: liens }, { data: tousFormateurs }] = await Promise.all([
     libre.schema('app').from('dossier_trainers').select('trainer_id, is_lead').eq('dossier_id', params.id),
     gererDossiers
@@ -275,7 +279,25 @@ export default async function DossierLayout({
               {modalityLabel(d.modality)}
             </span>
           </KpiCard>
-          <KpiCard icon={Banknote} label="Montant" accent="emerald" value={fmtEuros(d.total_amount_cents)}>
+          {/* Le montant se corrige là où il se lit : on le reprend au moment
+              où on le voit faux. Réservé à la facturation — le formateur gère
+              l'affaire sans toucher aux tarifs, comme l'annonce sa fiche. */}
+          <KpiCard
+            icon={Banknote}
+            label="Montant"
+            accent="emerald"
+            value={
+              gererFacturation ? (
+                <MontantModifiable
+                  dossierId={params.id}
+                  montantCents={d.total_amount_cents ?? null}
+                  affichage={fmtEuros(d.total_amount_cents)}
+                />
+              ) : (
+                fmtEuros(d.total_amount_cents)
+              )
+            }
+          >
             {/* Où en est le financement : la question se pose en même temps
                 que le montant, elle se lit donc au même endroit. */}
             <PastilleFinancement etat={etatFinancement} className="mt-1.5" />
