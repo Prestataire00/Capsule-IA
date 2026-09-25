@@ -33,7 +33,7 @@ export default async function ParametresInscriptionPage() {
         <div>
           <h1 className="text-[20px] leading-tight font-extrabold text-zinc-900 dark:text-zinc-100">Lien d'inscription</h1>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-            Un lien public vers votre catalogue, à mettre derrière un bouton sur votre site.
+            Un lien public vers votre formulaire de demande, à mettre derrière un bouton sur votre site.
           </p>
         </div>
       </div>

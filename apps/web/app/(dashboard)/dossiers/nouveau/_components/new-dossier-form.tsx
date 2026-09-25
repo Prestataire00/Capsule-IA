@@ -95,8 +95,9 @@ export function NewDossierForm({
   // au départ : les noms arrivent plus tard, par l'onglet Apprenants.
   const [clientKind, setClientKind] = useState<'individual' | 'company'>('individual');
   const [companyId, setCompanyId] = useState<string>('');
-  // Formation absente du catalogue : on la décrit ici, elle est créée à la volée.
-  const [surMesure, setSurMesure] = useState(false);
+  // Formation nouvelle : on la décrit ici, elle est créée à la volée.
+  // Sur mesure par défaut : c'est le cas courant, et le seul que vend Capsule IA.
+  const [surMesure, setSurMesure] = useState(true);
   const [smTitre, setSmTitre] = useState('');
   const [smHeures, setSmHeures] = useState('');
   const [smTarif, setSmTarif] = useState('');
@@ -338,8 +339,10 @@ export function NewDossierForm({
                   <div className="flex items-center gap-1 mb-2 text-[13px]">
                     {(
                       [
-                        [false, 'Au catalogue'],
-                        [true, 'Sur mesure'],
+                        // Plus de catalogue : soit on reprend une formation
+                        // déjà montée, soit on en monte une nouvelle.
+                        [true, 'Nouvelle formation'],
+                        [false, 'Déjà montée'],
                       ] as const
                     ).map(([valeur, libelle]) => (
                       <button
@@ -383,7 +386,7 @@ export function NewDossierForm({
                         />
                       </div>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                        Elle sera créée hors catalogue, pour ce client. Vous pourrez la compléter depuis sa fiche.
+                        Elle sera créée pour ce client. Vous pourrez la compléter depuis sa fiche.
                       </p>
                     </div>
                   ) : formations.length === 0 ? (

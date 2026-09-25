@@ -611,18 +611,10 @@ export function FormationForm({
             <Toggle label="Éligible CPF" checked={field.value} onChange={field.onChange} />
           )}
         />
-        <Controller
-          control={control}
-          name="publishedToCatalog"
-          render={({ field }) => (
-            <Toggle
-              label="Publier sur le catalogue en ligne"
-              description="Visible des apprenants sur la page d'inscription publique."
-              checked={field.value}
-              onChange={field.onChange}
-            />
-          )}
-        />
+        {/* « Publier sur le catalogue » retiré : Capsule IA ne vend que du
+            sur-mesure, il n'y a pas de catalogue en ligne où paraître. Le
+            champ reste dans le schéma — rétablir le réglage ne demandera que
+            de remettre ce bloc. */}
       </AccordionSection>
 
       {/* ── Section 2 : Type d'action & certification ───────────────────── */}

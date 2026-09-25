@@ -2,13 +2,12 @@
 // Justification: catalogue formations en données réelles — KPIs, recherche + filtre modalité fonctionnels, grille.
 
 import Link from 'next/link';
-import { Plus, Search, GraduationCap, BookOpen, Eye, EyeOff, Video, MapPin, Users as UsersIcon, Trash2 } from 'lucide-react';
+import { Plus, Search, GraduationCap, BookOpen, Eye, Video, MapPin, Users as UsersIcon, Trash2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
-import { StatusPill } from '@/shared/ui/status-pill';
 import { CopyInscriptionLink } from '@/shared/ui/copy-inscription-link';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
@@ -26,7 +25,9 @@ type ModalityKey = keyof typeof modalityStyles;
 
 const MODALITIES = ['presentiel', 'distanciel', 'hybride'] as const;
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,2.6fr)_minmax(0,1.1fr)_128px_80px_112px_112px_96px] gap-4 px-5';
+// Colonne « Statut » (publiée / brouillon) retirée : sans catalogue public,
+// publier une formation ne veut plus rien dire.
+const ROW_GRID = 'grid grid-cols-[minmax(0,2.6fr)_minmax(0,1.1fr)_128px_80px_112px_96px] gap-4 px-5';
 
 const hoursFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
 
@@ -157,15 +158,11 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
     sessionsByFormation.set(s.formation_id, (sessionsByFormation.get(s.formation_id) ?? 0) + 1);
   }
 
-  const published = all.filter((f) => f.is_published).length;
-  const draft = all.length - published;
   const totalActive = Array.from(activeByFormation.values()).reduce((s, n) => s + n, 0);
 
   // Catalogue (offre standard, publiable) contre sur mesure (montée pour un
   // client précis — création manuelle ou import d'une convention). Les deux ne
   // se pilotent pas pareil : l'une se publie, l'autre se facture au client.
-  const nbSurMesure = all.filter((f) => surMesure.has(f.id)).length;
-  const nbCatalogue = all.length - nbSurMesure;
 
   const filtered = all.filter((f) => {
     if (nature === 'sur-mesure' && !surMesure.has(f.id)) return false;
@@ -185,10 +182,10 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
     return qs ? `/formations?${qs}` : '/formations';
   };
 
+  // Onglets « Catalogue / Sur mesure » retirés : tout est sur mesure, le
+  // filtre ne séparait plus rien.
   const ONGLETS: Array<{ valeur: '' | 'catalogue' | 'sur-mesure'; label: string; compte: number }> = [
     { valeur: '', label: 'Toutes', compte: all.length },
-    { valeur: 'catalogue', label: 'Catalogue', compte: nbCatalogue },
-    { valeur: 'sur-mesure', label: 'Sur mesure', compte: nbSurMesure },
   ];
 
   return (
@@ -227,11 +224,9 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
           label="Total formations"
           value={all.length}
           icon={BookOpen}
-          hint={`${nbCatalogue} au catalogue · ${nbSurMesure} sur mesure`}
+          hint="montées pour vos clients" 
           accent="orange"
         />
-        <KpiCard label="Publiées" value={published} icon={Eye} accent="emerald" hint="visibles au catalogue" />
-        <KpiCard label="Brouillons" value={draft} icon={EyeOff} accent="amber" hint={draft > 0 ? 'à publier' : '—'} />
         <KpiCard label="Apprenants actifs" value={totalActive} icon={UsersIcon} accent="rose" hint="dossiers en cours" />
       </section>
 
@@ -353,7 +348,6 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
               <div>Modalité</div>
               <div>Durée</div>
               <div>Apprenants</div>
-              <div>Statut</div>
               <div className="text-right">Actions</div>
             </div>
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
@@ -420,10 +414,6 @@ export default async function FormationsPage({ searchParams }: { searchParams: S
                       ) : (
                         <span className="text-zinc-400">—</span>
                       )}
-                    </div>
-
-                    <div>
-                      <StatusPill tone={f.is_published ? 'success' : 'warning'}>{f.is_published ? 'Publiée' : 'Brouillon'}</StatusPill>
                     </div>
 
                     <div className="flex items-center justify-end gap-0.5">

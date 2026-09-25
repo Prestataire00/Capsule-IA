@@ -122,7 +122,7 @@ export function DemandeForm({
     referentEmail: valeurs?.referentEmail ?? '',
     referentPhone: valeurs?.referentPhone ?? '',
     // 'catalogue' | 'sur-mesure' | 'plus-tard'
-    formationMode: (valeurs?.formationMode ?? 'catalogue') as 'catalogue' | 'sur-mesure' | 'plus-tard',
+    formationMode: (valeurs?.formationMode ?? 'sur-mesure') as 'catalogue' | 'sur-mesure' | 'plus-tard',
     formationId: valeurs?.formationId ?? '',
     customTitle: valeurs?.customTitle ?? '',
     customHours: valeurs?.customHours ?? '',
@@ -477,11 +477,15 @@ export function DemandeForm({
 
       <section className={card}>
         <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Formation</h2>
+        {/* Plus de catalogue : chaque formation est montée pour un client.
+            « Déjà montée » n'est donc pas un catalogue — c'est la reprise d'une
+            formation qu'on a déjà construite, avec son programme et ses
+            supports. La recréer à chaque fois les dupliquerait. */}
         <div className="flex flex-wrap gap-2">
           {(
             [
-              { v: 'catalogue', l: 'Du catalogue' },
-              { v: 'sur-mesure', l: 'Besoin spécifique (hors catalogue)' },
+              { v: 'sur-mesure', l: 'Nouvelle formation' },
+              { v: 'catalogue', l: 'Reprendre une formation déjà montée' },
               { v: 'plus-tard', l: 'À définir plus tard' },
             ] as const
           ).map((o) => (
@@ -502,7 +506,7 @@ export function DemandeForm({
 
         {form.formationMode === 'catalogue' && (
           <label className={label}>
-            Formation
+            Formation déjà montée
             <select value={form.formationId} onChange={(e) => set('formationId', e.target.value)} className={input}>
               <option value="">— Choisir —</option>
               {formations.map((f) => (

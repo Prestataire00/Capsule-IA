@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2, Globe,
+  LayoutDashboard, FolderOpen, GraduationCap, Users, UserCog, Building2,
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, Hourglass,
@@ -89,12 +89,14 @@ export const GROUPS: Group[] = [
     countKeys: ['emargementsPending', 'supportsAValider'],
   },
   {
+    // Capsule IA ne vend que du sur-mesure : il n'y a pas de catalogue à
+    // publier, seulement des formations montées pour un client. Le groupe
+    // porte donc leur nom, et la page de diffusion publique a disparu.
     key: 'catalogue',
-    label: 'Catalogue',
+    label: 'Formations',
     icon: GraduationCap,
     items: [
       { href: '/formations', icon: GraduationCap, label: 'Formations' },
-      { href: '/catalogue-public', icon: Globe, label: 'Catalogue public' },
       { href: '/import-convention', icon: Sparkles, label: 'Importer une convention' },
     ],
   },
