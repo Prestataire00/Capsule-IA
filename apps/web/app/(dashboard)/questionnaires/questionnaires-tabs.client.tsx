@@ -2,12 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClipboardList, Target, BarChart3 } from 'lucide-react';
+import { ClipboardList, Target, BarChart3, Users } from 'lucide-react';
 
 // Une fiche besoin EST un questionnaire de positionnement : les deux vivaient
 // dans deux groupes de menu différents, et l'on ne savait pas où chercher.
 const TABS = [
   { href: '/questionnaires', label: 'Envois', icon: ClipboardList, iconCls: 'text-blue-500 dark:text-blue-400' },
+  // Rangés par interlocuteur et par étape : c'est ainsi qu'on les cherche —
+  // « qu'est-ce que mon stagiaire reçoit ? », « qu'est-ce qui part après ? ».
+  { href: '/questionnaires/catalogue', label: 'Par interlocuteur', icon: Users, iconCls: 'text-rose-500 dark:text-rose-400' },
   { href: '/questionnaires/fiches-besoin', label: 'Fiches besoin', icon: Target, iconCls: 'text-purple-500 dark:text-purple-400' },
   { href: '/questionnaires/analytics', label: 'Analyse', icon: BarChart3, iconCls: 'text-emerald-500 dark:text-emerald-400' },
 ];
