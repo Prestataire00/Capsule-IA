@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
+import { EcrireAuClient } from './ecrire.client';
 import { loadDossierProgress } from '@/features/dossier/load-progress';
 import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
 import { canManageSection } from '@/shared/lib/auth/require-access';
@@ -91,6 +92,36 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
     phone: c.phone,
   }));
   const referent = contacts.find((c) => c.id === contactId) ?? null;
+
+  // À qui l'on peut écrire depuis ce dossier : le référent du client, puis ses
+  // stagiaires. Proposer une liste évite de recopier une adresse à la main —
+  // et une adresse recopiée est une adresse fausse un jour sur dix.
+  const { data: apprenantsRows } = await sb
+    .schema('app')
+    .rpc('dossier_apprenants' as never, { p_dossier_id: id } as never);
+  const idsApprenants = ((apprenantsRows ?? []) as Array<{ learner_id: string }>).map((r) => r.learner_id);
+  const { data: apprenantsInfos } = idsApprenants.length
+    ? await sb.schema('app').from('learners').select('first_name, last_name, email').in('id', idsApprenants)
+    : { data: [] };
+
+  const destinatairesConnus = [
+    ...(referent?.email
+      ? [
+          {
+            email: referent.email,
+            nom: `${referent.firstName} ${referent.lastName}`.trim() || 'Référent',
+            role: 'référent',
+          },
+        ]
+      : []),
+    ...((apprenantsInfos ?? []) as Array<{ first_name: string; last_name: string; email: string | null }>)
+      .filter((l) => l.email)
+      .map((l) => ({
+        email: l.email!,
+        nom: `${l.first_name} ${l.last_name}`.trim() || 'Stagiaire',
+        role: 'stagiaire',
+      })),
+  ];
   const companyName = (companyRow as { name?: string } | null)?.name ?? null;
 
   const cards: { icon: typeof Calendar; label: string; value: number; href: string; accent: Accent }[] = [
@@ -108,6 +139,13 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
           <KpiCard key={href} icon={icon} label={label} value={value} accent={accent} href={`/dossiers/${id}/${href}`} />
         ))}
       </div>
+      {/* Écrire au client part de l'organisme, pas d'une boîte personnelle :
+          la réponse revient là où tout le monde la lit, et l'échange figure
+          dans l'historique du dossier. */}
+      {peutModifier && destinatairesConnus.length > 0 && (
+        <EcrireAuClient dossierId={id} destinataires={destinatairesConnus} />
+      )}
+
       <ReferentCard
         dossierId={id}
         referent={referent}
