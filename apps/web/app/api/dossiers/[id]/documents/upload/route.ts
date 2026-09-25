@@ -50,6 +50,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const kind = String(fd.get('kind') ?? 'autre');
   const titre = String(fd.get('title') ?? '').trim();
   const indicatorId = String(fd.get('indicatorId') ?? '').trim();
+  // Ce qu'on sait du document et que son nom ne dit pas. Dans `metadata`, qui
+  // est déjà du JSONB : une colonne de plus pour une note facultative aurait
+  // coûté une migration sans rien apporter.
+  const commentaire = String(fd.get('comment') ?? '').trim().slice(0, 1000);
 
   if (!(fichier instanceof File) || fichier.size === 0) {
     return NextResponse.json({ ok: false, error: 'missing_file' }, { status: 400 });
@@ -91,7 +95,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       storage_path: chemin,
       file_size_bytes: fichier.size,
       uploaded_by: membre.userId,
-      metadata: { depose: true, nom_origine: fichier.name.slice(0, 200), mime: fichier.type },
+      metadata: {
+        depose: true,
+        nom_origine: fichier.name.slice(0, 200),
+        mime: fichier.type,
+        ...(commentaire ? { commentaire } : {}),
+      },
     } as never)
     .select('id')
     .single();

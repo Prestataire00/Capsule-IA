@@ -26,6 +26,7 @@ export function DeposerPiece({
   const [kind, setKind] = useState('autre');
   const [titre, setTitre] = useState('');
   const [indicateur, setIndicateur] = useState('');
+  const [commentaire, setCommentaire] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -53,6 +54,7 @@ export function DeposerPiece({
       fd.set('kind', kind);
       fd.set('title', titre);
       if (indicateur) fd.set('indicatorId', indicateur);
+      if (commentaire.trim()) fd.set('comment', commentaire.trim());
       const r = await fetch(`/api/dossiers/${dossierId}/documents/upload`, { method: 'POST', body: fd });
       const corps = (await r.json()) as { ok: boolean; error?: string; indicateurRattache?: boolean };
       if (!corps.ok) {
@@ -67,6 +69,7 @@ export function DeposerPiece({
       setFichier(null);
       setTitre('');
       setIndicateur('');
+      setCommentaire('');
       if (champFichier.current) champFichier.current.value = '';
       router.refresh();
     } catch {
@@ -121,6 +124,21 @@ export function DeposerPiece({
             placeholder={fichier?.name ?? 'Nom du fichier'}
             maxLength={200}
             className={`${champ} mt-1`}
+          />
+        </label>
+
+        {/* Ce qu'on sait du document et que son nom ne dit pas : d'où il
+            vient, ce qu'il manque, ce qu'on attend encore. Sans cet endroit,
+            ces précisions finissaient dans l'intitulé — ou nulle part. */}
+        <label className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 sm:col-span-2">
+          Commentaire <span className="font-normal text-zinc-400">(facultatif)</span>
+          <textarea
+            value={commentaire}
+            onChange={(e) => setCommentaire(e.target.value)}
+            rows={2}
+            maxLength={1000}
+            placeholder="Reçu signé par le client le 24/09, il manque la page 3."
+            className={`${champ} mt-1 h-auto py-2`}
           />
         </label>
 

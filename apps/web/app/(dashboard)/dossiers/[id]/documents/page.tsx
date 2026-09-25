@@ -4,12 +4,14 @@
 import Link from 'next/link';
 import { FileText, Download, Eye, Sparkles, FileDown, Files, CalendarClock, Building2, Users } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { canManageSection } from '@/shared/lib/auth/require-access';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { Paperclip } from 'lucide-react';
 import { TEMPLATE_KINDS, TEMPLATE_KIND_LABELS } from '@/app/(dashboard)/documents/modeles/schema';
 import { DeposerPiece } from './deposer-piece.client';
+import { CommentaireDocument } from './commentaire.client';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { GenerateFromTemplate, type TemplateChoice } from './_components/generate-from-template';
 import { GenerateWithAi } from './_components/generate-with-ai';
@@ -52,6 +54,8 @@ const ICON_BTN =
 
 export default async function DocumentsPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
+  // Commenter, c'est suivre le dossier : même droit que déposer une pièce.
+  const peutCommenter = await canManageSection('dossiers');
 
   // Dossier : formation (héritage modèles) + email apprenant (envoi par défaut).
   const { data: dRow } = await sb
@@ -129,7 +133,14 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       status: string;
       content_html: string | null;
       storage_path: string | null;
-      metadata: { payer?: string | null; audience?: string | null; grouped?: boolean | null; dossier_ids?: string[] | null } | null;
+      metadata: {
+        payer?: string | null;
+        audience?: string | null;
+        grouped?: boolean | null;
+        dossier_ids?: string[] | null;
+        /** Ce qu'on sait du document et que son nom ne dit pas. */
+        commentaire?: string | null;
+      } | null;
       created_at: string;
     }>) ?? [];
 
@@ -331,6 +342,15 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
+                          {/* Le commentaire se lit sous l'intitulé, sans avoir
+                              à ouvrir le document — c'est tout l'intérêt d'une
+                              note. */}
+                          <CommentaireDocument
+                            documentId={d.id}
+                            dossierId={params.id}
+                            initial={d.metadata?.commentaire ?? null}
+                            peutModifier={peutCommenter}
+                          />
                           {exemplaire && (
                             <span className="mt-0.5 inline-flex items-center gap-1.5">
                               <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.04em] ${exemplaire.tone}`}>
