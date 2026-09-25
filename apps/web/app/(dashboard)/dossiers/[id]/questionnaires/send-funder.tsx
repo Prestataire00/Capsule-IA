@@ -32,6 +32,7 @@ export function SendFunder({
   const [templateCode, setTemplateCode] = useState<TemplateCode>(TEMPLATES[0].code);
   const [funderId, setFunderId] = useState<string>(funders[0]?.id ?? '');
   const [link, setLink] = useState<string | null>(null);
+  const [envoye, setEnvoye] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -53,6 +54,9 @@ export function SendFunder({
       const res = await executeAsync({ dossierId, funderId: selectedFunderId, templateCode });
       if (res?.data?.ok) {
         setLink(res.data.link);
+        // L'envoi est désormais automatique : le dire évite de renvoyer le lien
+        // à la main par-dessus, ou de croire que rien n'est parti.
+        setEnvoye(Boolean(res.data.envoye));
       } else {
         const code = res?.data?.error;
         setError(
@@ -124,7 +128,8 @@ export function SendFunder({
       {link && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2">
           <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
-            <Check className="w-3.5 h-3.5" /> Questionnaire créé
+            <Check className="w-3.5 h-3.5" />{' '}
+            {envoye ? 'Envoyé au financeur' : 'Questionnaire créé — à transmettre'}
           </span>
           <a
             href={link}

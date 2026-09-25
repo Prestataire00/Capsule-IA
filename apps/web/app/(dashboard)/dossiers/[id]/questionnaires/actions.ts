@@ -9,8 +9,17 @@ import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfactio
 import { ensureTrainerSatisfactionTemplate } from '@/features/questionnaire/satisfaction-formateur';
 import { ensureCompanySatisfactionTemplate } from '@/features/questionnaire/satisfaction-entreprise';
 import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
+import { questionnaireEmail } from '@/shared/lib/email/questionnaire-email';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { env } from '@/env.mjs';
+import { createClient } from '@supabase/supabase-js';
+import { guardAction } from '@/shared/lib/auth/guard-action';
+
+/** Écriture en service role : la garde de rôle est explicite à chaque action. */
+const adminClient = () =>
+  createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
 const SendSchema = z.object({
   dossierId: z.string().uuid(),
@@ -116,8 +125,24 @@ export const sendFunderQuestionnaire = authActionClient
     await sb.schema('app').from('questionnaire_assignments')
       .update({ token_hash: tokenHash } as never).eq('id', assignmentId);
 
+    // Le financeur ne recevait rien : le lien s'affichait, et il fallait penser
+    // à le lui envoyer soi-même. Un questionnaire créé puis oublié à l'écran ne
+    // sert à rien.
+    const lienFinanceur = `/questionnaire/financeur/${signed.token}`;
+    const envoye = await envoyerLienQuestionnaire({
+      sb,
+      destinataire: 'financeur',
+      email,
+      prenom: null,
+      organizationId: orgId,
+      dossierId: parsedInput.dossierId,
+      titreQuestionnaire: 'Questionnaire de financement',
+      lien: lienFinanceur,
+      relance: false,
+    });
+
     revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
-    return { ok: true as const, link: `/questionnaire/financeur/${signed.token}` };
+    return { ok: true as const, link: lienFinanceur, envoye, sansAdresse: !email };
   });
 
 
@@ -244,6 +269,56 @@ export const sendTrainerQuestionnaire = authActionClient
   });
 
 
+/**
+ * Envoie le lien par e-mail, et dit si c'est parti.
+ *
+ * Écrit une fois pour l'entreprise et le financeur : le corps de l'e-mail est
+ * le même, seules deux phrases changent. Deux fonctions auraient divergé.
+ *
+ * L'URL doit être absolue — un lien relatif dans un e-mail ne mène nulle part.
+ * Sans `PUBLIC_APP_URL`, on ne tente donc même pas l'envoi : mieux vaut rendre
+ * le lien à l'écran que d'expédier une adresse cassée.
+ */
+async function envoyerLienQuestionnaire(args: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any;
+  destinataire: 'entreprise' | 'financeur';
+  email: string | null;
+  prenom: string | null;
+  organizationId: string;
+  dossierId: string;
+  titreQuestionnaire: string;
+  lien: string;
+  relance: boolean;
+}): Promise<boolean> {
+  const base = env.PUBLIC_APP_URL?.replace(/\/$/, '') ?? '';
+  if (!args.email || base === '') return false;
+
+  const [{ data: orgRow }, { data: dossierRow }] = await Promise.all([
+    args.sb.schema('app').from('organizations').select('name').eq('id', args.organizationId).maybeSingle(),
+    args.sb
+      .schema('app')
+      .from('dossiers')
+      .select('formation:formations(title)')
+      .eq('id', args.dossierId)
+      .maybeSingle(),
+  ]);
+  const formationBrute = (dossierRow as { formation?: { title: string } | { title: string }[] } | null)?.formation;
+  const formation = Array.isArray(formationBrute) ? formationBrute[0] : formationBrute;
+
+  const tpl = questionnaireEmail({
+    destinataire: args.destinataire,
+    prenom: args.prenom,
+    titreQuestionnaire: args.titreQuestionnaire,
+    formationTitle: formation?.title ?? null,
+    organisme: (orgRow as { name?: string } | null)?.name ?? 'Votre organisme de formation',
+    url: `${base}${args.lien}`,
+    relance: args.relance,
+  });
+  const r = await sendEmail({ to: args.email, subject: tpl.subject, html: tpl.html });
+  return r.ok;
+}
+
 const CompanySchema = z.object({
   dossierId: z.string().uuid(),
   /** Contact de l'entreprise qui répondra ; il porte l'adresse. */
@@ -337,6 +412,155 @@ export const sendCompanyQuestionnaire = authActionClient
       .update({ token_hash: createHash('sha256').update(signed.token).digest('hex') } as never)
       .eq('id', assignmentId);
 
+    const lien = `/questionnaire/entreprise/${signed.token}`;
+    const envoye = await envoyerLienQuestionnaire({
+      sb,
+      destinataire: 'entreprise',
+      email: c.email,
+      prenom: c.first_name,
+      organizationId: d.organization_id,
+      dossierId: parsedInput.dossierId,
+      titreQuestionnaire: 'Votre retour sur la formation',
+      lien,
+      relance: Boolean(existante),
+    });
+
     revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
-    return { ok: true as const, lien: `/questionnaire/entreprise/${signed.token}`, sansAdresse: !c.email };
+    // Le lien reste rendu : sans adresse, ou si l'envoi échoue, il se transmet
+    // à la main plutôt que de perdre le questionnaire.
+    return { ok: true as const, lien, envoye, sansAdresse: !c.email };
   });
+
+const RelanceSchema = z.object({
+  assignmentId: z.string().uuid(),
+  dossierId: z.string().uuid(),
+});
+
+export type RelanceResult = { ok: true; message: string } | { ok: false; error: string };
+
+/**
+ * Relance un questionnaire resté sans réponse, quel que soit son destinataire.
+ *
+ * Un seul geste, quatre destinataires : l'écran ne devrait pas avoir à savoir
+ * lequel il relance. La fonction lit l'assignation, reconnaît le destinataire,
+ * et repart par le chemin qui lui convient — jeton formateur pour un formateur,
+ * jeton générique pour une entreprise ou un financeur.
+ *
+ * Un questionnaire DÉJÀ RÉPONDU ne se relance pas : renvoyer un lien à
+ * quelqu'un qui a pris le temps de répondre est la meilleure façon de ne plus
+ * jamais obtenir de réponse.
+ *
+ * L'assignation n'est pas recréée : c'est la même, avec le même jeton. Un
+ * second lien vivrait en parallèle du premier, et deux réponses partielles se
+ * disputeraient la même case.
+ */
+export async function relancerQuestionnaire(brut: z.input<typeof RelanceSchema>): Promise<RelanceResult> {
+  const garde = await guardAction('crm');
+  if (!garde.ok) return { ok: false, error: garde.error };
+  const p = RelanceSchema.safeParse(brut);
+  if (!p.success) return { ok: false, error: 'Saisie invalide.' };
+
+  const sb = adminClient();
+  const { data: row } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('id, status, recipient_kind, recipient_email, recipient_name, recipient_trainer_id, template_id')
+    .eq('id', p.data.assignmentId)
+    .eq('dossier_id', p.data.dossierId)
+    .eq('organization_id', garde.member.organizationId)
+    .maybeSingle();
+  const a = row as {
+    status: string;
+    recipient_kind: string;
+    recipient_email: string | null;
+    recipient_name: string | null;
+    recipient_trainer_id: string | null;
+    template_id: string;
+  } | null;
+  if (!a) return { ok: false, error: 'Questionnaire introuvable.' };
+  if (a.status === 'completed') return { ok: false, error: 'Déjà répondu — rien à relancer.' };
+  if (!a.recipient_email) {
+    return { ok: false, error: 'Aucune adresse enregistrée pour ce destinataire.' };
+  }
+
+  const base = env.PUBLIC_APP_URL?.replace(/\/$/, '') ?? '';
+  if (base === '') return { ok: false, error: 'Adresse publique de l’application non configurée.' };
+
+  const { data: tplRow } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .select('title')
+    .eq('id', a.template_id)
+    .maybeSingle();
+  const titre = (tplRow as { title?: string } | null)?.title ?? 'Questionnaire';
+
+  // Le jeton se régénère à l'identique : même assignation, même contenu signé.
+  if (a.recipient_kind === 'trainer' && a.recipient_trainer_id) {
+    const { data: d } = await sb
+      .schema('app')
+      .from('dossiers')
+      .select('organization_id, formation:formations(title)')
+      .eq('id', p.data.dossierId)
+      .maybeSingle();
+    const dossier = d as unknown as {
+      organization_id: string;
+      formation: { title: string } | { title: string }[] | null;
+    } | null;
+    if (!dossier) return { ok: false, error: 'Dossier introuvable.' };
+    const formation = Array.isArray(dossier.formation) ? dossier.formation[0] : dossier.formation;
+    const signed = await generateTrainerSatisfactionUrl(
+      {
+        assignmentId: p.data.assignmentId,
+        dossierId: p.data.dossierId,
+        organizationId: dossier.organization_id,
+        trainerId: a.recipient_trainer_id,
+      },
+      base,
+    );
+    const tpl = trainerSatisfactionEmail({
+      firstName: a.recipient_name?.split(' ')[0] ?? null,
+      formationTitle: formation?.title ?? 'la formation',
+      surveyUrl: signed.url,
+    });
+    const r = await sendEmail({ to: a.recipient_email, subject: tpl.subject, html: tpl.html });
+    return r.ok
+      ? { ok: true, message: `Relance envoyée à ${a.recipient_email}.` }
+      : { ok: false, error: 'L’e-mail n’est pas parti.' };
+  }
+
+  if (a.recipient_kind === 'company_rep' || a.recipient_kind === 'funder') {
+    const signed = await generateQuestionnaireToken({
+      assignmentId: p.data.assignmentId,
+      dossierId: p.data.dossierId,
+      organizationId: garde.member.organizationId,
+    });
+    await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .update({ token_hash: createHash('sha256').update(signed.token).digest('hex') } as never)
+      .eq('id', p.data.assignmentId);
+    const entreprise = a.recipient_kind === 'company_rep';
+    const envoye = await envoyerLienQuestionnaire({
+      sb,
+      destinataire: entreprise ? 'entreprise' : 'financeur',
+      email: a.recipient_email,
+      prenom: a.recipient_name?.split(' ')[0] ?? null,
+      organizationId: garde.member.organizationId,
+      dossierId: p.data.dossierId,
+      titreQuestionnaire: titre,
+      lien: `/questionnaire/${entreprise ? 'entreprise' : 'financeur'}/${signed.token}`,
+      relance: true,
+    });
+    revalidatePath(`/dossiers/${p.data.dossierId}/questionnaires`);
+    return envoye
+      ? { ok: true, message: `Relance envoyée à ${a.recipient_email}.` }
+      : { ok: false, error: 'L’e-mail n’est pas parti.' };
+  }
+
+  // Le stagiaire répond depuis son espace : sa relance passe par la fiche
+  // besoin, qui sait déjà retrouver son lien et ne pas le renvoyer deux fois.
+  return {
+    ok: false,
+    error: 'Le stagiaire répond depuis son espace — relancez-le depuis l’onglet Fiches besoin de la séance.',
+  };
+}

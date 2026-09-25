@@ -12,9 +12,9 @@ import { sendCompanyQuestionnaire } from './actions';
  * L'organisme interrogeait le stagiaire, le financeur et le formateur — jamais
  * celui qui paie et qui décide de recommencer.
  *
- * Le lien s'affiche au lieu de partir par e-mail : on l'envoie depuis sa propre
- * messagerie, avec le mot qui va avec. Une relance client ne se délègue pas à
- * un envoi automatique.
+ * L'e-mail part tout seul, et le lien reste affiché : sans adresse enregistrée,
+ * ou si l'envoi échoue, il se transmet à la main plutôt que de perdre le
+ * questionnaire.
  */
 const ERREURS: Record<string, string> = {
   dossier_not_found: 'Dossier introuvable.',
@@ -46,9 +46,11 @@ export function SendCompany({
       setErreur(null);
       setLien(data.lien);
       setMessage(
-        data.sansAdresse
-          ? 'Lien créé. Cet interlocuteur n’a pas d’adresse enregistrée : transmettez-le comme vous voulez.'
-          : 'Lien créé — envoyez-le à votre interlocuteur.',
+        data.envoye
+          ? 'Questionnaire envoyé par e-mail. Le lien reste ci-dessous si vous voulez le transmettre autrement.'
+          : data.sansAdresse
+            ? 'Lien créé. Cet interlocuteur n’a pas d’adresse enregistrée : transmettez-le comme vous voulez.'
+            : 'Lien créé, mais l’e-mail n’est pas parti. Transmettez-le vous-même.',
       );
       router.refresh();
     },
@@ -95,7 +97,7 @@ export function SendCompany({
           className="h-9 px-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 transition disabled:opacity-50"
         >
           {enCours ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-          Créer le lien
+          Envoyer le questionnaire
         </button>
       </div>
 

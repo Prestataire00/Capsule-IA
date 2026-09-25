@@ -11,6 +11,7 @@ import { SendFunder } from './send-funder';
 import { AssignLearner } from './assign-learner';
 import { SendTrainer } from './send-trainer';
 import { SendCompany } from './send-company';
+import { Relancer } from './relancer.client';
 
 const KIND_LABEL: Record<string, string> = {
   positionnement: 'Positionnement',
@@ -30,6 +31,15 @@ const LEARNER_KINDS = new Set([
   'evaluation_acquis',
   'custom',
 ]);
+
+/** Une ligne de suivi : ce qui est parti, quand, et si l'on a eu réponse. */
+type Suivi = {
+  id: string;
+  status: string;
+  recipient_name: string | null;
+  created_at: string;
+  template_id: string;
+};
 
 type LearnerAssignment = {
   id: string;
@@ -85,11 +95,10 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
   const { data: retoursFormateur } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .select('id, status, recipient_name')
+    .select('id, status, recipient_name, created_at, template_id')
     .eq('dossier_id', params.id)
     .eq('recipient_kind', 'trainer' as never);
-  const retours =
-    (retoursFormateur as { id: string; status: string; recipient_name: string | null }[] | null) ?? [];
+  const retours = (retoursFormateur as Suivi[] | null) ?? [];
 
   // Entreprise cliente : on interroge une PERSONNE, pas une société. Ses
   // interlocuteurs sont les contacts de l'entreprise du dossier.
@@ -120,11 +129,10 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
   const { data: retoursEntreprise } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .select('id, status, recipient_name')
+    .select('id, status, recipient_name, created_at, template_id')
     .eq('dossier_id', params.id)
     .eq('recipient_kind', 'company_rep' as never);
-  const retoursClient =
-    (retoursEntreprise as { id: string; status: string; recipient_name: string | null }[] | null) ?? [];
+  const retoursClient = (retoursEntreprise as Suivi[] | null) ?? [];
 
   const { data: funderAssignmentsData } = await sb
     .schema('app')
@@ -208,12 +216,34 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
           <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {retoursClient.map((r) => (
               <li key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                <span className="text-[13px] text-zinc-800 dark:text-zinc-200 truncate">
-                  {r.recipient_name ?? 'Interlocuteur'}
+                <span className="min-w-0">
+                  <span className="block text-[13px] text-zinc-800 dark:text-zinc-200 truncate">
+                    {r.recipient_name ?? 'Interlocuteur'}
+                  </span>
+                  <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                    Envoyé le {new Date(r.created_at).toLocaleDateString('fr-FR')} ·{' '}
+                    <Link href={`/questionnaires/${r.template_id}/apercu`} className="hover:underline">
+                      Lire le questionnaire
+                    </Link>
+                  </span>
                 </span>
-                <StatusPill tone={r.status === 'completed' ? 'success' : 'neutral'}>
-                  {r.status === 'completed' ? 'rempli' : r.status}
-                </StatusPill>
+                <span className="flex items-center gap-2 shrink-0">
+                  <StatusPill tone={r.status === 'completed' ? 'success' : 'neutral'}>
+                    {r.status === 'completed' ? 'répondu' : 'en attente'}
+                  </StatusPill>
+                  {r.status === 'completed' ? (
+                    <a
+                      href={`/api/questionnaires/${r.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 inline-flex items-center gap-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    >
+                      Voir la réponse
+                    </a>
+                  ) : (
+                    <Relancer assignmentId={r.id} dossierId={params.id} />
+                  )}
+                </span>
               </li>
             ))}
           </ul>
@@ -241,12 +271,34 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
           <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {retours.map((r) => (
               <li key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                <span className="text-[13px] text-zinc-800 dark:text-zinc-200 truncate">
-                  {r.recipient_name ?? 'Formateur'}
+                <span className="min-w-0">
+                  <span className="block text-[13px] text-zinc-800 dark:text-zinc-200 truncate">
+                    {r.recipient_name ?? 'Formateur'}
+                  </span>
+                  <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                    Envoyé le {new Date(r.created_at).toLocaleDateString('fr-FR')} ·{' '}
+                    <Link href={`/questionnaires/${r.template_id}/apercu`} className="hover:underline">
+                      Lire le questionnaire
+                    </Link>
+                  </span>
                 </span>
-                <StatusPill tone={r.status === 'completed' ? 'success' : 'neutral'}>
-                  {r.status === 'completed' ? 'rempli' : r.status}
-                </StatusPill>
+                <span className="flex items-center gap-2 shrink-0">
+                  <StatusPill tone={r.status === 'completed' ? 'success' : 'neutral'}>
+                    {r.status === 'completed' ? 'répondu' : 'en attente'}
+                  </StatusPill>
+                  {r.status === 'completed' ? (
+                    <a
+                      href={`/api/questionnaires/${r.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 inline-flex items-center gap-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    >
+                      Voir la réponse
+                    </a>
+                  ) : (
+                    <Relancer assignmentId={r.id} dossierId={params.id} />
+                  )}
+                </span>
               </li>
             ))}
           </ul>
