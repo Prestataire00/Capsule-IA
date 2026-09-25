@@ -21,6 +21,8 @@ import { getHomeCharts } from '@/features/reports/home-charts.query';
 import { getRecentDossiers } from '@/features/reports/recent-dossiers.query';
 import { getOrgKpis } from '@/features/reports/org-kpis.query';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { loadSignauxDuJour } from '@/features/pilotage/load-signaux';
+import { SignauxPanel } from '@/features/pilotage/signaux-panel';
 
 const greet = () => {
   const h = new Date().getHours();
@@ -130,6 +132,11 @@ export default async function Home({
   const activityTotal = charts.activityPoints.reduce((a, b) => a + b, 0);
   const me = await getCurrentMember();
   const firstName = (me?.fullName ?? '').split(' ')[0] ?? '';
+  // Ce qui réclame l'attention passe avant les chiffres : un chiffre ne dit
+  // pas quoi faire. Lecture isolée — un échec ici ne doit pas vider l'accueil.
+  const signaux = me
+    ? await loadSignauxDuJour(supabaseServer() as never, me.organizationId)
+    : null;
   const today = new Date();
   const start = format(today, 'd MMM', { locale: fr });
   const end = format(new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000), 'd MMM yyyy', { locale: fr });
@@ -174,6 +181,12 @@ export default async function Home({
           </Link>
         </div>
       </header>
+
+      {signaux && (
+        <div className="mb-6">
+          <SignauxPanel etat={signaux} />
+        </div>
+      )}
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <KpiCard href="/dossiers" label="Dossiers actifs" value={kpis.dossiersActive} hint="en cours de formation" icon={FolderOpen} accent="orange" />
