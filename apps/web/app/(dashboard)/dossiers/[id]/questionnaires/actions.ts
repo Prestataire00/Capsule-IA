@@ -7,6 +7,7 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { generateQuestionnaireToken } from '@/shared/lib/questionnaire-token';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
 import { ensureTrainerSatisfactionTemplate } from '@/features/questionnaire/satisfaction-formateur';
+import { ensureCompanySatisfactionTemplate } from '@/features/questionnaire/satisfaction-entreprise';
 import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { env } from '@/env.mjs';
@@ -240,4 +241,102 @@ export const sendTrainerQuestionnaire = authActionClient
 
     revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
     return { ok: true as const, envoye, lien: signed.url };
+  });
+
+
+const CompanySchema = z.object({
+  dossierId: z.string().uuid(),
+  /** Contact de l'entreprise qui répondra ; il porte l'adresse. */
+  contactId: z.string().uuid(),
+});
+
+/**
+ * Envoie le questionnaire de satisfaction à l'entreprise cliente.
+ *
+ * L'organisme interrogeait le stagiaire, le financeur et le formateur — jamais
+ * celui qui paie et qui décide de recommencer. Qualiopi attend pourtant le
+ * retour des parties prenantes, et l'entreprise en est une.
+ *
+ * Le destinataire est un CONTACT, pas l'entreprise : c'est une personne qui
+ * répond, et c'est elle qui porte l'adresse. Le lien sort à l'écran plutôt que
+ * de partir par e-mail — l'envoi se fait depuis la messagerie de l'organisme,
+ * avec le mot qui va avec.
+ */
+export const sendCompanyQuestionnaire = authActionClient
+  .schema(CompanySchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const sb = ctx.supabase;
+    const { data: dossier } = await sb
+      .schema('app')
+      .from('dossiers')
+      .select('id, organization_id, company_id')
+      .eq('id', parsedInput.dossierId)
+      .maybeSingle();
+    if (!dossier) return { ok: false as const, error: 'dossier_not_found' };
+    const d = dossier as { organization_id: string; company_id: string | null };
+    if (!d.company_id) return { ok: false as const, error: 'no_company' };
+
+    // Le contact doit appartenir à l'entreprise du dossier : l'identifiant
+    // vient de l'écran, et un contact d'un autre client recevrait sinon le
+    // questionnaire de celui-ci.
+    const { data: contactRow } = await sb
+      .schema('app')
+      .from('contacts')
+      .select('id, first_name, last_name, email')
+      .eq('id', parsedInput.contactId)
+      .eq('company_id', d.company_id)
+      .is('deleted_at', null)
+      .maybeSingle();
+    const c = contactRow as { first_name: string | null; last_name: string | null; email: string | null } | null;
+    if (!c) return { ok: false as const, error: 'contact_not_linked' };
+
+    const templateId = await ensureCompanySatisfactionTemplate(sb as never);
+
+    // Une assignation par (modèle, dossier, contact) : deux liens en parallèle
+    // donneraient deux réponses partielles sur la même case.
+    const { data: existante } = await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .select('id')
+      .eq('template_id', templateId)
+      .eq('dossier_id', parsedInput.dossierId)
+      .eq('recipient_kind', 'company_rep' as never)
+      .eq('recipient_contact_id' as never, parsedInput.contactId)
+      .maybeSingle();
+
+    let assignmentId = (existante as { id: string } | null)?.id ?? null;
+    if (!assignmentId) {
+      const { data: creee, error } = await sb
+        .schema('app')
+        .from('questionnaire_assignments')
+        .insert({
+          organization_id: d.organization_id,
+          template_id: templateId,
+          dossier_id: parsedInput.dossierId,
+          recipient_kind: 'company_rep',
+          recipient_contact_id: parsedInput.contactId,
+          recipient_email: c.email,
+          recipient_name: `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || null,
+          token_hash: `pending-${randomUUID()}`,
+          status: 'pending',
+        } as never)
+        .select('id')
+        .single();
+      if (error || !creee) return { ok: false as const, error: 'assignment_create_failed', details: error?.message };
+      assignmentId = (creee as { id: string }).id;
+    }
+
+    const signed = await generateQuestionnaireToken({
+      assignmentId,
+      dossierId: parsedInput.dossierId,
+      organizationId: d.organization_id,
+    });
+    await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .update({ token_hash: createHash('sha256').update(signed.token).digest('hex') } as never)
+      .eq('id', assignmentId);
+
+    revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
+    return { ok: true as const, lien: `/questionnaire/entreprise/${signed.token}`, sansAdresse: !c.email };
   });

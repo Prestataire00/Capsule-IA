@@ -2,7 +2,7 @@
 // Justification: questionnaires du dossier — affectation apprenant, saisie manuelle, export PDF, financeur.
 
 import Link from 'next/link';
-import { ClipboardPen, FileText, UserRound, Landmark, GraduationCap } from 'lucide-react';
+import { ClipboardPen, FileText, UserRound, Landmark, GraduationCap, Building2 } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ACCENTS } from '@/shared/ui/kpi-card';
@@ -10,6 +10,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { SendFunder } from './send-funder';
 import { AssignLearner } from './assign-learner';
 import { SendTrainer } from './send-trainer';
+import { SendCompany } from './send-company';
 
 const KIND_LABEL: Record<string, string> = {
   positionnement: 'Positionnement',
@@ -90,6 +91,41 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
   const retours =
     (retoursFormateur as { id: string; status: string; recipient_name: string | null }[] | null) ?? [];
 
+  // Entreprise cliente : on interroge une PERSONNE, pas une société. Ses
+  // interlocuteurs sont les contacts de l'entreprise du dossier.
+  const { data: dossierRow } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('company_id')
+    .eq('id', params.id)
+    .maybeSingle();
+  const companyId = (dossierRow as { company_id: string | null } | null)?.company_id ?? null;
+  const { data: contactsRows } = companyId
+    ? await sb
+        .schema('app')
+        .from('contacts')
+        .select('id, first_name, last_name, email, is_primary')
+        .eq('company_id', companyId)
+        .is('deleted_at', null)
+        .order('is_primary', { ascending: false })
+    : { data: [] };
+  const contacts = (
+    (contactsRows as { id: string; first_name: string | null; last_name: string | null; email: string | null }[] | null) ?? []
+  ).map((c) => ({
+    id: c.id,
+    nom: `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || 'Interlocuteur',
+    email: c.email,
+  }));
+
+  const { data: retoursEntreprise } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('id, status, recipient_name')
+    .eq('dossier_id', params.id)
+    .eq('recipient_kind', 'company_rep' as never);
+  const retoursClient =
+    (retoursEntreprise as { id: string; status: string; recipient_name: string | null }[] | null) ?? [];
+
   const { data: funderAssignmentsData } = await sb
     .schema('app')
     .from('questionnaire_assignments')
@@ -147,6 +183,39 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
                 </li>
               );
             })}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg grid place-items-center ${ACCENTS.blue.soft}`}>
+            <Building2 className="w-4 h-4" />
+          </span>
+          <SectionLabel>Questionnaires entreprise</SectionLabel>
+          {retoursClient.length > 0 && (
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.blue.soft}`}>
+              {retoursClient.length}
+            </span>
+          )}
+        </div>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+          Le client qui commande est une partie prenante attendue par Qualiopi : ce qu’il pense de l’organisation
+          et de l’effet sur ses équipes ne se lit dans aucun autre questionnaire.
+        </p>
+        <SendCompany dossierId={params.id} contacts={contacts} />
+        {retoursClient.length > 0 && (
+          <ul className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800/80">
+            {retoursClient.map((r) => (
+              <li key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                <span className="text-[13px] text-zinc-800 dark:text-zinc-200 truncate">
+                  {r.recipient_name ?? 'Interlocuteur'}
+                </span>
+                <StatusPill tone={r.status === 'completed' ? 'success' : 'neutral'}>
+                  {r.status === 'completed' ? 'rempli' : r.status}
+                </StatusPill>
+              </li>
+            ))}
           </ul>
         )}
       </div>

@@ -24,7 +24,7 @@ async function loadContext(token: string) {
   const { data: assignment } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .select('id, status, template_id')
+    .select('id, status, template_id, recipient_kind')
     .eq('id', verified.value.assignmentId)
     .maybeSingle();
 
@@ -41,6 +41,14 @@ async function loadContext(token: string) {
 
   return {
     kind: 'ok' as const,
+    // Le destinataire donne le libellé : la page sert aussi bien un financeur
+    // qu'une entreprise cliente, et rien d'autre n'y est propre à l'un ou à
+    // l'autre. La dupliquer pour changer trois mots aurait fait deux écrans à
+    // maintenir, qui auraient divergé.
+    destinataire:
+      (assignment as { recipient_kind?: string | null }).recipient_kind === 'company_rep'
+        ? 'Questionnaire entreprise'
+        : 'Questionnaire financeur',
     completed: (assignment as { status: string }).status === 'completed',
     schema: (template as { schema: unknown }).schema as QuestionnaireSchema,
     title: (template as { title: string }).title,
@@ -111,7 +119,7 @@ export default async function FunderQuestionnairePage({
         <div className="max-w-2xl mx-auto flex items-center gap-2.5">
           <Logo size="md" />
           <span className="text-zinc-300 dark:text-zinc-700">·</span>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Questionnaire financeur</p>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{ctx.destinataire}</p>
         </div>
       </header>
 
