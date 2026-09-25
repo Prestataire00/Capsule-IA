@@ -15,8 +15,6 @@ import {
   interlocuteurDuModele,
   etapeDuModele,
   declencheurDuModele,
-  type Interlocuteur,
-  type Etape,
 } from '@/features/questionnaire/cartographie';
 
 export const dynamic = 'force-dynamic';
