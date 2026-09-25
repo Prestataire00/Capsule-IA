@@ -7,9 +7,11 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
 import { EcrireAuClient } from './ecrire.client';
+import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 import { loadDossierProgress } from '@/features/dossier/load-progress';
 import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
 import { canManageSection } from '@/shared/lib/auth/require-access';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { ReferentCard, type ContactOption } from './referent-card.client';
 import { TagsEditor } from './tags-editor';
 import { BpfFieldsEditor } from './bpf-fields-editor';
@@ -124,6 +126,11 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
   ];
   const companyName = (companyRow as { name?: string } | null)?.name ?? null;
 
+  // L'adresse d'expédition est lue sur le serveur et affichée avant d'envoyer :
+  // « de quelle adresse ça part ? » n'avait de réponse nulle part.
+  const membre = await getCurrentMember();
+  const expediteur = membre ? await expediteurDeLOrganisme(sb, membre.organizationId) : null;
+
   const cards: { icon: typeof Calendar; label: string; value: number; href: string; accent: Accent }[] = [
     { icon: Calendar, label: 'Sessions', value: sessions, href: 'sessions', accent: 'blue' },
     { icon: FileText, label: 'Documents', value: documents, href: 'documents', accent: 'orange' },
@@ -142,8 +149,14 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
       {/* Écrire au client part de l'organisme, pas d'une boîte personnelle :
           la réponse revient là où tout le monde la lit, et l'échange figure
           dans l'historique du dossier. */}
-      {peutModifier && destinatairesConnus.length > 0 && (
-        <EcrireAuClient dossierId={id} destinataires={destinatairesConnus} />
+      {peutModifier && expediteur && destinatairesConnus.length > 0 && (
+        <EcrireAuClient
+          dossierId={id}
+          destinataires={destinatairesConnus}
+          expediteur={expediteur.from}
+          bacASable={expediteur.bacASable}
+          adresseDeLOrganisme={expediteur.source === 'organisme'}
+        />
       )}
 
       <ReferentCard

@@ -16,46 +16,107 @@ const ACTION = lire('../app/(dashboard)/dossiers/[id]/ecrire-actions.ts');
 const COMPOSANT = lire('../app/(dashboard)/dossiers/[id]/ecrire.client.tsx');
 const PAGE = lire('../app/(dashboard)/dossiers/[id]/page.tsx');
 const RESEND = lire('../shared/lib/email/resend.ts');
+const EXPEDITEUR = lire('../shared/lib/email/expediteur-organisme.ts');
 
 describe('l’envoi part de l’organisme', () => {
   it('par le même canal que les convocations', () => {
-    expect(ACTION).toContain("import { sendEmail } from '@/shared/lib/email/resend'");
+    expect(ACTION).toMatch(/import \{ sendEmail[^}]*\} from '@\/shared\/lib\/email\/resend'/);
     // On vise l'usage, pas le mot : le composant cite `mailto:` dans son
     // en-tête, précisément pour dire ce qu'il remplace.
     expect(COMPOSANT).not.toMatch(/href=\{?["`']?mailto:/);
   });
 
   it('sous l’adresse configurée, jamais celle de l’utilisateur', () => {
-    // `EMAIL_FROM` si définie, sinon la boîte SMTP, sinon le bac à sable.
-    // Rien dans cette chaîne ne dépend de qui clique.
+    // La fiche de l'organisme, sinon `EMAIL_FROM`, sinon la boîte SMTP, sinon
+    // le bac à sable. Rien dans cette chaîne ne dépend de qui clique.
     expect(RESEND).toContain('const fromAddress');
     expect(ACTION).not.toMatch(/from:\s*(garde|ctx|user)/);
   });
 
-  it('et l’écran le dit', () => {
-    // Sinon on croit écrire depuis sa propre boîte, et on attend une réponse
-    // qui n'y arrivera jamais.
-    expect(COMPOSANT).toContain('sous l’adresse de l’organisme');
+  it('et cette adresse est celle du CRM, pas une variable de serveur', () => {
+    // « Je veux que ça parte de cette adresse mail là, comme ça les échanges
+    // seront visibles : contact@capsuleia.fr » — l'adresse est déjà dans le
+    // CRM (`organizations.contact_email`) : la lire là permet de la changer
+    // dans les paramètres, sans redéploiement.
+    expect(EXPEDITEUR).toContain("select('name, contact_email')");
+    expect(ACTION).toContain('await expediteurDeLOrganisme(sb, garde.member.organizationId)');
+    expect(ACTION).toContain('from: expediteur.from');
+  });
+
+  it('les réponses reviennent à la boîte partagée', () => {
+    // Le but de la demande : que l'échange soit visible de tous. Un « From »
+    // réécrit en route ne doit pas renvoyer la réponse ailleurs.
+    expect(ACTION).toContain('replyTo: expediteur.email');
+  });
+
+  it('un nom d’organisme ne peut pas casser l’en-tête', () => {
+    // Une virgule ou un chevron dans le nom fait partir le message à côté, ou
+    // pas du tout.
+    expect(EXPEDITEUR).toContain('const nomAffichable');
+    expect(EXPEDITEUR).toMatch(/replace\(\/\[<>"\\r\\n\]\/g/);
+  });
+
+  it('une adresse absente ou mal saisie n’empêche pas d’écrire', () => {
+    // On retombe sur la configuration du serveur, et l'écran le dit.
+    expect(EXPEDITEUR).toContain("source: 'serveur'");
+    expect(COMPOSANT).toContain('adresseDeLOrganisme');
+    expect(COMPOSANT).toContain('vient de la configuration du serveur');
+  });
+
+  it('et un domaine non vérifié n’avale pas le message', () => {
+    // Resend refuse un « from » dont le domaine n'est pas vérifié (HTTP 422).
+    // Renvoyer sous l'adresse du serveur, en gardant le « Répondre à » de
+    // l'organisme, vaut mieux qu'un message qui ne part pas.
+    expect(ACTION).toContain("envoi.reason === 'send_failed'");
+    expect(ACTION).toContain("source: 'repli'");
+    expect(ACTION).toContain('domaine à vérifier');
+  });
+
+  it('et l’écran dit LAQUELLE, avant d’envoyer', () => {
+    // « De quelle adresse ça part ? » n'avait de réponse nulle part — ni dans
+    // l'application, ni dans le journal des envois. Une configuration qu'on ne
+    // peut pas lire finit par expédier depuis le bac à sable sans que personne
+    // le remarque.
+    expect(COMPOSANT).toContain('Le message part de <strong');
+    expect(COMPOSANT).toContain('{expediteur}');
     expect(COMPOSANT).toContain('pas dans votre boîte personnelle');
+  });
+
+  it('et prévient quand rien n’est configuré', () => {
+    // Une adresse de bac à sable chez un client fait mauvais effet.
+    expect(COMPOSANT).toContain('bacASable');
+    expect(COMPOSANT).toContain('bac à sable de Resend');
+    // Et dit OÙ corriger : l'adresse se saisit dans Paramètres → Organisation,
+    // pas dans une variable de serveur que Laurie n'a pas la main pour changer.
+    expect(COMPOSANT).toMatch(/adresse de contact de l’organisme dans[\s\n]*Paramètres/);
+  });
+
+  it('l’expéditeur est lu sur le serveur, pas deviné', () => {
+    expect(RESEND).toContain('export const adresseExpediteur');
+    expect(RESEND).toContain('export const expedieDepuisLeBacASable');
   });
 });
 
 describe('l’échange laisse une trace', () => {
   it('dans le journal des e-mails du dossier', () => {
-    expect(ACTION).toContain("from('email_log')");
+    // C'est `sendEmail` qui journalise : une ligne sans dossier n'apparaîtrait
+    // pas dans l'historique du dossier, d'où le contexte passé à l'envoi.
     expect(ACTION).toContain("kind: 'message_direct'");
-    expect(ACTION).toContain('dossier_id: p.data.dossierId');
+    expect(ACTION).toContain('dossierId: p.data.dossierId');
+    expect(ACTION).toContain('organizationId: garde.member.organizationId');
+    expect(RESEND).toContain('async function logEmailSend');
   });
 
   it('même quand l’envoi échoue', () => {
     // Un envoi raté sans trace se rejoue à l'identique, et personne ne sait
     // qu'il a déjà échoué.
-    expect(ACTION).toContain("status: envoi.ok ? 'sent' : 'failed'");
+    expect(RESEND).toContain("status: result.ok ? 'sent' : 'failed'");
     expect(ACTION).toMatch(/Journalisé dans les deux cas/);
   });
 
-  it('et l’on sait qui a écrit', () => {
-    expect(ACTION).toContain('metadata: { par: garde.member.userId }');
+  it('et l’on sait qui a écrit, et depuis quelle adresse', () => {
+    expect(ACTION).toContain('expediteur: expediteur.from');
+    expect(ACTION).toContain('par: garde.member.userId');
   });
 });
 

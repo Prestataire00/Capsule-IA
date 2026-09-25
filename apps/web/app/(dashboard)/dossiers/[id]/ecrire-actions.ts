@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { guardAction } from '@/shared/lib/auth/guard-action';
-import { sendEmail } from '@/shared/lib/email/resend';
+import { sendEmail, adresseExpediteur } from '@/shared/lib/email/resend';
+import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 
 /**
  * Écrire au client depuis le dossier, sous l'adresse de l'organisme.
@@ -77,40 +78,63 @@ export async function ecrireAuClient(brut: z.input<typeof Schema>): Promise<Ecri
     .maybeSingle();
   if (!dossier) return { ok: false, error: 'Dossier introuvable.' };
 
-  const { data: orgRow } = await sb
-    .schema('app')
-    .from('organizations')
-    .select('name')
-    .eq('id', garde.member.organizationId)
-    .maybeSingle();
-  const organisme = (orgRow as { name?: string } | null)?.name ?? 'Votre organisme de formation';
-
-  const envoi = await sendEmail({
-    to: p.data.destinataire,
-    subject: p.data.objet,
-    html: corpsHtml(p.data.message, organisme),
-  });
-
+  // Un seul aller-retour : l'expéditeur porte déjà le nom de l'organisme, qui
+  // signe le pied du message.
+  const expediteur = await expediteurDeLOrganisme(sb, garde.member.organizationId);
+  const html = corpsHtml(p.data.message, expediteur.nom);
+  // Le contexte est passé à l'envoi : c'est lui qui journalise, et une ligne
+  // sans dossier n'apparaîtrait pas dans l'historique du dossier.
   // Journalisé dans les deux cas : un envoi raté qui ne laisse aucune trace se
   // rejoue à l'identique, et personne ne sait qu'il a déjà échoué.
-  await sb
-    .schema('app')
-    .from('email_log')
-    .insert({
-      organization_id: garde.member.organizationId,
-      dossier_id: p.data.dossierId,
-      kind: 'message_direct',
-      recipient: p.data.destinataire,
-      subject: p.data.objet,
-      status: envoi.ok ? 'sent' : 'failed',
-      error: envoi.ok ? null : 'envoi refusé par le service',
-      metadata: { par: garde.member.userId },
-    } as never);
+  const contexte = {
+    to: p.data.destinataire,
+    subject: p.data.objet,
+    html,
+    organizationId: garde.member.organizationId,
+    dossierId: p.data.dossierId,
+    kind: 'message_direct',
+  };
+
+  let envoi = await sendEmail({
+    ...contexte,
+    from: expediteur.from,
+    // Les réponses reviennent à l'organisme, quoi qu'il arrive à l'en-tête
+    // d'expédition en route.
+    ...(expediteur.email ? { replyTo: expediteur.email } : {}),
+    metadata: { par: garde.member.userId, expediteur: expediteur.from, source: expediteur.source },
+  });
+
+  // Repli : un domaine non vérifié chez le prestataire fait refuser l'envoi
+  // (HTTP 422, « Invalid from »). Renvoyer sous l'adresse configurée du serveur
+  // — en gardant le « Répondre à » de l'organisme — vaut mieux qu'un message
+  // qui ne part pas : le client reçoit, et la réponse revient au bon endroit.
+  let repli = false;
+  if (!envoi.ok && envoi.reason === 'send_failed' && expediteur.source === 'organisme') {
+    repli = true;
+    envoi = await sendEmail({
+      ...contexte,
+      ...(expediteur.email ? { replyTo: expediteur.email } : {}),
+      metadata: {
+        par: garde.member.userId,
+        expediteur: adresseExpediteur(),
+        source: 'repli',
+        refusee: expediteur.from,
+      },
+    });
+  }
 
   if (!envoi.ok) {
-    return { ok: false, error: 'L’e-mail n’est pas parti. Il est noté comme échoué dans l’historique.' };
+    return {
+      ok: false,
+      error: repli
+        ? `L’e-mail n’est pas parti, ni depuis ${expediteur.from}, ni depuis l’adresse du serveur. Il est noté comme échoué dans l’historique.`
+        : 'L’e-mail n’est pas parti. Il est noté comme échoué dans l’historique.',
+    };
   }
 
   revalidatePath(`/dossiers/${p.data.dossierId}`);
-  return { ok: true, message: `Message envoyé à ${p.data.destinataire}, sous l’adresse de l’organisme.` };
+  const depuis = repli
+    ? `${adresseExpediteur()} (${expediteur.from} a été refusée : domaine à vérifier chez le prestataire d’envoi)`
+    : expediteur.from;
+  return { ok: true, message: `Message envoyé à ${p.data.destinataire}, depuis ${depuis}.` };
 }

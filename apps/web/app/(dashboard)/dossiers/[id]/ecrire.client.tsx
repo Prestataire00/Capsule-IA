@@ -16,10 +16,19 @@ import { ecrireAuClient } from './ecrire-actions';
 export function EcrireAuClient({
   dossierId,
   destinataires,
+  expediteur,
+  bacASable,
+  adresseDeLOrganisme,
 }: {
   dossierId: string;
   /** Les personnes connues du dossier : référent, stagiaires. */
   destinataires: ReadonlyArray<{ email: string; nom: string; role: string }>;
+  /** L'adresse réellement utilisée — lue sur le serveur, pas devinée. */
+  expediteur: string;
+  /** Rien n'est configuré : les messages partent du bac à sable de Resend. */
+  bacASable: boolean;
+  /** L'adresse vient de la fiche de l'organisme, et non du serveur. */
+  adresseDeLOrganisme: boolean;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -48,9 +57,27 @@ export function EcrireAuClient({
     <div className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 space-y-3 max-w-xl">
       <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">Écrire au client</p>
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-        Le message part sous l’adresse de l’organisme, et s’inscrit dans l’historique du dossier. Les réponses
-        reviennent donc à l’organisme, pas dans votre boîte personnelle.
+        Le message part de <strong className="text-zinc-700 dark:text-zinc-300">{expediteur}</strong> et s’inscrit
+        dans l’historique du dossier. Les réponses reviennent donc à l’organisme, pas dans votre boîte personnelle.
       </p>
+
+      {/* Dit avant d'envoyer, pas après : une adresse de bac à sable chez un
+          client fait mauvais effet, et rien ne l'annonçait. */}
+      {bacASable && (
+        <p className="text-[12px] font-semibold text-amber-700 dark:text-amber-400 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2">
+          Aucune adresse d’expédition n’est configurée : le message partirait du bac à sable de Resend. Renseignez
+          l’adresse de contact de l’organisme dans Paramètres avant d’écrire à un client.
+        </p>
+      )}
+
+      {/* L'adresse se change dans les paramètres : le dire évite d'aller la
+          chercher dans une variable de serveur que personne ne relit. */}
+      {!bacASable && !adresseDeLOrganisme && (
+        <p className="text-[12px] text-amber-700 dark:text-amber-400 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2">
+          Cette adresse vient de la configuration du serveur. Renseignez l’adresse de contact de l’organisme dans
+          Paramètres pour que les messages partent de la boîte partagée.
+        </p>
+      )}
 
       <label className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
         Destinataire

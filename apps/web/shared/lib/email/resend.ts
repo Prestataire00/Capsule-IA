@@ -30,6 +30,11 @@ const smtpTransport = (): Transporter | null => {
 };
 
 // Expéditeur : EMAIL_FROM si défini, sinon la boîte SMTP, sinon le bac-à-sable Resend.
+//
+// Exporté sous `adresseExpediteur` : la question « de quelle adresse ça part ? »
+// se pose, et elle n'avait de réponse nulle part — ni dans l'application, ni
+// dans le journal des envois. Une configuration qu'on ne peut pas lire finit
+// par expédier depuis le bac à sable de Resend sans que personne le remarque.
 const fromAddress = (): string => {
   // EMAIL_FROM n'est utilisé que s'il contient une vraie adresse (ex. « Nom <a@b.c> »).
   // Une valeur sans « @ » (ex. « Capsule IA » seul) est invalide → on la ignore et on
@@ -43,6 +48,12 @@ const fromAddress = (): string => {
 // Pièce jointe Resend : contenu inline (base64) OU lien (path). Le fallback
 // `path` sert quand un document dépasse le seuil d'attache et est transmis en
 // lien plutôt qu'inline (cf. shared/lib/funders/attachments.ts).
+/** L'adresse réellement utilisée pour expédier, telle quelle. */
+export const adresseExpediteur = (): string => fromAddress();
+
+/** Vrai quand rien n'est configuré : on expédie depuis le bac à sable Resend. */
+export const expedieDepuisLeBacASable = (): boolean => fromAddress() === DEFAULT_FROM;
+
 export type EmailAttachment = {
   filename: string;
   content?: string;
@@ -53,6 +64,16 @@ export type SendEmailInput = {
   to: string | string[];
   subject: string;
   html: string;
+  /**
+   * Expéditeur explicite, prioritaire sur la configuration du serveur.
+   *
+   * Sert à partir de l'adresse de l'organisme telle qu'elle est renseignée dans
+   * le CRM (`organizations.contact_email`) : c'est là que les réponses doivent
+   * revenir, et l'adresse se change dans les paramètres, sans redéploiement.
+   * Attention : un domaine non vérifié chez le prestataire fait refuser l'envoi
+   * — l'appelant doit prévoir un repli (cf. `ecrireAuClient`).
+   */
+  from?: string;
   replyTo?: string;
   attachments?: EmailAttachment[];
   // Contexte d'audit (optionnel) : les appelants enrichissent au fil de l'eau.
@@ -75,7 +96,8 @@ export type SendEmailResult =
   | { ok: false; reason: 'no_api_key' | 'send_failed' | 'duplicate'; error?: unknown };
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
-  const from = fromAddress();
+  const demande = input.from?.trim();
+  const from = demande && demande.includes('@') ? demande : fromAddress();
   let result: SendEmailResult;
 
   // Réservation : si la clé est déjà prise, cet e-mail est déjà parti.
