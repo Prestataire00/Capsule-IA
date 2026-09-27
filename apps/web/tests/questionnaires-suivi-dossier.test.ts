@@ -16,6 +16,8 @@ const ACTIONS = lire('../app/(dashboard)/dossiers/[id]/questionnaires/actions.ts
 const PAGE = lire('../app/(dashboard)/dossiers/[id]/questionnaires/page.tsx');
 const EMAIL = lire('../shared/lib/email/questionnaire-email.ts');
 const RELANCER = lire('../app/(dashboard)/dossiers/[id]/questionnaires/relancer.client.tsx');
+// La relance est commune au bouton du dossier et à la relance automatique J+3.
+const RELANCE = lire('../features/questionnaire/relancer-assignation.ts');
 
 describe('l’envoi part maintenant par e-mail', () => {
   it('pour l’entreprise comme pour le financeur', () => {
@@ -62,21 +64,27 @@ describe('la relance', () => {
 
   it('refuse de relancer quelqu’un qui a déjà répondu', () => {
     // La meilleure façon de ne plus jamais obtenir de réponse.
-    expect(ACTIONS).toContain("if (a.status === 'completed') return { ok: false, error: 'Déjà répondu");
+    expect(ACTIONS).toContain('relancerAssignation(');
+    expect(RELANCE).toContain("if (a.status === 'completed') return { ok: false, raison: 'Déjà répondu");
   });
 
   it('se présente comme un rappel, et pas comme un doublon', () => {
     // Un second message identique au premier laisse croire à un envoi en
     // double, et se classe en indésirable aussi vite.
     expect(EMAIL).toContain('Rappel —');
-    expect(EMAIL).toContain('il est toujours ouvert');
-    expect(ACTIONS).toContain('relance: true');
+    expect(EMAIL).toContain('Il est toujours ouvert');
+    expect(RELANCE).toContain('relance: true');
   });
 
-  it('et dit franchement quand elle ne sait pas faire', () => {
-    // Le stagiaire répond depuis son espace : prétendre relancer sans rien
-    // envoyer serait pire que de ne rien proposer.
-    expect(ACTIONS).toContain('Le stagiaire répond depuis son espace');
+  it('dit qu’elle ne va qu’à ceux qui n’ont pas répondu', () => {
+    expect(EMAIL).toContain('ce rappel n’est adressé qu’aux personnes dont nous n’avons pas reçu la réponse');
+  });
+
+  it('relance aussi le stagiaire, vers l’endroit où il répond', () => {
+    // Elle ne savait pas le faire, et le disait. Il répond soit sur la page de
+    // satisfaction, soit dans son espace : le lien suit le modèle.
+    expect(RELANCE).toContain('generateSatisfactionUrl');
+    expect(RELANCE).toContain('/questionnaires/${a.id}');
   });
 
   it('le dossier et l’organisation sont vérifiés', () => {

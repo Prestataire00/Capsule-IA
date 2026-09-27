@@ -119,6 +119,15 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     obligatoire: null,
   },
   {
+    kind: 'relance_satisfaction',
+    nom: 'Relance des questionnaires de satisfaction',
+    moment: 'apres',
+    declencheur: 'Trois jours après l’envoi d’un questionnaire de satisfaction resté sans réponse. Une seule fois.',
+    destinataires: 'Seulement ceux qui n’ont pas encore répondu — stagiaire, formateur, entreprise',
+    coupureKey: null,
+    obligatoire: 'Le taux de réponse aux questionnaires est suivi en audit Qualiopi (indicateur 30).',
+  },
+  {
     kind: 'fin_de_formation',
     nom: 'Fin de formation (attestation et certificat)',
     moment: 'apres',

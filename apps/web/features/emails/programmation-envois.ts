@@ -71,6 +71,12 @@ export const REGLABLES: Readonly<Record<string, Reglable>> = {
     coupable: true,
     delai: { defaut: 1, min: 0, max: 30, sens: 'apres', libelle: 'après la fin du dossier' },
   },
+  // Relance des satisfactions sans réponse : le délai court depuis l'envoi du
+  // questionnaire, pas depuis la fin de la formation.
+  relance_satisfaction: {
+    coupable: true,
+    delai: { defaut: 3, min: 1, max: 14, sens: 'apres', libelle: 'après l’envoi du questionnaire, sans réponse' },
+  },
   quote_sent: { coupable: false, delai: null },
   invoice_reminder_auto: { coupable: false, delai: null },
 };

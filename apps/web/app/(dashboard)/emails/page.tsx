@@ -63,6 +63,8 @@ async function loadEmailLog(params: SearchParams): Promise<EmailLogRow[]> {
 const KIND_LABELS: Record<string, string> = {
   convocation_j7: 'Convocation J-7',
   convocation_modifiee: 'Convocation mise à jour',
+  relance_satisfaction: 'Relance satisfaction (J+3)',
+  relance_questionnaire: 'Relance questionnaire',
   satisfaction: 'Satisfaction',
   dossier_entree: 'Entrée en formation',
   confirmation_preinscription: 'Confirmation pré-inscription',

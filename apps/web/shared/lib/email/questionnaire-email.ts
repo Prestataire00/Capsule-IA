@@ -41,7 +41,7 @@ export function questionnaireEmail(d: {
   // La relance le dit. Un second e-mail identique au premier laisse croire à
   // un envoi en double, et se classe en indésirable aussi vite.
   const subject = d.relance
-    ? `Rappel — ${echapper(d.titreQuestionnaire)}`
+    ? `Rappel — ${echapper(d.titreQuestionnaire)} : votre réponse est attendue`
     : echapper(d.titreQuestionnaire);
 
   const intro = {
@@ -51,8 +51,11 @@ export function questionnaireEmail(d: {
     formateur: `Pour la formation${formation} que vous animez pour ${echapper(d.organisme)}, nous avons besoin de votre retour.`,
   }[d.destinataire];
 
+  // Le rappel dit à qui il s'adresse : seulement à ceux dont on n'a pas reçu
+  // la réponse. Sans cela, celui qui a répondu la veille croit à une erreur ;
+  // et celui qui n'a pas répondu ne sait pas qu'on l'attend, lui.
   const rappel = d.relance
-    ? '<p style="margin:0 0 16px;font-size:14px;color:#3f3f46;">Nous vous avions adressé ce questionnaire il y a quelque temps — il est toujours ouvert.</p>'
+    ? '<p style="margin:0 0 16px;font-size:14px;color:#3f3f46;">Sauf erreur de notre part, vous n’avez pas encore répondu à ce questionnaire : ce rappel n’est adressé qu’aux personnes dont nous n’avons pas reçu la réponse. Il est toujours ouvert. Si vous venez de répondre, merci — ne tenez pas compte de ce message.</p>'
     : '';
 
   const html = `
