@@ -4,6 +4,15 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, X, AlertTriangle, Hand } from 'lucide-react';
 import { validerEtape, retirerValidationEtape } from './avancement-actions';
+import { indicateursDeLEtape } from '@/features/dossier/avancement-qualiopi';
+
+/** Ce que la validation change côté Qualiopi, dit avant de cliquer plutôt que découvert après. */
+function effetQualiopi(stepKey: string): string {
+  const n = indicateursDeLEtape(stepKey);
+  if (n.length === 0) return 'Sans effet côté Qualiopi : aucun indicateur ne porte sur cette étape.';
+  const liste = n.length === 1 ? `l’indicateur ${n[0]}` : `les indicateurs ${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}`;
+  return `Vaut aussi preuve Qualiopi pour ${liste}.`;
+}
 
 /**
  * Valider une étape à la main, quand la preuve vit hors de l'application.
@@ -47,7 +56,7 @@ export function ValiderEtape({
         type="button"
         disabled={enCours}
         onClick={() => agir(() => retirerValidationEtape({ dossierId, stepKey }))}
-        title="Retirer la validation manuelle"
+        title={`Retirer la validation manuelle${indicateursDeLEtape(stepKey).length ? ' — la preuve Qualiopi est retirée aussi' : ''}`}
         className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition disabled:opacity-50"
       >
         <X className="w-3 h-3" />
@@ -68,6 +77,8 @@ export function ValiderEtape({
       </button>
     );
   }
+
+  const effet = effetQualiopi(stepKey);
 
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -97,6 +108,9 @@ export function ValiderEtape({
       >
         Annuler
       </button>
+      <span className={`basis-full text-[11px] ${indicateursDeLEtape(stepKey).length ? 'text-purple-700 dark:text-purple-300' : 'text-zinc-500 dark:text-zinc-400'}`}>
+        {effet}
+      </span>
       {erreur && (
         <span className="inline-flex items-start gap-1 text-[11px] text-red-600 dark:text-red-400 basis-full">
           <AlertTriangle className="w-3 h-3 mt-px shrink-0" />
