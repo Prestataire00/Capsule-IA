@@ -6,7 +6,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ACCENTS, KpiCard, type Accent } from '@/shared/ui/kpi-card';
-import { EcrireAuClient } from './ecrire.client';
+import { EcrireAuClient } from '@/features/emails/ecrire.client';
+import { ecrireAuClient } from './ecrire-actions';
 import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 import { loadDossierProgress } from '@/features/dossier/load-progress';
 import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
@@ -151,7 +152,7 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
           dans l'historique du dossier. */}
       {peutModifier && expediteur && destinatairesConnus.length > 0 && (
         <EcrireAuClient
-          dossierId={id}
+          envoyer={ecrireAuClient.bind(null, id)}
           destinataires={destinatairesConnus}
           expediteur={expediteur.from}
           bacASable={expediteur.bacASable}

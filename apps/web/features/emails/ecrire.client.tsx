@@ -3,10 +3,15 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Mail, Send } from 'lucide-react';
-import { ecrireAuClient } from './ecrire-actions';
+
+export type EnvoiMessage = (input: { destinataire: string; objet: string; message: string }) => Promise<
+  { ok: true; message: string } | { ok: false; error: string }
+>;
 
 /**
- * Écrire au client depuis le dossier.
+ * Écrire au client depuis le dossier ou la fiche demande. La page fournit
+ * l'action d'envoi, liée à SA fiche : le composant ne sait rien de l'une ni de
+ * l'autre, et l'échange se range au bon endroit.
  *
  * Le bouton ouvrait `mailto:` — donc la messagerie personnelle de celui qui
  * clique. Le client recevait un message d'une adresse privée, l'échange
@@ -14,14 +19,17 @@ import { ecrireAuClient } from './ecrire-actions';
  * d'autre ne relit. Un dossier suivi à trois n'a pas de correspondance privée.
  */
 export function EcrireAuClient({
-  dossierId,
+  envoyer,
+  titre = 'Écrire au client',
   destinataires,
   expediteur,
   bacASable,
   adresseDeLOrganisme,
 }: {
-  dossierId: string;
-  /** Les personnes connues du dossier : référent, stagiaires. */
+  /** Server Action liée à la fiche (`.bind`) : c'est elle qui trace l'échange. */
+  envoyer: EnvoiMessage;
+  titre?: string;
+  /** Les personnes connues de la fiche : référent, stagiaires, la personne de la demande. */
   destinataires: ReadonlyArray<{ email: string; nom: string; role: string }>;
   /** L'adresse réellement utilisée — lue sur le serveur, pas devinée. */
   expediteur: string;
@@ -58,7 +66,7 @@ export function EcrireAuClient({
         onClick={() => setOuvert(true)}
         className="text-[13px] font-semibold px-3 h-9 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
       >
-        <Mail className="w-3.5 h-3.5" /> Écrire au client
+        <Mail className="w-3.5 h-3.5" /> {titre}
       </button>
     );
   }
@@ -68,7 +76,7 @@ export function EcrireAuClient({
 
   return (
     <div ref={cadre} className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 space-y-3 max-w-xl">
-      <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">Écrire au client</p>
+      <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">{titre}</p>
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
         Le message part de <strong className="text-zinc-700 dark:text-zinc-300">{expediteur}</strong> et s’inscrit
         dans l’historique du dossier. Les réponses reviennent donc à l’organisme, pas dans votre boîte personnelle.
@@ -147,7 +155,7 @@ export function EcrireAuClient({
           onClick={() => {
             setRetour(null);
             demarrer(async () => {
-              const r = await ecrireAuClient({ dossierId, destinataire: a, objet, message });
+              const r = await envoyer({ destinataire: a, objet, message });
               setRetour({ ok: r.ok, texte: r.ok ? r.message : r.error });
               if (r.ok) {
                 setObjet('');

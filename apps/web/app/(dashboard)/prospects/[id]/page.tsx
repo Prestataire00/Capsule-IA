@@ -26,6 +26,10 @@ import { QUOTE_STATUS_LABELS, type QuoteStatus } from '@/features/billing/domain
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { FicheBesoinControls } from './fiche-besoin-controls.client';
+import { EcrireAuClient } from '@/features/emails/ecrire.client';
+import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
+import { filDesEchanges, type EmailJournal, type Suivi } from '@/features/prospect/fil-echanges';
+import { ecrireALaDemande } from './ecrire-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,6 +109,25 @@ type Event = {
   occurred_at: string;
   actor_user_id: string | null;
 };
+
+const SUIVI: Record<Suivi['statut'], { label: string; classe: string }> = {
+  envoye: { label: 'Envoyé', classe: 'text-zinc-500 dark:text-zinc-400' },
+  ouvert: { label: 'Ouvert', classe: 'text-emerald-700 dark:text-emerald-400' },
+  echec: { label: 'Échec d’envoi', classe: 'text-red-600 dark:text-red-400' },
+  rejete: { label: 'Rejeté par la messagerie', classe: 'text-red-600 dark:text-red-400' },
+};
+
+function LigneSuivi({ suivi }: { suivi: Suivi }) {
+  const s = SUIVI[suivi.statut];
+  return (
+    <span className={`font-medium ${s.classe}`}>
+      {' · '}
+      {s.label}
+      {suivi.ouvertLe && ` le ${new Date(suivi.ouvertLe).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`}
+      {suivi.ouvertures > 1 && ` (${suivi.ouvertures} fois)`}
+    </span>
+  );
+}
 
 const CHANNEL_LABELS: Record<string, string> = {
   note: 'Note interne',
@@ -218,6 +241,25 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
   ]);
   const reviews = (reviewRows ?? []) as unknown as Review[];
   const events = (eventRows ?? []) as unknown as Event[];
+
+  // Ce qui est parti à cette adresse, écrit à la main ou envoyé tout seul.
+  const adresse = (prospect.email ?? '').trim();
+  const orgId = prospect.organization_id;
+  const [{ data: emailRows }, expediteur] = await Promise.all([
+    adresse.includes('@') && orgId
+      ? sb
+          .schema('app')
+          .from('email_log')
+          .select('id, kind, subject, status, sent_at, provider_id, opened_at, open_count, bounced_at, metadata')
+          .eq('organization_id', orgId)
+          .ilike('recipient', `%${adresse.replace(/[%_\\]/g, (c) => `\\${c}`)}%`)
+          .in('status', ['sent', 'failed'])
+          .order('sent_at', { ascending: false })
+          .limit(100)
+      : Promise.resolve({ data: [] }),
+    orgId ? expediteurDeLOrganisme(sb as never, orgId) : Promise.resolve(null),
+  ]);
+  const fil = filDesEchanges(events, (emailRows ?? []) as unknown as EmailJournal[], prospect.id);
 
   // Qui a fait quoi : une note de suivi sans auteur ne sert à rien.
   const actorIds = [...new Set(events.map((e) => e.actor_user_id).filter((v): v is string => Boolean(v)))];
@@ -443,12 +485,13 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
           </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <a
-              href={`mailto:${prospect.email}`}
+            <Link
+              href={`?ecrire=${encodeURIComponent(prospect.email)}`}
+              scroll={false}
               className="text-[13px] font-semibold px-3 h-9 inline-flex items-center rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
             >
               Envoyer un e-mail
-            </a>
+            </Link>
             <Link
               href="/agenda"
               className="text-[13px] font-semibold px-3 h-9 inline-flex items-center rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
@@ -578,43 +621,81 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
 
           <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-3">
             <SectionTitle icon={History} accent="orange">Suivi &amp; historique</SectionTitle>
+            {/* Écrire d'ici plutôt que depuis sa boîte : l'e-mail part de
+                l'organisme, et ce qui a été dit reste sur la fiche. */}
+            {adresse.includes('@') && expediteur && (
+              <EcrireAuClient
+                envoyer={ecrireALaDemande.bind(null, prospect.id)}
+                titre="Écrire par e-mail"
+                destinataires={[{ email: adresse, nom: `${prospect.first_name} ${prospect.last_name}`.trim() || adresse, role: 'demande' }]}
+                expediteur={expediteur.from}
+                bacASable={expediteur.bacASable}
+                adresseDeLOrganisme={expediteur.source === 'organisme'}
+              />
+            )}
             <ProspectNoteForm prospectId={prospect.id} />
-            {events.length === 0 ? (
-              <p className="text-[13px] text-zinc-400">Aucune action enregistrée.</p>
+            {fil.length === 0 ? (
+              <p className="text-[13px] text-zinc-400">Aucun échange enregistré.</p>
             ) : (
               <ul className="space-y-0 pt-1">
-                {events.map((e, i) => (
-                  <li key={e.id} className="flex items-start gap-3 text-[12px]">
-                    <span className="flex flex-col items-center self-stretch">
-                      <span className="mt-1.5 h-2 w-2 rounded-full bg-orange-400 ring-2 ring-orange-100 dark:ring-orange-900/40" />
-                      {i < events.length - 1 && <span className="w-px flex-1 bg-zinc-200 dark:bg-zinc-800" />}
-                    </span>
-                    <span className="pb-3">
-                      <span className="text-zinc-900 dark:text-zinc-100 font-bold">
-                        {e.kind === 'comment'
-                          ? (CHANNEL_LABELS[String(e.payload?.channel ?? '')] ?? 'Note interne')
-                          : (EVENT_LABELS[e.kind] ?? e.kind)}
+                {fil.map((f, i) => {
+                  const pastille = f.type === 'email' ? 'bg-blue-400 ring-blue-100 dark:ring-blue-900/40' : 'bg-orange-400 ring-orange-100 dark:ring-orange-900/40';
+                  return (
+                    <li key={f.type === 'email' ? `m-${f.email.id}` : f.evenement.id} className="flex items-start gap-3 text-[12px]">
+                      <span className="flex flex-col items-center self-stretch">
+                        <span className={`mt-1.5 h-2 w-2 rounded-full ring-2 ${pastille}`} />
+                        {i < fil.length - 1 && <span className="w-px flex-1 bg-zinc-200 dark:bg-zinc-800" />}
                       </span>
-                      {typeof e.payload?.text === 'string' && (
-                        <span className="block text-zinc-700 dark:text-zinc-300 whitespace-pre-line mt-0.5">
-                          {e.payload.text as string}
+                      {f.type === 'email' ? (
+                        <span className="pb-3 min-w-0">
+                          <span className="text-zinc-900 dark:text-zinc-100 font-bold">
+                            {f.email.kind === 'message_direct' ? 'E-mail envoyé' : 'E-mail automatique'}
+                          </span>
+                          {f.email.subject && <span className="block text-zinc-700 dark:text-zinc-300 mt-0.5">« {f.email.subject} »</span>}
+                          <span className="block text-zinc-500 dark:text-zinc-400 tabular-nums">
+                            {new Date(f.quand).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}
+                            <LigneSuivi suivi={f.suivi} />
+                          </span>
                         </span>
+                      ) : (
+                        (() => {
+                          const e = f.evenement;
+                          const depuisLAppli = e.payload?.via === 'application';
+                          return (
+                            <span className="pb-3 min-w-0">
+                              <span className="text-zinc-900 dark:text-zinc-100 font-bold">
+                                {e.kind === 'comment'
+                                  ? depuisLAppli
+                                    ? `E-mail envoyé${typeof e.payload?.to === 'string' ? ` à ${e.payload.to}` : ''}`
+                                    : (CHANNEL_LABELS[String(e.payload?.channel ?? '')] ?? 'Note interne')
+                                  : (EVENT_LABELS[e.kind] ?? e.kind)}
+                              </span>
+                              {typeof e.payload?.subject === 'string' && (
+                                <span className="block text-zinc-800 dark:text-zinc-200 font-medium mt-0.5">« {e.payload.subject as string} »</span>
+                              )}
+                              {typeof e.payload?.text === 'string' && (
+                                <span className="block text-zinc-700 dark:text-zinc-300 whitespace-pre-line mt-0.5">
+                                  {e.payload.text as string}
+                                </span>
+                              )}
+                              {typeof e.payload?.doc_key === 'string' && (
+                                <span className="text-zinc-400"> · {e.payload.doc_key as string}</span>
+                              )}
+                              {typeof e.payload?.reason === 'string' && (
+                                <span className="text-zinc-400 truncate"> — {e.payload.reason as string}</span>
+                              )}
+                              <span className="block text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                {new Date(e.occurred_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}
+                                {e.actor_user_id && actorNames.get(e.actor_user_id) && <> · {actorNames.get(e.actor_user_id)}</>}
+                                {f.suivi && <LigneSuivi suivi={f.suivi} />}
+                              </span>
+                            </span>
+                          );
+                        })()
                       )}
-                      {typeof e.payload?.doc_key === 'string' && (
-                        <span className="text-zinc-400"> · {e.payload.doc_key as string}</span>
-                      )}
-                      {typeof e.payload?.reason === 'string' && (
-                        <span className="text-zinc-400 truncate"> — {e.payload.reason as string}</span>
-                      )}
-                      <span className="block text-zinc-500 dark:text-zinc-400 tabular-nums">
-                        {new Date(e.occurred_at).toLocaleString('fr-FR')}
-                        {e.actor_user_id && actorNames.get(e.actor_user_id) && (
-                          <> · {actorNames.get(e.actor_user_id)}</>
-                        )}
-                      </span>
-                    </span>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -635,9 +716,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               </div>
             </div>
             <div className="mt-3 space-y-1.5 text-[13px]">
-              <a href={`mailto:${prospect.email}`} className="block text-zinc-700 dark:text-zinc-300 hover:text-orange-600 truncate">
+              <Link href={`?ecrire=${encodeURIComponent(prospect.email)}`} scroll={false} className="block text-zinc-700 dark:text-zinc-300 hover:text-orange-600 truncate">
                 {prospect.email}
-              </a>
+              </Link>
               {prospect.phone ? (
                 <a href={`tel:${prospect.phone}`} className="block text-zinc-700 dark:text-zinc-300 hover:text-orange-600 tabular-nums">
                   {prospect.phone}
@@ -668,12 +749,13 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                 Voir les pièces
               </a>
             )}
-            <a
-              href={`mailto:${prospect.email}`}
+            <Link
+              href={`?ecrire=${encodeURIComponent(prospect.email)}`}
+              scroll={false}
               className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
             >
               Relancer par e-mail
-            </a>
+            </Link>
           </section>
 
           {/* La demande constitue le dossier : le fil entre les deux doit se

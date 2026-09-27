@@ -12,8 +12,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
-const ACTION = lire('../app/(dashboard)/dossiers/[id]/ecrire-actions.ts');
-const COMPOSANT = lire('../app/(dashboard)/dossiers/[id]/ecrire.client.tsx');
+// L'envoi est commun au dossier et à la fiche demande : on lit l'action du
+// dossier ET le module qu'elle appelle.
+const ACTION_DOSSIER = lire('../app/(dashboard)/dossiers/[id]/ecrire-actions.ts');
+const ACTION = ACTION_DOSSIER + lire('../features/emails/ecrire-sous-organisme.ts');
+const ACTION_DEMANDE = lire('../app/(dashboard)/prospects/[id]/ecrire-actions.ts');
+const COMPOSANT = lire('../features/emails/ecrire.client.tsx');
+const PAGE_DEMANDE = lire('../app/(dashboard)/prospects/[id]/page.tsx');
 const PAGE = lire('../app/(dashboard)/dossiers/[id]/page.tsx');
 const RESEND = lire('../shared/lib/email/resend.ts');
 const EXPEDITEUR = lire('../shared/lib/email/expediteur-organisme.ts');
@@ -39,7 +44,8 @@ describe('l’envoi part de l’organisme', () => {
     // CRM (`organizations.contact_email`) : la lire là permet de la changer
     // dans les paramètres, sans redéploiement.
     expect(EXPEDITEUR).toContain("select('name, contact_email')");
-    expect(ACTION).toContain('await expediteurDeLOrganisme(sb, garde.member.organizationId)');
+    expect(ACTION).toContain('await expediteurDeLOrganisme(sb, args.organizationId)');
+    expect(ACTION_DOSSIER).toContain('organizationId: garde.member.organizationId');
     expect(ACTION).toContain('from: expediteur.from');
   });
 
@@ -102,7 +108,8 @@ describe('l’échange laisse une trace', () => {
     // C'est `sendEmail` qui journalise : une ligne sans dossier n'apparaîtrait
     // pas dans l'historique du dossier, d'où le contexte passé à l'envoi.
     expect(ACTION).toContain("kind: 'message_direct'");
-    expect(ACTION).toContain('dossierId: p.data.dossierId');
+    expect(ACTION).toContain('dossierId: args.dossierId');
+    expect(ACTION_DOSSIER).toContain('dossierId: dossierId');
     expect(ACTION).toContain('organizationId: garde.member.organizationId');
     expect(RESEND).toContain('async function logEmailSend');
   });
@@ -116,7 +123,8 @@ describe('l’échange laisse une trace', () => {
 
   it('et l’on sait qui a écrit, et depuis quelle adresse', () => {
     expect(ACTION).toContain('expediteur: expediteur.from');
-    expect(ACTION).toContain('par: garde.member.userId');
+    expect(ACTION).toContain('par: args.userId');
+    expect(ACTION_DOSSIER).toContain('userId: garde.member.userId');
   });
 });
 
@@ -154,5 +162,18 @@ describe('les destinataires', () => {
 
   it('et ceux sans adresse ne sont pas proposés', () => {
     expect(PAGE).toContain('.filter((l) => l.email)');
+  });
+});
+
+describe('la fiche demande garde la trace de ses échanges', () => {
+  it('écrit depuis l’organisme, par le même chemin que le dossier', () => {
+    expect(ACTION_DEMANDE).toContain('ecrireSousLOrganisme(sb, {');
+    expect(PAGE_DEMANDE).not.toMatch(/href=\{?["`']?mailto:/);
+  });
+
+  it('et le texte envoyé s’inscrit dans l’historique de la fiche', () => {
+    expect(ACTION_DEMANDE).toContain("from('prospect_events')");
+    expect(ACTION_DEMANDE).toContain('text: p.data.message');
+    expect(PAGE_DEMANDE).toContain('filDesEchanges(');
   });
 });
