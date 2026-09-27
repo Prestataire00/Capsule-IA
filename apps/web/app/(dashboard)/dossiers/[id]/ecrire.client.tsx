@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Mail, Send } from 'lucide-react';
 import { ecrireAuClient } from './ecrire-actions';
 
@@ -31,8 +31,21 @@ export function EcrireAuClient({
   adresseDeLOrganisme: boolean;
 }) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
-  const [a, setA] = useState(destinataires[0]?.email ?? '');
+  // Une adresse cliquée ailleurs dans le dossier (référent, stagiaire) arrive
+  // ici par `?ecrire=` : elle ouvrait `mailto:`, donc la boîte personnelle.
+  const demande = useSearchParams().get('ecrire');
+  const [ouvert, setOuvert] = useState(Boolean(demande));
+  const [a, setA] = useState(demande ?? destinataires[0]?.email ?? '');
+  const cadre = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!demande) return;
+    setA(demande);
+    setOuvert(true);
+    cadre.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [demande]);
+  const choix = demande && !destinataires.some((d) => d.email === demande)
+    ? [{ email: demande, nom: demande, role: 'contact' }, ...destinataires]
+    : destinataires;
   const [objet, setObjet] = useState('');
   const [message, setMessage] = useState('');
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
@@ -54,7 +67,7 @@ export function EcrireAuClient({
     'w-full text-[13px] px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/30';
 
   return (
-    <div className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 space-y-3 max-w-xl">
+    <div ref={cadre} className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 space-y-3 max-w-xl">
       <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">Écrire au client</p>
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
         Le message part de <strong className="text-zinc-700 dark:text-zinc-300">{expediteur}</strong> et s’inscrit
@@ -81,9 +94,9 @@ export function EcrireAuClient({
 
       <label className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
         Destinataire
-        {destinataires.length > 0 ? (
+        {choix.length > 0 ? (
           <select value={a} onChange={(e) => setA(e.target.value)} className={`${champ} mt-1`}>
-            {destinataires.map((d) => (
+            {choix.map((d) => (
               <option key={d.email} value={d.email}>
                 {d.nom} — {d.role} ({d.email})
               </option>

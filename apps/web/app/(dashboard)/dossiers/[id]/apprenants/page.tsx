@@ -232,9 +232,13 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
                       {l.email ? (
                         <span className="inline-flex items-center gap-1.5">
                           <Mail className="w-3.5 h-3.5" />
-                          <a href={`mailto:${l.email}`} className="hover:underline">
+                          <Link
+                            href={`/dossiers/${params.id}?ecrire=${encodeURIComponent(l.email)}`}
+                            title="Écrire depuis l’adresse de l’organisme"
+                            className="hover:underline"
+                          >
                             {l.email}
-                          </a>
+                          </Link>
                         </span>
                       ) : (
                         <span className="text-amber-600 dark:text-amber-400">
