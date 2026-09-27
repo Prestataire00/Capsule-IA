@@ -163,6 +163,7 @@ export async function POST(req: NextRequest) {
     .select('id, first_name, last_name, email')
     .eq('organization_id', orgId)
     .eq('email', learnerEmail)
+    .limit(1)
     .maybeSingle();
 
   let learnerId: string;

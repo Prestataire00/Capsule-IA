@@ -1,5 +1,7 @@
 'use server';
 
+import { normaliserEmail, porteurCorrespondant } from '@/features/crm/adresse-partagee';
+import { porteursDesAdresses } from '@/features/crm/porteurs-adresses';
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
@@ -70,6 +72,16 @@ export async function createLearner(fd: FormData): Promise<void> {
   // concerne ce stagiaire, mais il existe et s'émarge — par son nom, décidé en
   // réunion du 21/09/2026.
   if (!firstName || !lastName) redirect('/apprenants/nouveau?error=missing');
+
+  // La même adresse ET le même nom : c'est la même personne, déjà enregistrée.
+  // On ouvre sa fiche plutôt que d'en créer une seconde. Un autre nom sur la
+  // même adresse (boîte RH, adresse de couple) est une autre personne : on la
+  // crée — l'écran l'a signalé avant l'envoi.
+  if (email) {
+    const porteurs = (await porteursDesAdresses(sb as never, orgId, [email])).get(normaliserEmail(email)) ?? [];
+    const meme = porteurCorrespondant({ prenom: firstName, nom: lastName }, porteurs);
+    if (meme) redirect(`/apprenants/${meme.id}`);
+  }
 
   const statutRaw = str(fd, 'statut');
   const statut = statutRaw && (STATUTS as readonly string[]).includes(statutRaw) ? statutRaw : null;

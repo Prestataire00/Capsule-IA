@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { ArrowLeft, Mail, Phone, Building2, Accessibility } from 'lucide-react';
+import { AlerteAdresse } from '@/features/crm/alerte-adresse.client';
 import { FormField, inputClass } from '@/shared/ui/form-field';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { supabaseServer } from '@/shared/lib/supabase/server';
@@ -76,6 +77,7 @@ export default async function NouvelApprenantPage({ searchParams }: { searchPara
                   className={`${inputClass} pl-9`}
                 />
               </div>
+              <AlerteAdresse />
             </FormField>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Téléphone">

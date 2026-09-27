@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { Fragment, useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, Loader2, Plus, Trash2, Check, X } from 'lucide-react';
+import { UserPlus, Loader2, Plus, Trash2, Check, X, AlertTriangle } from 'lucide-react';
+import { verifierAdresses } from '@/features/crm/verifier-adresses.action';
+import { normaliserEmail } from '@/features/crm/adresse-partagee';
 import { parseListeApprenants } from '@/features/dossier/parse-learners';
 import { ajouterApprenants } from './actions';
 
@@ -36,6 +38,47 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
   const [succes, setSucces] = useState<string | null>(null);
   const [montreManques, setMontreManques] = useState(false);
   const [pending, startTransition] = useTransition();
+  // Alerte par ligne : l'adresse est déjà utilisée — dans le CRM, ou plus haut
+  // dans la même saisie. Rien n'est bloqué, mais on le sait avant d'inscrire.
+  const [alertesCrm, setAlertesCrm] = useState<Map<string, string>>(new Map());
+  const [alertesApres, setAlertesApres] = useState<string[]>([]);
+
+  const cleSaisie = lignes.map((l) => `${normaliserEmail(l.email)}|${l.firstName.trim()}|${l.lastName.trim()}`).join('\n');
+  useEffect(() => {
+    const aVerifier = lignes
+      .filter((l) => normaliserEmail(l.email).includes('@'))
+      .map((l) => ({ email: l.email, prenom: l.firstName.trim(), nom: l.lastName.trim() }));
+    if (aVerifier.length === 0) {
+      setAlertesCrm(new Map());
+      return;
+    }
+    let annule = false;
+    const minuteur = setTimeout(async () => {
+      const r = await verifierAdresses(aVerifier);
+      if (annule) return;
+      // Clé : adresse + nom, une même adresse pouvant viser deux personnes.
+      const parSaisie = new Map<string, string>();
+      r.forEach((message, n) => {
+        const x = aVerifier[n];
+        if (message && x) parSaisie.set(`${normaliserEmail(x.email)}|${x.prenom}|${x.nom}`, message);
+      });
+      setAlertesCrm(parSaisie);
+    }, 450);
+    return () => {
+      annule = true;
+      clearTimeout(minuteur);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleSaisie]);
+
+  const alerteDe = (i: number, l: Ligne): string | null => {
+    const email = normaliserEmail(l.email);
+    if (!email.includes('@')) return null;
+    const crm = alertesCrm.get(`${email}|${l.firstName.trim()}|${l.lastName.trim()}`);
+    if (crm) return crm;
+    const avant = lignes.findIndex((x, j) => j < i && normaliserEmail(x.email) === email);
+    return avant >= 0 ? `Même adresse que la ligne ${avant + 1} : les e-mails des deux personnes arriveront dans la même boîte.` : null;
+  };
 
   const modifier = (index: number, champ: keyof Ligne, valeur: string) => {
     setLignes((actuelles) => actuelles.map((l, i) => (i === index ? { ...l, [champ]: valeur } : l)));
@@ -84,6 +127,7 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
   const enregistrer = () => {
     setErreur(null);
     setSucces(null);
+    setAlertesApres([]);
     if (aInscrire.length === 0) return setErreur('Renseignez au moins une personne.');
     if (sansNom > 0) {
       setMontreManques(true);
@@ -103,6 +147,7 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
         })),
       });
       if (!res.ok) return setErreur(res.error);
+      setAlertesApres(res.alertes);
 
       const bouts = [
         res.ajoutes > 0 ? `${res.ajoutes} inscrit${res.ajoutes > 1 ? 's' : ''}` : null,
@@ -147,8 +192,10 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
           <tbody>
             {lignes.map((l, i) => {
               const manque = montreManques && remplie(l) && !l.lastName.trim();
+              const alerte = alerteDe(i, l);
               return (
-                <tr key={i}>
+                <Fragment key={i}>
+                <tr>
                   <td className="text-[12px] text-zinc-400 tabular-nums pr-1">{i + 1}</td>
                   <td className="pr-1.5">
                     <input
@@ -204,6 +251,17 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
                     </button>
                   </td>
                 </tr>
+                {alerte && (
+                  <tr>
+                    <td />
+                    <td colSpan={5} className="pb-1">
+                      <p role="status" className="text-[12px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg px-2.5 py-1.5 inline-flex items-start gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0" /> {alerte}
+                      </p>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -236,6 +294,15 @@ export function AjoutApprenants({ dossierId }: { dossierId: string }) {
         <p className="text-[12px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1.5">
           <Check className="w-3.5 h-3.5" /> {succes}
         </p>
+      )}
+      {alertesApres.length > 0 && (
+        <ul className="space-y-1">
+          {alertesApres.map((a) => (
+            <li key={a} className="text-[12px] text-amber-800 dark:text-amber-300 inline-flex items-start gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0" /> {a}
+            </li>
+          ))}
+        </ul>
       )}
       {erreur && (
         <p className="text-[12px] text-red-600 dark:text-red-400 inline-flex items-center gap-1.5">

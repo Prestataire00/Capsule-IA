@@ -1,4 +1,6 @@
 import 'server-only';
+import { normaliserEmail, porteurCorrespondant } from '@/features/crm/adresse-partagee';
+import { porteursDesAdresses } from '@/features/crm/porteurs-adresses';
 import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateDossierReference } from '@/features/crm/prospect-conversion/dossier-reference';
@@ -419,15 +421,10 @@ export async function applyConventionImport(
     if (p.lastName.trim() === '' && p.firstName.trim() === '') continue;
     let trouve: { id: string } | null = null;
     if (p.email) {
-      const { data } = await sb
-        .schema('app')
-        .from('learners')
-        .select('id')
-        .eq('organization_id', organizationId)
-        .eq('email', p.email)
-        .is('deleted_at', null)
-        .maybeSingle();
-      trouve = data as { id: string } | null;
+      // Une boîte partagée (le service RH du client) sert à plusieurs salariés :
+      // on ne rattache la fiche existante que si le nom concorde.
+      const porteurs = (await porteursDesAdresses(sb as never, organizationId, [p.email])).get(normaliserEmail(p.email)) ?? [];
+      trouve = porteurCorrespondant({ prenom: p.firstName, nom: p.lastName }, porteurs);
     }
     if (!trouve) {
       const { data, error } = await sb

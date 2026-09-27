@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { alerteAdresse, porteurCorrespondant } from '@/features/crm/adresse-partagee';
+import { porteursDesAdresses } from '@/features/crm/porteurs-adresses';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
@@ -16,7 +18,9 @@ import { can } from '@/shared/lib/auth/permissions';
  * provisoire par le premier d'entre eux.
  */
 
-export type ApprenantsResult = { ok: true; ajoutes: number; reutilises: number } | { ok: false; error: string };
+export type ApprenantsResult =
+  | { ok: true; ajoutes: number; reutilises: number; alertes: string[] }
+  | { ok: false; error: string };
 export type SimpleResult = { ok: true } | { ok: false; error: string };
 
 type Contexte = {
@@ -113,21 +117,15 @@ export async function ajouterApprenants(input: {
   const { organizationId, companyId, sessionsOuvertes } = garde.ctx;
   const admin = supabaseAdmin();
 
-  // Une adresse déjà connue de l'organisme désigne la même personne : on la
-  // réutilise plutôt que d'ouvrir un doublon qui brouillerait l'émargement.
-  const emails = p.data.apprenants.map((a) => a.email?.trim().toLowerCase()).filter((e): e is string => Boolean(e));
-  const { data: connus } = emails.length
-    ? await admin
-        .schema('app')
-        .from('learners')
-        .select('id, email')
-        .eq('organization_id', organizationId)
-        .in('email', emails)
-        .is('deleted_at', null)
-    : { data: [] };
-  const parEmail = new Map(
-    ((connus ?? []) as Array<{ id: string; email: string | null }>).map((l) => [(l.email ?? '').toLowerCase(), l.id]),
+  // Une adresse déjà connue ne désigne pas forcément la même personne : la
+  // boîte RH d'une entreprise sert à tous ses salariés. On rattache la fiche
+  // existante seulement si le nom concorde ; sinon on crée — et on le dit.
+  const porteurs = await porteursDesAdresses(
+    admin as never,
+    organizationId,
+    p.data.apprenants.map((a) => a.email ?? ''),
   );
+  const alertes: string[] = [];
 
   const ids: string[] = [];
   let ajoutes = 0;
@@ -139,9 +137,13 @@ export async function ajouterApprenants(input: {
 
   for (const a of p.data.apprenants) {
     const email = a.email?.trim().toLowerCase() || null;
-    const existant = email ? parEmail.get(email) : undefined;
+    const saisie = { prenom: a.firstName, nom: a.lastName };
+    const surCetteAdresse = email ? (porteurs.get(email) ?? []) : [];
+    const alerte = email ? alerteAdresse(email, saisie, surCetteAdresse) : null;
+    if (alerte) alertes.push(alerte);
+    const existant = porteurCorrespondant(saisie, surCetteAdresse);
     if (existant) {
-      ids.push(existant);
+      ids.push(existant.id);
       reutilises++;
       continue;
     }
@@ -166,7 +168,8 @@ export async function ajouterApprenants(input: {
     }
     const id = (data as { id: string }).id;
     ids.push(id);
-    if (email) parEmail.set(email, id);
+    // Deux lignes identiques dans la même saisie : la seconde rejoint la première.
+    if (email) porteurs.set(email, [...surCetteAdresse, { id, prenom: a.firstName, nom: a.lastName, dossiers: [] }]);
     ajoutes++;
   }
 
@@ -224,7 +227,7 @@ export async function ajouterApprenants(input: {
 
   revalidatePath(`/dossiers/${p.data.dossierId}/apprenants`);
   revalidatePath(`/dossiers/${p.data.dossierId}`);
-  return { ok: true, ajoutes, reutilises };
+  return { ok: true, ajoutes, reutilises, alertes };
 }
 
 const retraitSchema = z.object({ dossierId: z.string().uuid(), learnerId: z.string().uuid() });

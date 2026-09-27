@@ -38,6 +38,7 @@ export async function titulaireProvisoire(
     .eq('organization_id', organizationId)
     .eq('email', email)
     .is('deleted_at', null)
+    .limit(1)
     .maybeSingle();
   if (existant) return (existant as { id: string }).id;
 
