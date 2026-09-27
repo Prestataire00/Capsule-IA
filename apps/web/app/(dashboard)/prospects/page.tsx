@@ -105,8 +105,8 @@ export default async function ProspectsPage() {
           <span className="tabular-nums">
             {prospects.length} demande{prospects.length > 1 ? 's' : ''}
           </span>
-          {' · '}Vérifiez les pièces : une demande validée est{' '}
-          <span className="font-semibold text-zinc-700 dark:text-zinc-300">automatiquement convertie en dossier</span>. Tout se passe ici.
+          {' · '}Une demande reste un prospect tant que la proposition n’est pas acceptée. Acceptée, elle se{' '}
+          <span className="font-semibold text-zinc-700 dark:text-zinc-300">convertit en client</span> : le dossier s’ouvre.
         </p>
         </div>
         <Link
@@ -120,8 +120,8 @@ export default async function ProspectsPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-7">
         <KpiCard icon={ClipboardCheck} label="À valider (pièces)" value={toValidate.length} accent="amber" />
-        <KpiCard icon={UserPlus} label="À convertir" value={toConvert.length} accent="rose" />
-        <KpiCard icon={FolderCheck} label="Converties en dossier" value={converted.length} accent="emerald" />
+        <KpiCard icon={UserPlus} label="Proposition en cours" value={toConvert.length} accent="rose" />
+        <KpiCard icon={FolderCheck} label="Devenues clientes" value={converted.length} accent="emerald" />
       </div>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
@@ -189,13 +189,13 @@ export default async function ProspectsPage() {
                     <div className="tabular-nums text-zinc-700 dark:text-zinc-300">{dateFmt.format(new Date(p.created_at))}</div>
                     <div>
                       {p.converted_dossier_id ? (
-                        <StatusPill tone="success">convertie</StatusPill>
+                        <StatusPill tone="success">client</StatusPill>
                       ) : pendingValidation ? (
                         <StatusPill tone="warning">pièces à valider</StatusPill>
                       ) : p.validation_status === 'rejected' ? (
                         <StatusPill tone="danger">rejetée</StatusPill>
                       ) : (
-                        <StatusPill tone="neutral">validée</StatusPill>
+                        <StatusPill tone="neutral">prospect</StatusPill>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
@@ -227,7 +227,7 @@ export default async function ProspectsPage() {
                             <FolderOpen className="h-4 w-4" />
                           </a>
                         ) : (
-                          !pendingValidation && <ConvertButton prospectId={p.id} />
+                          p.validation_status !== 'rejected' && <ConvertButton prospectId={p.id} />
                         )}
                         <ManageOnly section="crm">
                           <DeleteEntityButton entite="demande" id={p.id} nom={name} article="cette demande" />

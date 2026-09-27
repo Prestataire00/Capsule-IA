@@ -6,9 +6,14 @@ import { useAction } from 'next-safe-action/hooks';
 import { ArrowRightCircle, AlertTriangle } from 'lucide-react';
 import { convertProspect } from './actions';
 
+const ERREURS: Record<string, string> = {
+  prospect_without_formation: 'Indiquez d’abord la formation demandée (Modifier la demande).',
+  forbidden_not_admin: 'Votre rôle ne permet pas de convertir une demande.',
+};
+
 export function ConvertButton({
   prospectId,
-  label = 'Convertir en dossier',
+  label = 'Convertir en client',
   variant = 'compact',
 }: {
   prospectId: string;
@@ -22,19 +27,24 @@ export function ConvertButton({
   const [error, setError] = useState<string | null>(null);
   const { executeAsync } = useAction(convertProspect);
 
-  const run = () =>
+  const run = () => {
+    // Convertir, c'est acter que la proposition est acceptée : la demande
+    // devient un dossier, avec son apprenant et son entreprise. Pas un clic
+    // qu'on fait par erreur.
+    if (!confirm('La proposition a été acceptée ?\n\nLa demande devient un client : le dossier, l’apprenant et l’entreprise sont créés.')) return;
     start(async () => {
       setError(null);
       const res = await executeAsync({ prospectId });
       const data = res?.data;
       if (!data || data.ok === false) {
         const message = data && 'error' in data ? String(data.error) : null;
-        setError(message ?? res?.serverError ?? 'conversion_failed');
+        setError(ERREURS[message ?? ''] ?? message ?? res?.serverError ?? 'La conversion a échoué.');
         return;
       }
       setSignals(data.report.signals.map((s) => `${s.reason} : ${s.label}`));
       router.push(`/dossiers/${data.dossierId}`);
     });
+  };
 
   return (
     <div className={variant === 'primary' ? 'w-full space-y-1' : 'flex flex-col items-end gap-1'}>

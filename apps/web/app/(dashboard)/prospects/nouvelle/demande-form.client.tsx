@@ -589,9 +589,9 @@ export function DemandeForm({
             className="mt-0.5 w-4 h-4 accent-orange-500"
           />
           <span>
-            <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Ouvrir le dossier tout de suite</span>
+            <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">La proposition est déjà acceptée : convertir en client</span>
             <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
-              Crée l’apprenant, l’entreprise et le dossier. Le devis suivra dès la session planifiée et l’analyse du besoin reçue.
+              Sinon, la demande reste un prospect jusqu’à ce que vous cliquiez « Convertir en client ». Convertir crée l’apprenant, l’entreprise et le dossier.
             </span>
           </span>
         </label>

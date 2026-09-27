@@ -6,8 +6,6 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { requiredDocs } from '@/features/prospect/funding';
-import { convertProspectToDossier } from '@/features/crm/prospect-conversion/convert-core';
-import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { can } from '@/shared/lib/auth/permissions';
 
 const ADMIN_ROLES = ['owner', 'admin', 'gestionnaire'] as const;
@@ -212,26 +210,10 @@ export const validateProspectDemande = authActionClient
       count: targetIds.length || 1,
     });
 
-    // Conversion systématique en dossier dès validation des pièces (best-effort,
-    // idempotent ; les prospects sans formation sont simplement ignorés).
-    let convertedCount = 0;
-    const convertedIds: string[] = [];
-    for (const id of targetIds.length ? targetIds : [parsedInput.prospectId]) {
-      try {
-        const r = await convertProspectToDossier(admin, rowOrg, id);
-        if (r.ok) {
-          convertedCount++;
-          convertedIds.push(r.dossierId);
-        }
-      } catch (e) {
-        console.error('[validateProspectDemande] conversion échouée', id, e);
-      }
-    }
-
-    // Le devis (un par client : l'entreprise pour tout son lot, ou le
-    // particulier) s'établit à l'étape 4 — session planifiée ET analyse du
-    // besoin reçue. Si c'est déjà le cas à la validation, il part d'ici.
-    for (const dossierId of convertedIds) await tryEnsureQuoteForDossier(admin, dossierId);
+    // Valider les pièces ne crée PAS de dossier. Une demande reste un prospect
+    // tant que la proposition n'est pas acceptée : c'est « Convertir en client »
+    // qui ouvre le dossier. La conversion automatique transformait en clients
+    // des personnes qui n'avaient encore rien accepté.
 
     revalidatePath(`/prospects/${parsedInput.prospectId}`);
     revalidatePath('/prospects/nouvelles');
@@ -239,7 +221,6 @@ export const validateProspectDemande = authActionClient
     return {
       ok: true as const,
       count: targetIds.length || 1,
-      converted: convertedCount,
     };
   });
 

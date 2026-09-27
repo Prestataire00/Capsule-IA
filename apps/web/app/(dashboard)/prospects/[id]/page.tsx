@@ -385,6 +385,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
   // « Prochaine action » : ce qu'il faut faire maintenant, déduit de l'état réel
   // de la demande — pas une liste d'actions possibles.
   const nextAction: { title: string; why: string } = (() => {
+    if (convertedDossierId) {
+      return { title: 'Client', why: 'La proposition a été acceptée : la demande est devenue un dossier.' };
+    }
     if (prospect.validation_status === 'rejected') {
       return {
         title: 'Demande refusée',
@@ -405,11 +408,10 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
     }
     const d = daysSince(lastEventAt);
     return {
-      title: 'Proposer une session de formation',
-      why:
-        d === null
-          ? 'Demande validée, aucun échange enregistré.'
-          : `Dernier échange il y a ${d} jour${d > 1 ? 's' : ''}.`,
+      title: 'Faire accepter la proposition',
+      why: `${
+        d === null ? 'Pièces validées, aucun échange enregistré.' : `Dernier échange il y a ${d} jour${d > 1 ? 's' : ''}.`
+      } Une fois la proposition acceptée, convertissez la demande en client.`,
     };
   })();
 
@@ -498,9 +500,7 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
             >
               Programmer un RDV
             </Link>
-            {prospect.validation_status === 'validated' && (
-              <ConvertButton prospectId={prospect.id} label="Inscrire à une formation" />
-            )}
+            {prospect.validation_status !== 'rejected' && !convertedDossierId && <ConvertButton prospectId={prospect.id} />}
           </div>
         </div>
       </div>
@@ -739,8 +739,15 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               </p>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">{nextAction.why}</p>
             </div>
-            {prospect.validation_status === 'validated' ? (
-              <ConvertButton prospectId={prospect.id} label="Inscrire à une formation" variant="primary" />
+            {convertedDossierId ? (
+              <Link
+                href={`/dossiers/${convertedDossierId}`}
+                className="w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
+              >
+                Ouvrir le dossier
+              </Link>
+            ) : prospect.validation_status === 'validated' ? (
+              <ConvertButton prospectId={prospect.id} variant="primary" />
             ) : (
               <a
                 href="#pieces"
