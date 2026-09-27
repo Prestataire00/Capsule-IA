@@ -7,6 +7,10 @@ import { can } from '@/shared/lib/auth/permissions';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
+import { parisIso } from '@/features/import/paris-time';
+import { convoquerSeance, stagiairesDejaConvoques, type SeanceAConvoquer } from '@/features/sessions/convoquer-seance';
+import { moveEvent } from '@/shared/lib/integrations/google-calendar-client';
+import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
 
 /**
  * Modification d'une séance depuis sa fiche (statut, capacité, tarif, notes).
@@ -14,10 +18,10 @@ import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
  * et de l'organisme du membre ; l'écriture se fait ensuite en service role.
  */
 
-type Result = { ok: true } | { ok: false; error: string };
+type Result = { ok: true; message?: string } | { ok: false; error: string };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function garde(sessionId: string): Promise<{ ok: true; organizationId: string } | { ok: false; error: string }> {
+async function garde(sessionId: string): Promise<{ ok: true; organizationId: string; userId: string } | { ok: false; error: string }> {
   if (!UUID.test(sessionId)) return { ok: false, error: 'Séance introuvable.' };
   const membre = await getCurrentMember();
   if (!membre) return { ok: false, error: 'Session expirée — reconnectez-vous.' };
@@ -25,7 +29,7 @@ async function garde(sessionId: string): Promise<{ ok: true; organizationId: str
   const { data } = await supabaseServer().schema('app').from('sessions').select('id, organization_id').eq('id', sessionId).maybeSingle();
   const s = data as { id: string; organization_id: string } | null;
   if (!s || s.organization_id !== membre.organizationId) return { ok: false, error: 'Séance introuvable.' };
-  return { ok: true, organizationId: s.organization_id };
+  return { ok: true, organizationId: s.organization_id, userId: membre.userId };
 }
 
 const statutSchema = z.enum(['planned', 'in_progress', 'done', 'cancelled']);
@@ -49,8 +53,16 @@ export async function updateSessionStatus(input: { sessionId: string; status: st
   return { ok: true };
 }
 
+const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+const HEURE = /^\d{2}:\d{2}$/;
+
 const infoSchema = z.object({
   sessionId: z.string().uuid(),
+  /** Horaires saisis à l'heure de Paris, convertis en instants à l'écriture. */
+  dateDebut: z.string().regex(JOUR, 'Date de début invalide'),
+  heureDebut: z.string().regex(HEURE, 'Heure de début invalide'),
+  dateFin: z.string().regex(JOUR, 'Date de fin invalide'),
+  heureFin: z.string().regex(HEURE, 'Heure de fin invalide'),
   capacityMax: z
     .string()
     .trim()
@@ -111,6 +123,11 @@ export async function updateSessionInfo(input: SessionInfoInput): Promise<Result
   const g = await garde(p.data.sessionId);
   if (!g.ok) return g;
 
+  const startsAt = parisIso(p.data.dateDebut, p.data.heureDebut);
+  const endsAt = parisIso(p.data.dateFin, p.data.heureFin);
+  if (!startsAt || !endsAt) return { ok: false, error: 'Dates ou horaires invalides.' };
+  if (new Date(endsAt) <= new Date(startsAt)) return { ok: false, error: 'La fin doit être après le début.' };
+
   // Le groupe d'avant : la réconciliation des participants ne doit se
   // déclencher que s'il change. Sinon, enregistrer une simple note retirerait
   // un stagiaire ajouté exprès à la main — un geste sans rapport, aux
@@ -118,16 +135,23 @@ export async function updateSessionInfo(input: SessionInfoInput): Promise<Result
   const { data: avant } = await supabaseAdmin()
     .schema('app')
     .from('sessions')
-    .select('groupe_id')
+    .select('groupe_id, starts_at, ends_at')
     .eq('id', p.data.sessionId)
     .maybeSingle();
-  const groupeAvant = (avant as { groupe_id?: string | null } | null)?.groupe_id ?? null;
+  const ancien = avant as { groupe_id?: string | null; starts_at: string; ends_at: string } | null;
+  const groupeAvant = ancien?.groupe_id ?? null;
+  const horairesChanges =
+    !!ancien &&
+    (new Date(ancien.starts_at).getTime() !== new Date(startsAt).getTime() ||
+      new Date(ancien.ends_at).getTime() !== new Date(endsAt).getTime());
   const groupeApres = p.data.groupeId || null;
 
   const { error } = await supabaseAdmin()
     .schema('app')
     .from('sessions')
     .update({
+      starts_at: startsAt,
+      ends_at: endsAt,
       capacity_max: p.data.capacityMax ? Number(p.data.capacityMax) : null,
       price_cents: p.data.priceEuros ? eurosEnCentimes(p.data.priceEuros) : null,
       notes: p.data.notes || null,
@@ -142,7 +166,59 @@ export async function updateSessionInfo(input: SessionInfoInput): Promise<Result
 
   if (groupeAvant !== groupeApres) await accorderParticipantsAuGroupe(p.data.sessionId, groupeApres);
 
+  const message = horairesChanges ? await repercuterHoraires(p.data.sessionId, g.userId) : undefined;
+
   revalidatePath(`/sessions/${p.data.sessionId}`, 'layout');
   revalidatePath(`/dossiers`, 'layout');
-  return { ok: true };
+  revalidatePath('/sessions');
+  revalidatePath('/planning');
+  return { ok: true, message };
+}
+
+/**
+ * Un changement d'horaires qui reste dans la base ne prévient personne : les
+ * stagiaires déjà convoqués viendraient à l'ancienne heure, et l'invitation
+ * Google garderait l'ancien créneau. On déplace l'une et on renvoie l'autre.
+ */
+async function repercuterHoraires(sessionId: string, userId: string): Promise<string> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .schema('app')
+    .from('sessions')
+    .select('id, starts_at, ends_at, modality, location, remote_url, dossier_id, organization_id, formation_id, status, zoom_metadata')
+    .eq('id', sessionId)
+    .maybeSingle();
+  const s = data as (SeanceAConvoquer & { status: string; zoom_metadata: { calendar_event_id?: string; owner_user_id?: string } | null }) | null;
+  if (!s) return 'Horaires enregistrés.';
+  const bilan: string[] = ['Horaires enregistrés.'];
+
+  const eventId = s.zoom_metadata?.calendar_event_id;
+  if (eventId) {
+    // L'évènement vit dans l'agenda de celui qui l'a créé ; avant qu'on le
+    // note, on tente celui de la personne qui modifie.
+    const proprietaire = s.zoom_metadata?.owner_user_id ?? userId;
+    const creds = await loadGoogleCredsForUser(sb as never, proprietaire);
+    const r = creds ? await moveEvent(creds, eventId, { startsAt: s.starts_at, endsAt: s.ends_at }) : null;
+    if (r?.ok) bilan.push('Évènement Google Agenda déplacé, invités prévenus.');
+    else {
+      console.error('[séance] évènement Google non déplacé', sessionId, r && !r.ok ? r.error : 'agenda non connecté');
+      bilan.push('L’évènement Google Agenda n’a pas pu être déplacé : à faire depuis l’agenda de son créateur.');
+    }
+  }
+
+  if (s.status === 'planned' && new Date(s.starts_at) > new Date()) {
+    // Seuls ceux qui ont reçu l'ancienne convocation la reçoivent à nouveau ;
+    // les autres la recevront à la date prévue, déjà à jour.
+    const deja = await stagiairesDejaConvoques(sb as never, sessionId);
+    if (deja.size > 0) {
+      const r = await convoquerSeance(sb as never, s, { modification: true, seulement: deja });
+      if (r.errors.length) console.error('[séance] convocations mises à jour', sessionId, r.errors);
+      bilan.push(
+        r.sent > 0
+          ? `Convocation mise à jour renvoyée à ${r.sent} stagiaire${r.sent > 1 ? 's' : ''}.`
+          : 'La convocation mise à jour n’a pas pu partir : vérifiez le journal des e-mails.',
+      );
+    }
+  }
+  return bilan.join(' ');
 }

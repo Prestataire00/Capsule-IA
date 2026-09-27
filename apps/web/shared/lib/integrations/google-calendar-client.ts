@@ -153,6 +153,27 @@ export async function createMeetEvent(
   }
 }
 
+/** Déplace un évènement existant et prévient ses invités (sendUpdates=all). */
+export async function moveEvent(
+  creds: GoogleCalendarCredentials,
+  eventId: string,
+  input: { startsAt: string; endsAt: string },
+): Promise<Result<true, GoogleApiError>> {
+  const t = await accessTokenFor(creds.refreshToken);
+  if (!t.ok) return err(t.error);
+  const calendarId = encodeURIComponent(creds.calendarId || 'primary');
+  try {
+    const res = await fetch(`${CAL_API}/calendars/${calendarId}/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${t.value}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start: { dateTime: input.startsAt }, end: { dateTime: input.endsAt } }),
+    });
+    return res.ok ? ok(true) : err('request_failed');
+  } catch {
+    return err('request_failed');
+  }
+}
+
 export type CalEvent = {
   id: string;
   title: string;

@@ -27,12 +27,12 @@ describe('recalcul Qualiopi déclenché par l’activité (0143)', () => {
   });
 
   it('journalise la convocation J-7 avec son dossier', () => {
-    const route = lire('../app/api/cron/transactional-emails/route.ts');
-    expect(route).toContain("kind: 'convocation_j7'");
+    const route = lire('../features/sessions/convoquer-seance.ts');
+    expect(route).toContain("'convocation_j7'");
     // Une séance de groupe sert plusieurs dossiers : la convocation est
     // journalisée avec CELUI de l'apprenant, sinon la preuve de l'indicateur 9
     // se rattache au mauvais dossier.
-    expect(route).toContain('dossierId: dossierByLearner.get(learner.id)');
+    expect(route).toContain('dossierId: dossierDuLearner?.id');
   });
 
   it('oriente l’indicateur 9 vers la convocation', () => {

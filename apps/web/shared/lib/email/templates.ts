@@ -302,21 +302,29 @@ export type SessionConvocationData = {
   remoteUrl: string | null;
   trainerName: string | null;
   espaceUrl: string | null;
+  /** Convocation renvoyée parce que la date ou les horaires ont changé. */
+  modification?: boolean;
 };
 
 export function sessionConvocationEmail(data: SessionConvocationData): { subject: string; html: string } {
-  const dateFR = new Date(data.sessionDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const subject = `Convocation — ${data.formationTitle} le ${dateFR}`;
+  const dateFR = new Date(data.sessionDate).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const subject = data.modification
+    ? `Horaires modifiés — ${data.formationTitle} le ${dateFR}`
+    : `Convocation — ${data.formationTitle} le ${dateFR}`;
   const modalityLabel = MODALITY_LABEL[data.modality] ?? data.modality;
 
   const isDistant = data.modality === 'distanciel' || data.modality === 'hybride';
 
   const html = wrapper(`
     ${card(`
-      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Convocation — J-7</p>
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">${data.modification ? 'Convocation mise à jour' : 'Convocation — J-7'}</p>
       <h1 style="font-size:20px; font-weight:600; margin:0 0 12px; text-transform:capitalize;">${dateFR}</h1>
       <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
-        Bonjour ${escapeHtml(data.firstName)}, votre prochaine séance de <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> approche.
+        ${
+          data.modification
+            ? `Bonjour ${escapeHtml(data.firstName)}, la date ou les horaires de votre séance de <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> ont changé. Cette convocation remplace la précédente.`
+            : `Bonjour ${escapeHtml(data.firstName)}, votre prochaine séance de <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> approche.`
+        }
       </p>
       <table style="width:100%; border-collapse:collapse; border-top:1px solid #f4f4f5;">
         ${dataRow('Horaire', `${data.sessionStartTime} – ${data.sessionEndTime}`)}

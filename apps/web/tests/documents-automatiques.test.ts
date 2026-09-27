@@ -14,6 +14,8 @@ import path from 'node:path';
 const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
 const CRON = lire('../app/api/cron/transactional-emails/route.ts');
 const ARCHIVE = lire('../features/documents/archiver-automatiquement.ts');
+// La convocation est sortie du cron pour servir aussi au changement d'horaires.
+const CONVOCATION = lire('../features/sessions/convoquer-seance.ts');
 
 describe('les liens envoyés au stagiaire', () => {
   it('ne pointent plus vers les routes réservées au personnel', () => {
@@ -31,7 +33,9 @@ describe('les liens envoyés au stagiaire', () => {
     // `espaceUrlFor` renvoyait `null` : aucun e-mail ne portait de lien.
     expect(CRON).toContain('generateApprenantUrl');
     expect(CRON).not.toContain('// En prod : JWT signé apprenant');
-    expect(CRON.match(/await espaceUrlFor\(/g)?.length).toBe(3);
+    expect(CRON.match(/await espaceUrlFor\(/g)?.length).toBe(2);
+    expect(CONVOCATION).toContain('await espaceUrlFor(');
+    expect(CONVOCATION).toContain('generateApprenantUrl');
   });
 
   it('aucun repli sur localhost pour un lien envoyé au dehors', () => {
@@ -44,19 +48,20 @@ describe('les liens envoyés au stagiaire', () => {
 describe('archivage automatique des pièces', () => {
   it('la convocation laisse un PDF archivé', () => {
     // Sans pièce archivée, l'organisme n'a rien à produire en audit Qualiopi.
-    expect(CRON).toContain("type: 'convocation'");
-    expect(CRON).toContain('archiverDocument');
+    expect(CRON).toContain('convoquerSeance(');
+    expect(CONVOCATION).toContain("type: 'convocation'");
+    expect(CONVOCATION).toContain('archiverDocument');
   });
 
   it('archive même quand un courrier n’arrive pas', () => {
     // L'archivage était placé dans la branche « envoi réussi » : un stagiaire
     // injoignable privait donc l'organisme de la pièce. Or la preuve demandée
     // en audit est le document ; l'envoi, lui, est prouvé par le journal.
-    expect(CRON).toContain('quel que soit le sort');
-    const bloc = CRON.slice(CRON.indexOf('const dossierId of new Set'));
+    expect(CONVOCATION).toContain('quel que soit le sort');
+    const bloc = CONVOCATION.slice(CONVOCATION.indexOf('const dossierId of new Set'));
     expect(bloc.slice(0, 300)).toContain("type: 'convocation'");
-    // Une fois par séance, pas une fois par stagiaire.
-    expect(CRON).toContain('new Set(sessionDossiers.map((d) => d.id))');
+    // Une fois par dossier, pas une fois par stagiaire.
+    expect(CONVOCATION).toContain('new Set(sessionDossiers.map((d) => d.id))');
   });
 
   it('l’attestation de fin est produite à l’envoi, plus au clic', () => {
@@ -66,7 +71,7 @@ describe('archivage automatique des pièces', () => {
   it('un archivage manqué est signalé, jamais avalé', () => {
     // Le cron répond 500 dès la première erreur depuis e11d0f0 : encore
     // faut-il que l'échec y arrive.
-    expect(CRON).toContain('archivage — ${a.raison}');
+    expect(CONVOCATION).toContain('archivage — ${a.raison}');
     expect(CRON).toContain('archivage — ${att.raison}');
   });
 

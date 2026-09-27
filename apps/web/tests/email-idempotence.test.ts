@@ -66,7 +66,8 @@ describe('les envois du cron qui ne vérifiaient rien', () => {
   const src = lire('../app/api/cron/transactional-emails/route.ts');
 
   it('convocation, satisfaction et fin de formation portent une clé', () => {
-    expect(src).toContain('idempotencyKey: `convocation_j7:${session.id}:${learner.id}`');
+    expect(src).toContain('convoquerSeance(');
+    expect(lire('../features/sessions/convoquer-seance.ts')).toContain(': `convocation_j7:${session.id}:${learner.id}`');
     expect(src).toContain('idempotencyKey: `satisfaction_chaud:${d.id}:${d.learner_id}`');
     expect(src).toContain('idempotencyKey: `fin_de_formation:${d.id}:${d.learner_id}`');
   });

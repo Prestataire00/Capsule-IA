@@ -195,7 +195,7 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
           .from('sessions')
           .update({
             remote_url: res.value.meetUrl,
-            zoom_metadata: { provider: 'google_meet', calendar_event_id: res.value.eventId },
+            zoom_metadata: { provider: 'google_meet', calendar_event_id: res.value.eventId, owner_user_id: membre.userId },
           } as never)
           .eq('id', sessionId);
       }

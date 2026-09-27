@@ -18,6 +18,8 @@ import { SessionInfoEdit } from './session-info-edit';
 export const dynamic = 'force-dynamic';
 
 const TZ = 'Europe/Paris';
+const jourParis = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+const heureParis = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const dateHeure = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const DEVIS: Record<string, { label: string; tone: 'neutral' | 'info' | 'success' | 'danger' | 'warning' }> = {
@@ -142,6 +144,10 @@ export default async function SessionOverview({ params }: { params: { id: string
             <SessionInfoEdit
               sessionId={session.id}
               initial={{
+                dateDebut: jourParis.format(new Date(session.starts_at)),
+                heureDebut: heureParis.format(new Date(session.starts_at)),
+                dateFin: jourParis.format(new Date(session.ends_at)),
+                heureFin: heureParis.format(new Date(session.ends_at)),
                 capacityMax: cap ? String(cap) : '',
                 priceEuros: infos.price_cents != null ? String(Number(infos.price_cents) / 100).replace('.', ',') : '',
                 notes: infos.notes ?? '',

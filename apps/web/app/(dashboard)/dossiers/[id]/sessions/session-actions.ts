@@ -113,7 +113,7 @@ async function provisionMeet(
     .from('sessions')
     .update({
       remote_url: res.value.meetUrl,
-      zoom_metadata: { provider: 'google_meet', calendar_event_id: res.value.eventId },
+      zoom_metadata: { provider: 'google_meet', calendar_event_id: res.value.eventId, owner_user_id: userId },
     })
     .eq('id', sessionId);
 
