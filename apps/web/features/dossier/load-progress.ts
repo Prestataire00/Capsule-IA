@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { fusionnerAvancement, type Origine, type ValidationManuelle } from './avancement-manuel';
+import { etapeQuestionnaires } from './etapes-envois';
 
 /**
  * Avancement d'un dossier, de sa création à la facture réglée.
@@ -63,10 +64,13 @@ export async function loadDossierProgress(
     // l'import d'une convention). N'en lire qu'un laissait l'étape « Session
     // planifiée » grise sur un dossier qui avait déjà six séances.
     Promise.all([
-      sb.schema('app').from('session_dossiers').select('created_at').eq('dossier_id', dossierId),
-      sb.schema('app').from('sessions').select('created_at').eq('dossier_id', dossierId),
+      sb.schema('app').from('session_dossiers').select('session_id, created_at').eq('dossier_id', dossierId),
+      sb.schema('app').from('sessions').select('id, created_at').eq('dossier_id', dossierId),
     ]).then(([liens, directes]) => ({
-      data: [...((liens.data ?? []) as Array<{ created_at: string | null }>), ...((directes.data ?? []) as Array<{ created_at: string | null }>)],
+      data: [
+        ...((liens.data ?? []) as Array<{ session_id: string; created_at: string | null }>).map((l) => ({ id: l.session_id, created_at: l.created_at })),
+        ...((directes.data ?? []) as Array<{ id: string; created_at: string | null }>),
+      ],
     })),
     sb
       .schema('app')
@@ -77,7 +81,7 @@ export async function loadDossierProgress(
     sb
       .schema('app')
       .from('questionnaire_assignments')
-      .select('status, updated_at, template:questionnaire_templates(kind)')
+      .select('status, created_at, updated_at, template:questionnaire_templates(kind)')
       .eq('dossier_id', dossierId),
     sb.schema('app').from('attendance_sheets').select('finalized_at').eq('dossier_id', dossierId),
     sb
@@ -96,10 +100,11 @@ export async function loadDossierProgress(
   ]);
 
   const dossier = dossierRow as { created_at: string; status: string } | null;
-  const sessions = (sessionRows ?? []) as Array<{ created_at: string | null }>;
+  const sessions = (sessionRows ?? []) as Array<{ id: string; created_at: string | null }>;
   const documents = (documentRows ?? []) as DocRow[];
   const assignments = (assignmentRows ?? []) as unknown as Array<{
     status: string;
+    created_at: string;
     updated_at: string | null;
     template: { kind: string } | null;
   }>;
@@ -181,6 +186,23 @@ export async function loadDossierProgress(
 
   const paidInvoice = invoices.find((i) => i.status === 'paid');
 
+  // Questionnaires cochés sur les séances et pas encore partis : l'étape dit
+  // qu'ils vont partir, plutôt que « rien d'envoyé ».
+  const sessionIds = [...new Set(sessions.map((s) => s.id))];
+  const { data: programmesRows } = sessionIds.length
+    ? await sb
+        .schema('app')
+        .from('session_questionnaires' as never)
+        .select('template_id')
+        .in('session_id', sessionIds)
+        .eq('enabled', true)
+        .is('sent_at', null)
+    : { data: [] };
+  const questionnaires = etapeQuestionnaires(
+    assignments.map((a) => ({ status: a.status, created_at: a.created_at, kind: a.template?.kind ?? null })),
+    new Set(((programmesRows ?? []) as unknown as Array<{ template_id: string }>).map((p) => p.template_id)).size,
+  );
+
   const base = `/dossiers/${dossierId}`;
   const steps: ProgressStep[] = [
     {
@@ -254,6 +276,14 @@ export async function loadDossierProgress(
       done: trainingDone,
       at: null,
       href: `${base}/emargements`,
+    },
+    {
+      key: 'questionnaires',
+      label: 'Questionnaires envoyés',
+      hint: questionnaires.hint,
+      done: questionnaires.done,
+      at: questionnaires.at,
+      href: `${base}/questionnaires`,
     },
     {
       key: 'paid',

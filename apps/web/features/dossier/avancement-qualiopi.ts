@@ -48,6 +48,9 @@ export const ETAPES_SANS_INDICATEUR = [
   'devis_signed',
   'convention',
   'convention_signed',
+  // Un questionnaire parti ne prouve rien tant qu'on n'a pas la réponse :
+  // c'est elle que les indicateurs attendent (11, 30).
+  'questionnaires',
   'paid',
 ] as const;
 
