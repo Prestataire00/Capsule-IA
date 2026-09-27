@@ -24,6 +24,16 @@ export const TEMPLATE_KINDS = [
 
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number]['value'];
 
+/** À qui s'adresse le modèle : c'est ce qui décide de la page et de l'e-mail. */
+export const TEMPLATE_AUDIENCES = [
+  { value: 'apprenant', label: 'Stagiaire' },
+  { value: 'entreprise', label: 'Entreprise cliente' },
+  { value: 'formateur', label: 'Formateur' },
+  { value: 'financeur', label: 'Financeur' },
+] as const;
+
+export type TemplateAudience = (typeof TEMPLATE_AUDIENCES)[number]['value'];
+
 /** Question telle que manipulée dans l'éditeur (champs surnuméraires tolérés). */
 export const questionDraftSchema = z.object({
   id: z
@@ -53,6 +63,7 @@ export const templateFormSchema = z.object({
     'satisfaction_formateur',
     'custom',
   ]),
+  audience: z.enum(['apprenant', 'entreprise', 'formateur', 'financeur']),
   thankYou: z.string().trim().max(500),
   questions: z
     .array(questionDraftSchema)
@@ -80,6 +91,7 @@ export const emptyQuestionDraft = (index: number): QuestionDraft => ({
 export const emptyTemplateValues: TemplateFormValues = {
   title: '',
   kind: 'positionnement',
+  audience: 'apprenant',
   thankYou: 'Merci, vos réponses ont bien été enregistrées.',
   questions: [emptyQuestionDraft(0)],
 };

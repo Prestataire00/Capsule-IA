@@ -36,7 +36,9 @@ export type Etape = (typeof ETAPES)[number]['cle'];
  * par son seul `kind` la rangerait chez le stagiaire, et on chercherait
  * longtemps pourquoi le client ne reçoit rien.
  */
-export function interlocuteurDuModele(modele: { kind: string; code?: string | null }): Interlocuteur {
+export function interlocuteurDuModele(modele: { kind: string; code?: string | null; audience?: string | null }): Interlocuteur {
+  // Choisi à la création (0197) : il l'emporte sur toute déduction.
+  if (INTERLOCUTEURS.some((i) => i.cle === modele.audience)) return modele.audience as Interlocuteur;
   const code = modele.code ?? '';
   if (code.startsWith('satisfaction_entreprise')) return 'entreprise';
   if (code.startsWith('sys_manager')) return 'entreprise';

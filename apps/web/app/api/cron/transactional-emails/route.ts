@@ -24,6 +24,7 @@ import {
 } from '@/features/questionnaire/needs-analysis';
 import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
 import { convoquerSeance, type SeanceAConvoquer } from '@/features/sessions/convoquer-seance';
+import { runQuestionnairesDeSeance } from '@/features/questionnaire/questionnaires-de-seance';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { expireOverdueQuotes, sweepMissingQuotes } from '@/features/billing/quotes/quote-service';
 import { runAutomaticReminders } from '@/features/billing/invoices/reminders';
@@ -1310,6 +1311,7 @@ export async function POST(req: Request) {
     needsAnalysisLearners,
     startAttestation,
     customSchedules,
+    questionnairesSeances,
   ] = await Promise.all([
     runConvocations(),
     runDossierEnd(),
@@ -1319,6 +1321,7 @@ export async function POST(req: Request) {
     runNeedsAnalysisForNewLearners(),
     runStartAttestation(),
     runCustomSchedules(),
+    runQuestionnairesDeSeance(admin() as unknown as SupabaseClient),
   ]);
   // Après la fiche besoin (qui peut compléter l'analyse depuis l'inscription) :
   // devis des dossiers prêts, expiration des devis périmés, factures en retard.
@@ -1337,6 +1340,7 @@ export async function POST(req: Request) {
     needsAnalysisLearners,
     startAttestation,
     customSchedules,
+    questionnairesSeances,
     quotes,
   });
 }

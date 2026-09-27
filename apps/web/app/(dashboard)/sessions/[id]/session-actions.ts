@@ -1,7 +1,6 @@
 'use server';
 
 import { z } from 'zod';
-import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
@@ -16,52 +15,6 @@ import { renderCompanyAttendanceSheet } from '@/features/attendance/company-sign
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateConventionPDF } from '@/features/documents/generate-convention-pdf';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
-
-// Assigne un questionnaire à TOUS les apprenants de la session (1 assignation par
-// apprenant/dossier). Idempotent : saute les apprenants déjà assignés à ce modèle.
-export const assignQuestionnaireToSession = authActionClient
-  .schema(z.object({ sessionId: z.string().uuid(), templateId: z.string().uuid() }))
-  .action(async ({ parsedInput, ctx }) => {
-    const loaded = await loadSession(ctx.supabase, parsedInput.sessionId);
-    if (!loaded) return { ok: false as const, error: 'session_not_found' };
-    const orgId = loaded.session.organization_id;
-
-    let assigned = 0;
-    let skipped = 0;
-    for (const l of loaded.learners) {
-      const { data: dup } = await ctx.supabase
-        .schema('app')
-        .from('questionnaire_assignments')
-        .select('id')
-        .eq('dossier_id', l.dossierId)
-        .eq('recipient_learner_id', l.id)
-        .eq('template_id', parsedInput.templateId)
-        .neq('status', 'expired')
-        .maybeSingle();
-      if (dup) {
-        skipped++;
-        continue;
-      }
-      const { error } = await ctx.supabase
-        .schema('app')
-        .from('questionnaire_assignments')
-        .insert({
-          organization_id: orgId,
-          template_id: parsedInput.templateId,
-          dossier_id: l.dossierId,
-          recipient_kind: 'learner',
-          recipient_learner_id: l.id,
-          recipient_email: l.email,
-          recipient_name: `${l.first_name} ${l.last_name}`.trim(),
-          token_hash: `pending-${randomUUID()}`,
-          status: 'pending',
-        } as never);
-      if (!error) assigned++;
-    }
-
-    revalidatePath(`/sessions/${parsedInput.sessionId}/questionnaires`);
-    return { ok: true as const, assigned, skipped };
-  });
 
 // Envoie par email le dernier document d'un type donné à TOUS les apprenants de la
 // session (chacun reçoit SON document, depuis son dossier). Saute ceux sans document.

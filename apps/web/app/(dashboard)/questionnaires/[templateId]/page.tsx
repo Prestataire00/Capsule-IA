@@ -2,6 +2,7 @@
 // Justification: édition d'un questionnaire type existant (org).
 
 import Link from 'next/link';
+import { interlocuteurDuModele } from '@/features/questionnaire/cartographie';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ClipboardList } from 'lucide-react';
 import { ACCENTS } from '@/shared/ui/kpi-card';
@@ -18,7 +19,7 @@ export default async function EditQuestionnairePage({ params }: { params: { temp
   const { data, error: erreurLecture } = await sb
     .schema('app')
     .from('questionnaire_templates')
-    .select('id, title, kind, schema, thank_you_message, organization_id')
+    .select('*')
     .eq('id', params.templateId)
     .is('deleted_at', null)
     .maybeSingle();
@@ -26,6 +27,8 @@ export default async function EditQuestionnairePage({ params }: { params: { temp
   const tpl = data as {
     title: string;
     kind: string;
+    code: string | null;
+    audience?: string | null;
     schema: QuestionnaireSchema;
     thank_you_message: string | null;
     organization_id: string | null;
@@ -43,6 +46,7 @@ export default async function EditQuestionnairePage({ params }: { params: { temp
     templateId: isSystem ? undefined : params.templateId, // un template système → on en crée une copie org
     title: isSystem ? `${tpl.title} (copie)` : tpl.title,
     kind: tpl.kind as TemplateKind,
+    audience: interlocuteurDuModele(tpl),
     thankYou: tpl.thank_you_message ?? '',
     questions: (tpl.schema?.questions ?? []).map(toDraftQuestion),
   };

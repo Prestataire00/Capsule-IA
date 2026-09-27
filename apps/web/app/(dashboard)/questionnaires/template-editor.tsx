@@ -12,7 +12,7 @@ import {
   toRuntimeSchema,
   emptyQuestionDraft,
   QUESTION_TYPES,
-  TEMPLATE_KINDS,
+  TEMPLATE_KINDS, TEMPLATE_AUDIENCES,
   type TemplateFormValues,
   type QuestionDraft,
   type QuestionType,
@@ -91,7 +91,7 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
       <div className="space-y-5">
         {/* Métadonnées */}
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <label className="block">
               <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Titre</span>
               <input value={values.title} onChange={(e) => patch({ title: e.target.value })} placeholder="Analyse des besoins…" className={inputClass} />
@@ -101,6 +101,14 @@ export function TemplateEditor({ initial }: { initial: TemplateFormValues }) {
               <select value={values.kind} onChange={(e) => patch({ kind: e.target.value as TemplateFormValues['kind'] })} className={inputClass}>
                 {TEMPLATE_KINDS.map((k) => (
                   <option key={k.value} value={k.value}>{k.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Destinataire</span>
+              <select value={values.audience} onChange={(e) => patch({ audience: e.target.value as TemplateFormValues['audience'] })} className={inputClass}>
+                {TEMPLATE_AUDIENCES.map((a) => (
+                  <option key={a.value} value={a.value}>{a.label}</option>
                 ))}
               </select>
             </label>

@@ -79,6 +79,7 @@ export const saveQuestionnaireTemplate = authActionClient
     const base = {
       title: parsedInput.title,
       kind: parsedInput.kind,
+      audience: parsedInput.audience,
       schema,
       thank_you_message: parsedInput.thankYou || null,
       is_active: true,

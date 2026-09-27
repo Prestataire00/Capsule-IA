@@ -23,7 +23,7 @@ const baseStyles =
 const echapper = (t: string) =>
   t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export type DestinataireQuestionnaire = 'entreprise' | 'financeur';
+export type DestinataireQuestionnaire = 'entreprise' | 'financeur' | 'apprenant' | 'formateur';
 
 export function questionnaireEmail(d: {
   destinataire: DestinataireQuestionnaire;
@@ -44,10 +44,12 @@ export function questionnaireEmail(d: {
     ? `Rappel — ${echapper(d.titreQuestionnaire)}`
     : echapper(d.titreQuestionnaire);
 
-  const intro =
-    d.destinataire === 'entreprise'
-      ? `Vous avez confié à ${echapper(d.organisme)} la formation${formation}. Votre retour nous aide à l’améliorer, et prépare les suivantes.`
-      : `Dans le cadre du dossier de formation${formation} suivi par ${echapper(d.organisme)}, nous avons besoin de quelques informations de votre part.`;
+  const intro = {
+    entreprise: `Vous avez confié à ${echapper(d.organisme)} la formation${formation}. Votre retour nous aide à l’améliorer, et prépare les suivantes.`,
+    financeur: `Dans le cadre du dossier de formation${formation} suivi par ${echapper(d.organisme)}, nous avons besoin de quelques informations de votre part.`,
+    apprenant: `Dans le cadre de votre formation${formation} avec ${echapper(d.organisme)}, un questionnaire vous attend dans votre espace.`,
+    formateur: `Pour la formation${formation} que vous animez pour ${echapper(d.organisme)}, nous avons besoin de votre retour.`,
+  }[d.destinataire];
 
   const rappel = d.relance
     ? '<p style="margin:0 0 16px;font-size:14px;color:#3f3f46;">Nous vous avions adressé ce questionnaire il y a quelque temps — il est toujours ouvert.</p>'

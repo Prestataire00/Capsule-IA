@@ -46,9 +46,9 @@ async function loadContext(token: string) {
     // l'autre. La dupliquer pour changer trois mots aurait fait deux écrans à
     // maintenir, qui auraient divergé.
     destinataire:
-      (assignment as { recipient_kind?: string | null }).recipient_kind === 'company_rep'
-        ? 'Questionnaire entreprise'
-        : 'Questionnaire financeur',
+      ({ company_rep: 'Questionnaire entreprise', trainer: 'Questionnaire formateur', learner: 'Questionnaire' } as Record<string, string>)[
+        (assignment as { recipient_kind?: string | null }).recipient_kind ?? ''
+      ] ?? 'Questionnaire financeur',
     base:
       (assignment as { recipient_kind?: string | null }).recipient_kind === 'company_rep'
         ? 'entreprise'

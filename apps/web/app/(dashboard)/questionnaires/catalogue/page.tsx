@@ -24,6 +24,7 @@ type Modele = {
   title: string;
   kind: string;
   code: string | null;
+  audience?: string | null;
   organization_id: string | null;
   schema: unknown;
 };
@@ -36,7 +37,7 @@ export default async function CataloguePage() {
   const { data, error } = await sb
     .schema('app')
     .from('questionnaire_templates')
-    .select('id, title, kind, code, organization_id, schema')
+    .select('*')
     .is('deleted_at', null)
     .eq('is_active', true)
     .order('title', { ascending: true });
