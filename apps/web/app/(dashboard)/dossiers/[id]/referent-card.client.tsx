@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { BoutonEcrire } from '@/features/emails/ecrire.client';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserRound, Mail, Phone, Pencil, Plus, Loader2, X, Building2 } from 'lucide-react';
@@ -126,14 +126,13 @@ export function ReferentCard({
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-0.5">
               {referent.email ? (
-                <Link
-                  href={`/dossiers/${dossierId}?ecrire=${encodeURIComponent(referent.email)}`}
-                  scroll={false}
+                <BoutonEcrire
+                  email={referent.email}
                   title="Écrire depuis l’adresse de l’organisme"
                   className="h-8 px-2.5 rounded-lg text-[12px] font-medium inline-flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-white/70 dark:bg-zinc-900/60 hover:bg-white dark:hover:bg-zinc-800 transition"
                 >
                   <Mail className="w-3.5 h-3.5 text-rose-500" /> {referent.email}
-                </Link>
+                </BoutonEcrire>
               ) : (
                 <span className="text-[12px] text-amber-600 dark:text-amber-400">
                   Aucun e-mail : les envois automatiques ne partiront pas.

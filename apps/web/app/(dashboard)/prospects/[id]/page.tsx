@@ -26,7 +26,7 @@ import { QUOTE_STATUS_LABELS, type QuoteStatus } from '@/features/billing/domain
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { FicheBesoinControls } from './fiche-besoin-controls.client';
-import { EcrireAuClient } from '@/features/emails/ecrire.client';
+import { BoutonEcrire, EcrireAuClient } from '@/features/emails/ecrire.client';
 import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 import { filDesEchanges, type EmailJournal, type Suivi } from '@/features/prospect/fil-echanges';
 import { ecrireALaDemande } from './ecrire-actions';
@@ -532,13 +532,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
           </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Link
-              href={`?ecrire=${encodeURIComponent(prospect.email)}`}
-              scroll={false}
-              className="text-[13px] font-semibold px-3 h-9 inline-flex items-center rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
-            >
+            <BoutonEcrire email={prospect.email} className="text-[13px] font-semibold px-3 h-9 inline-flex items-center rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition">
               Envoyer un e-mail
-            </Link>
+            </BoutonEcrire>
             <Link
               href="/agenda"
               className="text-[13px] font-semibold px-3 h-9 inline-flex items-center rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
@@ -765,9 +761,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
               </div>
             </div>
             <div className="mt-3 space-y-1.5 text-[13px]">
-              <Link href={`?ecrire=${encodeURIComponent(prospect.email)}`} scroll={false} className="block text-zinc-700 dark:text-zinc-300 hover:text-orange-600 truncate">
+              <BoutonEcrire email={prospect.email} className="block w-full text-left text-zinc-700 dark:text-zinc-300 hover:text-orange-600 truncate">
                 {prospect.email}
-              </Link>
+              </BoutonEcrire>
               {prospect.phone ? (
                 <a href={`tel:${prospect.phone}`} className="block text-zinc-700 dark:text-zinc-300 hover:text-orange-600 tabular-nums">
                   {prospect.phone}
@@ -805,13 +801,9 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
                 Voir les pièces
               </a>
             )}
-            <Link
-              href={`?ecrire=${encodeURIComponent(prospect.email)}`}
-              scroll={false}
-              className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
-            >
+            <BoutonEcrire email={prospect.email} className="w-full inline-flex items-center justify-center gap-2 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold px-4 h-10 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition">
               Relancer par e-mail
-            </Link>
+            </BoutonEcrire>
           </section>
 
           {/* La demande constitue le dossier : le fil entre les deux doit se

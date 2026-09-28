@@ -4,6 +4,40 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Mail, Send } from 'lucide-react';
 
+const EVENEMENT = 'capsule:ecrire';
+
+/**
+ * Ouvre le formulaire d'écriture de la page, destinataire choisi. Les boutons
+ * « Envoyer un e-mail », « Relancer par e-mail », l'adresse cliquée d'un
+ * contact passent par là : ils sont souvent loin du formulaire, en haut de la
+ * fiche, et doivent l'amener à l'écran — à chaque clic, pas seulement au premier.
+ */
+type DemandeEcriture = { email: string | null; prise: boolean };
+
+export function ouvrirEcriture(email?: string | null): boolean {
+  const demande: DemandeEcriture = { email: email ?? null, prise: false };
+  window.dispatchEvent(new CustomEvent<DemandeEcriture>(EVENEMENT, { detail: demande }));
+  return demande.prise;
+}
+
+/** Un bouton qui ouvre le formulaire d'écriture de la page. */
+export function BoutonEcrire({ email, className, children, title }: { email?: string | null; className?: string; children: React.ReactNode; title?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        // Aucun formulaire sur la page (droits insuffisants, pas d'adresse
+        // d'expédition) : le dire, plutôt qu'un bouton qui ne fait rien.
+        if (!ouvrirEcriture(email)) alert('L’écriture d’e-mails n’est pas disponible sur cette fiche pour votre rôle.');
+      }}
+      className={className}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+}
+
 export type EnvoiMessage = (input: { destinataire: string; objet: string; message: string }) => Promise<
   { ok: true; message: string } | { ok: false; error: string }
 >;
@@ -44,15 +78,46 @@ export function EcrireAuClient({
   const demande = useSearchParams().get('ecrire');
   const [ouvert, setOuvert] = useState(Boolean(demande));
   const [a, setA] = useState(demande ?? destinataires[0]?.email ?? '');
+  // Incrémenté à chaque demande d'ouverture : le défilement se fait APRÈS
+  // l'affichage du formulaire (il n'existe pas tant qu'il est fermé), et un
+  // second clic sur le même bouton ramène le formulaire à l'écran.
+  const [appel, setAppel] = useState(demande ? 1 : 0);
   const cadre = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!demande) return;
-    setA(demande);
+  const champObjet = useRef<HTMLInputElement>(null);
+  const [autre, setAutre] = useState<string | null>(null);
+
+  const ouvrir = (email: string | null) => {
+    if (email) {
+      setA(email);
+      if (!destinataires.some((d) => d.email === email)) setAutre(email);
+    }
     setOuvert(true);
-    cadre.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setAppel((n) => n + 1);
+  };
+
+  useEffect(() => {
+    if (demande) ouvrir(demande);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demande]);
-  const choix = demande && !destinataires.some((d) => d.email === demande)
-    ? [{ email: demande, nom: demande, role: 'contact' }, ...destinataires]
+
+  useEffect(() => {
+    const ecouter = (e: Event) => {
+      const d = (e as CustomEvent<DemandeEcriture>).detail;
+      d.prise = true;
+      ouvrir(d.email);
+    };
+    window.addEventListener(EVENEMENT, ecouter);
+    return () => window.removeEventListener(EVENEMENT, ecouter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!appel || !ouvert) return;
+    cadre.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    champObjet.current?.focus({ preventScroll: true });
+  }, [appel, ouvert]);
+  const choix = autre && !destinataires.some((d) => d.email === autre)
+    ? [{ email: autre, nom: autre, role: 'contact' }, ...destinataires]
     : destinataires;
   const [objet, setObjet] = useState('');
   const [message, setMessage] = useState('');
@@ -63,7 +128,7 @@ export function EcrireAuClient({
     return (
       <button
         type="button"
-        onClick={() => setOuvert(true)}
+        onClick={() => ouvrir(null)}
         className="text-[13px] font-semibold px-3 h-9 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition"
       >
         <Mail className="w-3.5 h-3.5" /> {titre}
@@ -123,7 +188,7 @@ export function EcrireAuClient({
 
       <label className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
         Objet
-        <input value={objet} onChange={(e) => setObjet(e.target.value)} maxLength={200} className={`${champ} mt-1`} />
+        <input ref={champObjet} value={objet} onChange={(e) => setObjet(e.target.value)} maxLength={200} className={`${champ} mt-1`} />
       </label>
 
       <label className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
