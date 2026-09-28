@@ -11,6 +11,22 @@ import { loadSession } from '@/features/sessions/load-session';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { AUTOMATION_KEYS, loadSessionAutomations, scheduleKey } from '@/features/automation/session-automations';
 import { AutomationToggle } from './automation-toggle';
+import { loadReglesOrganisme } from '@/features/emails/programmation-store';
+import { phraseDuDelai, reglageEffectif } from '@/features/emails/programmation-envois';
+
+/** L'envoi de Capsule → son type d'e-mail, qui porte le délai réglé par l'organisme. */
+const KIND_DE: Record<string, string> = {
+  convocation: 'convocation_j7',
+  satisfaction: 'satisfaction_chaud',
+  fin_formation: 'fin_de_formation',
+  retour_formateur: 'satisfaction_formateur',
+};
+/** Les deux envois qui sont des questionnaires, et le modèle livré qu'ils utilisent. */
+const QUESTIONNAIRE_DE: Record<string, string> = {
+  satisfaction: 'satisfaction_chaud_default',
+  retour_formateur: 'satisfaction_formateur_default',
+};
+const jourFr = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit' });
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +71,28 @@ export default async function SessionAutomatisations({ params }: { params: { id:
   const regles = (data ?? []) as Regle[];
   const actif = (cle: string) => reglages.get(cle) ?? true;
 
+  // Quand chaque envoi partira pour CETTE séance : le délai de l'organisme,
+  // appliqué au début de la séance (convocation) ou à la fin du dossier.
+  const [reglesOrg, { data: finRow }, { data: modelesRows }] = await Promise.all([
+    loadReglesOrganisme(loaded.session.organization_id),
+    loaded.session.dossier_id
+      ? db.schema('app').from('dossiers').select('end_date').eq('id', loaded.session.dossier_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    db.schema('app').from('questionnaire_templates').select('id, code').is('organization_id', null).in('code', Object.values(QUESTIONNAIRE_DE)),
+  ]);
+  const finDossier = (finRow as { end_date?: string | null } | null)?.end_date ?? null;
+  const modeleId = new Map(((modelesRows ?? []) as Array<{ id: string; code: string }>).map((m) => [m.code, m.id]));
+  const prevu = (cle: string): { phrase: string; date: string | null } | null => {
+    const kind = KIND_DE[cle];
+    if (!kind) return null;
+    const reglage = reglageEffectif(kind, reglesOrg.get(kind));
+    const phrase = phraseDuDelai(kind, reglage);
+    if (!phrase) return null;
+    const base = cle === 'convocation' ? new Date(loaded.session.starts_at) : new Date(finDossier ? `${finDossier}T12:00:00Z` : loaded.session.ends_at);
+    const d = new Date(base.getTime() + (cle === 'convocation' ? -1 : 1) * reglage.delaiJours * 86_400_000);
+    return { phrase, date: reglage.actif ? jourFr(d) : null };
+  };
+
   return (
     <div className="space-y-6">
       <p className="text-[13px] text-zinc-600 dark:text-zinc-400 max-w-2xl">
@@ -72,6 +110,35 @@ export default async function SessionAutomatisations({ params }: { params: { id:
                 <div className="min-w-0">
                   <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{e.label}</p>
                   <p className="text-[12px] text-zinc-500">{e.quand}.</p>
+                  {(() => {
+                    const p = prevu(e.key);
+                    return p ? (
+                      <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5 tabular-nums">
+                        {p.date ? <>Pour cette séance : <strong className="font-medium">{p.date}</strong> · </> : <>Coupé pour tout l’organisme · </>}
+                        {p.phrase}.{' '}
+                        <Link href="/emails/automatiques" className="text-orange-600 dark:text-orange-400 hover:underline">
+                          Régler le délai
+                        </Link>
+                      </p>
+                    ) : null;
+                  })()}
+                  {QUESTIONNAIRE_DE[e.key] && (
+                    <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5">
+                      {modeleId.get(QUESTIONNAIRE_DE[e.key]!) && (
+                        <>
+                          <Link href={`/questionnaires/${modeleId.get(QUESTIONNAIRE_DE[e.key]!)}/apercu`} className="text-orange-600 dark:text-orange-400 hover:underline">
+                            Lire le questionnaire
+                          </Link>{' '}
+                          ·{' '}
+                        </>
+                      )}
+                      Formulaire standard, non modifiable. Pour envoyer un questionnaire de votre bibliothèque à la place, cochez-le dans l’onglet{' '}
+                      <Link href={`/sessions/${params.id}/questionnaires`} className="text-orange-600 dark:text-orange-400 hover:underline">
+                        Questionnaires
+                      </Link>{' '}
+                      puis coupez cet envoi.
+                    </p>
+                  )}
                 </div>
               </div>
               {gerer ? (

@@ -18,7 +18,8 @@ import {
 } from '../features/questionnaire/cartographie';
 
 const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf-8');
-const CATALOGUE = lire('../app/(dashboard)/questionnaires/catalogue/page.tsx');
+// Le catalogue par interlocuteur est devenu la bibliothèque, page d'accueil des questionnaires.
+const CATALOGUE = lire('../app/(dashboard)/questionnaires/page.tsx');
 const APERCU = lire('../app/(dashboard)/questionnaires/[templateId]/apercu/page.tsx');
 const ONGLETS = lire('../app/(dashboard)/questionnaires/questionnaires-tabs.client.tsx');
 
@@ -103,8 +104,8 @@ describe('les écrans', () => {
   });
 
   it('et l’onglet existe', () => {
-    expect(ONGLETS).toContain("'/questionnaires/catalogue'");
-    expect(ONGLETS).toContain('Par interlocuteur');
+    expect(ONGLETS).toContain("href: '/questionnaires', label: 'Bibliothèque'");
+    expect(ONGLETS).toContain("'/questionnaires/envois'");
   });
 
   it('l’aperçu montre les deux formes de schéma', () => {

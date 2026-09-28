@@ -4,18 +4,34 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Plus } from 'lucide-react';
+import { Library, Plus } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { loadSession } from '@/features/sessions/load-session';
-import { INTERLOCUTEURS, ETAPES, etapeDuModele, interlocuteurDuModele } from '@/features/questionnaire/cartographie';
-import { cleMoment, jourEnvoi, momentParDefaut } from '@/features/questionnaire/programmation-seance';
+import {
+  INTERLOCUTEURS,
+  ETAPES,
+  etapeDuModele,
+  interlocuteurDuModele,
+} from '@/features/questionnaire/cartographie';
+import {
+  cleMoment,
+  jourEnvoi,
+  momentParDefaut,
+} from '@/features/questionnaire/programmation-seance';
 import { programmationsDeLaSeance } from '@/features/questionnaire/questionnaires-de-seance';
 import { QuestionnairesSeance, type LigneQuestionnaire } from './questionnaires-seance.client';
 
 export const dynamic = 'force-dynamic';
 
-type Modele = { id: string; title: string; kind: string; code: string | null; audience?: string | null; organization_id: string | null };
+type Modele = {
+  id: string;
+  title: string;
+  kind: string;
+  code: string | null;
+  audience?: string | null;
+  organization_id: string | null;
+};
 
 export default async function SessionQuestionnairesTab({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -26,11 +42,22 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
   const db = sb as unknown as SupabaseClient<any, any, any>;
 
   const [{ data: tData }, programmations, gerer, { data: aData }] = await Promise.all([
-    db.schema('app').from('questionnaire_templates').select('*').eq('is_active', true).is('deleted_at', null).order('title', { ascending: true }),
+    db
+      .schema('app')
+      .from('questionnaire_templates')
+      .select('*')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('title', { ascending: true }),
     programmationsDeLaSeance(db, params.id),
     canManageSection('dossiers'),
     dossierIds.length
-      ? db.schema('app').from('questionnaire_assignments').select('template_id, status').in('dossier_id', dossierIds).neq('status', 'expired')
+      ? db
+          .schema('app')
+          .from('questionnaire_assignments')
+          .select('template_id, status')
+          .in('dossier_id', dossierIds)
+          .neq('status', 'expired')
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -65,7 +92,8 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
     })
     .sort(
       (a, b) =>
-        (ordreInterlocuteur.get(a.interlocuteur) ?? 9) - (ordreInterlocuteur.get(b.interlocuteur) ?? 9) ||
+        (ordreInterlocuteur.get(a.interlocuteur) ?? 9) -
+          (ordreInterlocuteur.get(b.interlocuteur) ?? 9) ||
         (ordreEtape.get(a.etape) ?? 9) - (ordreEtape.get(b.etape) ?? 9) ||
         a.titre.localeCompare(b.titre, 'fr'),
     );
@@ -74,15 +102,24 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 max-w-2xl">
-          Cochez les questionnaires à envoyer pour cette séance et choisissez quand. Ils partent tout seuls le jour dit, par
-          e-mail — le stagiaire répond dans son espace, l’entreprise, le financeur et le formateur par un lien.
+          Cochez les questionnaires à envoyer pour cette séance et choisissez quand. Ils partent
+          tout seuls le jour dit, par e-mail — le stagiaire répond dans son espace, l’entreprise, le
+          financeur et le formateur par un lien.
         </p>
-        <Link
-          href="/questionnaires/nouveau"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-        >
-          <Plus className="w-3.5 h-3.5" /> Créer un questionnaire
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/questionnaires"
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <Library className="w-3.5 h-3.5" /> Bibliothèque
+          </Link>
+          <Link
+            href="/questionnaires/nouveau"
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <Plus className="w-3.5 h-3.5" /> Créer un questionnaire
+          </Link>
+        </div>
       </div>
       <QuestionnairesSeance sessionId={params.id} lignes={lignes} gerer={gerer} />
     </div>
