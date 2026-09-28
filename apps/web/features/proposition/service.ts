@@ -14,6 +14,7 @@ import { controlerCadre, type ContenuProposition } from './contenu';
 import { genererProposition, type ContexteProposition } from './generer-avec-ia';
 import { propositionHtml } from './proposition-html';
 import { creerDevisProposition, type ClientDemande } from './devis';
+import { preparerProgramme } from './preparer-programme';
 
 export const BUCKET_PROGRAMMES = 'prospect-documents';
 
@@ -136,13 +137,13 @@ function clientDe(p: Prospect): ClientDemande {
   };
 }
 
-export async function telechargerProgramme(sb: SupabaseClient, path: string): Promise<string | null> {
+export async function telechargerProgramme(sb: SupabaseClient, path: string): Promise<Uint8Array | null> {
   const { data, error } = await sb.storage.from(BUCKET_PROGRAMMES).download(path);
   if (error || !data) {
     console.error('[proposition] programme illisible', path, error?.message);
     return null;
   }
-  return Buffer.from(await data.arrayBuffer()).toString('base64');
+  return new Uint8Array(await data.arrayBuffer());
 }
 
 /**
@@ -161,23 +162,31 @@ export async function creerVersion(
 ): Promise<VersionResultat> {
   const p = await chargerProspect(sb, args.prospectId);
   if (!p) return { ok: false, erreur: 'Demande introuvable.' };
-  const pdf = await telechargerProgramme(sb, args.programmePath);
-  if (!pdf) return { ok: false, erreur: 'Le programme déposé est illisible.' };
+  const octets = await telechargerProgramme(sb, args.programmePath);
+  if (!octets) return { ok: false, erreur: 'Le programme déposé n’a pas pu être relu.' };
+  const programme = await preparerProgramme(octets, args.programmeNom ?? args.programmePath.split('/').pop() ?? '');
+  if (!programme.ok) return { ok: false, erreur: programme.raison };
 
   const ctx = await contexte(sb, p);
-  let r = await genererProposition(pdf, ctx, args.revision);
-  if (!r.ok) return { ok: false, erreur: MESSAGES[r.raison] ?? MESSAGES.echec! };
-  // Hors cadre (coaching, programme personnalisé…) : une correction ciblée,
-  // puis on garde l'alerte si elle persiste — l'équipe tranche.
-  let alertes = controlerCadre(r.contenu);
-  if (alertes.length) {
-    const corrige = await genererProposition(pdf, ctx, { precedente: r.contenu, consignes: args.revision?.consignes ?? 'Aucun autre changement.' }, alertes);
-    if (corrige.ok) {
-      r = corrige;
-      alertes = controlerCadre(corrige.contenu);
+  let contenu: ContenuProposition;
+  let alertes: string[];
+  try {
+    let r = await genererProposition(programme, ctx, args.revision);
+    if (!r.ok) return { ok: false, erreur: MESSAGES[r.raison] ?? MESSAGES.echec! };
+    // Hors cadre (coaching, programme personnalisé…) : une correction ciblée,
+    // puis on garde l'alerte si elle persiste — l'équipe tranche.
+    alertes = controlerCadre(r.contenu);
+    if (alertes.length) {
+      const corrige = await genererProposition(programme, ctx, { precedente: r.contenu, consignes: args.revision?.consignes ?? 'Aucun autre changement.' }, alertes);
+      if (corrige.ok) {
+        r = corrige;
+        alertes = controlerCadre(corrige.contenu);
+      }
     }
+    contenu = r.contenu;
+  } finally {
+    await programme.nettoyer();
   }
-  const contenu = r.contenu;
 
   const { data: derniere } = await sb
     .schema('app')

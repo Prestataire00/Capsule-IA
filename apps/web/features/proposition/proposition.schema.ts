@@ -9,3 +9,8 @@ export const reviserSchema = z.object({
 });
 
 export const envoyerSchema = z.object({ prospectId: z.string().uuid(), propositionId: z.string().uuid() });
+
+/** Le nom sert au titre et à reconnaître le format : aucun format ni taille imposés. */
+export const depotSchema = z.object({ prospectId: z.string().uuid(), nom: z.string().trim().min(1).max(300) });
+
+export const deposeSchema = depotSchema.extend({ path: z.string().min(1).max(500) });

@@ -4,7 +4,8 @@ import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Archive, CheckCircle2, FileText, Loader2, Send, Sparkles, Upload, Wand2 } from 'lucide-react';
-import { deposerProgramme, envoyerDevisProposition, reviserProposition } from './proposition-actions';
+import { supabaseBrowser } from '@/shared/lib/supabase/client';
+import { deposerProgramme, envoyerDevisProposition, preparerDepotProgramme, reviserProposition } from './proposition-actions';
 
 export type PropositionVue = {
   id: string;
@@ -65,12 +66,19 @@ export function Propositions({ prospectId, propositions, gerer }: { prospectId: 
     });
   };
 
+  // Le fichier part directement du navigateur vers le stockage : aucun format
+  // ni aucune taille imposés, rien ne transite par le serveur de l'application.
   const deposer = (f: File | undefined) => {
     if (!f) return;
-    const fd = new FormData();
-    fd.set('prospectId', prospectId);
-    fd.set('programme', f);
-    lancer('depot', () => deposerProgramme(fd));
+    lancer('depot', async () => {
+      const prep = await preparerDepotProgramme({ prospectId, nom: f.name });
+      if (!prep.ok) return prep;
+      const { error } = await supabaseBrowser()
+        .storage.from('prospect-documents')
+        .uploadToSignedUrl(prep.path, prep.token, f, { contentType: f.type || 'application/octet-stream' });
+      if (error) return { ok: false as const, error: `Le document n’a pas pu être envoyé : ${error.message}` };
+      return deposerProgramme({ prospectId, nom: f.name, path: prep.path });
+    });
     if (fichier.current) fichier.current.value = '';
   };
 
@@ -78,14 +86,16 @@ export function Propositions({ prospectId, propositions, gerer }: { prospectId: 
 
   return (
     <div className="space-y-4">
-      <input ref={fichier} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => deposer(e.target.files?.[0])} />
+      <input ref={fichier} type="file" className="hidden" onChange={(e) => deposer(e.target.files?.[0])} />
 
       {enCours && (
         <p role="status" className="text-[13px] text-zinc-700 dark:text-zinc-300 inline-flex items-center gap-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/60 px-3 py-2">
           <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
           {enCours === 'envoi'
             ? 'Envoi du devis…'
-            : 'L’IA rédige la proposition et son devis à partir du programme et des notes — une à trois minutes. Vous pouvez rester sur la page.'}
+            : enCours === 'depot'
+              ? 'Envoi du document, puis rédaction de la proposition et de son devis par l’IA — quelques minutes selon la taille du document. Restez sur la page.'
+              : 'L’IA rédige la nouvelle version et son devis — une à trois minutes. Restez sur la page.'}
         </p>
       )}
       {retour && (
@@ -98,12 +108,12 @@ export function Propositions({ prospectId, propositions, gerer }: { prospectId: 
         <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-6 text-center space-y-3">
           <Sparkles className="w-6 h-6 mx-auto text-orange-500" aria-hidden />
           <p className="text-[13px] text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
-            Déposez le programme conçu pour ce client. L’équipe est prévenue, et l’IA rédige la proposition V1 et son devis à partir du programme, de la
+            Déposez le programme conçu pour ce client, dans le format que vous avez (PDF, Word, PowerPoint, Excel, image…). L’équipe est prévenue, et l’IA rédige la proposition V1 et son devis à partir du programme, de la
             demande et des notes de suivi.
           </p>
           {gerer && (
             <button type="button" disabled={occupe} onClick={() => fichier.current?.click()} className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold disabled:opacity-50">
-              <Upload className="w-4 h-4" /> Déposer le programme (PDF)
+              <Upload className="w-4 h-4" /> Déposer le programme
             </button>
           )}
         </div>

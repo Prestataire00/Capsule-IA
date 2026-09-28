@@ -1,13 +1,14 @@
 import 'server-only';
 // Rédiger une proposition commerciale à partir du programme déposé.
 //
-// Claude lit le PDF du programme tel quel (bloc `document`), avec la demande
+// Claude lit le programme (PDF ou image tels quels, sinon son texte), avec la demande
 // et les notes internes, et rend une proposition structurée par le schéma
 // SCHEMA_PROPOSITION. Pour une V2, on lui redonne la version précédente et ce
 // qu'il faut changer : il n'invente pas une autre proposition, il corrige
 // celle-ci.
 
 import { anthropic } from '@/shared/lib/ai/client';
+import type { ProgrammeLu } from './preparer-programme';
 import { SCHEMA_PROPOSITION, depuisSortie, normaliser, versSortie, type ContenuProposition, type SortieIA } from './contenu';
 
 export const PROPOSITION_MODEL = 'claude-opus-5';
@@ -26,7 +27,7 @@ export type ResultatGeneration =
 
 const SYSTEME = `Tu rédiges les propositions commerciales d'un organisme de formation professionnelle français certifié Qualiopi.
 
-Tu reçois le PROGRAMME conçu par le formateur (document joint), la DEMANDE du client et les NOTES INTERNES de l'équipe. Tu produis la proposition que l'organisme enverra au client, dans la forme attendue par le schéma, dans cet esprit :
+Tu reçois le PROGRAMME conçu par le formateur (document ou image joint, quel qu'en soit le format d'origine), la DEMANDE du client et les NOTES INTERNES de l'équipe. Tu produis la proposition que l'organisme enverra au client, dans la forme attendue par le schéma, dans cet esprit :
 - titre accrocheur centré sur le résultat pour le client, sous-titre qui dit la transformation, bandeau « durée · modalité, intra/inter-entreprise » ;
 - présentation en 2 à 3 paragraphes : l'organisme, le contexte du client (tiré de la demande et des notes), ce que la formation change ;
 - vue d'ensemble : durée totale et rythme ; un « fil rouge » en tableau (brique / ce que c'est / exemple chez le client) quand le programme s'y prête, sinon une liste vide ;
@@ -68,7 +69,7 @@ function contexteTexte(ctx: ContexteProposition): string {
 }
 
 export async function genererProposition(
-  programmePdfBase64: string,
+  programme: Extract<ProgrammeLu, { ok: true }>,
   ctx: ContexteProposition,
   revision?: Revision,
   correction?: string[],
@@ -88,7 +89,7 @@ export async function genererProposition(
     const stream = client.beta.messages.stream({
       model: PROPOSITION_MODEL,
       max_tokens: 64000,
-      betas: ['server-side-fallback-2026-07-01'],
+      betas: ['server-side-fallback-2026-07-01', ...programme.betas],
       fallbacks: 'default',
       thinking: { type: 'adaptive' },
       output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA_PROPOSITION } },
@@ -97,7 +98,7 @@ export async function genererProposition(
         {
           role: 'user',
           content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: programmePdfBase64 }, title: 'Programme du formateur' },
+            programme.bloc,
             { type: 'text', text: `${contexteTexte(ctx)}\n\n${consigne}${aCorriger}` },
           ],
         },

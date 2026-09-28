@@ -8,7 +8,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { notifyOrgStaffOfProgramme } from '@/shared/lib/notifications/notify-staff';
 import { sendQuoteForSignature } from '@/features/billing/quotes/quote-service';
 import { BUCKET_PROGRAMMES, creerVersion } from '@/features/proposition/service';
-import { reviserSchema, envoyerSchema } from '@/features/proposition/proposition.schema';
+import { reviserSchema, envoyerSchema, depotSchema, deposeSchema } from '@/features/proposition/proposition.schema';
 import type { ContenuProposition } from '@/features/proposition/contenu';
 
 /**
@@ -19,7 +19,6 @@ import type { ContenuProposition } from '@/features/proposition/contenu';
 
 export type PropositionResult = { ok: true; message: string } | { ok: false; error: string };
 
-const MAX_PDF = 5 * 1024 * 1024;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const admin = () => supabaseAdmin() as unknown as SupabaseClient<any, any, any>;
 
@@ -44,22 +43,36 @@ const message = (version: number, alertes: string[]) =>
     ? `Proposition V${version} prête — à relire : ${alertes.length} point${alertes.length > 1 ? 's' : ''} hors cadre signalé${alertes.length > 1 ? 's' : ''}.`
     : `Proposition V${version} et son devis sont prêts à relire.`;
 
-/** Dépose le programme, prévient l'équipe et rédige la proposition V1. */
-export async function deposerProgramme(formData: FormData): Promise<PropositionResult> {
-  const prospectId = String(formData.get('prospectId') ?? '');
+/**
+ * Prépare le dépôt : une URL d'envoi signée, pour que le navigateur envoie le
+ * fichier directement au stockage. Il ne transite pas par le serveur de
+ * l'application, dont les requêtes sont limitées à 5 Mo : aucun format ni
+ * aucune taille n'est imposé ici.
+ */
+export async function preparerDepotProgramme(brut: z.input<typeof depotSchema>): Promise<
+  { ok: true; path: string; token: string } | { ok: false; error: string }
+> {
+  const p = depotSchema.safeParse(brut);
+  if (!p.success) return { ok: false, error: 'Fichier invalide.' };
+  const g = await garde(p.data.prospectId);
+  if (!g.ok) return g;
+  const propre = p.data.nom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-120) || 'programme';
+  const path = `${p.data.prospectId}/programme/${Date.now()}-${propre}`;
+  const { data, error } = await admin().storage.from(BUCKET_PROGRAMMES).createSignedUploadUrl(path);
+  if (error || !data) return { ok: false, error: `Le dépôt n’a pas pu être préparé : ${error?.message ?? 'erreur inconnue'}` };
+  return { ok: true, path: data.path, token: data.token };
+}
+
+/** Le fichier est déposé : prévient l'équipe et rédige la proposition V1. */
+export async function deposerProgramme(brut: z.input<typeof deposeSchema>): Promise<PropositionResult> {
+  const p = deposeSchema.safeParse(brut);
+  if (!p.success) return { ok: false, error: 'Dépôt invalide.' };
+  const prospectId = p.data.prospectId;
   const g = await garde(prospectId);
   if (!g.ok) return g;
-  const fichier = formData.get('programme');
-  if (!(fichier instanceof File) || fichier.size === 0) return { ok: false, error: 'Choisissez le programme (PDF).' };
-  if (fichier.type !== 'application/pdf' && !fichier.name.toLowerCase().endsWith('.pdf')) return { ok: false, error: 'Le programme doit être un PDF.' };
-  if (fichier.size > MAX_PDF) return { ok: false, error: 'PDF trop lourd (5 Mo au plus).' };
-
-  const path = `${prospectId}/programme/${Date.now()}.pdf`;
-  const { error: upErr } = await admin().storage.from(BUCKET_PROGRAMMES).upload(path, Buffer.from(await fichier.arrayBuffer()), {
-    contentType: 'application/pdf',
-    upsert: false,
-  });
-  if (upErr) return { ok: false, error: `Le programme n’a pas pu être enregistré : ${upErr.message}` };
+  // Le chemin vient du navigateur : il doit être celui préparé pour CETTE demande.
+  if (!p.data.path.startsWith(`${prospectId}/programme/`) || p.data.path.includes('..')) return { ok: false, error: 'Dépôt invalide.' };
+  const path = p.data.path;
 
   const { data: profil } = await admin().schema('app').from('profiles').select('full_name').eq('user_id', g.member.userId).maybeSingle();
   const deposePar = (profil as { full_name?: string } | null)?.full_name ?? null;
@@ -70,7 +83,7 @@ export async function deposerProgramme(formData: FormData): Promise<PropositionR
     prospect_id: prospectId,
     kind: 'programme_depose',
     actor_user_id: g.member.userId,
-    payload: { nom: fichier.name, path },
+    payload: { nom: p.data.nom, path },
   } as never);
   // Prévenue avant la rédaction : Laurie sait qu'une proposition arrive.
   await notifyOrgStaffOfProgramme({
@@ -81,7 +94,7 @@ export async function deposerProgramme(formData: FormData): Promise<PropositionR
     exclureUserId: g.member.userId,
   });
 
-  const r = await creerVersion(admin(), { prospectId, userId: g.member.userId, programmePath: path, programmeNom: fichier.name });
+  const r = await creerVersion(admin(), { prospectId, userId: g.member.userId, programmePath: path, programmeNom: p.data.nom });
   revalidatePath(`/prospects/${prospectId}`);
   return r.ok ? { ok: true, message: message(r.version, r.alertes) } : { ok: false, error: `Programme enregistré, mais ${r.erreur.charAt(0).toLowerCase()}${r.erreur.slice(1)}` };
 }
