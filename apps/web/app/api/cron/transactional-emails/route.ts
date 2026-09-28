@@ -32,7 +32,7 @@ import { runAutomaticReminders } from '@/features/billing/invoices/reminders';
 import { sendCertificatToCompany } from '@/features/documents/send-certificat-to-company';
 import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automation/session-automations';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
-import { delaisAConsiderer, doitPartirAujourdhui } from '@/features/emails/programmation-envois';
+import { delaisAConsiderer, doitPartirAujourdhui, organisationsQuiOntCoupe } from '@/features/emails/programmation-envois';
 import { automatisationApplicable } from '@/features/dossier/saisie-retroactive';
 import { dossiersAuFinancementArrete } from '@/features/funders/arret-automatisations';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
@@ -259,7 +259,13 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
   // Récap aux entreprises clientes : une fois les convocations individuelles
   // parties, le responsable de chaque société reçoit celles de ses salariés en
   // un seul envoi. Il ne recevait rien jusqu'ici.
-  for (const s of sessionRows as unknown as { id: string }[]) {
+  // Coupé pour tout l'organisme dans Envois automatiques : pas de récapitulatif.
+  const recapCoupe = organisationsQuiOntCoupe(
+    'convocation_recap_entreprise',
+    await loadReglesParOrganisme(sb, 'convocation_recap_entreprise'),
+  );
+  for (const s of sessionRows as unknown as { id: string; organization_id: string }[]) {
+    if (recapCoupe.has(s.organization_id)) continue;
     try {
       const recap = await sendConvocationsRecap(s.id);
       sent += recap.envoyes;
@@ -496,9 +502,11 @@ async function runMissingSignatureAlerts(): Promise<{ candidates: number; alerte
     .select('id, half_day, organization_id, session_id, status')
     .in('status', ['open', 'partial']);
   if (shErr) return { candidates: 0, alerted: 0, errors: [shErr.message] };
-  const sheets = (sheetsRaw ?? []) as unknown as {
+  // Coupée pour tout l'organisme dans Envois automatiques.
+  const alerteCoupee = organisationsQuiOntCoupe('alerte_emargement', await loadReglesParOrganisme(sb, 'alerte_emargement'));
+  const sheets = ((sheetsRaw ?? []) as unknown as {
     id: string; half_day: string; organization_id: string; session_id: string; status: string;
-  }[];
+  }[]).filter((sh) => !alerteCoupee.has(sh.organization_id));
   if (sheets.length === 0) return { candidates: 0, alerted: 0, errors: [] };
 
   // Sessions terminées (ends_at < now, non annulées)
@@ -664,15 +672,22 @@ async function runTrainerSatisfaction(): Promise<{ candidates: number; sent: num
   const sb = admin();
   const errors: string[] = [];
 
-  const yesterday = new Date();
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const yesterdayISO = yesterday.toISOString().slice(0, 10);
+  // Le délai et la coupure se règlent par organisme (Envois automatiques) :
+  // on interroge les dossiers terminés à chacune des dates concernées, puis
+  // chaque organisme est jugé sur SON réglage. Il partait en dur « la veille ».
+  const regles = await loadReglesParOrganisme(sb, 'satisfaction_formateur');
+  const aujourdhui = new Date();
+  const datesDeFin = delaisAConsiderer('satisfaction_formateur', regles).map((jours) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - jours);
+    return d.toISOString().slice(0, 10);
+  });
 
   const { data: dossiers, error } = await sb
     .schema('app')
     .from('dossiers')
     .select('id, organization_id, formation_id, end_date, status, created_at')
-    .eq('end_date', yesterdayISO)
+    .in('end_date', datesDeFin)
     .eq('status', 'completed');
   if (error) return { candidates: 0, sent: 0, errors: [error.message] };
   const rowsBruts = (dossiers ?? []) as unknown as Array<{
@@ -684,13 +699,20 @@ async function runTrainerSatisfaction(): Promise<{ candidates: number; sent: num
     created_at: string;
   }>;
   const arretes = await dossiersAuFinancementArrete(sb, rowsBruts.map((d) => d.id));
-  const rows = rowsBruts.filter((d) =>
-    automatisationApplicable({
-      statut: d.status,
-      datePivot: d.end_date,
-      creeLe: d.created_at,
-      financementArrete: arretes.has(d.id),
-    }),
+  const rows = rowsBruts.filter(
+    (d) =>
+      automatisationApplicable({
+        statut: d.status,
+        datePivot: d.end_date,
+        creeLe: d.created_at,
+        financementArrete: arretes.has(d.id),
+      }) &&
+      doitPartirAujourdhui({
+        kind: 'satisfaction_formateur',
+        organizationId: d.organization_id,
+        regles,
+        ecartJours: -ecartEnJours(d.end_date, aujourdhui),
+      }),
   );
   if (rows.length === 0) return { candidates: 0, sent: 0, errors: [] };
 
@@ -879,8 +901,12 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
     'attestation_entree',
   );
 
+  // Coupée pour tout l'organisme dans Envois automatiques.
+  const entreeCoupee = organisationsQuiOntCoupe('attestation_demarrage', await loadReglesParOrganisme(sb, 'attestation_demarrage'));
+
   for (const [dossierId, ctx] of byDossier) {
     if (ctx.sessionId && entreeOff.has(ctx.sessionId)) continue;
+    if (entreeCoupee.has(ctx.organizationId)) continue;
     try {
       // Dédup : déjà envoyée pour ce dossier ?
       const { data: already } = await sb

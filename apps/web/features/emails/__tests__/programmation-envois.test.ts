@@ -69,9 +69,15 @@ describe('ce qui s’applique réellement', () => {
     expect(reglageEffectif('convocation_j7', regle('convocation_j7', true, 0)).delaiJours).toBe(7);
   });
 
-  it('refuse de couper un envoi qui ne se coupe pas, même si la base dit l’inverse', () => {
+  it('refuse de couper un envoi qui ne se coupe pas ici, même si la base dit l’inverse', () => {
+    // Les relances de facturation se règlent sur la page Factures.
+    expect(reglageEffectif('quote_sent', regle('quote_sent', false, 0)).actif).toBe(true);
+  });
+
+  it('le certificat à l’entreprise se coupe désormais, et garde son délai', () => {
+    // Décision du 28/09/2026 : l'organisme choisit ses règles, l'écran rappelle le risque.
     const r = reglageEffectif('certificat_entreprise', regle('certificat_entreprise', false, 3));
-    expect(r.actif).toBe(true);
+    expect(r.actif).toBe(false);
     expect(r.delaiJours).toBe(3);
   });
 
@@ -85,8 +91,8 @@ describe('ce qu’on refuse d’enregistrer', () => {
     expect(problemesDuReglage('n_importe_quoi', { actif: true, delaiJours: 1 })).toHaveLength(1);
   });
 
-  it('refuse de couper un envoi dû à l’entreprise', () => {
-    expect(problemesDuReglage('certificat_entreprise', { actif: false, delaiJours: 1 })[0]).toMatch(
+  it('refuse de couper ici un envoi qui se règle ailleurs', () => {
+    expect(problemesDuReglage('quote_sent', { actif: false, delaiJours: 0 })[0]).toMatch(
       /ne peut pas être coupé/i,
     );
   });
@@ -177,8 +183,13 @@ describe('faut-il envoyer aujourd’hui ?', () => {
     expect([...organisationsQuiOntCoupe('convocation_j7', regles)]).toEqual(['orgCoupe']);
   });
 
-  it('ne compte pas comme coupé un envoi qui ne se coupe pas', () => {
-    const r = new Map([['orgA', regle('certificat_entreprise', false, 1)]]);
-    expect(organisationsQuiOntCoupe('certificat_entreprise', r).size).toBe(0);
+  it('ne compte pas comme coupé un envoi qui ne se coupe pas ici', () => {
+    const r = new Map([['orgA', regle('quote_sent', false, 0)]]);
+    expect(organisationsQuiOntCoupe('quote_sent', r).size).toBe(0);
+  });
+
+  it('chaque envoi se coupe, sauf ceux réglés sur la page Factures', () => {
+    const nonCoupables = Object.entries(REGLABLES).filter(([, r]) => !r.coupable).map(([k]) => k).sort();
+    expect(nonCoupables).toEqual(['invoice_reminder_auto', 'quote_sent']);
   });
 });

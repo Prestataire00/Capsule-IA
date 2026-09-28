@@ -39,11 +39,13 @@ export type Reglable = {
  * toucher ne change rien.
  */
 export const REGLABLES: Readonly<Record<string, Reglable>> = {
-  fiche_besoin: { coupable: false, delai: null },
-  // Alerte interne : elle part au moment où le client répond, il n'y a rien à
-  // décaler. La couper reviendrait à ne pas être prévenu du tout.
-  fiche_besoin_completee: { coupable: false, delai: null },
-  nouvelle_demande: { coupable: false, delai: null },
+  // Chaque envoi se coupe : c'est l'organisme qui choisit ses règles (demande
+  // d'Ismael, 28/09/2026). L'écran rappelle ce qu'on perd en coupant.
+  fiche_besoin: { coupable: true, delai: null },
+  // Alertes internes : elles partent au moment où le client agit, rien à
+  // décaler — mais on peut préférer ne pas les recevoir par e-mail.
+  fiche_besoin_completee: { coupable: true, delai: null },
+  nouvelle_demande: { coupable: true, delai: null },
   convocation_j7: {
     coupable: true,
     delai: { defaut: 7, min: 1, max: 60, sens: 'avant', libelle: 'avant le début de la séance' },
@@ -62,9 +64,9 @@ export const REGLABLES: Readonly<Record<string, Reglable>> = {
     coupable: true,
     delai: { defaut: 1, min: 0, max: 30, sens: 'apres', libelle: 'après la fin du dossier' },
   },
-  // Pièce due à l'entreprise qui finance : le moment se règle, l'envoi non.
+  // Pièce due à l'entreprise qui finance : coupable, mais l'écran le rappelle.
   certificat_entreprise: {
-    coupable: false,
+    coupable: true,
     delai: { defaut: 1, min: 0, max: 30, sens: 'apres', libelle: 'après la fin du dossier' },
   },
   satisfaction_formateur: {

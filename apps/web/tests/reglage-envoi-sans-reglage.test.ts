@@ -22,22 +22,16 @@ const sansReglage = Object.entries(REGLABLES)
   .sort();
 
 describe('les envois qui n’ont rien à régler', () => {
-  it('sont bien ceux qu’on croit', () => {
-    // Fiche besoin et alertes internes partent au déclenchement ; devis et
-    // relance de facture suivent une décision, pas un calendrier.
-    expect(sansReglage).toEqual([
-      'fiche_besoin',
-      'fiche_besoin_completee',
-      'invoice_reminder_auto',
-      'nouvelle_demande',
-      'quote_sent',
-    ]);
+  it('ne sont plus que les deux relances de facturation', () => {
+    // Depuis le 28/09/2026, l'organisme choisit ses règles : tout se coupe ici,
+    // sauf ce qui se règle déjà sur la page Factures.
+    expect(sansReglage).toEqual(['invoice_reminder_auto', 'quote_sent']);
   });
 
-  it('ne sont pas une poignée de cas isolés', () => {
-    // Un tiers du catalogue : le défaut se rencontrait donc tout de suite.
-    expect(sansReglage.length).toBeGreaterThanOrEqual(5);
-    expect(ENVOIS_AUTOMATIQUES.length).toBeGreaterThan(sansReglage.length);
+  it('et l’écran dit où les régler, lien à l’appui', () => {
+    for (const kind of sansReglage) {
+      expect(ENVOIS_AUTOMATIQUES.find((e) => e.kind === kind)?.regleAilleurs?.href, kind).toBe('/factures');
+    }
   });
 });
 

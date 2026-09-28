@@ -23,7 +23,7 @@ describe('les deux gestes par stagiaire', () => {
   });
 
   it('réutilise l’envoi existant plutôt que d’en réécrire un', () => {
-    expect(ACTIONS).toContain('sendNeedsAnalysisForLearner({ learnerId, sb })');
+    expect(ACTIONS).toContain('sendNeedsAnalysisForLearner({ learnerId, sb, manuel: true })');
   });
 
   it('dit pourquoi rien n’est parti, au lieu d’un silence', () => {

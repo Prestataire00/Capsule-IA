@@ -116,3 +116,12 @@ export async function retablirDefaut(organizationId: string, kind: string): Prom
   if (error) return { ok: false, erreur: error.message };
   return { ok: true };
 }
+
+/**
+ * L'envoi est-il actif pour cet organisme ? La question que pose chaque envoi
+ * juste avant de partir. Un réglage illisible laisse partir (défaut du code).
+ */
+export async function envoiActif(organizationId: string | null | undefined, kind: string): Promise<boolean> {
+  if (!organizationId) return true;
+  return (await reglagePourOrganisme(organizationId, kind)).actif;
+}

@@ -189,7 +189,8 @@ export default async function EnvoisAutomatiquesPage({
 
                   {(() => {
                     const reglable = reglableDe(l.kind);
-                    if (!reglable) return null;
+                    // Réglé ailleurs (page Factures) : le lien plus bas le dit.
+                    if (!reglable || l.regleAilleurs) return null;
                     const regle = regles.get(l.kind);
                     const reglage = reglageEffectif(l.kind, regle);
                     return (
@@ -211,7 +212,17 @@ export default async function EnvoisAutomatiquesPage({
                         Se coupe aussi séance par séance, dans l&apos;onglet Automatisations de la séance.
                       </span>
                     ) : (
-                      <span>{l.obligatoire}</span>
+                      <span>
+                        {l.obligatoire}
+                        {l.regleAilleurs && (
+                          <>
+                            {' '}
+                            <Link href={l.regleAilleurs.href} className="text-orange-600 dark:text-orange-400 hover:underline">
+                              {l.regleAilleurs.libelle}
+                            </Link>
+                          </>
+                        )}
+                      </span>
                     )}
                   </p>
                 </div>

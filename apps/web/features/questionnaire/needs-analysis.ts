@@ -1,4 +1,5 @@
 import 'server-only';
+import { envoiActif } from '@/features/emails/programmation-store';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes, createHash } from 'node:crypto';
 import { env } from '@/env.mjs';
@@ -90,7 +91,7 @@ export async function ensureNeedsAnalysisTemplate(sb: Sb, organizationId?: strin
 export type NeedsAnalysisSendResult =
   | {
       ok: true;
-      status: 'sent' | 'skipped_existing' | 'no_email' | 'no_base_url' | 'not_found' | 'reused_inscription';
+      status: 'sent' | 'skipped_existing' | 'no_email' | 'no_base_url' | 'not_found' | 'reused_inscription' | 'coupe';
     }
   | { ok: false; error: string };
 
@@ -142,6 +143,8 @@ async function loadInscriptionNeedsAnalysis(
  * token et envoie l'email. Ne lève jamais — renvoie un Result.
  */
 export async function sendNeedsAnalysisForDossier(opts: {
+  /** Envoi demandé à la main : il part même si l'organisme a coupé l'envoi automatique. */
+  manuel?: boolean;
   dossierId: string;
   baseUrl?: string | null;
   sb?: Sb;
@@ -273,6 +276,8 @@ export async function sendNeedsAnalysisForDossier(opts: {
     return { ok: true, status: 'reused_inscription' };
   }
 
+  // L'organisme a coupé l'envoi automatique de la fiche besoin (Envois automatiques).
+  if (!opts.manuel && !(await envoiActif(dossier.organization_id, 'fiche_besoin'))) return { ok: true, status: 'coupe' };
   if (!baseUrl) return { ok: true, status: 'no_base_url' };
 
   const tokenHash = createHash('sha256').update(randomBytes(24)).digest('hex');
@@ -330,6 +335,8 @@ export async function sendNeedsAnalysisForDossier(opts: {
  * Crée une assignation positionnement sans dossier_id. Ne lève jamais.
  */
 export async function sendNeedsAnalysisForLearner(opts: {
+  /** Envoi demandé à la main : il part même si l'organisme a coupé l'envoi automatique. */
+  manuel?: boolean;
   learnerId: string;
   baseUrl?: string | null;
   sb?: Sb;
@@ -367,6 +374,8 @@ export async function sendNeedsAnalysisForLearner(opts: {
     .maybeSingle();
   if (existing) return { ok: true, status: 'skipped_existing' };
 
+  // L'organisme a coupé l'envoi automatique de la fiche besoin (Envois automatiques).
+  if (!opts.manuel && !(await envoiActif(learner.organization_id, 'fiche_besoin'))) return { ok: true, status: 'coupe' };
   if (!baseUrl) return { ok: true, status: 'no_base_url' };
 
   const tokenHash = createHash('sha256').update(randomBytes(24)).digest('hex');

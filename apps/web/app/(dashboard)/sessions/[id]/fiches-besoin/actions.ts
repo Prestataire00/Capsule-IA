@@ -53,7 +53,7 @@ export async function renvoyerFicheBesoin(learnerId: string, sessionId: string):
     return { ok: false, error: 'Stagiaire introuvable.' };
   }
 
-  const r = await sendNeedsAnalysisForLearner({ learnerId, sb });
+  const r = await sendNeedsAnalysisForLearner({ learnerId, sb, manuel: true });
   revalidatePath(`/sessions/${sessionId}/fiches-besoin`);
 
   if (!r.ok) return { ok: false, error: 'L’envoi a échoué.' };

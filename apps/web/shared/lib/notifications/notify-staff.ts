@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { env } from '@/env.mjs';
+import { envoiActif } from '@/features/emails/programmation-store';
 
 type DemandeSummary = {
   name: string;
@@ -89,6 +90,10 @@ async function deliver(args: {
         related_aggregate_id: args.prospectId,
       } as never);
   }
+
+  // Coupé dans Envois automatiques : la notification dans l'application reste,
+  // l'e-mail ne part pas.
+  if (!(await envoiActif(args.organizationId, 'nouvelle_demande'))) return;
 
   // Emails : à chaque membre owner/admin/gestionnaire (sinon email global de l'OF).
   let recipients: Recipient[] = [];
@@ -180,6 +185,10 @@ ${url ? `<a href="${url}" style="display:inline-block;margin-top:8px;background:
           related_aggregate_id: args.prospectId,
         } as never);
     }
+
+    // Coupé dans Envois automatiques : la notification dans l'application
+    // reste, l'e-mail ne part pas.
+    if (!(await envoiActif(args.organizationId, 'fiche_besoin_completee'))) return;
 
     let recipients: Recipient[] = [];
     if (args.organizationId) {

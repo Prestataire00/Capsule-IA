@@ -32,8 +32,10 @@ export type EnvoiAutomatique = {
   readonly destinataires: string;
   /** Clé de `AUTOMATION_KEYS` quand l'envoi se coupe séance par séance (0156). */
   readonly coupureKey: string | null;
-  /** Pourquoi il ne se coupe pas, quand il ne se coupe pas. */
+  /** Ce qu'on perd en le coupant, ou pourquoi il ne se coupe pas séance par séance. */
   readonly obligatoire: string | null;
+  /** Quand l'envoi se règle ailleurs que sur cette page : où. */
+  readonly regleAilleurs?: { href: string; libelle: string };
 };
 
 export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
@@ -44,7 +46,7 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     declencheur: 'À l’inscription : dès qu’un stagiaire est rattaché à un dossier. Un filet repasse dans les 48 h.',
     destinataires: 'Le stagiaire',
     coupureKey: null,
-    obligatoire: 'L’analyse du besoin est un attendu Qualiopi (indicateurs 4 et 5).',
+    obligatoire: 'À savoir avant de le couper : l’analyse du besoin est un attendu Qualiopi (indicateurs 4 et 5) — il faudra la recueillir autrement.',
   },
   {
     kind: 'nouvelle_demande',
@@ -143,7 +145,7 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     declencheur: 'Le lendemain de la fin du dossier, avec le PDF joint.',
     destinataires: 'Le responsable de l’entreprise cliente',
     coupureKey: null,
-    obligatoire: 'Pièce administrative due à l’entreprise qui finance : elle part même si les autres envois sont coupés.',
+    obligatoire: 'Pièce administrative due à l’entreprise qui finance : elle ne se coupe pas séance par séance, et la couper ici, c’est devoir l’envoyer soi-même.',
   },
   {
     kind: 'satisfaction_formateur',
@@ -161,7 +163,8 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     declencheur: 'Trois jours avant l’expiration d’un devis envoyé mais non signé.',
     destinataires: 'Le client (entreprise ou particulier)',
     coupureKey: null,
-    obligatoire: 'Se règle pour tout l’organisme dans Paramètres → Facturation (relances automatiques).',
+    obligatoire: 'Se règle avec les relances automatiques, sur la page Factures : un seul interrupteur pour les rappels de devis et les relances de paiement.',
+    regleAilleurs: { href: '/factures', libelle: 'Régler sur la page Factures' },
   },
   {
     kind: 'invoice_reminder_auto',
@@ -170,7 +173,8 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     declencheur: 'Le lendemain de l’échéance, puis tous les quinze jours, trois relances au plus.',
     destinataires: 'Le payeur de la facture',
     coupureKey: null,
-    obligatoire: 'Se règle pour tout l’organisme dans Paramètres → Facturation (relances automatiques).',
+    obligatoire: 'Se règle avec les relances automatiques, sur la page Factures : un seul interrupteur pour les rappels de devis et les relances de paiement.',
+    regleAilleurs: { href: '/factures', libelle: 'Régler sur la page Factures' },
   },
 ];
 

@@ -1,4 +1,5 @@
 import 'server-only';
+import { envoiActif } from '@/features/emails/programmation-store';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { emargementLinkEmail } from '@/shared/lib/email/templates';
@@ -101,6 +102,12 @@ export async function sendSheetLinks(sheetId: string, mode: LinkMode, baseUrl: s
       ),
     };
   });
+
+  // Envoi automatique coupé pour tout l'organisme (Envois automatiques) : rien
+  // ne part tout seul. L'envoi demandé à la main, lui, part toujours.
+  if (mode === 'auto' && !(await envoiActif(sheet.organization_id, 'emargement_lien'))) {
+    return { sent: 0, ignored: candidats.length, withoutEmail: [], failed: [] };
+  }
 
   const dejaEnvoyes = new Set<string>();
   if (mode === 'auto') {
