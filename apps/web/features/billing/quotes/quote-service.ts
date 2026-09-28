@@ -637,6 +637,19 @@ async function loadDocumentClient(
   sb: Sb,
   quote: QuoteRow,
 ): Promise<{ kind: QuoteClientKind; name: string; siret: string | null; address: string | null; email: string | null; phone: string | null }> {
+  // Devis d'une proposition (0200) : la demande n'est pas encore un client,
+  // ni entreprise ni apprenant enregistrés. Son identité voyage dans le devis.
+  const provisoire = (quote.metadata as { client?: { name?: string; siret?: string | null; address?: string | null } } | null)?.client;
+  if (!quote.company_id && !quote.learner_id && provisoire?.name) {
+    return {
+      kind: quote.client_kind,
+      name: provisoire.name,
+      siret: provisoire.siret ?? null,
+      address: provisoire.address ?? null,
+      email: quote.recipient_email ?? null,
+      phone: null,
+    };
+  }
   if (quote.client_kind === 'company' && quote.company_id) {
     const { data } = await sb
       .schema('app')
@@ -889,13 +902,27 @@ export async function markQuoteSigned(
     return { ok: false, error: exists ? 'already_signed' : 'not_found' };
   }
 
+  // Devis d'une proposition : la demande devient client AVANT la facture, qui
+  // part des dossiers couverts. Chargé à la demande pour ne pas lier ce
+  // service au CRM ; un échec est journalisé, la signature reste acquise.
+  let acceptation = '';
+  try {
+    const { accepterPropositionDuDevis } = await import('@/features/proposition/acceptation');
+    const r = await accepterPropositionDuDevis(sb, quoteId);
+    if (r.ok) acceptation = ` — client créé, ${r.documents.join(', ').toLowerCase()} au dossier`;
+    else if (r.raison === 'conversion') acceptation = ` — ATTENTION : la demande n'a pas pu devenir client (${r.detail})`;
+  } catch (e) {
+    console.error('[quotes] acceptation de la proposition impossible', quoteId, e);
+    acceptation = " — ATTENTION : la demande n'a pas pu devenir client";
+  }
+
   await applyQuoteAmountToDossiers(sb, quoteId);
   const invoice = await createInvoiceFromQuote(sb, quoteId);
   await notifyStaff(
     sb,
     row.organization_id,
     'quote.signed',
-    `Devis ${row.reference} signé${via === 'manual' ? ' (saisie manuelle)' : ''} — facture brouillon créée`,
+    `Devis ${row.reference} signé${via === 'manual' ? ' (saisie manuelle)' : ''} — facture brouillon créée${acceptation}`,
     { quote_id: quoteId, invoice_id: invoice.ok ? invoice.invoiceId : null },
   );
   return { ok: true, invoiceId: invoice.ok ? invoice.invoiceId : null };

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { matchLearner, matchCompany, detectPotentialDuplicates } from './matching';
 import { generateDossierReference } from './dossier-reference';
 import { referentParDefaut, type ContactConnu } from '@/features/dossier/referent-par-defaut';
+import { rattacherDevisDeProposition } from '@/features/proposition/rattacher-devis';
 import type {
   ProspectForConversion,
   LearnerCandidate,
@@ -383,6 +384,9 @@ export async function convertProspectToDossier(
     .from('prospects')
     .update({ converted_dossier_id: dossierId, status: 'converted', organization_id: orgId })
     .eq('id', prospect.id);
+
+  // Le devis de la proposition en cours suit la demande dans son dossier.
+  await rattacherDevisDeProposition(sb, prospectId, dossierId);
 
   return { ok: true, dossierId, report: { learner: learnerOutcome, company: companyOutcome, signals } };
 }

@@ -216,3 +216,51 @@ ${url ? `<a href="${url}" style="display:inline-block;margin-top:8px;background:
     console.error('[notify-staff] fiche besoin : notification impossible', e);
   }
 }
+
+/**
+ * Un programme vient d'être déposé sur une demande : l'équipe qui rédige les
+ * propositions (Laurie) doit le savoir — la proposition V1 part de là. Tous les
+ * membres owner/admin/gestionnaire sont prévenus, sauf celui qui a déposé.
+ */
+export async function notifyOrgStaffOfProgramme(args: {
+  organizationId: string;
+  prospectId: string;
+  client: string;
+  deposePar: string | null;
+  exclureUserId: string | null;
+}): Promise<void> {
+  try {
+    const admin = supabaseAdmin() as unknown as SupabaseClient;
+    const url = env.PUBLIC_APP_URL ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/prospects/${args.prospectId}` : null;
+    const subject = `Programme déposé — ${args.client}`;
+    await admin.schema('app').from('notifications').insert({
+      organization_id: args.organizationId,
+      channel: 'in_app',
+      template_code: 'prospect.programme_depose',
+      subject,
+      payload: { prospect_id: args.prospectId, client: args.client, depose_par: args.deposePar },
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+      related_aggregate_type: 'prospect',
+      related_aggregate_id: args.prospectId,
+    } as never);
+
+    const { data } = await admin.schema('app').rpc('staff_recipients', { p_org: args.organizationId } as never);
+    const destinataires = ((data as Recipient[] | null) ?? []).filter((r) => r.email && r.user_id !== args.exclureUserId);
+    const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fafafa;padding:32px;">
+<div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px;">
+<h1 style="font-size:18px;margin:0 0 8px;">Programme déposé</h1>
+<p style="color:#3f3f46;font-size:14px;line-height:1.6;">${args.deposePar ? `${args.deposePar} a déposé` : 'Un programme a été déposé'} pour <strong>${args.client.replace(/</g, '&lt;')}</strong>. La proposition V1 et son devis sont en cours de rédaction : relisez-les avant de les envoyer.</p>
+${url ? `<a href="${url}" style="display:inline-block;margin-top:8px;background:#f97316;color:#fff;text-decoration:none;font-size:14px;padding:10px 18px;border-radius:8px;">Ouvrir la demande</a>` : ''}
+</div></body></html>`;
+    await Promise.all(
+      destinataires.map((r) =>
+        sendEmail({ to: r.email, subject, html, organizationId: args.organizationId, kind: 'programme_depose' }).then((res) => {
+          if (!res.ok && res.reason !== 'no_api_key') console.error('[notify-staff] programme : e-mail non parti', r.email);
+        }),
+      ),
+    );
+  } catch (e) {
+    console.error('[notify-staff] programme : notification impossible', e);
+  }
+}

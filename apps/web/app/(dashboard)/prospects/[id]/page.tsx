@@ -4,9 +4,9 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import { ArrowLeft, ClipboardList, History, FileCheck2, Pencil } from 'lucide-react';
+import { ArrowLeft, ClipboardList, History, FileCheck2, Pencil, Sparkles } from 'lucide-react';
 import { env } from '@/env.mjs';
-import { requireAccess } from '@/shared/lib/auth/require-access';
+import { canManageSection, requireAccess } from '@/shared/lib/auth/require-access';
 import { ProspectNoteForm } from './note-form.client';
 import { SectionLabel } from '@/shared/ui/section-label';
 import {
@@ -30,6 +30,8 @@ import { EcrireAuClient } from '@/features/emails/ecrire.client';
 import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 import { filDesEchanges, type EmailJournal, type Suivi } from '@/features/prospect/fil-echanges';
 import { ecrireALaDemande } from './ecrire-actions';
+import { Propositions, type PropositionVue } from './propositions.client';
+import { totalHtCents, type ContenuProposition } from '@/features/proposition/contenu';
 
 export const dynamic = 'force-dynamic';
 
@@ -144,6 +146,9 @@ const EVENT_LABELS: Record<string, string> = {
   demande_validated: 'Demande validée',
   demande_rejected: 'Demande refusée',
   comment: 'Commentaire',
+  programme_depose: 'Programme déposé',
+  proposition_generee: 'Proposition rédigée',
+  proposition_acceptee: 'Proposition acceptée — devis signé',
 };
 
 function admin() {
@@ -259,6 +264,46 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
       : Promise.resolve({ data: [] }),
     orgId ? expediteurDeLOrganisme(sb as never, orgId) : Promise.resolve(null),
   ]);
+  // Propositions commerciales (0200) : la version en cours, les archivées, et
+  // l'état de leur devis. La table peut manquer tant que la migration n'est
+  // pas jouée : la fiche s'affiche quand même.
+  const [{ data: propRows, error: propErr }, gererPropositions] = await Promise.all([
+    sb
+      .schema('app')
+      .from('propositions' as never)
+      .select('id, version, statut, contenu, consignes, alertes, created_at, programme_nom, document_id, quote_id')
+      .eq('prospect_id', prospect.id)
+      .order('version', { ascending: false }),
+    canManageSection('crm'),
+  ]);
+  if (propErr) console.error('[demande] propositions illisibles', prospect.id, propErr.message);
+  const lignesProp = (propRows ?? []) as unknown as Array<{
+    id: string; version: number; statut: PropositionVue['statut']; contenu: ContenuProposition; consignes: string | null;
+    alertes: string[] | null; created_at: string; programme_nom: string | null; document_id: string | null; quote_id: string | null;
+  }>;
+  const devisIds = lignesProp.map((l) => l.quote_id).filter((x): x is string => Boolean(x));
+  const { data: devisRows } = devisIds.length
+    ? await sb.schema('app').from('quotes').select('id, reference, status').in('id', devisIds)
+    : { data: [] };
+  const devisPar = new Map(((devisRows ?? []) as Array<{ id: string; reference: string; status: string }>).map((d) => [d.id, d]));
+  const propositions: PropositionVue[] = lignesProp.map((l) => {
+    const d = l.quote_id ? devisPar.get(l.quote_id) : undefined;
+    return {
+      id: l.id,
+      version: l.version,
+      statut: l.statut,
+      titre: l.contenu.titre,
+      consignes: l.consignes,
+      alertes: l.alertes ?? [],
+      pointsAValider: l.contenu.points_a_valider ?? [],
+      totalHtCents: totalHtCents(l.contenu.tarif),
+      creeLe: l.created_at,
+      programmeNom: l.programme_nom,
+      documentId: l.document_id,
+      devis: d ? { id: d.id, reference: d.reference, statut: d.status } : null,
+    };
+  });
+
   const fil = filDesEchanges(events, (emailRows ?? []) as unknown as EmailJournal[], prospect.id);
 
   // Qui a fait quoi : une note de suivi sans auteur ne sert à rien.
@@ -508,6 +553,10 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] mt-6">
         {/* ── Colonne principale ─────────────────────────────────────────── */}
         <main className="space-y-5 min-w-0">
+          <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-4">
+            <SectionTitle icon={Sparkles} accent="orange">Proposition commerciale</SectionTitle>
+            <Propositions prospectId={prospect.id} propositions={propositions} gerer={gererPropositions} />
+          </section>
           <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <SectionTitle icon={ClipboardList} accent="blue">Fiche besoin</SectionTitle>
