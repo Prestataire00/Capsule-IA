@@ -45,7 +45,7 @@ export function ModifierDemande({
           rqth: v.rqth,
           candidateIsLearner: v.candidateIsLearner,
           situation: v.situation,
-          funderKind: v.funderKind,
+          funderKinds: v.funderKinds,
           companyName: v.companyName,
           companySiret: v.companySiret,
           conventionCollective: v.conventionCollective,

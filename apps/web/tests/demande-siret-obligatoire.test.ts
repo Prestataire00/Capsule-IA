@@ -19,7 +19,7 @@ const base = {
   lastName: 'Dahan',
   email: 'n.dahan@exemple.fr',
   situation: 'particulier' as const,
-  funderKind: 'autofinancement' as const,
+  funderKinds: ['autofinancement'] as const,
 };
 
 const erreursSur = (v: Record<string, unknown>, champ: string): string[] => {
@@ -32,8 +32,9 @@ describe('quand une entreprise est en jeu', () => {
   it.each([
     ['la personne est salariée', { situation: 'salarie' }],
     ['une entreprise est nommée', { companyName: 'FRANCE METIERS' }],
-    ['un OPCO finance', { funderKind: 'opco' }],
-    ['l’employeur finance', { funderKind: 'entreprise' }],
+    ['un OPCO finance', { funderKinds: ['opco'] }],
+    ['l’employeur finance', { funderKinds: ['entreprise'] }],
+    ['l’employeur et l’OPCO financent ensemble', { funderKinds: ['entreprise', 'opco'] }],
   ])('le SIRET est exigé : %s', (_cas, ajout) => {
     expect(erreursSur({ ...base, ...ajout }, 'companySiret')).toEqual([
       'SIRET requis dès qu’une entreprise est concernée.',

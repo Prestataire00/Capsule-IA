@@ -29,7 +29,8 @@ export const NouvelleDemandeSchema = z
     candidateIsLearner: z.boolean().default(false),
 
     situation: z.enum(PROSPECT_SITUATIONS),
-    funderKind: z.enum(FUNDER_VALUES),
+    /** Plusieurs financements possibles (entreprise + OPCO…) ; le premier est le principal. */
+    funderKinds: z.array(z.enum(FUNDER_VALUES)).min(1, 'Choisissez au moins un financement.'),
     companyName: z.string().trim().max(200).optional().or(z.literal('')),
     companySiret: z.string().trim().max(20).optional().or(z.literal('')),
     conventionCollective: z.string().trim().max(200).optional().or(z.literal('')),
@@ -76,8 +77,8 @@ export const NouvelleDemandeSchema = z
     const entrepriseEnJeu =
       v.situation === 'salarie' ||
       (v.companyName ?? '').trim() !== '' ||
-      v.funderKind === 'opco' ||
-      v.funderKind === 'entreprise';
+      v.funderKinds.includes('opco') ||
+      v.funderKinds.includes('entreprise');
 
     if (siret === '') {
       if (entrepriseEnJeu) {

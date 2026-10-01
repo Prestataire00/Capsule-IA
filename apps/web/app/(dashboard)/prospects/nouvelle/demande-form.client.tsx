@@ -84,7 +84,7 @@ const card = 'bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zi
 
 export type ValeursDemande = {
   civility: string; firstName: string; lastName: string; email: string; phone: string;
-  birthDate: string; rqth: boolean; candidateIsLearner: boolean; situation: string; funderKind: string;
+  birthDate: string; rqth: boolean; candidateIsLearner: boolean; situation: string; funderKinds: string[];
   companyName: string; companySiret: string; conventionCollective: string;
   referentName: string; referentEmail: string; referentPhone: string;
   formationMode: 'catalogue' | 'sur-mesure' | 'plus-tard';
@@ -127,7 +127,7 @@ export function DemandeForm({
     rqth: valeurs?.rqth ?? false,
     candidateIsLearner: valeurs?.candidateIsLearner ?? false,
     situation: (valeurs?.situation ?? 'salarie') as (typeof SITUATIONS)[number]['value'],
-    funderKind: (valeurs?.funderKind ?? 'opco') as string,
+    funderKinds: valeurs?.funderKinds ?? ['opco'],
     companyName: valeurs?.companyName ?? '',
     companySiret: valeurs?.companySiret ?? '',
     conventionCollective: valeurs?.conventionCollective ?? '',
@@ -170,7 +170,7 @@ export function DemandeForm({
           rqth: form.rqth,
           candidateIsLearner: form.candidateIsLearner,
           situation: form.situation,
-          funderKind: form.funderKind,
+          funderKinds: form.funderKinds,
           companyName: form.companyName,
           companySiret: form.companySiret,
           conventionCollective: form.conventionCollective,
@@ -203,7 +203,7 @@ export function DemandeForm({
         rqth: form.rqth,
         candidateIsLearner: form.candidateIsLearner,
         situation: form.situation,
-        funderKind: form.funderKind as never,
+        funderKinds: form.funderKinds as never,
         companyName: form.companyName,
         companySiret: form.companySiret,
         conventionCollective: form.conventionCollective,
@@ -245,7 +245,7 @@ export function DemandeForm({
     setForm((f) => ({
       ...f,
       situation: def.situation,
-      funderKind: def.financement || f.funderKind,
+      funderKinds: def.financement ? [def.financement] : f.funderKinds,
       // Un particulier n'a pas d'entreprise cliente : garder ces champs
       // laisserait un SIRET orphelin partir sur sa convention.
       ...(t === 'particulier'
@@ -259,8 +259,8 @@ export function DemandeForm({
   // ou non. Sans cet accord, l'obligation tomberait dans un champ masqué.
   const entreprise =
     type === 'entreprise' ||
-    form.funderKind === 'entreprise' ||
-    form.funderKind === 'opco' ||
+    form.funderKinds.includes('entreprise') ||
+    form.funderKinds.includes('opco') ||
     form.companyName.trim() !== '';
   const siretSaisi = form.companySiret.trim();
   const siretFaux = siretSaisi !== '' && !siretValide(siretSaisi);
@@ -509,18 +509,44 @@ export function DemandeForm({
 
       <section className={card}>
         <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Financement</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <label className={label}>
-            Financement
-            <select value={form.funderKind} onChange={(e) => set('funderKind', e.target.value)} className={input}>
-              {FUNDER_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 -mt-2">
+          Cochez-en plusieurs si besoin, par exemple l&apos;entreprise et l&apos;OPCO. Le premier coché est le
+          financement principal.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {FUNDER_OPTIONS.map((f) => {
+            const rang = form.funderKinds.indexOf(f.value);
+            const coche = rang >= 0;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                aria-pressed={coche}
+                title={f.hint}
+                onClick={() =>
+                  set(
+                    'funderKinds',
+                    coche ? form.funderKinds.filter((k) => k !== f.value) : [...form.funderKinds, f.value],
+                  )
+                }
+                className={
+                  coche
+                    ? 'inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-orange-300 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 text-[13px] font-semibold text-orange-700 dark:text-orange-300'
+                    : 'inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-[13px] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
+                }
+              >
+                {coche && <Check className="w-3.5 h-3.5" />}
+                {f.label}
+                {rang === 0 && form.funderKinds.length > 1 && (
+                  <span className="text-[11px] font-normal text-orange-600/80 dark:text-orange-400/80">· principal</span>
+                )}
+              </button>
+            );
+          })}
         </div>
+        {form.funderKinds.length === 0 && (
+          <p className="text-[12px] text-rose-600 dark:text-rose-400">Choisissez au moins un financement.</p>
+        )}
       </section>
 
       <section className={card}>

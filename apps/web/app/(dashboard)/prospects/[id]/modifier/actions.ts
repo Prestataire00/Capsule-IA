@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { guardAction } from '@/shared/lib/auth/guard-action';
+import { derivePrimaryFunder } from '@/features/prospect/funding';
 import { NouvelleDemandeSchema } from '@/app/(dashboard)/prospects/nouvelle/schema';
 
 /**
@@ -65,7 +66,8 @@ export async function modifierDemande(prospectId: string, brut: unknown): Promis
       rqth: v.rqth,
       candidate_is_learner: v.candidateIsLearner,
       situation: v.situation,
-      funder_kind: v.funderKind,
+      funder_kinds: v.funderKinds,
+      funder_kind: derivePrimaryFunder(v.funderKinds),
       company_name: orNull(v.companyName),
       company_siret: orNull(v.companySiret)?.replace(/\s/g, '') ?? null,
       convention_collective: orNull(v.conventionCollective),

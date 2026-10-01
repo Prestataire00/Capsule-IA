@@ -33,7 +33,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, message',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, funder_kinds, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, message',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -60,6 +60,7 @@ export async function convertProspectToDossier(
     referent_phone: string | null;
     situation: string | null;
     funder_kind: string;
+    funder_kinds: string[] | null;
     converted_dossier_id: string | null;
     custom_formation_title: string | null;
     custom_formation_hours: number | string | null;
@@ -348,7 +349,11 @@ export async function convertProspectToDossier(
       // BPF, au suivi des heures et aux attestations. On lit la valeur qui
       // existe déjà sur la formation ; on n'en déduit rien.
       total_hours: dureeCatalogue ?? hours,
-      metadata: { from_prospect: prospect.id, funder_kind: prospect.funderKind },
+      metadata: {
+        from_prospect: prospect.id,
+        funder_kind: prospect.funderKind,
+        funder_kinds: p.funder_kinds?.length ? p.funder_kinds : [prospect.funderKind],
+      },
     },
     p_events: [],
   });

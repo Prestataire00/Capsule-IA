@@ -25,6 +25,7 @@ type Ligne = {
   candidate_is_learner: boolean | null;
   situation: string;
   funder_kind: string;
+  funder_kinds: string[] | null;
   company_name: string | null;
   company_siret: string | null;
   convention_collective: string | null;
@@ -50,7 +51,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
       .schema('app')
       .from('prospects')
       .select(
-        'id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, situation, funder_kind, ' +
+        'id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, situation, funder_kind, funder_kinds, ' +
           'company_name, company_siret, convention_collective, referent_name, referent_email, referent_phone, ' +
           'formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, ' +
           'preferred_modality, preferred_start_date, message, converted_dossier_id',
@@ -103,7 +104,8 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
     // Ajouté par l'autre instance : le candidat n'est pas toujours le stagiaire.
     candidateIsLearner: d.candidate_is_learner ?? true,
     situation: d.situation,
-    funderKind: d.funder_kind,
+    // Les demandes saisies avant le multi-financement n'ont que le principal.
+    funderKinds: d.funder_kinds?.length ? d.funder_kinds : [d.funder_kind],
     companyName: d.company_name ?? '',
     companySiret: d.company_siret ?? '',
     conventionCollective: d.convention_collective ?? '',

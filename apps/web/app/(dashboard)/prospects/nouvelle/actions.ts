@@ -7,6 +7,7 @@ import { guardAction } from '@/shared/lib/auth/guard-action';
 import { convertProspectToDossier } from '@/features/crm/prospect-conversion/convert-core';
 import { notifyOrgStaffOfNewDemande } from '@/shared/lib/notifications/notify-staff';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
+import { derivePrimaryFunder } from '@/features/prospect/funding';
 import { NouvelleDemandeSchema, type NouvelleDemandeValues } from './schema';
 
 export type CreateDemandeResult =
@@ -58,7 +59,8 @@ export async function createDemande(input: NouvelleDemandeValues): Promise<Creat
       rqth: v.rqth,
       candidate_is_learner: v.candidateIsLearner,
       situation: v.situation,
-      funder_kind: v.funderKind,
+      funder_kinds: v.funderKinds,
+      funder_kind: derivePrimaryFunder(v.funderKinds),
       company_name: orNull(v.companyName),
       company_siret: orNull(v.companySiret)?.replace(/\s/g, '') ?? null,
       convention_collective: orNull(v.conventionCollective),

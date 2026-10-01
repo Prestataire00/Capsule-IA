@@ -54,8 +54,8 @@ describe('le formulaire s’adapte', () => {
   it('mais reste affichée si le financement l’exige', () => {
     // Le schéma impose le SIRET dès qu'un OPCO ou l'employeur finance : cacher
     // le champ rendrait la demande impossible à enregistrer, sans rien dire.
-    expect(FORM).toContain("form.funderKind === 'opco'");
-    expect(FORM).toContain("form.funderKind === 'entreprise'");
+    expect(FORM).toContain("form.funderKinds.includes('opco')");
+    expect(FORM).toContain("form.funderKinds.includes('entreprise')");
   });
 
   it('un particulier n’emporte pas de SIRET orphelin', () => {
@@ -71,7 +71,7 @@ describe('le formulaire s’adapte', () => {
 
   it('le financement n’est qu’une proposition', () => {
     // Une entreprise peut payer elle-même, un particulier mobiliser son CPF.
-    expect(FORM).toContain('funderKind: def.financement || f.funderKind');
+    expect(FORM).toContain('funderKinds: def.financement ? [def.financement] : f.funderKinds');
   });
 });
 
