@@ -54,6 +54,25 @@ describe('nom affiché d’un dossier', () => {
   });
 });
 
+describe('nom choisi pour un dossier (0201)', () => {
+  it('prime sur l’apprenant, le référent et l’entreprise', () => {
+    expect(
+      nomDuDossier({
+        nom: '  SOCIETE D’EXPLOITATION JARDINE ',
+        learner: { firstName: 'Rémy', lastName: 'Martin', email: 'remy@exemple.fr' },
+        referent: { firstName: 'Pierre', lastName: 'Geeraerts' },
+        companyName: 'Jardine',
+      }),
+    ).toEqual({ nom: 'SOCIETE D’EXPLOITATION JARDINE', estReferent: false });
+  });
+
+  it('vide, il rend la main au nom déduit', () => {
+    expect(
+      nomDuDossier({ nom: '   ', learner: { firstName: 'Rémy', lastName: 'Martin', email: 'remy@exemple.fr' } }).nom,
+    ).toBe('Rémy Martin');
+  });
+});
+
 describe('migration 0167', () => {
   const sql = lire('../../../supabase/migrations/0167_dossier_referent.sql');
 

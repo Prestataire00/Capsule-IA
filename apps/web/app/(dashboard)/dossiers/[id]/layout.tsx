@@ -18,6 +18,7 @@ import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { SupprimerOuArchiver } from './supprimer-ou-archiver.client';
 import { MontantModifiable } from './montant.client';
+import { NomDossierModifiable } from './nom.client';
 import { DossierStatusControl } from './dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -177,7 +178,18 @@ export default async function DossierLayout({
     .filter(([id]) => !dejaRattaches.has(id))
     .map(([id, t]) => ({ id, label: t.email ? `${t.nom} · ${t.email}` : t.nom }));
 
+  // Lu à part : sans la migration 0201, la fiche garde son nom déduit au lieu
+  // de tomber avec la requête principale.
+  const { data: nomRow } = await libre
+    .schema('app')
+    .from('dossiers')
+    .select('nom' as never)
+    .eq('id', params.id)
+    .maybeSingle();
+  const nomChoisi = (nomRow as { nom?: string | null } | null)?.nom?.trim() || null;
+
   const { nom: learner, estReferent } = nomDuDossier({
+    nom: nomChoisi,
     learner: { firstName: d.learner?.first_name, lastName: d.learner?.last_name, email: d.learner?.email },
     referent,
     companyName: d.company?.name ?? null,
@@ -200,7 +212,13 @@ export default async function DossierLayout({
               <SectionLabel>Dossier</SectionLabel>
               <IdPill>{d.reference}</IdPill>
             </div>
-            <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{learner}</h1>
+            <NomDossierModifiable
+              dossierId={params.id}
+              affiche={learner}
+              nomChoisi={nomChoisi}
+              entreprise={d.company?.name ?? null}
+              modifiable={gererDossiers}
+            />
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 flex items-center gap-2 flex-wrap">
               {/* Le programme d'une formation sur mesure s'écrit souvent après
                   la convention : la fiche du dossier y mène directement. */}

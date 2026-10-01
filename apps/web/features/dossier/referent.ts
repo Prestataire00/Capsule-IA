@@ -25,14 +25,18 @@ const nomComplet = (p: { firstName?: string | null; lastName?: string | null } |
   [p?.firstName, p?.lastName].filter(Boolean).join(' ').trim();
 
 /**
- * Nom à afficher pour un dossier : l'apprenant quand il y en a un, le référent
- * du client tant que la liste nominative n'est pas arrivée.
+ * Nom à afficher pour un dossier : celui qu'on lui a donné (0201), sinon
+ * l'apprenant quand il y en a un, le référent du client tant que la liste
+ * nominative n'est pas arrivée.
  */
 export function nomDuDossier(args: {
+  nom?: string | null;
   learner: { firstName?: string | null; lastName?: string | null; email?: string | null } | null | undefined;
   referent?: Referent | null;
   companyName?: string | null;
 }): { nom: string; estReferent: boolean } {
+  const choisi = args.nom?.trim();
+  if (choisi) return { nom: choisi, estReferent: false };
   const provisoire = estTitulaireProvisoire(args.learner?.email);
   const nomReferent = nomComplet(args.referent);
 

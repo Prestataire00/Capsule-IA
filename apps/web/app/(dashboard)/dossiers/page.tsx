@@ -131,7 +131,6 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
     .order('created_at', { ascending: false })
     .limit(200);
   if (statuses.length) query = query.in('status', statuses as DossierStatus[]);
-  if (q) query = query.ilike('reference', `%${q}%`);
 
   const { data, error: erreurLecture } = await query;
   // Une liste vide dit « vous n'avez aucun dossier ». C'est ce qu'elle a dit le
@@ -175,8 +174,24 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
       if (c) referents.set(l.id, { firstName: c.first_name, lastName: c.last_name, position: c.position });
     }
   }
+  // Noms choisis (0201), tolérants de la même façon.
+  const nomsChoisis = new Map<string, string>();
+  if (rows.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const libre = sb as unknown as SupabaseClient<any, any, any>;
+    const { data: noms } = await libre
+      .schema('app')
+      .from('dossiers')
+      .select('id, nom')
+      .in('id', rows.map((d) => d.id))
+      .not('nom', 'is', null);
+    for (const n of (noms ?? []) as Array<{ id: string; nom: string | null }>) {
+      if (n.nom?.trim()) nomsChoisis.set(n.id, n.nom.trim());
+    }
+  }
   const titre = (d: Row) =>
     nomDuDossier({
+      nom: nomsChoisis.get(d.id) ?? null,
       learner: { firstName: d.learner?.first_name, lastName: d.learner?.last_name, email: d.learner?.email },
       referent: referents.get(d.id) ?? null,
       companyName: d.company?.name ?? null,
@@ -185,7 +200,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
   // Filtre apprenant/formation côté serveur (les embeds ne sont pas filtrables en ilike).
   const filtered = q
     ? rows.filter((d) => {
-        const hay = `${d.reference} ${d.learner?.first_name ?? ''} ${d.learner?.last_name ?? ''} ${d.formation?.title ?? ''}`.toLowerCase();
+        const hay = `${d.reference} ${titre(d).nom} ${d.learner?.first_name ?? ''} ${d.learner?.last_name ?? ''} ${d.company?.name ?? ''} ${d.formation?.title ?? ''}`.toLowerCase();
         return hay.includes(q.toLowerCase());
       })
     : rows;
