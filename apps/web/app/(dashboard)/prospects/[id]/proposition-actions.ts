@@ -8,6 +8,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { notifyOrgStaffOfProgramme } from '@/shared/lib/notifications/notify-staff';
 import { sendQuoteForSignature } from '@/features/billing/quotes/quote-service';
 import { BUCKET_PROGRAMMES, creerVersion } from '@/features/proposition/service';
+import { nettoyerExtrait } from '@/features/formations/programme/nettoyer-extrait';
 import { reviserSchema, envoyerSchema, depotSchema, deposeSchema } from '@/features/proposition/proposition.schema';
 import type { ContenuProposition } from '@/features/proposition/contenu';
 
@@ -88,7 +89,8 @@ export async function deposerProgramme(brut: z.input<typeof deposeSchema>): Prom
     prospect_id: prospectId,
     kind: 'programme_depose',
     actor_user_id: g.member.userId,
-    payload: { nom: p.data.nom, path },
+    // Nettoyé à nouveau ici : il a transité par le navigateur.
+    payload: { nom: p.data.nom, path, ...(p.data.extrait ? { extrait: nettoyerExtrait(p.data.extrait) } : {}) },
   } as never);
   await notifyOrgStaffOfProgramme({
     organizationId: g.prospect.organization_id,

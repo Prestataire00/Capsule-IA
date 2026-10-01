@@ -6,6 +6,8 @@ import { AlertTriangle, Check, FileText, Loader2, X } from 'lucide-react';
 import { supabaseBrowser } from '@/shared/lib/supabase/client';
 import { deposerProgramme, preparerDepotProgramme } from '../[id]/proposition-actions';
 import { lireProgramme } from './lire-programme-action';
+import { ProgrammeRepris } from './programme-repris.client';
+import type { ProgrammeExtrait } from '@/features/formations/programme/programme-extrait';
 import { FUNDER_OPTIONS } from '@/features/prospect/funding';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
 import { siretValide } from '@/shared/lib/siret';
@@ -129,6 +131,7 @@ export function DemandeForm({
   // et rangé sur la fiche demande (sans proposition IA, qui se lance à part).
   const [programme, setProgramme] = useState<File | null>(null);
   const fichierLu = useRef<File | null>(null);
+  const [programmeLu, setProgrammeLu] = useState<ProgrammeExtrait | null>(null);
   const [lecture, setLecture] = useState<
     { etat: 'en-cours' } | { etat: 'ok'; texte: string } | { etat: 'erreur'; texte: string } | null
   >(null);
@@ -140,6 +143,7 @@ export function DemandeForm({
     fichierLu.current = f;
     setProgramme(f);
     setLecture(null);
+    setProgrammeLu(null);
     if (!f) return;
     setLecture({ etat: 'en-cours' });
     const donnees = new FormData();
@@ -151,6 +155,7 @@ export function DemandeForm({
       setLecture({ etat: 'erreur', texte: r.error });
       return;
     }
+    setProgrammeLu(r.programme);
     // La saisie a pu avancer pendant la lecture : on part de l'état courant.
     const actuel = formCourant.current;
     const mode = actuel.formationMode === 'plus-tard' ? 'sur-mesure' : actuel.formationMode;
@@ -299,7 +304,12 @@ export function DemandeForm({
           : null;
         const range =
           prep.ok && !envoi?.error
-            ? await deposerProgramme({ prospectId: res.prospectId, nom: programme.name, path: prep.path })
+            ? await deposerProgramme({
+                prospectId: res.prospectId,
+                nom: programme.name,
+                path: prep.path,
+                ...(programmeLu ? { extrait: programmeLu } : {}),
+              })
             : null;
         // Échec : la fiche demande le dit et invite à redéposer.
         if (!range?.ok) {
@@ -829,6 +839,7 @@ export function DemandeForm({
                 {lecture.texte}
               </span>
             )}
+            {programmeLu && <ProgrammeRepris programme={programmeLu} />}
           </div>
         )}
 

@@ -2,9 +2,11 @@
 
 import { guardAction } from '@/shared/lib/auth/guard-action';
 import { extractProgrammeFromPdf, MAX_PDF_BYTES } from '@/features/formations/programme/extract-from-pdf';
+import { nettoyerExtrait } from '@/features/formations/programme/nettoyer-extrait';
+import type { ProgrammeExtrait } from '@/features/formations/programme/programme-extrait';
 
 export type LectureProgramme =
-  | { ok: true; titre: string; heures: string }
+  | { ok: true; titre: string; heures: string; programme: ProgrammeExtrait | null }
   | { ok: false; error: string };
 
 /**
@@ -36,5 +38,5 @@ export async function lireProgramme(formData: FormData): Promise<LectureProgramm
           : 'Le programme n’a pas pu être lu : remplissez la formation à la main.',
     };
   }
-  return { ok: true, titre: r.data.title, heures: r.data.durationHours };
+  return { ok: true, titre: r.data.title, heures: r.data.durationHours, programme: nettoyerExtrait(r.data) };
 }

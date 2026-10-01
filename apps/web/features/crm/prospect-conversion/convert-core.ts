@@ -4,6 +4,8 @@ import { matchLearner, matchCompany, detectPotentialDuplicates } from './matchin
 import { generateDossierReference } from './dossier-reference';
 import { referentParDefaut, type ContactConnu } from '@/features/dossier/referent-par-defaut';
 import { rattacherDevisDeProposition } from '@/features/proposition/rattacher-devis';
+import { nettoyerExtrait } from '@/features/formations/programme/nettoyer-extrait';
+import type { ProgrammeExtrait } from '@/features/formations/programme/programme-extrait';
 import type {
   ProspectForConversion,
   LearnerCandidate,
@@ -248,6 +250,7 @@ export async function convertProspectToDossier(
       priceCents: Math.max(0, Number(p.custom_formation_price_cents ?? 0) || 0),
       priceMode: p.custom_formation_price_mode ?? 'par_stagiaire',
       modality: p.preferred_modality ?? 'presentiel',
+      programme: await programmeExtraitDeLaDemande(sb, prospectId),
     }));
   // Un prix global est le montant du dossier : il ne dépend pas du nombre
   // de stagiaires, on le connaît dès maintenant.
@@ -415,6 +418,20 @@ export async function convertProspectToDossier(
   return { ok: true, dossierId, report: { learner: learnerOutcome, company: companyOutcome, signals } };
 }
 
+/** Le programme lu par l'IA au dépôt du PDF sur la demande, s'il y en a un. */
+async function programmeExtraitDeLaDemande(sb: Sb, prospectId: string): Promise<ProgrammeExtrait | null> {
+  const { data } = await sb
+    .schema('app')
+    .from('prospect_events')
+    .select('payload')
+    .eq('prospect_id', prospectId)
+    .eq('kind', 'programme_depose')
+    .order('occurred_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return nettoyerExtrait((data as { payload?: { extrait?: unknown } } | null)?.payload?.extrait ?? null);
+}
+
 /**
  * Formation montée pour un besoin spécifique : hors catalogue public, avec la
  * durée et le tarif indiqués sur la demande (base du devis, modifiables
@@ -423,7 +440,14 @@ export async function convertProspectToDossier(
 async function createBespokeFormation(
   sb: Sb,
   orgId: string,
-  f: { title: string; hours: number; priceCents: number; priceMode: 'par_stagiaire' | 'forfait'; modality: string },
+  f: {
+    title: string;
+    hours: number;
+    priceCents: number;
+    priceMode: 'par_stagiaire' | 'forfait';
+    modality: string;
+    programme: ProgrammeExtrait | null;
+  },
 ): Promise<string | null> {
   const suffix = randomUUID().slice(0, 8).toUpperCase();
   const slug = `${f.title
@@ -442,7 +466,28 @@ async function createBespokeFormation(
       code: `SM-${suffix}`,
       title: f.title,
       slug,
-      summary: 'Formation montée pour un besoin spécifique (hors catalogue).',
+      summary: f.programme?.subtitle || 'Formation montée pour un besoin spécifique (hors catalogue).',
+      // Le programme lu dans le PDF joint à la demande devient celui de la
+      // formation : objectifs, public, prérequis et méthodes dans leurs
+      // colonnes, le reste dans metadata.catalog comme le fait la fiche.
+      ...(f.programme
+        ? {
+            objectives: f.programme.objectives,
+            prerequisites: f.programme.prerequisites,
+            target_audience: f.programme.targetAudience || null,
+            evaluation_method: f.programme.evaluationMethod || null,
+            pedagogical_method: f.programme.pedagogicalMethod || null,
+            metadata: {
+              catalog: {
+                programContent: f.programme.programContent,
+                teachingTeam: f.programme.teachingTeam,
+                deroulement: f.programme.deroulement,
+                resultIndicators: f.programme.resultIndicators,
+                accessibilityInfo: f.programme.accessibilityInfo,
+              },
+            },
+          }
+        : {}),
       default_modality: f.modality,
       default_duration_hours: f.hours,
       default_price_cents: f.priceCents,
