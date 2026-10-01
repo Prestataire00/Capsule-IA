@@ -7,7 +7,7 @@ import { Plus, Search, FolderOpen, List, LayoutGrid, Columns3, Eye, CalendarCloc
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
-import { nomDuDossier, type Referent } from '@/features/dossier/referent';
+import { estTitulaireProvisoire, nomDuDossier, type Referent } from '@/features/dossier/referent';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { dossierStatusLabel } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
@@ -84,7 +84,15 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function DossierCard({ d, nom = learnerName(d) }: { d: Row; nom?: string }) {
+function DossierCard({
+  d,
+  nom = learnerName(d),
+  responsable = null,
+}: {
+  d: Row;
+  nom?: string;
+  responsable?: string | null;
+}) {
   const accent = STATUS_ACCENT[d.status] ?? STATUS_ACCENT.draft!;
   return (
     <Link
@@ -99,8 +107,8 @@ function DossierCard({ d, nom = learnerName(d) }: { d: Row; nom?: string }) {
         <Avatar name={nom} />
         <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 truncate">{nom}</p>
       </div>
+      {responsable && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{responsable}</p>}
       <p className="text-[13px] font-bold text-zinc-700 dark:text-zinc-300 truncate mt-0.5">{d.formation?.title ?? '—'}</p>
-      {d.company?.name && <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{d.company.name}</p>}
       <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80">
         <span className="tabular-nums text-[12px] font-semibold text-blue-700 dark:text-blue-300">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
         <span className={`text-[13px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>{fmtEuros(d.total_amount_cents)}</span>
@@ -197,10 +205,27 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
       companyName: d.company?.name ?? null,
     });
 
+  // Le client du dossier : l'entreprise, et son responsable (le référent
+  // désigné, sinon le titulaire réel). Un particulier sans entreprise reste
+  // désigné par son nom.
+  const client = (d: Row): { nom: string; responsable: string | null } => {
+    const r = referents.get(d.id);
+    const nomReferent = r ? [r.firstName, r.lastName].filter(Boolean).join(' ').trim() : '';
+    const titulaire = estTitulaireProvisoire(d.learner?.email)
+      ? ''
+      : [d.learner?.first_name, d.learner?.last_name].filter(Boolean).join(' ').trim();
+    if (!d.company?.name) return { nom: titre(d).nom, responsable: null };
+    const responsable = nomReferent
+      ? `${nomReferent}${r?.position ? ` · ${r.position}` : ''}`
+      : titulaire || null;
+    // Un nom donné au dossier (0201) reste prioritaire.
+    return { nom: nomsChoisis.get(d.id) ?? d.company.name, responsable };
+  };
+
   // Filtre apprenant/formation côté serveur (les embeds ne sont pas filtrables en ilike).
   const filtered = q
     ? rows.filter((d) => {
-        const hay = `${d.reference} ${titre(d).nom} ${d.learner?.first_name ?? ''} ${d.learner?.last_name ?? ''} ${d.company?.name ?? ''} ${d.formation?.title ?? ''}`.toLowerCase();
+        const hay = `${d.reference} ${titre(d).nom} ${client(d).responsable ?? ''} ${d.learner?.first_name ?? ''} ${d.learner?.last_name ?? ''} ${d.company?.name ?? ''} ${d.formation?.title ?? ''}`.toLowerCase();
         return hay.includes(q.toLowerCase());
       })
     : rows;
@@ -331,7 +356,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   {col.length === 0 ? (
                     <p className="text-[12px] text-zinc-400 dark:text-zinc-600 text-center py-4">—</p>
                   ) : (
-                    col.map((d) => <DossierCard key={d.id} d={d} nom={titre(d).nom} />)
+                    col.map((d) => <DossierCard key={d.id} d={d} nom={client(d).nom} responsable={client(d).responsable} />)
                   )}
                 </div>
               </div>
@@ -341,14 +366,14 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((d) => (
-            <DossierCard key={d.id} d={d} nom={titre(d).nom} />
+            <DossierCard key={d.id} d={d} nom={client(d).nom} responsable={client(d).responsable} />
           ))}
         </div>
       ) : (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
           <div className="min-w-[960px]">
             <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
-              <div>Apprenant</div>
+              <div>Client · responsable</div>
               <div>Formation</div>
               <div>Dates</div>
               <div className="text-right">Montant</div>
@@ -359,19 +384,18 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
               {filtered.map((d) => (
                 <li key={d.id} className={`${ROW_GRID} py-3.5 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
                   <div className="min-w-0 flex items-center gap-3">
-                    <Avatar name={titre(d).nom} />
+                    <Avatar name={client(d).nom} />
                     <div className="min-w-0">
                       <Link href={`/dossiers/${d.id}`} className="block truncate text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100 hover:underline">
-                        {titre(d).nom}
-                        {titre(d).estReferent && (
-                          <span className="ml-1.5 align-middle text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                            référent
-                          </span>
-                        )}
+                        {client(d).nom}
                       </Link>
                       <div className="mt-1 flex items-center gap-2 min-w-0">
                         <IdPill className="shrink-0">{d.reference}</IdPill>
-                        {d.company?.name && <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{d.company.name}</span>}
+                        {d.company?.name && (
+                          <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
+                            {client(d).responsable ?? <span className="italic text-zinc-400">Responsable à désigner</span>}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
