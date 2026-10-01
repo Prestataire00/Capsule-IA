@@ -4,6 +4,8 @@ import { createHash } from 'crypto';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { apresSignature } from '@/features/documents/apres-signature';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { SIGNABLE_DOCUMENT_KINDS } from './signable';
 
@@ -101,6 +103,19 @@ export async function signDocument(input: {
       } as never);
     if (error) return { ok: false, error: 'db_insert_failed' };
   }
+
+  const { data: apprenant } = await admin
+    .schema('app')
+    .from('learners')
+    .select('first_name, last_name')
+    .eq('id', learnerId)
+    .maybeSingle();
+  const nomApprenant = apprenant
+    ? [(apprenant as { first_name: string | null }).first_name, (apprenant as { last_name: string | null }).last_name]
+        .filter(Boolean)
+        .join(' ') || null
+    : null;
+  await apresSignature(admin as unknown as SupabaseClient, input.docId, nomApprenant);
 
   revalidatePath(`/espace/${input.token}/documents`);
   return { ok: true, signedAt };

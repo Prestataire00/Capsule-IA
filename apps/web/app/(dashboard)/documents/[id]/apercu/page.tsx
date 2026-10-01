@@ -3,9 +3,12 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Download } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { signaturesDuDocument } from '@/features/documents/document-signe';
 import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { PrintButton } from './_components/print-button';
 import { EditableDocument } from './_components/editable-document';
@@ -19,6 +22,9 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function DocumentPreviewPage({ params }: { params: { id: string } }) {
+  // Les signatures se lisent en service role : réservé à un membre de
+  // l'organisme, en plus de la visibilité du document contrôlée par RLS.
+  if (!(await getCurrentMember())) notFound();
   const sb = supabaseServer();
   // Client non typé pour les colonnes de versionnage (0158), absentes des
   // types générés tant que `pnpm db:types` n'a pas été rejoué.
@@ -109,6 +115,19 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
       signedAt: s.signed_at,
     }));
 
+  // Signatures reçues, avec l'image de chacune (lien signé, quelques minutes).
+  const admin = supabaseAdmin() as unknown as SupabaseClient;
+  const signees = await signaturesDuDocument(admin, doc.id);
+  const signeesAvecImage = await Promise.all(
+    signees.map(async (s) => {
+      if (!s.imagePath) return { ...s, imageUrl: null as string | null };
+      const { data: u } = await admin.storage.from('signatures').createSignedUrl(s.imagePath, 600);
+      return { ...s, imageUrl: u?.signedUrl ?? null };
+    }),
+  );
+  const dateSignature = (iso: string) =>
+    new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'long', timeStyle: 'short' }).format(new Date(iso));
+
   // Suggestions de signataires depuis le dossier (apprenant + entreprise).
   const suggestions: SignerSuggestion[] = [];
   if (doc.dossier_id) {
@@ -175,6 +194,30 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
         )}
       </div>
 
+      {signees.length > 0 && (
+        <div
+          className={`no-print mx-auto mb-4 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 flex items-center gap-3 flex-wrap ${
+            isPdf ? 'max-w-[900px]' : 'max-w-[760px]'
+          }`}
+        >
+          <BadgeCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+          <p className="text-[13px] text-emerald-900 dark:text-emerald-200 flex-1 min-w-0">
+            <span className="font-semibold">Document signé</span> par{' '}
+            {signees.map((s) => `${s.nom ?? s.email ?? 'signataire'} (${dateSignature(s.signeLe)})`).join(', ')}.
+          </p>
+          {isPdf && (
+            <a
+              href={`/api/documents/${doc.id}/signe`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 h-9 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold"
+            >
+              <Download className="w-4 h-4" /> Voir le document signé
+            </a>
+          )}
+        </div>
+      )}
+
       {(doc.source_url || versions.length > 0) && (
         <div
           className={`no-print mx-auto mb-4 rounded-lg border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 text-[12px] text-zinc-600 dark:text-zinc-400 ${
@@ -234,6 +277,11 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
               Ouvrir le document dans un nouvel onglet
             </a>
           </p>
+          {/* Les PDF (conventions, attestations…) s'envoient aussi à la
+              signature : le panneau n'était proposé qu'aux documents HTML. */}
+          <div className="no-print mt-5 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+            <SignaturePanel documentId={doc.id} suggestions={suggestions} existing={existing} />
+          </div>
         </div>
       ) : (
         <>
@@ -255,6 +303,25 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
                 Ce document n&apos;a pas encore de contenu consultable.
               </p>
             </article>
+          )}
+
+          {signeesAvecImage.length > 0 && (
+            <section className="doc-sheet bg-white text-zinc-900 max-w-[760px] mx-auto mt-4 rounded-sm shadow-lg px-12 py-8">
+              <h2 className="text-[15px] font-bold mb-3">Signatures électroniques</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {signeesAvecImage.map((s, i) => (
+                  <div key={i} className="text-[12px]">
+                    <p className="font-semibold text-[13px]">{s.nom ?? s.email ?? 'Signataire'}</p>
+                    <p className="text-zinc-600">Signé le {dateSignature(s.signeLe)}</p>
+                    {s.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={s.imageUrl} alt={`Signature de ${s.nom ?? 'signataire'}`} className="mt-2 max-h-20 max-w-[220px] object-contain" />
+                    )}
+                    {s.ip && <p className="text-zinc-400 mt-1">IP {s.ip}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
 
           <div className="no-print max-w-[760px] mx-auto mt-5 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm p-6">

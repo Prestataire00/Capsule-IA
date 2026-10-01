@@ -59,6 +59,10 @@ export function notifHref(n: Notif): string | null {
     return `/seance/${p.session_id}/supports`;
   }
   if (n.related_aggregate_type === 'task' || typeof p.task_id === 'string') return '/taches';
+  // Document signé : droit au document, où l'on voit la version signée.
+  if (n.related_aggregate_type === 'document' && n.related_aggregate_id) {
+    return `/documents/${n.related_aggregate_id}/apercu`;
+  }
   // Demandes (prospects) : lien vers la fiche de la demande.
   if (n.related_aggregate_type === 'prospect') {
     const prospectId = (p.prospect_id as string | undefined) ?? n.related_aggregate_id ?? undefined;

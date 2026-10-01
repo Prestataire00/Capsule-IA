@@ -273,3 +273,60 @@ ${url ? `<a href="${url}" style="display:inline-block;margin-top:8px;background:
     console.error('[notify-staff] programme : notification impossible', e);
   }
 }
+
+/**
+ * Un document vient d'être signé : l'équipe le voit dans la cloche et le
+ * reçoit par e-mail, avec le lien vers le document signé.
+ */
+export async function notifyOrgStaffOfSignature(args: {
+  organizationId: string;
+  documentId: string;
+  titre: string;
+  signataire: string | null;
+  dossierId: string | null;
+}): Promise<void> {
+  try {
+    const admin = supabaseAdmin() as unknown as SupabaseClient;
+    const url = env.PUBLIC_APP_URL
+      ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}/documents/${args.documentId}/apercu`
+      : null;
+    const subject = `Document signé — ${args.titre}`;
+    await admin.schema('app').from('notifications').insert({
+      organization_id: args.organizationId,
+      channel: 'in_app',
+      template_code: 'document_signed',
+      subject,
+      payload: { document_id: args.documentId, signataire: args.signataire, dossier_id: args.dossierId },
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+      related_aggregate_type: 'document',
+      related_aggregate_id: args.documentId,
+    } as never);
+
+    const { data } = await admin.schema('app').rpc('staff_recipients', { p_org: args.organizationId } as never);
+    const destinataires = ((data as Recipient[] | null) ?? []).filter((r) => r.email);
+    const echapper = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fafafa;padding:32px;">
+<div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px;">
+<h1 style="font-size:18px;margin:0 0 8px;">Document signé</h1>
+<p style="color:#3f3f46;font-size:14px;line-height:1.6;">${args.signataire ? `<strong>${echapper(args.signataire)}</strong> a signé` : 'Signature reçue pour'} <strong>${echapper(args.titre)}</strong>.</p>
+${url ? `<a href="${url}" style="display:inline-block;margin-top:8px;background:#f97316;color:#fff;text-decoration:none;font-size:14px;padding:10px 18px;border-radius:8px;">Voir le document signé</a>` : ''}
+</div></body></html>`;
+    await Promise.all(
+      destinataires.map((r) =>
+        sendEmail({
+          to: r.email,
+          subject,
+          html,
+          organizationId: args.organizationId,
+          ...(args.dossierId ? { dossierId: args.dossierId } : {}),
+          kind: 'document_signe',
+        }).then((res) => {
+          if (!res.ok && res.reason !== 'no_api_key') console.error('[notify-staff] signature : e-mail non parti', r.email);
+        }),
+      ),
+    );
+  } catch (e) {
+    console.error('[notify-staff] signature : notification impossible', e);
+  }
+}

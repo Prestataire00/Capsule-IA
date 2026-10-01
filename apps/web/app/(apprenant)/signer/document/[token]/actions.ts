@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifyDocumentSignatureToken } from '@/shared/lib/document-signature-token';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { onDocumentSigned } from '@/features/billing/quotes/quote-service';
+import { apresSignature } from '@/features/documents/apres-signature';
 
 export type SignResult = { ok: true } | { ok: false; error: string };
 
@@ -32,7 +33,7 @@ export async function submitDocumentSignature(input: {
   const { data: sigRow } = await admin
     .schema('app')
     .from('document_signatures')
-    .select('id, status, request_token_hash, request_expires_at, document_id')
+    .select('id, status, request_token_hash, request_expires_at, document_id, signer_name, signer_email')
     .eq('id', signatureId)
     .maybeSingle();
   const sig = sigRow as {
@@ -41,6 +42,8 @@ export async function submitDocumentSignature(input: {
     request_token_hash: string | null;
     request_expires_at: string | null;
     document_id: string;
+    signer_name: string | null;
+    signer_email: string | null;
   } | null;
   if (!sig || sig.document_id !== documentId) return { ok: false, error: 'not_found' };
   if (sig.status === 'signed') return { ok: true };
@@ -100,6 +103,7 @@ export async function submitDocumentSignature(input: {
   } catch (e) {
     console.error('[signature] cascade devis en échec', documentId, e);
   }
+  await apresSignature(admin as unknown as SupabaseClient, documentId, sig.signer_name ?? sig.signer_email);
 
   return { ok: true };
 }
