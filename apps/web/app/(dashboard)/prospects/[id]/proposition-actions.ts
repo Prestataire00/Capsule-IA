@@ -9,7 +9,7 @@ import { notifyOrgStaffOfProgramme } from '@/shared/lib/notifications/notify-sta
 import { sendQuoteForSignature } from '@/features/billing/quotes/quote-service';
 import { BUCKET_PROGRAMMES, creerVersion } from '@/features/proposition/service';
 import { nettoyerExtrait } from '@/features/formations/programme/nettoyer-extrait';
-import { reviserSchema, envoyerSchema, depotSchema, deposeSchema, typePropositionSchema } from '@/features/proposition/proposition.schema';
+import { reviserSchema, envoyerSchema, depotSchema, deposeSchema, reprendreSchema, typePropositionSchema } from '@/features/proposition/proposition.schema';
 import type { ContenuProposition } from '@/features/proposition/contenu';
 
 /**
@@ -184,6 +184,47 @@ export async function reviserProposition(brut: z.input<typeof reviserSchema>): P
   });
   revalidatePath(`/prospects/${p.data.prospectId}`);
   return r.ok ? { ok: true, message: message(r.version, r.alertes) } : { ok: false, error: r.erreur };
+}
+
+/**
+ * Reprend une version archivée : son contenu devient la version suivante,
+ * avec un nouveau document et un nouveau devis (celui de l'archive a été
+ * annulé), sans réécriture par l'IA. La version en cours est archivée.
+ */
+export async function reprendreVersion(brut: z.input<typeof reprendreSchema>): Promise<PropositionResult> {
+  const p = reprendreSchema.safeParse(brut);
+  if (!p.success) return { ok: false, error: 'Saisie invalide.' };
+  const g = await garde(p.data.prospectId);
+  if (!g.ok) return g;
+  const { data } = await admin()
+    .schema('app')
+    .from('propositions')
+    .select('version, contenu, programme_path, programme_nom')
+    .eq('id', p.data.propositionId)
+    .eq('prospect_id', p.data.prospectId)
+    .eq('statut', 'archivee')
+    .maybeSingle();
+  const archive = data as {
+    version: number;
+    contenu: ContenuProposition;
+    programme_path: string;
+    programme_nom: string | null;
+  } | null;
+  if (!archive) return { ok: false, error: 'Version archivée introuvable.' };
+
+  const r = await creerVersion(admin(), {
+    prospectId: p.data.prospectId,
+    userId: g.member.userId,
+    programmePath: archive.programme_path,
+    programmeNom: archive.programme_nom,
+    revision: { precedente: archive.contenu, consignes: `Reprise de la V${archive.version}.` },
+    finale: Boolean(archive.contenu.finale),
+    contenuFourni: archive.contenu,
+  });
+  revalidatePath(`/prospects/${p.data.prospectId}`);
+  return r.ok
+    ? { ok: true, message: `La V${archive.version} est reprise en V${r.version}, avec un nouveau devis à relire.` }
+    : { ok: false, error: r.erreur };
 }
 
 /**

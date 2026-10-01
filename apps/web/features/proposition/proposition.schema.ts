@@ -11,6 +11,9 @@ export const reviserSchema = z.object({
   finale: z.boolean().default(false),
 });
 
+/** Reprend une version archivée comme nouvelle version en cours. */
+export const reprendreSchema = z.object({ prospectId: z.string().uuid(), propositionId: z.string().uuid() });
+
 /** Bascule la version en cours entre normale et finale, sans réécriture par l'IA. */
 export const typePropositionSchema = z.object({
   prospectId: z.string().uuid(),

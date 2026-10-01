@@ -12,6 +12,7 @@ import {
   lienProgramme,
   preparerDepotProgramme,
   redigerProposition,
+  reprendreVersion,
   reviserProposition,
 } from './proposition-actions';
 
@@ -343,6 +344,7 @@ export function Propositions({
             {archives.map((p) => (
               <li key={p.id} className="flex items-baseline gap-2 flex-wrap text-zinc-700 dark:text-zinc-300">
                 <span className="tabular-nums font-medium">V{p.version}</span>
+                <span className="text-[11px] text-zinc-500">{p.finale ? 'finale' : 'normale'}</span>
                 <span className="tabular-nums text-zinc-500">{date(p.creeLe)}</span>
                 <span className="tabular-nums">{eur(p.totalHtCents)}</span>
                 {p.consignes && <span className="text-zinc-500 truncate max-w-md">« {p.consignes} »</span>}
@@ -350,6 +352,19 @@ export function Propositions({
                   <Link href={`/documents/${p.documentId}/apercu`} className="text-orange-600 dark:text-orange-400 hover:underline">
                     voir
                   </Link>
+                )}
+                {gerer && p.statut === 'archivee' && active?.statut !== 'acceptee' && (
+                  <button
+                    type="button"
+                    disabled={occupe}
+                    onClick={() => {
+                      if (confirm(`Reprendre la V${p.version} ? Elle redevient la proposition en cours, avec un nouveau devis ; la version actuelle est archivée.`))
+                        lancer('type', () => reprendreVersion({ prospectId, propositionId: p.id }));
+                    }}
+                    className="text-orange-600 dark:text-orange-400 hover:underline disabled:opacity-50"
+                  >
+                    reprendre
+                  </button>
                 )}
               </li>
             ))}
