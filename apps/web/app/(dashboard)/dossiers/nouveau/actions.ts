@@ -98,6 +98,17 @@ async function creerFormationSurMesure(
   return (data as { id: string }).id;
 }
 
+async function dureeParDefaut(formationId: string): Promise<number | null> {
+  const { data } = await supabaseAdmin()
+    .schema('app')
+    .from('formations')
+    .select('default_duration_hours')
+    .eq('id', formationId)
+    .maybeSingle();
+  const heures = Number((data as { default_duration_hours: number | string | null } | null)?.default_duration_hours);
+  return Number.isFinite(heures) && heures > 0 ? heures : null;
+}
+
 export const createDossierAction = authActionClient
   .schema(CreateDossierSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -125,9 +136,14 @@ export const createDossierAction = authActionClient
     const year = Number(new Date().getFullYear());
     const reference = generateDossierReference(dossierId, year);
 
-    // total_hours NOT NULL : somme des modules, minimum 1 pour un brouillon.
+    // total_hours NOT NULL : somme des modules, sinon la durée de la formation.
+    // Une formation sur mesure n'a pas de module : sans ce repli, le dossier
+    // naissait à 1 h et la convention l'imprimait tel quel.
+    const dureeFormation =
+      parsedInput.customFormation?.durationHours ??
+      (await dureeParDefaut(formationId));
     const totalHours =
-      parsedInput.modules.reduce((acc, m) => acc + m.durationHours, 0) || 1;
+      parsedInput.modules.reduce((acc, m) => acc + m.durationHours, 0) || dureeFormation || 1;
 
     const modules = parsedInput.modules.map((m, i) => ({
       id: randomUUID(),

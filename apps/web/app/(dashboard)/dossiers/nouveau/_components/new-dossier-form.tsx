@@ -458,7 +458,7 @@ export function NewDossierForm({
                 </p>
                 {modules.length === 0 ? (
                   <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                    Aucun module rattaché à cette formation. Le dossier sera créé avec une durée minimale (modifiable ensuite).
+                    Aucun module rattaché à cette formation : le dossier reprendra sa durée.
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
