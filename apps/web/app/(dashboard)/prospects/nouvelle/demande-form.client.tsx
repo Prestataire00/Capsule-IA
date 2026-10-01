@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, FileText, Loader2, X } from 'lucide-react';
+import { supabaseBrowser } from '@/shared/lib/supabase/client';
+import { preparerDepotProgramme } from '../[id]/proposition-actions';
 import { FUNDER_OPTIONS } from '@/features/prospect/funding';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
 import { siretValide } from '@/shared/lib/siret';
@@ -117,6 +119,9 @@ export function DemandeForm({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Programme joint à la création : envoyé une fois la demande enregistrée,
+  // puis traité sur la fiche demande (proposition et devis rédigés par l'IA).
+  const [programme, setProgramme] = useState<File | null>(null);
   const [form, setForm] = useState({
     civility: valeurs?.civility ?? '',
     firstName: valeurs?.firstName ?? '',
@@ -221,6 +226,26 @@ export function DemandeForm({
       });
       if (!res.ok) {
         setError(res.error);
+        return;
+      }
+      if (programme) {
+        // La fiche demande prend la suite : c'est elle qui montre l'avancement
+        // de la rédaction, qui dure plusieurs minutes.
+        const fiche = `/prospects/${res.prospectId}`;
+        const prep = await preparerDepotProgramme({ prospectId: res.prospectId, nom: programme.name });
+        const envoi = prep.ok
+          ? await supabaseBrowser()
+              .storage.from('prospect-documents')
+              .uploadToSignedUrl(prep.path, prep.token, programme, {
+                contentType: programme.type || 'application/octet-stream',
+              })
+          : null;
+        router.push(
+          prep.ok && !envoi?.error
+            ? `${fiche}?programme=${encodeURIComponent(prep.path)}&nom=${encodeURIComponent(programme.name)}`
+            : `${fiche}?programme_echec=1`,
+        );
+        router.refresh();
         return;
       }
       router.push(res.dossierId ? `/dossiers/${res.dossierId}` : `/prospects/${res.prospectId}`);
@@ -623,6 +648,38 @@ export function DemandeForm({
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
             La demande sera enregistrée sans formation. Vous la préciserez avant d’ouvrir le dossier.
           </p>
+        )}
+
+        {/* À la modification, le programme se dépose depuis la fiche demande. */}
+        {!enregistrer && (
+          <div className={label}>
+            Programme de la formation (facultatif)
+            {programme ? (
+              <div className="mt-1.5 flex items-center gap-2 h-9 px-3 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-[13px] font-normal">
+                <FileText className="w-4 h-4 text-orange-500 shrink-0" />
+                <span className="truncate flex-1">{programme.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setProgramme(null)}
+                  aria-label="Retirer le fichier"
+                  className="text-zinc-400 hover:text-red-600 transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*"
+                onChange={(e) => setProgramme(e.target.files?.[0] ?? null)}
+                className="mt-1.5 block w-full text-[13px] font-normal text-zinc-600 dark:text-zinc-300 file:mr-3 file:h-9 file:px-3 file:rounded-lg file:border-0 file:bg-orange-50 file:text-orange-700 dark:file:bg-orange-950/40 dark:file:text-orange-300 file:font-semibold file:text-[13px] hover:file:bg-orange-100"
+              />
+            )}
+            <span className="block text-[11px] font-normal text-zinc-500 dark:text-zinc-400 mt-1">
+              PDF de préférence. Après l’enregistrement, la fiche demande s’ouvre et l’IA en tire la proposition et
+              son devis.
+            </span>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Archive, CheckCircle2, FileText, Loader2, Send, Sparkles, Upload, Wand2 } from 'lucide-react';
@@ -41,7 +41,21 @@ const BOUTON_SECONDAIRE =
  * La proposition commerciale d'une demande : dépôt du programme, version en
  * cours, révision par l'IA, envoi du devis, versions archivées.
  */
-export function Propositions({ prospectId, propositions, gerer }: { prospectId: string; propositions: PropositionVue[]; gerer: boolean }) {
+export function Propositions({
+  prospectId,
+  propositions,
+  gerer,
+  depotEnAttente = null,
+  echecDepot = false,
+}: {
+  prospectId: string;
+  propositions: PropositionVue[];
+  gerer: boolean;
+  /** Programme joint à la création de la demande, déjà envoyé au stockage. */
+  depotEnAttente?: { path: string; nom: string } | null;
+  /** Le programme joint à la création n'a pas pu être envoyé. */
+  echecDepot?: boolean;
+}) {
   const router = useRouter();
   const fichier = useRef<HTMLInputElement>(null);
   const [consignes, setConsignes] = useState('');
@@ -81,6 +95,25 @@ export function Propositions({ prospectId, propositions, gerer }: { prospectId: 
     });
     if (fichier.current) fichier.current.value = '';
   };
+
+  // Programme joint au formulaire de création : on enchaîne sur sa
+  // rédaction. L'adresse est nettoyée d'abord, pour qu'un rechargement de la
+  // page ne relance pas une seconde proposition.
+  const depotLance = useRef(false);
+  useEffect(() => {
+    if (depotLance.current) return;
+    if (echecDepot) {
+      depotLance.current = true;
+      window.history.replaceState(null, '', `/prospects/${prospectId}`);
+      setRetour({ ok: false, texte: 'La demande est enregistrée, mais le programme n’a pas pu être envoyé. Déposez-le à nouveau ci-dessous.' });
+      return;
+    }
+    if (!depotEnAttente || !gerer) return;
+    depotLance.current = true;
+    window.history.replaceState(null, '', `/prospects/${prospectId}`);
+    lancer('depot', () => deposerProgramme({ prospectId, nom: depotEnAttente.nom, path: depotEnAttente.path }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const occupe = enCours !== null;
 

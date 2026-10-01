@@ -210,7 +210,13 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default async function ProspectDetailPage({ params }: { params: { id: string } }) {
+export default async function ProspectDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { programme?: string; nom?: string; programme_echec?: string };
+}) {
   await requireAccess('crm');
   const sb = admin();
 
@@ -551,7 +557,17 @@ export default async function ProspectDetailPage({ params }: { params: { id: str
         <main className="space-y-5 min-w-0">
           <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-4">
             <SectionTitle icon={Sparkles} accent="orange">Proposition commerciale</SectionTitle>
-            <Propositions prospectId={prospect.id} propositions={propositions} gerer={gererPropositions} />
+            <Propositions
+              prospectId={prospect.id}
+              propositions={propositions}
+              gerer={gererPropositions}
+              depotEnAttente={
+                searchParams?.programme
+                  ? { path: searchParams.programme, nom: searchParams.nom || 'programme' }
+                  : null
+              }
+              echecDepot={searchParams?.programme_echec === '1'}
+            />
           </section>
           <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
