@@ -12,6 +12,8 @@ import { EntrepriseAutocomplete } from '@/app/inscription/entreprise-autocomplet
 import { createDemande } from './actions';
 
 export type FormationOption = { id: string; title: string; code: string | null; priceCents: number; hours: number };
+/** La personne à reprendre comme « qui fait la demande » pour une entreprise. */
+export type Interlocuteur = { firstName: string; lastName: string; email: string; phone: string };
 /** Une fiche entreprise déjà au CRM. */
 export type EntrepriseCrm = {
   id: string;
@@ -21,6 +23,7 @@ export type EntrepriseCrm = {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  interlocuteur: Interlocuteur | null;
 };
 
 const SITUATIONS = [
@@ -364,6 +367,16 @@ export function DemandeForm({
                       referentName: f.referentName.trim() || c.contactName,
                       referentEmail: f.referentEmail.trim() || c.contactEmail,
                       referentPhone: f.referentPhone.trim() || c.contactPhone,
+                      // Qui fait la demande : l'interlocuteur habituel de
+                      // l'entreprise, à corriger si c'est quelqu'un d'autre.
+                      ...(c.interlocuteur
+                        ? {
+                            firstName: c.interlocuteur.firstName,
+                            lastName: c.interlocuteur.lastName,
+                            email: c.interlocuteur.email,
+                            phone: c.interlocuteur.phone,
+                          }
+                        : {}),
                     }));
                   }}
                   className={input}
@@ -376,7 +389,8 @@ export function DemandeForm({
                   ))}
                 </select>
                 <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
-                  Le dossier sera rattaché à cette fiche. Nouvelle entreprise ? Cherchez-la dans l&apos;annuaire ci-dessous.
+                  Le dossier sera rattaché à cette fiche, et son interlocuteur habituel repris ci-dessous. Nouvelle
+                  entreprise ? Cherchez-la dans l&apos;annuaire.
                 </span>
               </label>
             )}
