@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, Archive, CheckCircle2, FileText, Loader2, Send, Sparkles, Upload, Wand2 } from 'lucide-react';
 import { supabaseBrowser } from '@/shared/lib/supabase/client';
 import {
+  changerTypeProposition,
   deposerProgramme,
   envoyerDevisProposition,
   lienProgramme,
@@ -27,6 +28,8 @@ export type PropositionVue = {
   programmeNom: string | null;
   documentId: string | null;
   devis: { id: string; reference: string; statut: string } | null;
+  /** Finale : le tarif ne montre que la ligne du devis. */
+  finale: boolean;
 };
 
 const STATUT_DEVIS: Record<string, string> = {
@@ -66,14 +69,16 @@ export function Propositions({
   const router = useRouter();
   const fichier = useRef<HTMLInputElement>(null);
   const [consignes, setConsignes] = useState('');
+  // Proposition normale (scénarios d'effectif) ou finale (la ligne du devis).
+  const [finale, setFinale] = useState(false);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
-  const [enCours, setEnCours] = useState<null | 'depot' | 'redaction' | 'revision' | 'envoi'>(null);
+  const [enCours, setEnCours] = useState<null | 'depot' | 'redaction' | 'revision' | 'envoi' | 'type'>(null);
   const [, demarrer] = useTransition();
 
   const active = propositions.find((p) => p.statut === 'active' || p.statut === 'acceptee') ?? null;
   const archives = propositions.filter((p) => p !== active);
 
-  const lancer = (quoi: 'depot' | 'redaction' | 'revision' | 'envoi', action: () => Promise<{ ok: true; message: string } | { ok: false; error: string }>) => {
+  const lancer = (quoi: 'depot' | 'redaction' | 'revision' | 'envoi' | 'type', action: () => Promise<{ ok: true; message: string } | { ok: false; error: string }>) => {
     setRetour(null);
     setEnCours(quoi);
     demarrer(async () => {
@@ -128,6 +133,8 @@ export function Propositions({
           <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
           {enCours === 'envoi'
             ? 'Envoi du devis…'
+            : enCours === 'type'
+              ? 'Nouvelle version en cours…'
             : enCours === 'depot'
               ? 'Envoi du programme…'
               : enCours === 'redaction'
@@ -160,10 +167,11 @@ export function Propositions({
           </div>
           {gerer && (
             <div className="flex items-center gap-3 flex-wrap pt-1">
+              <ChoixType finale={finale} onChange={setFinale} />
               <button
                 type="button"
                 disabled={occupe}
-                onClick={() => lancer('redaction', () => redigerProposition({ prospectId }))}
+                onClick={() => lancer('redaction', () => redigerProposition({ prospectId, finale }))}
                 className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" /> Rédiger la proposition avec l’IA
@@ -193,6 +201,15 @@ export function Propositions({
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                 V{active.version} · {date(active.creeLe)}
                 {active.programmeNom ? ` · d’après ${active.programmeNom}` : ''}
+                <span
+                  className={`ml-2 inline-flex items-center h-5 px-1.5 rounded text-[11px] font-semibold ${
+                    active.finale
+                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                      : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
+                  }`}
+                >
+                  {active.finale ? 'Finale' : 'Normale'}
+                </span>
               </p>
               <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{active.titre}</p>
               <p className="text-[13px] text-zinc-700 dark:text-zinc-300 tabular-nums">
@@ -240,6 +257,21 @@ export function Propositions({
                 <FileText className="w-3.5 h-3.5" /> Voir / ajuster le devis
               </Link>
             )}
+            {gerer && active.statut === 'active' && (
+              <button
+                type="button"
+                disabled={occupe}
+                onClick={() =>
+                  lancer('type', () =>
+                    changerTypeProposition({ prospectId, propositionId: active.id, finale: !active.finale }),
+                  )
+                }
+                className={BOUTON_SECONDAIRE}
+                title="Même contenu, sans réécriture par l’IA : seule la partie Tarif change."
+              >
+                {active.finale ? 'Repasser en normale' : 'Passer en finale'}
+              </button>
+            )}
             {gerer && active.statut === 'active' && active.devis && (active.devis.statut === 'draft' || active.devis.statut === 'sent') && (
               <button
                 type="button"
@@ -269,10 +301,11 @@ export function Propositions({
                 />
               </label>
               <div className="flex items-center gap-2 flex-wrap">
+                <ChoixType finale={finale} onChange={setFinale} />
                 <button
                   type="button"
                   disabled={occupe || consignes.trim().length < 5}
-                  onClick={() => lancer('revision', () => reviserProposition({ prospectId, propositionId: active.id, consignes }))}
+                  onClick={() => lancer('revision', () => reviserProposition({ prospectId, propositionId: active.id, consignes, finale }))}
                   className={BOUTON_SECONDAIRE}
                 >
                   <Wand2 className="w-3.5 h-3.5" /> Rédiger la V{active.version + 1}
@@ -281,6 +314,21 @@ export function Propositions({
                   <Upload className="w-3.5 h-3.5" /> Nouveau programme
                 </button>
               </div>
+              {/* Un programme déposé après cette version : on peut en tirer
+                  une nouvelle proposition, qui repart de lui. */}
+              {programme && new Date(programme.deposeLe) > new Date(active.creeLe) && (
+                <div className="flex items-center gap-2 flex-wrap text-[12px] text-zinc-600 dark:text-zinc-400">
+                  Nouveau programme déposé : {programme.nom}.
+                  <button
+                    type="button"
+                    disabled={occupe}
+                    onClick={() => lancer('redaction', () => redigerProposition({ prospectId, finale }))}
+                    className={BOUTON_SECONDAIRE}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" /> Rédiger la V{active.version + 1} depuis ce programme
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -309,5 +357,34 @@ export function Propositions({
         </details>
       )}
     </div>
+  );
+}
+
+/** Normale : tableau des scénarios d'effectif. Finale : la seule ligne du devis. */
+function ChoixType({ finale, onChange }: { finale: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <span className="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5 text-[12px] font-semibold" role="group" aria-label="Type de proposition">
+      {(
+        [
+          [false, 'Normale', 'Tarif avec les scénarios selon le nombre de participants'],
+          [true, 'Finale', 'Tarif réduit à la ligne retenue au devis'],
+        ] as const
+      ).map(([valeur, libelle, aide]) => (
+        <button
+          key={libelle}
+          type="button"
+          title={aide}
+          aria-pressed={finale === valeur}
+          onClick={() => onChange(valeur)}
+          className={
+            finale === valeur
+              ? 'h-8 px-2.5 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+              : 'h-8 px-2.5 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+          }
+        >
+          {libelle}
+        </button>
+      ))}
+    </span>
   );
 }

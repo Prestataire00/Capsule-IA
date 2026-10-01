@@ -3,7 +3,7 @@
 // L'en-tête (logo, identité légale de l'organisme) est posé par
 // `wrapGeneratedHtml`, comme pour les autres documents générés.
 
-import { baseTarifaire, euros, formuleTarif, scenarios, type ContenuProposition, type LigneLibelle, type Objectif } from './contenu';
+import { baseTarifaire, euros, formuleTarif, lignesDevis, scenarios, type ContenuProposition, type LigneLibelle, type Objectif } from './contenu';
 
 const ACCENT = '#4c1d95';
 const FOND = '#f3effa';
@@ -127,6 +127,17 @@ export function propositionHtml(c: ContenuProposition, opts: { version: number; 
   }
 
   s.push(titreSection('Tarif'));
+  if (c.finale) {
+    // Finale : la seule ligne du devis, sans les scénarios d'effectif.
+    const cellule = `padding:7px;border:1px solid #e4e4e7;`;
+    const lignes = lignesDevis(c);
+    s.push(`<table style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="background:${ACCENT};color:#fff;"><th style="padding:7px;text-align:left;">Désignation</th><th style="padding:7px;">Quantité</th><th style="padding:7px;">Prix unitaire HT</th><th style="padding:7px;">Total HT</th></tr>${lignes
+      .map((l) => `<tr style="background:${FOND};"><td style="${cellule}"><strong>${e(l.description)}</strong><br><span style="color:#52525b;">${e(l.details)}</span></td><td style="${cellule}text-align:center;">${l.quantite.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}</td><td style="${cellule}text-align:right;">${euros(l.prixUnitaireCents)}</td><td style="${cellule}text-align:right;font-weight:700;">${euros(Math.round(l.quantite * l.prixUnitaireCents))}</td></tr>`)
+      .join('')}</table>`);
+    s.push(`<p style="font-size:16px;font-weight:700;color:${ACCENT};margin:14px 0 4px;">Total : ${euros(lignes.reduce((t, l) => t + Math.round(l.quantite * l.prixUnitaireCents), 0))} HT</p>`);
+    if (c.tarif.financement) s.push(`<p style="margin:0;">${e(c.tarif.financement)}</p>`);
+    return `<article style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#18181b;line-height:1.5;">${s.join('\n')}</article>`;
+  }
   s.push(`<p style="margin:0 0 8px;">Tarif : <strong>${e(baseTarifaire(c.tarif))}</strong>.</p>`);
   const sc = scenarios(c.tarif);
   if (sc.length > 1) {

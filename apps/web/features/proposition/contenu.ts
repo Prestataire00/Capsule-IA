@@ -51,6 +51,12 @@ export type ContenuProposition = {
     financement: string;
   };
   points_a_valider: string[];
+  /**
+   * Proposition finale : le tarif ne montre que la ligne retenue, telle
+   * qu'elle figure au devis, sans le tableau des scénarios. Choisi par
+   * l'équipe, jamais par l'IA ; absent = proposition normale.
+   */
+  finale?: boolean;
 };
 
 const TEXTE = { type: 'string' } as const;

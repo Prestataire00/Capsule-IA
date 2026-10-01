@@ -15,6 +15,17 @@ describe('le document de la proposition', () => {
     expect(html).toMatch(/2\s100 € HT/);
   });
 
+  it('finale : le tarif ne montre que la ligne du devis, sans les scénarios', () => {
+    const html = propositionHtml({ ...propositionSolutionsTerrain(), finale: true }, { version: 3, organisme: 'Capsule IA' });
+    expect(html).not.toContain('Nombre de participants');
+    expect(html).not.toContain('Formule proposée');
+    expect(html).toContain('Désignation');
+    // 12 participants × 6 h = 72 heures-apprenant à 35 € : la ligne du devis.
+    expect(html).toMatch(/>72</);
+    expect(html).toMatch(/Total : 2\s520 € HT/);
+    expect(html).not.toMatch(/2\s100 € HT/);
+  });
+
   it('échappe ce que l’IA écrit : aucun HTML injecté', () => {
     const c = propositionSolutionsTerrain();
     const html = propositionHtml({ ...c, titre: '<script>alert(1)</script>' }, { version: 1, organisme: 'X' });

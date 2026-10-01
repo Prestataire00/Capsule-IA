@@ -308,6 +308,7 @@ export default async function ProspectDetailPage({
       consignes: l.consignes,
       alertes: l.alertes ?? [],
       pointsAValider: l.contenu.points_a_valider ?? [],
+      finale: Boolean(l.contenu.finale),
       totalHtCents: totalHtCents(l.contenu.tarif),
       creeLe: l.created_at,
       programmeNom: l.programme_nom,

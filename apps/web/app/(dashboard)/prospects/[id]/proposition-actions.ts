@@ -9,7 +9,7 @@ import { notifyOrgStaffOfProgramme } from '@/shared/lib/notifications/notify-sta
 import { sendQuoteForSignature } from '@/features/billing/quotes/quote-service';
 import { BUCKET_PROGRAMMES, creerVersion } from '@/features/proposition/service';
 import { nettoyerExtrait } from '@/features/formations/programme/nettoyer-extrait';
-import { reviserSchema, envoyerSchema, depotSchema, deposeSchema } from '@/features/proposition/proposition.schema';
+import { reviserSchema, envoyerSchema, depotSchema, deposeSchema, typePropositionSchema } from '@/features/proposition/proposition.schema';
 import type { ContenuProposition } from '@/features/proposition/contenu';
 
 /**
@@ -105,6 +105,7 @@ export async function deposerProgramme(brut: z.input<typeof deposeSchema>): Prom
 }
 
 const prospectSchema = z.object({ prospectId: z.string().uuid() });
+const redigerSchema = prospectSchema.extend({ finale: z.boolean().default(false) });
 
 /** Le dernier programme déposé sur la demande. */
 async function dernierProgramme(prospectId: string): Promise<{ path: string; nom: string } | null> {
@@ -123,8 +124,8 @@ async function dernierProgramme(prospectId: string): Promise<{ path: string; nom
 }
 
 /** Rédige la proposition V1 et son devis à partir du dernier programme déposé. */
-export async function redigerProposition(brut: z.input<typeof prospectSchema>): Promise<PropositionResult> {
-  const p = prospectSchema.safeParse(brut);
+export async function redigerProposition(brut: z.input<typeof redigerSchema>): Promise<PropositionResult> {
+  const p = redigerSchema.safeParse(brut);
   if (!p.success) return { ok: false, error: 'Demande introuvable.' };
   const g = await garde(p.data.prospectId);
   if (!g.ok) return g;
@@ -135,6 +136,7 @@ export async function redigerProposition(brut: z.input<typeof prospectSchema>): 
     userId: g.member.userId,
     programmePath: programme.path,
     programmeNom: programme.nom,
+    finale: p.data.finale,
   });
   revalidatePath(`/prospects/${p.data.prospectId}`);
   return r.ok ? { ok: true, message: message(r.version, r.alertes) } : { ok: false, error: r.erreur };
@@ -178,9 +180,49 @@ export async function reviserProposition(brut: z.input<typeof reviserSchema>): P
     programmePath: active.programme_path,
     programmeNom: active.programme_nom,
     revision: { precedente: active.contenu, consignes: p.data.consignes },
+    finale: p.data.finale,
   });
   revalidatePath(`/prospects/${p.data.prospectId}`);
   return r.ok ? { ok: true, message: message(r.version, r.alertes) } : { ok: false, error: r.erreur };
+}
+
+/**
+ * Passe la version en cours en finale (ou la repasse en normale) : même
+ * contenu, sans réécriture par l'IA, mais une nouvelle version avec son
+ * document et son devis — l'ancienne est archivée comme pour une révision.
+ */
+export async function changerTypeProposition(brut: z.input<typeof typePropositionSchema>): Promise<PropositionResult> {
+  const p = typePropositionSchema.safeParse(brut);
+  if (!p.success) return { ok: false, error: 'Saisie invalide.' };
+  const g = await garde(p.data.prospectId);
+  if (!g.ok) return g;
+  const { data } = await admin()
+    .schema('app')
+    .from('propositions')
+    .select('contenu, programme_path, programme_nom')
+    .eq('id', p.data.propositionId)
+    .eq('prospect_id', p.data.prospectId)
+    .eq('statut', 'active')
+    .maybeSingle();
+  const active = data as { contenu: ContenuProposition; programme_path: string; programme_nom: string | null } | null;
+  if (!active) return { ok: false, error: 'Seule la proposition en cours peut changer de type.' };
+
+  const r = await creerVersion(admin(), {
+    prospectId: p.data.prospectId,
+    userId: g.member.userId,
+    programmePath: active.programme_path,
+    programmeNom: active.programme_nom,
+    revision: {
+      precedente: active.contenu,
+      consignes: p.data.finale ? 'Passage en proposition finale.' : 'Retour en proposition normale.',
+    },
+    finale: p.data.finale,
+    contenuFourni: active.contenu,
+  });
+  revalidatePath(`/prospects/${p.data.prospectId}`);
+  return r.ok
+    ? { ok: true, message: `Proposition V${r.version} ${p.data.finale ? 'finale' : 'normale'} prête — même contenu, tarif ${p.data.finale ? 'réduit à la ligne du devis' : 'avec les scénarios'}.` }
+    : { ok: false, error: r.erreur };
 }
 
 /** Envoie le devis de la proposition en cours pour signature électronique. */

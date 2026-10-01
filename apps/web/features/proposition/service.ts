@@ -164,35 +164,49 @@ export async function creerVersion(
     programmePath: string;
     programmeNom: string | null;
     revision?: { precedente: ContenuProposition; consignes: string };
+    /** Proposition finale : le tarif ne montre que la ligne du devis. */
+    finale?: boolean;
+    /**
+     * Contenu repris tel quel, sans passer par l'IA : pour basculer une
+     * version entre normale et finale sans la réécrire.
+     */
+    contenuFourni?: ContenuProposition;
   },
 ): Promise<VersionResultat> {
   const p = await chargerProspect(sb, args.prospectId);
   if (!p) return { ok: false, erreur: 'Demande introuvable.' };
-  const octets = await telechargerProgramme(sb, args.programmePath);
-  if (!octets) return { ok: false, erreur: 'Le programme déposé n’a pas pu être relu.' };
-  const programme = await preparerProgramme(octets, args.programmeNom ?? args.programmePath.split('/').pop() ?? '');
-  if (!programme.ok) return { ok: false, erreur: programme.raison };
 
-  const ctx = await contexte(sb, p);
   let contenu: ContenuProposition;
   let alertes: string[];
-  try {
-    let r = await genererProposition(programme, ctx, args.revision);
-    if (!r.ok) return { ok: false, erreur: MESSAGES[r.raison] ?? MESSAGES.echec! };
-    // Hors cadre (coaching, programme personnalisé…) : une correction ciblée,
-    // puis on garde l'alerte si elle persiste — l'équipe tranche.
-    alertes = controlerCadre(r.contenu);
-    if (alertes.length) {
-      const corrige = await genererProposition(programme, ctx, { precedente: r.contenu, consignes: args.revision?.consignes ?? 'Aucun autre changement.' }, alertes);
-      if (corrige.ok) {
-        r = corrige;
-        alertes = controlerCadre(corrige.contenu);
+  if (args.contenuFourni) {
+    contenu = args.contenuFourni;
+    alertes = controlerCadre(contenu);
+  } else {
+    const octets = await telechargerProgramme(sb, args.programmePath);
+    if (!octets) return { ok: false, erreur: 'Le programme déposé n’a pas pu être relu.' };
+    const programme = await preparerProgramme(octets, args.programmeNom ?? args.programmePath.split('/').pop() ?? '');
+    if (!programme.ok) return { ok: false, erreur: programme.raison };
+
+    const ctx = await contexte(sb, p);
+    try {
+      let r = await genererProposition(programme, ctx, args.revision);
+      if (!r.ok) return { ok: false, erreur: MESSAGES[r.raison] ?? MESSAGES.echec! };
+      // Hors cadre (coaching, programme personnalisé…) : une correction ciblée,
+      // puis on garde l'alerte si elle persiste — l'équipe tranche.
+      alertes = controlerCadre(r.contenu);
+      if (alertes.length) {
+        const corrige = await genererProposition(programme, ctx, { precedente: r.contenu, consignes: args.revision?.consignes ?? 'Aucun autre changement.' }, alertes);
+        if (corrige.ok) {
+          r = corrige;
+          alertes = controlerCadre(corrige.contenu);
+        }
       }
+      contenu = r.contenu;
+    } finally {
+      await programme.nettoyer();
     }
-    contenu = r.contenu;
-  } finally {
-    await programme.nettoyer();
   }
+  contenu = { ...contenu, finale: Boolean(args.finale) };
 
   const { data: derniere } = await sb
     .schema('app')
