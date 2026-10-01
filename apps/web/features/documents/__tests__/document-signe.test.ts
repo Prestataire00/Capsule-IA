@@ -21,7 +21,7 @@ function fausseBase(original: Uint8Array) {
   return {
     storage: {
       from: (bucket: string) => ({
-        download: async () => ({ data: new Blob([bucket === 'documents' ? original : PNG]), error: null }),
+        download: async () => ({ data: new Blob([(bucket === 'documents' ? original : PNG) as unknown as BlobPart]), error: null }),
       }),
     },
   } as never;

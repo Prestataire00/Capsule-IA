@@ -202,6 +202,20 @@ export async function affecterAuGroupe(brut: z.input<typeof AffectationSchema>):
       console.error('[groupes] affectation impossible', p.data.groupeId, error.message);
       return { ok: false, error: 'L’affectation n’a pas été enregistrée.' };
     }
+
+    // Les séances déjà créées pour ce groupe l'attendent désormais : sans
+    // cette dérivation, il n'était ni convoqué ni sur la feuille
+    // d'émargement des séances posées avant son affectation.
+    const { data: seancesDuGroupe } = await sb
+      .schema('app')
+      .from('sessions')
+      .select('id')
+      .eq('groupe_id', p.data.groupeId);
+    for (const s of (seancesDuGroupe ?? []) as Array<{ id: string }>) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: derivErr } = await (sb as any).schema('app').rpc('materialize_session_participants', { p_session_id: s.id });
+      if (derivErr) console.error('[groupes] participants non recalculés', s.id, derivErr.message);
+    }
   } else {
     const { error } = await sb
       .schema('app')
