@@ -95,6 +95,11 @@ export function NewDossierForm({
   // au départ : les noms arrivent plus tard, par l'onglet Apprenants.
   const [clientKind, setClientKind] = useState<'individual' | 'company'>('individual');
   const [companyId, setCompanyId] = useState<string>('');
+  // Particulier : entreprise du CRM rattachée au dossier (employeur, payeur…).
+  // Reprend par défaut celle de la fiche apprenant, modifiable ici.
+  const [individualCompanyId, setIndividualCompanyId] = useState<string>(
+    () => learners.find((l) => l.id === learnerId)?.companyId ?? '',
+  );
   // Formation nouvelle : on la décrit ici, elle est créée à la volée.
   // Sur mesure par défaut : c'est le cas courant, et le seul que vend Capsule IA.
   const [surMesure, setSurMesure] = useState(true);
@@ -149,8 +154,6 @@ export function NewDossierForm({
     setFunderRows((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  const selectedLearner = learners.find((l) => l.id === learnerId) ?? null;
-
   function applyFormation(id: string) {
     setFormationId(id);
     const f = formations.find((x) => x.id === id);
@@ -191,7 +194,7 @@ export function NewDossierForm({
       customFormation: surMesure
         ? { title: smTitre.trim(), durationHours: Number(smHeures), priceCents: Math.round(Number(smTarif || 0) * 100) }
         : null,
-      companyId: clientKind === 'company' ? companyId : (selectedLearner?.companyId ?? null),
+      companyId: clientKind === 'company' ? companyId : individualCompanyId || null,
       modality,
       startDate,
       endDate,
@@ -303,7 +306,14 @@ export function NewDossierForm({
                     {learners.length === 0 ? (
                       <EmptyHint href="/apprenants/nouveau" label="Créer un apprenant" />
                     ) : (
-                      <select value={learnerId} onChange={(e) => setLearnerId(e.target.value)} className={selectCls}>
+                      <select
+                        value={learnerId}
+                        onChange={(e) => {
+                          setLearnerId(e.target.value);
+                          setIndividualCompanyId(learners.find((l) => l.id === e.target.value)?.companyId ?? '');
+                        }}
+                        className={selectCls}
+                      >
                         {learners.map((l) => (
                           <option key={l.id} value={l.id}>
                             {l.name} — {l.email}
@@ -312,7 +322,29 @@ export function NewDossierForm({
                       </select>
                     )}
                   </Field>
-                ) : (
+                ) : null}
+
+                {clientKind === 'individual' && companies.length > 0 ? (
+                  <Field label="Entreprise rattachée">
+                    <select
+                      value={individualCompanyId}
+                      onChange={(e) => setIndividualCompanyId(e.target.value)}
+                      className={selectCls}
+                    >
+                      <option value="">— Aucune —</option>
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+                      Facultatif. Une entreprise de votre CRM — l&apos;employeur de l&apos;apprenant, par exemple.
+                    </p>
+                  </Field>
+                ) : null}
+
+                {clientKind === 'company' && (
                   <Field label="Entreprise cliente *">
                     {companies.length === 0 ? (
                       <EmptyHint href="/entreprises/nouvelle" label="Créer une entreprise" />
