@@ -57,6 +57,7 @@ export function ModifierDemande({
           customFormationHours: v.formationMode === 'sur-mesure' ? heures : null,
           customFormationPriceCents: v.formationMode === 'sur-mesure' ? prixCents : null,
           customFormationPriceMode: v.customPriceMode,
+          employeesToTrain: v.nbStagiaires.trim() ? Number(v.nbStagiaires) : null,
           preferredModality: v.preferredModality,
           preferredStartDate: v.preferredStartDate,
           message: v.message,

@@ -96,6 +96,7 @@ export type ValeursDemande = {
   formationMode: 'catalogue' | 'sur-mesure' | 'plus-tard';
   formationId: string; customTitle: string; customHours: string; customPrice: string;
   customPriceMode: 'par_stagiaire' | 'forfait';
+  nbStagiaires: string;
   preferredModality: string; preferredStartDate: string; message: string;
 };
 
@@ -196,6 +197,7 @@ export function DemandeForm({
     customHours: valeurs?.customHours ?? '',
     customPrice: valeurs?.customPrice ?? '',
     customPriceMode: (valeurs?.customPriceMode ?? 'par_stagiaire') as 'par_stagiaire' | 'forfait',
+    nbStagiaires: valeurs?.nbStagiaires ?? '',
     preferredModality: valeurs?.preferredModality ?? '',
     preferredStartDate: valeurs?.preferredStartDate ?? '',
     message: valeurs?.message ?? '',
@@ -214,6 +216,7 @@ export function DemandeForm({
       if (!form.customTitle.trim()) return setError('Indiquez l’intitulé de la formation.');
       if (form.customHours.trim() && !(hours && hours > 0)) return setError('Durée invalide (en heures).');
       if (form.customPrice.trim() && price == null) return setError('Tarif invalide (ex. 1500 ou 1500,50).');
+      if (form.nbStagiaires.trim() && !(Number(form.nbStagiaires) >= 1)) return setError('Nombre de stagiaires invalide.');
     }
 
     start(async () => {
@@ -241,6 +244,7 @@ export function DemandeForm({
           customHours: form.customHours,
           customPrice: form.customPrice,
           customPriceMode: form.customPriceMode,
+          nbStagiaires: form.nbStagiaires,
           preferredModality: form.preferredModality,
           preferredStartDate: form.preferredStartDate,
           message: form.message,
@@ -274,6 +278,7 @@ export function DemandeForm({
         customFormationHours: form.formationMode === 'sur-mesure' ? hours : null,
         customFormationPriceCents: form.formationMode === 'sur-mesure' ? price : null,
         customFormationPriceMode: form.customPriceMode,
+        employeesToTrain: form.nbStagiaires.trim() ? Number(form.nbStagiaires) : null,
         preferredModality: form.preferredModality as never,
         preferredStartDate: form.preferredStartDate,
         message: form.message,
@@ -734,6 +739,39 @@ export function DemandeForm({
                 className={input}
               />
             </div>
+            <label className={label}>
+              Nombre de stagiaires (facultatif)
+              <input
+                value={form.nbStagiaires}
+                onChange={(e) => set('nbStagiaires', e.target.value.replace(/\D/g, ''))}
+                inputMode="numeric"
+                placeholder="Ex. 8"
+                className={input}
+              />
+            </label>
+            {(() => {
+              // Le calcul affiché est celui que fera le devis : un tarif par
+              // stagiaire fois le nombre de stagiaires, ou le prix global.
+              const prixCents = form.customPrice.trim() ? parseEurosToCents(form.customPrice) : null;
+              const nb = Number(form.nbStagiaires);
+              if (prixCents == null || !(nb >= 1)) return null;
+              const eur = (c: number) =>
+                (c / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+              return (
+                <p className="md:col-span-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300 tabular-nums">
+                  {form.customPriceMode === 'forfait' ? (
+                    <>
+                      Prix global <strong>{eur(prixCents)} HT</strong>, soit {eur(Math.round(prixCents / nb))} HT par
+                      stagiaire.
+                    </>
+                  ) : (
+                    <>
+                      Prix global : {nb} × {eur(prixCents)} = <strong>{eur(prixCents * nb)} HT</strong>
+                    </>
+                  )}
+                </p>
+              );
+            })()}
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 md:col-span-3">
               La formation sera créée à l’ouverture du dossier, hors catalogue public. Durée et tarif servent de base au devis ;
               tout reste modifiable ensuite.

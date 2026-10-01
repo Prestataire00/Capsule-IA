@@ -48,7 +48,7 @@ describe('la note interne de la demande', () => {
 
 describe('la conversion en dossier', () => {
   it('lit la note de la demande', () => {
-    expect(CONVERSION).toMatch(/custom_formation_price_mode, message'/);
+    expect(CONVERSION).toMatch(/employees_to_train, message'/);
   });
 
   it('la reporte sur le dossier', () => {

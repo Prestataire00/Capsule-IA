@@ -260,7 +260,7 @@ export async function ensureQuoteForDossier(
   const { data: dRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, organization_id, learner_id, company_id, formation_id, deleted_at')
+    .select('id, organization_id, learner_id, company_id, formation_id, deleted_at, metadata')
     .eq('id', dossierId)
     .maybeSingle();
   const dossier = dRow as {
@@ -270,6 +270,7 @@ export async function ensureQuoteForDossier(
     company_id: string | null;
     formation_id: string | null;
     deleted_at: string | null;
+    metadata: Record<string, unknown> | null;
   } | null;
   if (!dossier || dossier.deleted_at) return { ok: false, reason: 'dossier_not_found' };
   if (opts.organizationId && dossier.organization_id !== opts.organizationId) {
@@ -343,6 +344,8 @@ export async function ensureQuoteForDossier(
   const title = formation.title ?? 'Formation';
   const vatRate = org.vat_regime === 'subject' ? Number(org.default_vat_rate ?? 0) : 0;
   const unit = defaultUnitPriceCents(session?.price_cents, formation.default_price_cents);
+  const prevus = Number((dossier.metadata as { nb_stagiaires_prevus?: unknown } | null)?.nb_stagiaires_prevus);
+  const nbStagiaires = Number.isInteger(prevus) && prevus > 0 ? prevus : 1;
 
   const { data: inserted, error: insErr } = await sb
     .schema('app')
@@ -358,7 +361,7 @@ export async function ensureQuoteForDossier(
       session_id: session?.id ?? null,
       recipient_name: clientInfo.contactName,
       recipient_email: clientInfo.contactEmail,
-      object: quoteObject(title, 1),
+      object: quoteObject(title, nbStagiaires),
       issued_on: issuedOn,
       valid_until: addDays(issuedOn, QUOTE_VALIDITY_DAYS),
       vat_rate: vatRate,
@@ -388,7 +391,9 @@ export async function ensureQuoteForDossier(
         position: 0,
         description: title,
         details,
-        quantity: 1,
+        // Un prix global se facture une fois ; un tarif par stagiaire, autant
+        // de fois que de stagiaires prévus sur la demande.
+        quantity: formation.price_mode === 'forfait' ? 1 : nbStagiaires,
         unit_amount_cents: unit,
         vat_rate: null,
       } as never),

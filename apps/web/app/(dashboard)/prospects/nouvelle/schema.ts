@@ -45,6 +45,8 @@ export const NouvelleDemandeSchema = z
     customFormationPriceCents: z.number().int().min(0).max(100_000_000).nullable().default(null),
     /** Le tarif est-il par stagiaire, ou un prix global pour toute la formation (0202) ? */
     customFormationPriceMode: z.enum(['par_stagiaire', 'forfait']).default('par_stagiaire'),
+    /** Nombre de stagiaires prévu, facultatif : il donne le prix global d'un tarif par stagiaire. */
+    employeesToTrain: z.number().int().min(1, 'Nombre de stagiaires invalide.').max(10_000).nullable().default(null),
 
     preferredModality: z.enum(PROSPECT_MODALITIES).optional().or(z.literal('')),
     preferredStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide').optional().or(z.literal('')),

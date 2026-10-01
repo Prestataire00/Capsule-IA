@@ -33,7 +33,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, funder_kinds, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, custom_formation_price_mode, message',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, funder_kinds, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, custom_formation_price_mode, employees_to_train, message',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -66,6 +66,7 @@ export async function convertProspectToDossier(
     custom_formation_hours: number | string | null;
     custom_formation_price_cents: number | string | null;
     custom_formation_price_mode: 'par_stagiaire' | 'forfait' | null;
+    employees_to_train: number | null;
     /** « Note interne » saisie sur la demande. */
     message: string | null;
   };
@@ -250,10 +251,17 @@ export async function convertProspectToDossier(
     }));
   // Un prix global est le montant du dossier : il ne dépend pas du nombre
   // de stagiaires, on le connaît dès maintenant.
-  const forfaitCents =
-    !p.formation_id && p.custom_formation_price_mode === 'forfait'
-      ? Math.max(0, Number(p.custom_formation_price_cents ?? 0) || 0) || null
-      : null;
+  // Un tarif par stagiaire donne aussi le montant quand le nombre de
+  // stagiaires prévu est connu.
+  const prixSurMesure = !p.formation_id ? Math.max(0, Number(p.custom_formation_price_cents ?? 0) || 0) : 0;
+  const nbPrevus = p.employees_to_train && p.employees_to_train > 0 ? p.employees_to_train : null;
+  const montantPrevuCents = !prixSurMesure
+    ? null
+    : p.custom_formation_price_mode === 'forfait'
+      ? prixSurMesure
+      : nbPrevus
+        ? prixSurMesure * nbPrevus
+        : null;
   if (!formationId) return { ok: false, error: 'formation_create_failed' };
 
   // Durée réelle de la formation choisie au catalogue. `null` pour une
@@ -361,6 +369,8 @@ export async function convertProspectToDossier(
         from_prospect: prospect.id,
         funder_kind: prospect.funderKind,
         funder_kinds: p.funder_kinds?.length ? p.funder_kinds : [prospect.funderKind],
+        // Repris par le devis automatique comme nombre de stagiaires.
+        ...(nbPrevus ? { nb_stagiaires_prevus: nbPrevus } : {}),
       },
     },
     p_events: [],
@@ -388,7 +398,7 @@ export async function convertProspectToDossier(
       // l'interlocuteur, une contrainte — disparaissait au moment précis où le
       // dossier commençait à servir.
       notes: noteInterne,
-      ...(forfaitCents ? { total_amount_cents: forfaitCents } : {}),
+      ...(montantPrevuCents ? { total_amount_cents: montantPrevuCents } : {}),
     })
     .eq('id', dossierId);
   if (majErr) console.error('[conversion] référent / titulaire non enregistrés', dossierId, majErr.message);
