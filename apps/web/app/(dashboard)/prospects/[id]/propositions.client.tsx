@@ -5,7 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Archive, CheckCircle2, FileText, Loader2, Send, Sparkles, Upload, Wand2 } from 'lucide-react';
 import { supabaseBrowser } from '@/shared/lib/supabase/client';
-import { deposerProgramme, envoyerDevisProposition, preparerDepotProgramme, reviserProposition } from './proposition-actions';
+import {
+  deposerProgramme,
+  envoyerDevisProposition,
+  lienProgramme,
+  preparerDepotProgramme,
+  redigerProposition,
+  reviserProposition,
+} from './proposition-actions';
 
 export type PropositionVue = {
   id: string;
@@ -45,14 +52,14 @@ export function Propositions({
   prospectId,
   propositions,
   gerer,
-  depotEnAttente = null,
+  programme = null,
   echecDepot = false,
 }: {
   prospectId: string;
   propositions: PropositionVue[];
   gerer: boolean;
-  /** Programme joint à la création de la demande, déjà envoyé au stockage. */
-  depotEnAttente?: { path: string; nom: string } | null;
+  /** Dernier programme déposé sur la demande. */
+  programme?: { nom: string; deposeLe: string } | null;
   /** Le programme joint à la création n'a pas pu être envoyé. */
   echecDepot?: boolean;
 }) {
@@ -60,13 +67,13 @@ export function Propositions({
   const fichier = useRef<HTMLInputElement>(null);
   const [consignes, setConsignes] = useState('');
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
-  const [enCours, setEnCours] = useState<null | 'depot' | 'revision' | 'envoi'>(null);
+  const [enCours, setEnCours] = useState<null | 'depot' | 'redaction' | 'revision' | 'envoi'>(null);
   const [, demarrer] = useTransition();
 
   const active = propositions.find((p) => p.statut === 'active' || p.statut === 'acceptee') ?? null;
   const archives = propositions.filter((p) => p !== active);
 
-  const lancer = (quoi: 'depot' | 'revision' | 'envoi', action: () => Promise<{ ok: true; message: string } | { ok: false; error: string }>) => {
+  const lancer = (quoi: 'depot' | 'redaction' | 'revision' | 'envoi', action: () => Promise<{ ok: true; message: string } | { ok: false; error: string }>) => {
     setRetour(null);
     setEnCours(quoi);
     demarrer(async () => {
@@ -96,24 +103,19 @@ export function Propositions({
     if (fichier.current) fichier.current.value = '';
   };
 
-  // Programme joint au formulaire de création : on enchaîne sur sa
-  // rédaction. L'adresse est nettoyée d'abord, pour qu'un rechargement de la
-  // page ne relance pas une seconde proposition.
-  const depotLance = useRef(false);
+  // Programme joint au formulaire de création, dont l'envoi a échoué. Le
+  // paramètre est retiré de l'adresse pour que le message ne revienne pas.
   useEffect(() => {
-    if (depotLance.current) return;
-    if (echecDepot) {
-      depotLance.current = true;
-      window.history.replaceState(null, '', `/prospects/${prospectId}`);
-      setRetour({ ok: false, texte: 'La demande est enregistrée, mais le programme n’a pas pu être envoyé. Déposez-le à nouveau ci-dessous.' });
-      return;
-    }
-    if (!depotEnAttente || !gerer) return;
-    depotLance.current = true;
+    if (!echecDepot) return;
     window.history.replaceState(null, '', `/prospects/${prospectId}`);
-    lancer('depot', () => deposerProgramme({ prospectId, nom: depotEnAttente.nom, path: depotEnAttente.path }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setRetour({ ok: false, texte: 'La demande est enregistrée, mais le programme n’a pas pu être envoyé. Déposez-le à nouveau ci-dessous.' });
+  }, [echecDepot, prospectId]);
+
+  const ouvrirProgramme = async () => {
+    const r = await lienProgramme({ prospectId });
+    if (r.ok) window.open(r.url, '_blank', 'noopener');
+    else setRetour({ ok: false, texte: r.error });
+  };
 
   const occupe = enCours !== null;
 
@@ -127,8 +129,10 @@ export function Propositions({
           {enCours === 'envoi'
             ? 'Envoi du devis…'
             : enCours === 'depot'
-              ? 'Envoi du document, puis rédaction de la proposition et de son devis par l’IA — quelques minutes selon la taille du document. Restez sur la page.'
-              : 'L’IA rédige la nouvelle version et son devis — une à trois minutes. Restez sur la page.'}
+              ? 'Envoi du programme…'
+              : enCours === 'redaction'
+                ? 'L’IA rédige la proposition V1 et son devis à partir du programme — quelques minutes selon sa taille. Restez sur la page.'
+                : 'L’IA rédige la nouvelle version et son devis — une à trois minutes. Restez sur la page.'}
         </p>
       )}
       {retour && (
@@ -137,12 +141,44 @@ export function Propositions({
         </p>
       )}
 
-      {!active ? (
+      {!active && programme ? (
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <FileText className="w-5 h-5 text-orange-500 shrink-0" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{programme.nom}</p>
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">Programme déposé le {date(programme.deposeLe)}</p>
+            </div>
+            <button type="button" onClick={ouvrirProgramme} className={BOUTON_SECONDAIRE}>
+              Ouvrir
+            </button>
+            {gerer && (
+              <button type="button" disabled={occupe} onClick={() => fichier.current?.click()} className={BOUTON_SECONDAIRE}>
+                <Upload className="w-3.5 h-3.5" /> Remplacer
+              </button>
+            )}
+          </div>
+          {gerer && (
+            <div className="flex items-center gap-3 flex-wrap pt-1">
+              <button
+                type="button"
+                disabled={occupe}
+                onClick={() => lancer('redaction', () => redigerProposition({ prospectId }))}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4" /> Rédiger la proposition avec l’IA
+              </button>
+              <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                Facultatif : la proposition V1 et son devis, à partir du programme, de la demande et des notes de suivi.
+              </span>
+            </div>
+          )}
+        </div>
+      ) : !active ? (
         <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-6 text-center space-y-3">
           <Sparkles className="w-6 h-6 mx-auto text-orange-500" aria-hidden />
           <p className="text-[13px] text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
-            Déposez le programme conçu pour ce client, dans le format que vous avez (PDF, Word, PowerPoint, Excel, image…). L’équipe est prévenue, et l’IA rédige la proposition V1 et son devis à partir du programme, de la
-            demande et des notes de suivi.
+            Déposez le programme conçu pour ce client, dans le format que vous avez (PDF, Word, PowerPoint, Excel, image…). Il est rangé sur la demande et l’équipe est prévenue ; vous pourrez ensuite faire rédiger la proposition et son devis par l’IA.
           </p>
           {gerer && (
             <button type="button" disabled={occupe} onClick={() => fichier.current?.click()} className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold disabled:opacity-50">

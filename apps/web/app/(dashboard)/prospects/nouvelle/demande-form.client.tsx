@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Check, FileText, Loader2, X } from 'lucide-react';
 import { supabaseBrowser } from '@/shared/lib/supabase/client';
-import { preparerDepotProgramme } from '../[id]/proposition-actions';
+import { deposerProgramme, preparerDepotProgramme } from '../[id]/proposition-actions';
 import { FUNDER_OPTIONS } from '@/features/prospect/funding';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
 import { siretValide } from '@/shared/lib/siret';
@@ -123,7 +123,7 @@ export function DemandeForm({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Programme joint à la création : envoyé une fois la demande enregistrée,
-  // puis traité sur la fiche demande (proposition et devis rédigés par l'IA).
+  // et rangé sur la fiche demande (sans proposition IA, qui se lance à part).
   const [programme, setProgramme] = useState<File | null>(null);
   const [form, setForm] = useState({
     civility: valeurs?.civility ?? '',
@@ -232,9 +232,6 @@ export function DemandeForm({
         return;
       }
       if (programme) {
-        // La fiche demande prend la suite : c'est elle qui montre l'avancement
-        // de la rédaction, qui dure plusieurs minutes.
-        const fiche = `/prospects/${res.prospectId}`;
         const prep = await preparerDepotProgramme({ prospectId: res.prospectId, nom: programme.name });
         const envoi = prep.ok
           ? await supabaseBrowser()
@@ -243,13 +240,16 @@ export function DemandeForm({
                 contentType: programme.type || 'application/octet-stream',
               })
           : null;
-        router.push(
+        const range =
           prep.ok && !envoi?.error
-            ? `${fiche}?programme=${encodeURIComponent(prep.path)}&nom=${encodeURIComponent(programme.name)}`
-            : `${fiche}?programme_echec=1`,
-        );
-        router.refresh();
-        return;
+            ? await deposerProgramme({ prospectId: res.prospectId, nom: programme.name, path: prep.path })
+            : null;
+        // Échec : la fiche demande le dit et invite à redéposer.
+        if (!range?.ok) {
+          router.push(`/prospects/${res.prospectId}?programme_echec=1`);
+          router.refresh();
+          return;
+        }
       }
       router.push(res.dossierId ? `/dossiers/${res.dossierId}` : `/prospects/${res.prospectId}`);
       router.refresh();
@@ -690,8 +690,8 @@ export function DemandeForm({
               />
             )}
             <span className="block text-[11px] font-normal text-zinc-500 dark:text-zinc-400 mt-1">
-              PDF de préférence. Après l’enregistrement, la fiche demande s’ouvre et l’IA en tire la proposition et
-              son devis.
+              PDF de préférence. Il est rangé sur la fiche demande ; la proposition IA se lance ensuite, si vous le
+              souhaitez.
             </span>
           </div>
         )}

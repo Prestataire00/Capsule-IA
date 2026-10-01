@@ -228,7 +228,7 @@ ${url ? `<a href="${url}" style="display:inline-block;margin-top:8px;background:
 
 /**
  * Un programme vient d'être déposé sur une demande : l'équipe qui rédige les
- * propositions (Laurie) doit le savoir — la proposition V1 part de là. Tous les
+ * propositions (Laurie) doit le savoir — c'est d'elle que part la proposition V1. Tous les
  * membres owner/admin/gestionnaire sont prévenus, sauf celui qui a déposé.
  */
 export async function notifyOrgStaffOfProgramme(args: {
@@ -259,7 +259,7 @@ export async function notifyOrgStaffOfProgramme(args: {
     const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fafafa;padding:32px;">
 <div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px;">
 <h1 style="font-size:18px;margin:0 0 8px;">Programme déposé</h1>
-<p style="color:#3f3f46;font-size:14px;line-height:1.6;">${args.deposePar ? `${args.deposePar} a déposé` : 'Un programme a été déposé'} pour <strong>${args.client.replace(/</g, '&lt;')}</strong>. La proposition V1 et son devis sont en cours de rédaction : relisez-les avant de les envoyer.</p>
+<p style="color:#3f3f46;font-size:14px;line-height:1.6;">${args.deposePar ? `${args.deposePar} a déposé` : 'Un programme a été déposé'} pour <strong>${args.client.replace(/</g, '&lt;')}</strong>. Il est rangé sur la demande : ouvrez-la pour le consulter et, si besoin, faire rédiger la proposition et son devis.</p>
 ${url ? `<a href="${url}" style="display:inline-block;margin-top:8px;background:#f97316;color:#fff;text-decoration:none;font-size:14px;padding:10px 18px;border-radius:8px;">Ouvrir la demande</a>` : ''}
 </div></body></html>`;
     await Promise.all(

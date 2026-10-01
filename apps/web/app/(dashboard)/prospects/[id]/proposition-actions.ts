@@ -12,7 +12,8 @@ import { reviserSchema, envoyerSchema, depotSchema, deposeSchema } from '@/featu
 import type { ContenuProposition } from '@/features/proposition/contenu';
 
 /**
- * Programme déposé → proposition V1 ; consigne → V2, V3… ; envoi du devis.
+ * Programme déposé (rangé, sans IA) ; rédaction de la V1 à la demande ;
+ * consigne → V2, V3… ; envoi du devis.
  * Réservé aux rôles qui gèrent le CRM, pour une demande de l'organisme du
  * membre ; l'écriture se fait en service role.
  */
@@ -63,7 +64,11 @@ export async function preparerDepotProgramme(brut: z.input<typeof depotSchema>):
   return { ok: true, path: data.path, token: data.token };
 }
 
-/** Le fichier est déposé : prévient l'équipe et rédige la proposition V1. */
+/**
+ * Le fichier est déposé : il est rangé sur la demande et l'équipe prévenue.
+ * La proposition n'est pas rédigée ici — seulement quand on la demande
+ * (`redigerProposition`) : un programme se range souvent sans proposition.
+ */
 export async function deposerProgramme(brut: z.input<typeof deposeSchema>): Promise<PropositionResult> {
   const p = deposeSchema.safeParse(brut);
   if (!p.success) return { ok: false, error: 'Dépôt invalide.' };
@@ -85,7 +90,6 @@ export async function deposerProgramme(brut: z.input<typeof deposeSchema>): Prom
     actor_user_id: g.member.userId,
     payload: { nom: p.data.nom, path },
   } as never);
-  // Prévenue avant la rédaction : Laurie sait qu'une proposition arrive.
   await notifyOrgStaffOfProgramme({
     organizationId: g.prospect.organization_id,
     prospectId,
@@ -94,9 +98,59 @@ export async function deposerProgramme(brut: z.input<typeof deposeSchema>): Prom
     exclureUserId: g.member.userId,
   });
 
-  const r = await creerVersion(admin(), { prospectId, userId: g.member.userId, programmePath: path, programmeNom: p.data.nom });
   revalidatePath(`/prospects/${prospectId}`);
-  return r.ok ? { ok: true, message: message(r.version, r.alertes) } : { ok: false, error: `Programme enregistré, mais ${r.erreur.charAt(0).toLowerCase()}${r.erreur.slice(1)}` };
+  return { ok: true, message: 'Programme enregistré.' };
+}
+
+const prospectSchema = z.object({ prospectId: z.string().uuid() });
+
+/** Le dernier programme déposé sur la demande. */
+async function dernierProgramme(prospectId: string): Promise<{ path: string; nom: string } | null> {
+  const { data } = await admin()
+    .schema('app')
+    .from('prospect_events')
+    .select('payload')
+    .eq('prospect_id', prospectId)
+    .eq('kind', 'programme_depose')
+    .order('occurred_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const payload = (data as { payload?: { path?: unknown; nom?: unknown } } | null)?.payload;
+  if (typeof payload?.path !== 'string') return null;
+  return { path: payload.path, nom: typeof payload.nom === 'string' ? payload.nom : 'programme' };
+}
+
+/** Rédige la proposition V1 et son devis à partir du dernier programme déposé. */
+export async function redigerProposition(brut: z.input<typeof prospectSchema>): Promise<PropositionResult> {
+  const p = prospectSchema.safeParse(brut);
+  if (!p.success) return { ok: false, error: 'Demande introuvable.' };
+  const g = await garde(p.data.prospectId);
+  if (!g.ok) return g;
+  const programme = await dernierProgramme(p.data.prospectId);
+  if (!programme) return { ok: false, error: 'Déposez d’abord le programme.' };
+  const r = await creerVersion(admin(), {
+    prospectId: p.data.prospectId,
+    userId: g.member.userId,
+    programmePath: programme.path,
+    programmeNom: programme.nom,
+  });
+  revalidatePath(`/prospects/${p.data.prospectId}`);
+  return r.ok ? { ok: true, message: message(r.version, r.alertes) } : { ok: false, error: r.erreur };
+}
+
+/** Lien de lecture, valable cinq minutes, vers le dernier programme déposé. */
+export async function lienProgramme(
+  brut: z.input<typeof prospectSchema>,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const p = prospectSchema.safeParse(brut);
+  if (!p.success) return { ok: false, error: 'Demande introuvable.' };
+  const g = await garde(p.data.prospectId);
+  if (!g.ok) return g;
+  const programme = await dernierProgramme(p.data.prospectId);
+  if (!programme) return { ok: false, error: 'Aucun programme déposé.' };
+  const { data, error } = await admin().storage.from(BUCKET_PROGRAMMES).createSignedUrl(programme.path, 300);
+  if (error || !data) return { ok: false, error: `Le programme n’a pas pu être ouvert : ${error?.message ?? 'erreur inconnue'}` };
+  return { ok: true, url: data.signedUrl };
 }
 
 /** Demande une nouvelle version à l'IA, avec ce qu'il faut changer. L'ancienne est archivée. */

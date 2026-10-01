@@ -215,7 +215,7 @@ export default async function ProspectDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { programme?: string; nom?: string; programme_echec?: string };
+  searchParams?: { programme_echec?: string };
 }) {
   await requireAccess('crm');
   const sb = admin();
@@ -252,6 +252,11 @@ export default async function ProspectDetailPage({
   ]);
   const reviews = (reviewRows ?? []) as unknown as Review[];
   const events = (eventRows ?? []) as unknown as Event[];
+  // Les événements arrivent du plus récent au plus ancien.
+  const depot = events.find((e) => e.kind === 'programme_depose' && typeof e.payload?.path === 'string');
+  const programmeDepose = depot
+    ? { nom: typeof depot.payload.nom === 'string' ? depot.payload.nom : 'Programme', deposeLe: depot.occurred_at }
+    : null;
 
   // Ce qui est parti à cette adresse, écrit à la main ou envoyé tout seul.
   const adresse = (prospect.email ?? '').trim();
@@ -561,11 +566,7 @@ export default async function ProspectDetailPage({
               prospectId={prospect.id}
               propositions={propositions}
               gerer={gererPropositions}
-              depotEnAttente={
-                searchParams?.programme
-                  ? { path: searchParams.programme, nom: searchParams.nom || 'programme' }
-                  : null
-              }
+              programme={programmeDepose}
               echecDepot={searchParams?.programme_echec === '1'}
             />
           </section>
