@@ -19,6 +19,7 @@ import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { SupprimerOuArchiver } from './supprimer-ou-archiver.client';
 import { MontantModifiable } from './montant.client';
 import { NomDossierModifiable } from './nom.client';
+import { HeuresModifiables } from './heures.client';
 import { DossierStatusControl } from './dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -188,6 +189,22 @@ export default async function DossierLayout({
     .maybeSingle();
   const nomChoisi = (nomRow as { nom?: string | null } | null)?.nom?.trim() || null;
 
+  // Total des séances planifiées, pour signaler un écart avec les heures du
+  // dossier. Avec des groupes, chaque stagiaire n'en suit qu'une partie : la
+  // somme ne dirait rien, on ne propose alors rien.
+  const { data: seancesRows } = await libre
+    .schema('app')
+    .from('session_dossiers')
+    .select('session:sessions(duration_hours, status, groupe_id)')
+    .eq('dossier_id', params.id);
+  type SeanceH = { duration_hours: number | string | null; status: string | null; groupe_id?: string | null };
+  const seances = ((seancesRows ?? []) as unknown as Array<{ session: SeanceH | SeanceH[] | null }>)
+    .map((r) => (Array.isArray(r.session) ? r.session[0] : r.session))
+    .filter((x): x is SeanceH => Boolean(x) && x?.status !== 'cancelled');
+  const heuresSeances = seances.some((x) => x.groupe_id)
+    ? 0
+    : seances.reduce((acc, x) => acc + (Number(x.duration_hours) || 0), 0);
+
   const { nom: learner, estReferent } = nomDuDossier({
     nom: nomChoisi,
     learner: { firstName: d.learner?.first_name, lastName: d.learner?.last_name, email: d.learner?.email },
@@ -291,7 +308,22 @@ export default async function DossierLayout({
               {fmtDate(d.start_date)} <span className="text-blue-400 dark:text-blue-500 font-semibold">→</span> {fmtDate(d.end_date)}
             </span>
           </KpiCard>
-          <KpiCard icon={Clock} label="Heures totales" accent="sky" value={`${Number(d.total_hours ?? 0)} h`} />
+          <KpiCard
+            icon={Clock}
+            label="Heures totales"
+            accent="sky"
+            value={
+              gererDossiers ? (
+                <HeuresModifiables
+                  dossierId={params.id}
+                  heures={Number(d.total_hours ?? 0)}
+                  heuresSeances={Math.round(heuresSeances * 100) / 100}
+                />
+              ) : (
+                `${Number(d.total_hours ?? 0)} h`
+              )
+            }
+          />
           <KpiCard icon={UsersIcon} label="Modalité" accent="purple">
             <span className={`inline-flex items-center h-6 px-2.5 rounded-full text-[12px] font-bold ${ACCENTS.purple.soft}`}>
               {modalityLabel(d.modality)}
