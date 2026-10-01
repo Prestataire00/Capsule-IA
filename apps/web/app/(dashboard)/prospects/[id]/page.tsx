@@ -74,6 +74,7 @@ type Prospect = {
   convention_collective: string | null;
   funder_kinds: string[] | null;
   funder_kind: string;
+  source: string | null;
   company_batch_id: string | null;
   validation_status: 'pending_validation' | 'validated' | 'rejected';
   validation_rejected_reason: string | null;
@@ -224,7 +225,7 @@ export default async function ProspectDetailPage({
     .schema('app')
     .from('prospects' as never)
     .select(
-      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, message, formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, preferred_modality, preferred_start_date, created_at',
+      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, message, formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, preferred_modality, preferred_start_date, created_at, source',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -361,6 +362,12 @@ export default async function ProspectDetailPage({
   const situationForDocs = prospect.company_batch_id ? 'entreprise' : prospect.situation ?? '';
   const required = requiredDocs(prospect.funder_kinds ?? [], situationForDocs);
 
+  // Une demande saisie par l'équipe (téléphone, mail, rendez-vous) est
+  // validée dès sa création : personne n'a de pièce à y déposer. Les pièces
+  // du tunnel public y restent proposées, sans rien bloquer — sinon un
+  // financement « Entreprise » réclamait un « Accord employeur » à
+  // l'entreprise elle-même.
+  const saisieParLEquipe = prospect.source === 'staff';
   const keys = new Set<string>(required.map((d) => d.key));
   uploaded.forEach((d) => keys.add(d.key));
   const labelByKey = new Map<string, { label: string; required: boolean }>();
@@ -376,7 +383,7 @@ export default async function ProspectDetailPage({
     return {
       key,
       label: meta.label,
-      required: meta.required,
+      required: saisieParLEquipe ? false : meta.required,
       uploaded: !!up,
       downloadHref: up ? `/api/prospects/${prospect.id}/document/${encodeURIComponent(key)}` : null,
       reviewStatus: (rev?.status as DocChecklistItem['reviewStatus']) ?? null,
