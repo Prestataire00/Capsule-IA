@@ -66,7 +66,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
     .select(
       'id, code, title, summary, description, objectives, prerequisites, target_audience, ' +
         'evaluation_method, pedagogical_method, default_modality, default_duration_hours, ' +
-        'default_price_cents, is_published, rncp_code, rs_code, certificateur, metadata, created_at',
+        'default_price_cents, price_mode, is_published, rncp_code, rs_code, certificateur, metadata, created_at',
     )
     .eq('id', id)
     .is('deleted_at', null)
@@ -381,6 +381,7 @@ export default async function FormationDetailPage({ params }: { params: { id: st
               {f.default_price_cents > 0 && (
                 <span className={`${PILL} ${ACCENTS.emerald.soft} tabular-nums`}>
                   <Banknote className="w-3.5 h-3.5" /> {formatEuros(f.default_price_cents)} HT
+                  {(f as { price_mode?: string }).price_mode === 'forfait' ? ' · prix global' : ''}
                 </span>
               )}
               {isCertifiante && (
@@ -463,7 +464,9 @@ export default async function FormationDetailPage({ params }: { params: { id: st
                 <Info
                   label="Tarif de base"
                   icon={Banknote}
-                  value={`${formatEuros(f.default_price_cents)} HT`}
+                  value={`${formatEuros(f.default_price_cents)} HT${
+                    (f as { price_mode?: string }).price_mode === 'forfait' ? ' · prix global' : ' / stagiaire'
+                  }`}
                   chiffre
                   precision={tarifDeduitDe}
                 />

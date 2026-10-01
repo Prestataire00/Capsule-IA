@@ -95,6 +95,7 @@ export type ValeursDemande = {
   referentName: string; referentEmail: string; referentPhone: string;
   formationMode: 'catalogue' | 'sur-mesure' | 'plus-tard';
   formationId: string; customTitle: string; customHours: string; customPrice: string;
+  customPriceMode: 'par_stagiaire' | 'forfait';
   preferredModality: string; preferredStartDate: string; message: string;
 };
 
@@ -194,6 +195,7 @@ export function DemandeForm({
     customTitle: valeurs?.customTitle ?? '',
     customHours: valeurs?.customHours ?? '',
     customPrice: valeurs?.customPrice ?? '',
+    customPriceMode: (valeurs?.customPriceMode ?? 'par_stagiaire') as 'par_stagiaire' | 'forfait',
     preferredModality: valeurs?.preferredModality ?? '',
     preferredStartDate: valeurs?.preferredStartDate ?? '',
     message: valeurs?.message ?? '',
@@ -238,6 +240,7 @@ export function DemandeForm({
           customTitle: form.customTitle,
           customHours: form.customHours,
           customPrice: form.customPrice,
+          customPriceMode: form.customPriceMode,
           preferredModality: form.preferredModality,
           preferredStartDate: form.preferredStartDate,
           message: form.message,
@@ -270,6 +273,7 @@ export function DemandeForm({
         customFormationTitle: form.formationMode === 'sur-mesure' ? form.customTitle : '',
         customFormationHours: form.formationMode === 'sur-mesure' ? hours : null,
         customFormationPriceCents: form.formationMode === 'sur-mesure' ? price : null,
+        customFormationPriceMode: form.customPriceMode,
         preferredModality: form.preferredModality as never,
         preferredStartDate: form.preferredStartDate,
         message: form.message,
@@ -695,10 +699,41 @@ export function DemandeForm({
               Durée prévue (heures)
               <input value={form.customHours} onChange={(e) => set('customHours', e.target.value)} inputMode="decimal" className={input} />
             </label>
-            <label className={label}>
-              Tarif prévu (€ HT par stagiaire)
-              <input value={form.customPrice} onChange={(e) => set('customPrice', e.target.value)} inputMode="decimal" className={input} />
-            </label>
+            <div className={label}>
+              <span className="flex items-center justify-between gap-2">
+                Tarif prévu (€ HT)
+                <span className="inline-flex rounded-md border border-zinc-200/80 dark:border-zinc-800 p-0.5 text-[11px] font-semibold">
+                  {(
+                    [
+                      ['par_stagiaire', 'Par stagiaire'],
+                      ['forfait', 'Prix global'],
+                    ] as const
+                  ).map(([valeur, libelle]) => (
+                    <button
+                      key={valeur}
+                      type="button"
+                      aria-pressed={form.customPriceMode === valeur}
+                      onClick={() => set('customPriceMode', valeur)}
+                      className={
+                        form.customPriceMode === valeur
+                          ? 'px-2 py-0.5 rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                          : 'px-2 py-0.5 rounded text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                      }
+                    >
+                      {libelle}
+                    </button>
+                  ))}
+                </span>
+              </span>
+              <input
+                value={form.customPrice}
+                onChange={(e) => set('customPrice', e.target.value)}
+                inputMode="decimal"
+                aria-label={form.customPriceMode === 'forfait' ? 'Prix global de la formation' : 'Tarif par stagiaire'}
+                placeholder={form.customPriceMode === 'forfait' ? 'Pour toute la formation' : 'Par stagiaire, formation entière'}
+                className={input}
+              />
+            </div>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 md:col-span-3">
               La formation sera créée à l’ouverture du dossier, hors catalogue public. Durée et tarif servent de base au devis ;
               tout reste modifiable ensuite.

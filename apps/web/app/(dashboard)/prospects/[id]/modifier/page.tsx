@@ -36,6 +36,7 @@ type Ligne = {
   custom_formation_title: string | null;
   custom_formation_hours: number | null;
   custom_formation_price_cents: number | null;
+  custom_formation_price_mode: 'par_stagiaire' | 'forfait' | null;
   preferred_modality: string | null;
   preferred_start_date: string | null;
   message: string | null;
@@ -53,7 +54,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
       .select(
         'id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, situation, funder_kind, funder_kinds, ' +
           'company_name, company_siret, convention_collective, referent_name, referent_email, referent_phone, ' +
-          'formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, ' +
+          'formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, custom_formation_price_mode, ' +
           'preferred_modality, preferred_start_date, message, converted_dossier_id',
       )
       .eq('id', params.id)
@@ -119,6 +120,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
     customTitle: d.custom_formation_title ?? '',
     customHours: d.custom_formation_hours != null ? String(d.custom_formation_hours) : '',
     customPrice: d.custom_formation_price_cents != null ? String(d.custom_formation_price_cents / 100) : '',
+    customPriceMode: d.custom_formation_price_mode ?? 'par_stagiaire',
     preferredModality: d.preferred_modality ?? '',
     preferredStartDate: d.preferred_start_date ?? '',
     message: d.message ?? '',

@@ -56,6 +56,7 @@ export function ModifierDemande({
           customFormationTitle: v.formationMode === 'sur-mesure' ? v.customTitle : '',
           customFormationHours: v.formationMode === 'sur-mesure' ? heures : null,
           customFormationPriceCents: v.formationMode === 'sur-mesure' ? prixCents : null,
+          customFormationPriceMode: v.customPriceMode,
           preferredModality: v.preferredModality,
           preferredStartDate: v.preferredStartDate,
           message: v.message,

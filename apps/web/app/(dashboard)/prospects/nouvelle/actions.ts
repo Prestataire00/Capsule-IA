@@ -71,6 +71,7 @@ export async function createDemande(input: NouvelleDemandeValues): Promise<Creat
       custom_formation_title: orNull(v.customFormationTitle),
       custom_formation_hours: v.customFormationHours,
       custom_formation_price_cents: v.customFormationPriceCents,
+      custom_formation_price_mode: v.customFormationPriceMode,
       preferred_modality: orNull(v.preferredModality),
       preferred_start_date: orNull(v.preferredStartDate),
       message: orNull(v.message),

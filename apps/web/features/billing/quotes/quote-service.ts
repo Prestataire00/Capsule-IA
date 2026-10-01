@@ -321,7 +321,7 @@ export async function ensureQuoteForDossier(
     sb
       .schema('app')
       .from('formations')
-      .select('title, default_price_cents, default_duration_hours, default_modality')
+      .select('title, default_price_cents, default_duration_hours, default_modality, price_mode')
       .eq('id', dossier.formation_id)
       .maybeSingle(),
     sb.schema('app').from('organizations').select('vat_regime, default_vat_rate').eq('id', orgId).maybeSingle(),
@@ -332,6 +332,7 @@ export async function ensureQuoteForDossier(
     default_price_cents?: number | null;
     default_duration_hours?: number | null;
     default_modality?: string | null;
+    price_mode?: 'par_stagiaire' | 'forfait' | null;
   };
   const org = (oRow ?? {}) as { vat_regime?: string | null; default_vat_rate?: number | null };
 
@@ -372,7 +373,7 @@ export async function ensureQuoteForDossier(
   const details = [
     formation.default_duration_hours ? `${formation.default_duration_hours} h` : null,
     formation.default_modality ? (MODALITY_LABELS[formation.default_modality] ?? formation.default_modality) : null,
-    'tarif par stagiaire',
+    formation.price_mode === 'forfait' ? 'prix global de la formation' : 'tarif par stagiaire',
   ]
     .filter(Boolean)
     .join(' · ');

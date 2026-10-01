@@ -62,7 +62,7 @@ export default async function SessionOverview({ params }: { params: { id: string
       .eq('session_id', session.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),
-    formation ? db.schema('app').from('formations').select('default_price_cents').eq('id', formation.id).maybeSingle() : Promise.resolve({ data: null }),
+    formation ? db.schema('app').from('formations').select('default_price_cents, price_mode').eq('id', formation.id).maybeSingle() : Promise.resolve({ data: null }),
     canManageSection('dossiers'),
     loadBoardFacts(sb, loaded),
   ]);
@@ -108,12 +108,16 @@ export default async function SessionOverview({ params }: { params: { id: string
 
   // Tarif et CA prévisionnel : devis envoyés ou signés, sinon tarif × participants non couverts.
   const tarifFormation = (form as { default_price_cents?: number } | null)?.default_price_cents ?? null;
+  // Prix global de la formation (0202) : il ne se multiplie pas par les
+  // participants. Un tarif posé sur la séance reste, lui, par participant.
+  const forfait =
+    infos.price_cents == null && (form as { price_mode?: string } | null)?.price_mode === 'forfait';
   const tarif = infos.price_cents ?? (tarifFormation && tarifFormation > 0 ? tarifFormation : null);
   const devisValables = devis.filter((d) => d.status === 'sent' || d.status === 'signed');
   const couverts = learners.filter((l) => devisValables.some((d) => (l.companyId && d.company_id === l.companyId) || d.learner_id === l.id));
   const ca =
     devisValables.length || tarif
-      ? devisValables.reduce((t, d) => t + Number(d.subtotal_cents), 0) + (n - couverts.length) * Number(tarif ?? 0)
+      ? devisValables.reduce((t, d) => t + Number(d.subtotal_cents), 0) + (forfait ? (n > couverts.length ? Number(tarif ?? 0) : 0) : (n - couverts.length) * Number(tarif ?? 0))
       : null;
 
   // Coût formateur : son tarif (heure, jour, séance) appliqué à la séance ; un tarif posé sur la séance l'emporte.
@@ -206,7 +210,7 @@ export default async function SessionOverview({ params }: { params: { id: string
               </span>
             )}
           </Champ>
-          <Champ label="Tarif / participant">
+          <Champ label={forfait ? 'Prix global' : 'Tarif / participant'}>
             {tarif ? (
               <span className="tabular-nums">
                 {formatEuros(Number(tarif))}

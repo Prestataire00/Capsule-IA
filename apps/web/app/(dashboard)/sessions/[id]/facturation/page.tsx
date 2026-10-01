@@ -54,14 +54,18 @@ export default async function SessionInvoicingTab({ params }: { params: { id: st
   const invoices = ((invoicesRes.data as unknown as InvoiceRow[] | null) ?? []).filter((i) => i.status !== 'cancelled');
 
   let unitPrice = (priceRow as { price_cents: number | null } | null)?.price_cents ?? null;
+  // Prix global de la formation : il ne se multiplie pas par les stagiaires.
+  let forfait = false;
   if (unitPrice == null && session.formation_id) {
     const { data: f } = await admin
       .schema('app')
       .from('formations')
-      .select('default_price_cents')
+      .select('default_price_cents, price_mode')
       .eq('id', session.formation_id)
       .maybeSingle();
-    unitPrice = (f as { default_price_cents: number | null } | null)?.default_price_cents ?? null;
+    const row = f as { default_price_cents: number | null; price_mode?: string | null } | null;
+    unitPrice = row?.default_price_cents ?? null;
+    forfait = row?.price_mode === 'forfait';
   }
 
   // CA prévisionnel = somme des devis réels (un par client) ; les stagiaires
@@ -69,7 +73,7 @@ export default async function SessionInvoicingTab({ params }: { params: { id: st
   const active = quotes.filter((q) => isQuoteActive(q.status));
   const covered = active.reduce((s, q) => s + q.learnerCount, 0);
   const uncovered = Math.max(0, dossierIds.length - covered);
-  const forecast = active.reduce((s, q) => s + q.subtotalCents, 0) + uncovered * (unitPrice ?? 0);
+  const forecast = active.reduce((s, q) => s + q.subtotalCents, 0) + (forfait ? (uncovered > 0 ? unitPrice ?? 0 : 0) : uncovered * (unitPrice ?? 0));
   const signed = active.filter((q) => q.status === 'signed').reduce((s, q) => s + q.subtotalCents, 0);
   const total = invoices.reduce((a, i) => a + (i.total_cents ?? 0), 0);
   const paid = invoices.filter((i) => i.status === 'paid').reduce((a, i) => a + (i.total_cents ?? 0), 0);
@@ -77,7 +81,7 @@ export default async function SessionInvoicingTab({ params }: { params: { id: st
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat label="Tarif / stagiaire" value={unitPrice != null ? `${euros(unitPrice)} HT` : '—'} />
+        <Stat label={forfait ? 'Prix global' : 'Tarif / stagiaire'} value={unitPrice != null ? `${euros(unitPrice)} HT` : '—'} />
         <Stat label="CA prévisionnel" value={`${euros(forecast)} HT`} />
         <Stat label="Devis signés" value={`${euros(signed)} HT`} />
         <Stat label="Facturé" value={euros(total)} />
