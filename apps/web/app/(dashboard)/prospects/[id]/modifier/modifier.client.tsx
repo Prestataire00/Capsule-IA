@@ -1,7 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { DemandeForm, type FormationOption, type ValeursDemande } from '../../nouvelle/demande-form.client';
+import {
+  DemandeForm,
+  type EntrepriseCrm,
+  type FormationOption,
+  type ValeursDemande,
+} from '../../nouvelle/demande-form.client';
 import { modifierDemande } from './actions';
 
 /**
@@ -11,10 +16,12 @@ import { modifierDemande } from './actions';
 export function ModifierDemande({
   prospectId,
   formations,
+  entreprisesCrm,
   valeurs,
 }: {
   prospectId: string;
   formations: FormationOption[];
+  entreprisesCrm: EntrepriseCrm[];
   valeurs: ValeursDemande;
 }) {
   const router = useRouter();
@@ -22,6 +29,7 @@ export function ModifierDemande({
   return (
     <DemandeForm
       formations={formations}
+      entreprisesCrm={entreprisesCrm}
       valeurs={valeurs}
       libelleBouton="Enregistrer les modifications"
       enregistrer={async (v) => {

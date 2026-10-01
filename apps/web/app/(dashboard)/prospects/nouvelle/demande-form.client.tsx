@@ -10,6 +10,16 @@ import { EntrepriseAutocomplete } from '@/app/inscription/entreprise-autocomplet
 import { createDemande } from './actions';
 
 export type FormationOption = { id: string; title: string; code: string | null; priceCents: number; hours: number };
+/** Une fiche entreprise déjà au CRM. */
+export type EntrepriseCrm = {
+  id: string;
+  name: string;
+  siret: string;
+  conventionCollective: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+};
 
 const SITUATIONS = [
   { value: 'salarie', label: 'Salarié(e)' },
@@ -90,11 +100,14 @@ export type ValeursDemande = {
  */
 export function DemandeForm({
   formations,
+  entreprisesCrm = [],
   valeurs,
   enregistrer,
   libelleBouton,
 }: {
   formations: FormationOption[];
+  /** Entreprises du CRM auxquelles rattacher la demande. */
+  entreprisesCrm?: EntrepriseCrm[];
   /** Demande existante à modifier ; absent = création. */
   valeurs?: ValeursDemande;
   /** Action de remplacement ; absente = création. */
@@ -307,6 +320,41 @@ export function DemandeForm({
         <section className={card}>
           <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">L’entreprise cliente</h2>
           <div className="space-y-3">
+            {entreprisesCrm.length > 0 && (
+              <label className={label}>
+                Une entreprise de votre CRM
+                <select
+                  value={entreprisesCrm.find((c) => c.name === form.companyName)?.id ?? ''}
+                  onChange={(e) => {
+                    const c = entreprisesCrm.find((x) => x.id === e.target.value);
+                    if (!c) return;
+                    // Nom et SIRET recopiés tels quels : c'est à eux que la
+                    // conversion reconnaît la fiche existante. Le reste ne
+                    // remplace pas une saisie déjà faite.
+                    setForm((f) => ({
+                      ...f,
+                      companyName: c.name,
+                      companySiret: c.siret,
+                      conventionCollective: f.conventionCollective.trim() || c.conventionCollective,
+                      referentName: f.referentName.trim() || c.contactName,
+                      referentEmail: f.referentEmail.trim() || c.contactEmail,
+                      referentPhone: f.referentPhone.trim() || c.contactPhone,
+                    }));
+                  }}
+                  className={input}
+                >
+                  <option value="">— Choisir une entreprise existante —</option>
+                  {entreprisesCrm.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  Le dossier sera rattaché à cette fiche. Nouvelle entreprise ? Cherchez-la dans l&apos;annuaire ci-dessous.
+                </span>
+              </label>
+            )}
             {/* Le nom, le SIRET et la convention collective viennent de
                 l'annuaire des entreprises de l'État. Saisis à la main, ils
                 arrivaient avec leurs coquilles — un SIRET faux se paie au rejet

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { chargerEntreprisesCrm } from '../../nouvelle/entreprises-crm';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import type { FormationOption, ValeursDemande } from '../../nouvelle/demande-form.client';
@@ -44,7 +45,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
   await requireAccess('crm', 'manage');
   const sb = supabaseServer();
 
-  const [{ data: ligne, error: erreurLecture }, { data: formationsRows }] = await Promise.all([
+  const [{ data: ligne, error: erreurLecture }, { data: formationsRows }, entreprisesCrm] = await Promise.all([
     sb
       .schema('app')
       .from('prospects')
@@ -64,6 +65,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
       .is('deleted_at', null)
       .order('title', { ascending: true })
       .limit(300),
+    chargerEntreprisesCrm(sb),
   ]);
 
   // Une requête en échec n'est pas une demande absente (incident du 21/09/2026).
@@ -142,7 +144,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
         </p>
       )}
 
-      <ModifierDemande prospectId={params.id} formations={formations} valeurs={valeurs} />
+      <ModifierDemande prospectId={params.id} formations={formations} entreprisesCrm={entreprisesCrm} valeurs={valeurs} />
     </div>
   );
 }

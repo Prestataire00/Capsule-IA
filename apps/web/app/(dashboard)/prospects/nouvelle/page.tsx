@@ -7,19 +7,23 @@ import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { DemandeForm, type FormationOption } from './demande-form.client';
+import { chargerEntreprisesCrm } from './entreprises-crm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NouvelleDemandePage() {
   await requireAccess('crm', 'manage');
   const sb = supabaseServer();
-  const { data } = await sb
-    .schema('app')
-    .from('formations')
-    .select('id, title, code, default_price_cents, default_duration_hours')
-    .is('deleted_at', null)
-    .order('title', { ascending: true })
-    .limit(300);
+  const [{ data }, entreprisesCrm] = await Promise.all([
+    sb
+      .schema('app')
+      .from('formations')
+      .select('id, title, code, default_price_cents, default_duration_hours')
+      .is('deleted_at', null)
+      .order('title', { ascending: true })
+      .limit(300),
+    chargerEntreprisesCrm(sb),
+  ]);
 
   const formations: FormationOption[] = (
     (data ?? []) as Array<{
@@ -56,7 +60,7 @@ export default async function NouvelleDemandePage() {
         </p>
       </header>
 
-      <DemandeForm formations={formations} />
+      <DemandeForm formations={formations} entreprisesCrm={entreprisesCrm} />
     </div>
   );
 }
