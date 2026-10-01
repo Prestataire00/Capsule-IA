@@ -40,6 +40,7 @@ type Prospect = {
   custom_formation_title: string | null;
   custom_formation_hours: number | null;
   custom_formation_price_cents: number | null;
+  custom_formation_price_mode: 'par_stagiaire' | 'forfait' | null;
   preferred_modality: string | null;
   preferred_start_date: string | null;
   employees_to_train: number | null;
@@ -66,7 +67,7 @@ async function chargerProspect(sb: SupabaseClient, prospectId: string): Promise<
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, first_name, last_name, email, situation, company_name, company_siret, company_address, referent_name, referent_email, funder_kind, funder_kinds, formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, preferred_modality, preferred_start_date, employees_to_train, message, internal_notes, needs_analysis',
+      'id, organization_id, first_name, last_name, email, situation, company_name, company_siret, company_address, referent_name, referent_email, funder_kind, funder_kinds, formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, custom_formation_price_mode, preferred_modality, preferred_start_date, employees_to_train, message, internal_notes, needs_analysis',
     )
     .eq('id', prospectId)
     .is('deleted_at', null)
@@ -112,7 +113,12 @@ async function contexte(sb: SupabaseClient, p: Prospect): Promise<ContextePropos
       Situation: p.situation,
       'Formation demandée': (f as { title?: string } | null)?.title ?? p.custom_formation_title,
       'Durée envisagée (h)': p.custom_formation_hours,
-      'Prix indiqué (€ HT)': p.custom_formation_price_cents != null ? p.custom_formation_price_cents / 100 : null,
+      // Sans le mode, l'IA devait deviner si le prix valait pour un stagiaire
+      // ou pour le groupe — et le reconvertissait en tarif horaire.
+      [p.custom_formation_price_mode === 'forfait'
+        ? 'Prix indiqué (€ HT, prix global pour toute la formation, quel que soit l’effectif)'
+        : 'Prix indiqué (€ HT par stagiaire, pour toute la formation)']:
+        p.custom_formation_price_cents != null ? p.custom_formation_price_cents / 100 : null,
       'Modalité souhaitée': p.preferred_modality,
       'Début souhaité': p.preferred_start_date,
       'Salariés à former': p.employees_to_train,
