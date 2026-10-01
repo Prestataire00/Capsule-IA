@@ -1,6 +1,7 @@
 // ARCHETYPE: workflow
 // Justification: tâches d'envoi par financeur (brouillon assisté + envoi 1 clic).
 
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Landmark } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
@@ -82,6 +83,14 @@ export default async function FinanceursPage({ params }: { params: { id: string 
             </span>
             <SectionLabel>Prise en charge</SectionLabel>
             <span className="text-[12px] text-zinc-500 dark:text-zinc-400">{resumeFinancement(etat)}</span>
+            {/* Les financeurs se choisissent dans l'onglet Facturation : sans
+                ce lien, on cherchait ici où les modifier. */}
+            <Link
+              href={`/dossiers/${params.id}/facturation#plan-de-financement`}
+              className="ml-auto text-[12px] font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+            >
+              Modifier le financement →
+            </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
             <Chiffre libelle="Coût total" valeur={total} />

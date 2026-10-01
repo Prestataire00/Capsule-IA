@@ -341,7 +341,7 @@ export default async function FacturationPage({
 
       {/* Plan de financement : saisie des lignes (CPF, autofinancement, OPCO…) */}
       {editable && (
-        <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl overflow-hidden">
+        <div id="plan-de-financement" className="scroll-mt-20 border border-zinc-200/60 dark:border-zinc-800 rounded-xl overflow-hidden">
           <div className="px-4 py-2.5 bg-zinc-50/60 dark:bg-zinc-900/40 flex items-center justify-between">
             <span className="text-[11px] tracking-wider uppercase text-zinc-500 dark:text-zinc-400">
               Plan de financement
@@ -491,6 +491,10 @@ export default async function FacturationPage({
                 <Plus className="w-3.5 h-3.5" />
                 Ajouter
               </button>
+              <p className="basis-full text-[11px] text-zinc-500 dark:text-zinc-400">
+                Plusieurs financeurs possibles (OPCO, entreprise…). Pour changer un montant, choisissez à nouveau
+                le financeur : sa ligne est mise à jour.
+              </p>
             </form>
           )}
         </div>
