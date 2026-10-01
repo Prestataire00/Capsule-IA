@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Check, FileText, Loader2, X } from 'lucide-react';
 import { supabaseBrowser } from '@/shared/lib/supabase/client';
 import { deposerProgramme, preparerDepotProgramme } from '../[id]/proposition-actions';
+import { lireProgramme } from './lire-programme-action';
 import { FUNDER_OPTIONS } from '@/features/prospect/funding';
 import { parseEurosToCents } from '@/features/billing/domain/quote';
 import { siretValide } from '@/shared/lib/siret';
@@ -125,6 +126,51 @@ export function DemandeForm({
   // Programme joint à la création : envoyé une fois la demande enregistrée,
   // et rangé sur la fiche demande (sans proposition IA, qui se lance à part).
   const [programme, setProgramme] = useState<File | null>(null);
+  const fichierLu = useRef<File | null>(null);
+  const [lecture, setLecture] = useState<
+    { etat: 'en-cours' } | { etat: 'ok'; texte: string } | { etat: 'erreur'; texte: string } | null
+  >(null);
+
+  // Le programme choisi est lu par l'IA : intitulé et durée viennent remplir
+  // la formation. Seuls les champs vides sont remplis — une saisie déjà faite
+  // n'est pas écrasée.
+  const choisirProgramme = async (f: File | null) => {
+    fichierLu.current = f;
+    setProgramme(f);
+    setLecture(null);
+    if (!f) return;
+    setLecture({ etat: 'en-cours' });
+    const donnees = new FormData();
+    donnees.append('file', f);
+    const r = await lireProgramme(donnees);
+    // Fichier retiré ou remplacé pendant la lecture : ce résultat ne vaut plus.
+    if (fichierLu.current !== f) return;
+    if (!r.ok) {
+      setLecture({ etat: 'erreur', texte: r.error });
+      return;
+    }
+    // La saisie a pu avancer pendant la lecture : on part de l'état courant.
+    const actuel = formCourant.current;
+    const mode = actuel.formationMode === 'plus-tard' ? 'sur-mesure' : actuel.formationMode;
+    const patch: Partial<typeof form> = { formationMode: mode };
+    const remplis: string[] = [];
+    if (mode === 'sur-mesure') {
+      if (r.titre && !actuel.customTitle.trim()) {
+        patch.customTitle = r.titre;
+        remplis.push('intitulé');
+      }
+      if (r.heures && !actuel.customHours.trim()) {
+        patch.customHours = r.heures;
+        remplis.push('durée');
+      }
+    }
+    setForm((prev) => ({ ...prev, ...patch }));
+    setLecture(
+      remplis.length
+        ? { etat: 'ok', texte: `Repris du programme : ${remplis.join(' et ')}. Relisez avant d’enregistrer.` }
+        : { etat: 'ok', texte: 'Programme lu : les champs de la formation étaient déjà remplis, rien n’a été changé.' },
+    );
+  };
   const [form, setForm] = useState({
     civility: valeurs?.civility ?? '',
     firstName: valeurs?.firstName ?? '',
@@ -153,6 +199,8 @@ export function DemandeForm({
     message: valeurs?.message ?? '',
     convertNow: false,
   });
+  const formCourant = useRef(form);
+  formCourant.current = form;
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -674,7 +722,7 @@ export function DemandeForm({
                 <span className="truncate flex-1">{programme.name}</span>
                 <button
                   type="button"
-                  onClick={() => setProgramme(null)}
+                  onClick={() => choisirProgramme(null)}
                   aria-label="Retirer le fichier"
                   className="text-zinc-400 hover:text-red-600 transition"
                 >
@@ -685,14 +733,29 @@ export function DemandeForm({
               <input
                 type="file"
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*"
-                onChange={(e) => setProgramme(e.target.files?.[0] ?? null)}
+                onChange={(e) => choisirProgramme(e.target.files?.[0] ?? null)}
                 className="mt-1.5 block w-full text-[13px] font-normal text-zinc-600 dark:text-zinc-300 file:mr-3 file:h-9 file:px-3 file:rounded-lg file:border-0 file:bg-orange-50 file:text-orange-700 dark:file:bg-orange-950/40 dark:file:text-orange-300 file:font-semibold file:text-[13px] hover:file:bg-orange-100"
               />
             )}
             <span className="block text-[11px] font-normal text-zinc-500 dark:text-zinc-400 mt-1">
-              PDF de préférence. Il est rangé sur la fiche demande ; la proposition IA se lance ensuite, si vous le
-              souhaitez.
+              PDF de préférence : l’intitulé et la durée de la formation en sont repris. Il est rangé sur la fiche
+              demande ; la proposition IA se lance ensuite, si vous le souhaitez.
             </span>
+            {lecture?.etat === 'en-cours' && (
+              <span className="mt-1.5 inline-flex items-center gap-1.5 text-[12px] font-normal text-zinc-600 dark:text-zinc-300">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
+                Lecture du programme par l’IA…
+              </span>
+            )}
+            {lecture && lecture.etat !== 'en-cours' && (
+              <span
+                className={`mt-1.5 block text-[12px] font-normal ${
+                  lecture.etat === 'ok' ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
+                }`}
+              >
+                {lecture.texte}
+              </span>
+            )}
           </div>
         )}
 
