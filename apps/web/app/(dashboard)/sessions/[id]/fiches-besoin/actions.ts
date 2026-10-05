@@ -10,7 +10,7 @@ import {
   ficheBesoinRemplie,
   type ReponsesFicheBesoin,
 } from '@/features/questionnaire/fiche-besoin';
-import { questionsFicheBesoin, clesDeQuestions } from '@/features/questionnaire/modele-fiche-besoin';
+import { questionsFicheBesoinDeLaFormation, clesDeQuestions } from '@/features/questionnaire/modele-fiche-besoin';
 import { loadSession } from '@/features/sessions/load-session';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { needsAnalysisEmail } from '@/shared/lib/email/templates';
@@ -56,16 +56,19 @@ export async function renvoyerFicheBesoin(learnerId: string, sessionId: string):
     return { ok: false, error: 'Stagiaire introuvable.' };
   }
 
-  // La fiche du stagiaire POUR son dossier sur cette séance : c'est elle que
-  // l'onglet affiche et que l'indicateur Qualiopi compte. Une fiche hors
-  // dossier restait invisible ici et ne justifiait rien.
+  // La fiche du stagiaire sur cette séance : celle de son dossier, ou celle
+  // de la séance s'il y est inscrit sans dossier. C'est elle que l'onglet
+  // affiche et que l'indicateur Qualiopi compte.
   const seance = await loadSession(sb, sessionId);
-  const stagiaire = seance?.learners.find((l) => l.id === learnerId);
-  if (seance && stagiaire?.dossierId) {
+  const stagiaire =
+    seance?.learners.find((l) => l.id === learnerId) ??
+    seance?.directLearners.map((l) => ({ ...l, dossierId: null as string | null })).find((l) => l.id === learnerId);
+  if (seance && stagiaire) {
     const fiche = await ficheDePositionnement(sb as never, {
       organizationId: garde.member.organizationId,
       dossierId: stagiaire.dossierId,
       learnerId,
+      sessionId,
     });
     revalidatePath(`/sessions/${sessionId}/fiches-besoin`);
     if (fiche.statut === 'remplie') return { ok: true, message: 'Sa fiche est déjà remplie.' };
@@ -86,7 +89,7 @@ export async function renvoyerFicheBesoin(learnerId: string, sessionId: string):
       html,
       kind: 'fiche_besoin',
       organizationId: garde.member.organizationId,
-      dossierId: stagiaire.dossierId,
+      ...(stagiaire.dossierId ? { dossierId: stagiaire.dossierId } : {}),
     });
     return envoi.ok || envoi.reason === 'no_api_key'
       ? { ok: true, message: 'Fiche besoin envoyée.' }
@@ -123,14 +126,23 @@ export async function renvoyerFicheBesoin(learnerId: string, sessionId: string):
  */
 export async function saisirFicheBesoinApprenant(
   learnerId: string,
-  dossierId: string,
+  dossierId: string | null,
   sessionId: string,
   reponses: ReponsesFicheBesoin,
 ): Promise<FicheResult> {
   const garde = await guardAction('qualiopi');
   if (!garde.ok) return { ok: false, error: garde.error };
 
-  const questions = await questionsFicheBesoin(admin() as never, garde.member.organizationId);
+  // Les questions de la fiche de cette formation : celles que l'écran a posées.
+  const { data: s } = await admin()
+    .schema('app')
+    .from('sessions')
+    .select('formation_id, organization_id')
+    .eq('id', sessionId)
+    .maybeSingle();
+  const seance = s as { formation_id: string | null; organization_id: string } | null;
+  if (!seance || seance.organization_id !== garde.member.organizationId) return { ok: false, error: 'Séance introuvable.' };
+  const questions = await questionsFicheBesoinDeLaFormation(admin() as never, garde.member.organizationId, seance.formation_id);
   const propres = nettoyerReponses(reponses, clesDeQuestions(questions));
   if (!ficheBesoinRemplie(propres as ReponsesFicheBesoin)) {
     return { ok: false, error: 'Indiquez au moins une réponse.' };
@@ -142,16 +154,16 @@ export async function saisirFicheBesoinApprenant(
     return { ok: false, error: 'Stagiaire introuvable.' };
   }
 
-  const templateId = await ensureNeedsAnalysisTemplate(sb, orgId);
+  const templateId = await ensureNeedsAnalysisTemplate(sb, orgId, seance.formation_id);
 
-  const { data: existante } = await sb
+  let cherche = sb
     .schema('app')
     .from('questionnaire_assignments')
     .select('id')
     .eq('template_id', templateId)
-    .eq('dossier_id', dossierId)
-    .eq('recipient_learner_id', learnerId)
-    .maybeSingle();
+    .eq('recipient_learner_id', learnerId);
+  cherche = dossierId ? cherche.eq('dossier_id', dossierId) : cherche.is('dossier_id', null);
+  const { data: existante } = await cherche.limit(1).maybeSingle();
 
   let assignmentId = (existante as { id: string } | null)?.id ?? null;
   if (!assignmentId) {
@@ -162,6 +174,7 @@ export async function saisirFicheBesoinApprenant(
         organization_id: orgId,
         template_id: templateId,
         dossier_id: dossierId,
+        session_id: sessionId,
         recipient_kind: 'learner',
         recipient_learner_id: learnerId,
         status: 'completed',

@@ -11,6 +11,7 @@ import { loadSessionNeeds } from '@/features/questionnaire/session-needs';
 import { NeedsCard } from '@/features/questionnaire/ui/needs-card';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { ActionsFiche } from './actions-fiche.client';
+import { questionsFicheBesoinDeLaFormation } from '@/features/questionnaire/modele-fiche-besoin';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +19,15 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
-  const { session, learners, dossierIds } = loaded;
+  const { session, learners, directLearners, dossierIds } = loaded;
+  // Les stagiaires inscrits directement à la séance, sans dossier, ont aussi
+  // leur fiche : ils étaient absents de cet onglet.
+  const participants = [
+    ...learners,
+    ...directLearners.map((l) => ({ ...l, dossierId: null, companyName: loaded.client?.name ?? null })),
+  ];
 
-  if (learners.length === 0) {
+  if (participants.length === 0) {
     return (
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg">
         <EmptyState icon={ClipboardList} title="Aucun participant" description="Rattachez des apprenants à la session pour suivre leur analyse des besoins." />
@@ -30,11 +37,14 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
 
   const fiches = await loadSessionNeeds(sb, {
     organizationId: session.organization_id,
-    participants: learners,
+    participants,
     dossierIds,
   });
   const recues = fiches.filter((f) => f.statut === 'recue').length;
-  const peutAgir = await canManageSection('qualiopi');
+  const [peutAgir, questions] = await Promise.all([
+    canManageSection('qualiopi'),
+    questionsFicheBesoinDeLaFormation(sb as never, session.organization_id, session.formation_id),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -52,10 +62,13 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
       <ul className="space-y-3">
         {fiches.map((f) => (
           <NeedsCard
-            key={`${f.learnerId}-${f.dossierId}`}
+            key={`${f.learnerId}-${f.dossierId ?? 'seance'}`}
             fiche={f}
             entete={
-              <Link href={`/dossiers/${f.dossierId}`} className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 hover:underline">
+              <Link
+                href={f.dossierId ? `/dossiers/${f.dossierId}` : `/apprenants/${f.learnerId}`}
+                className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 hover:underline"
+              >
                 {f.name}
               </Link>
             }
@@ -68,6 +81,7 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
                   sessionId={params.id}
                   reponses={f.statut === 'recue' ? (f.answers as never) : null}
                   dejaRepondu={f.statut === 'recue'}
+                  questions={questions}
                 />
               ) : null
             }

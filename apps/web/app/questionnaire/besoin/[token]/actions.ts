@@ -7,6 +7,14 @@ import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { verifyNeedsAnalysisToken } from '@/shared/lib/needs-analysis-token';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
+import {
+  ficheBesoinRemplie,
+  nettoyerReponses,
+  questionsDuSchema,
+  type EnregistrerResult,
+  type ReponsesFicheBesoin,
+} from '@/features/questionnaire/fiche-besoin';
+import { clesDeQuestions } from '@/features/questionnaire/modele-fiche-besoin';
 
 const needsAnalysisSchema = z.object({
   token: z.string().min(20),
@@ -158,4 +166,61 @@ export async function submitNeedsAnalysis(formData: FormData): Promise<void> {
   if (dossierId) await tryEnsureQuoteForDossier(sb, dossierId);
 
   redirect(`/questionnaire/besoin/${data.token}/merci`);
+}
+
+/**
+ * Réponse à la fiche besoin depuis le lien, quelles que soient ses questions :
+ * celles du modèle intégré, de l'organisme, ou de la fiche adaptée à la
+ * formation (0211). Les clés acceptées viennent du modèle de l'assignation,
+ * jamais du formulaire.
+ */
+export async function enregistrerFicheBesoinParLien(token: string, reponses: ReponsesFicheBesoin): Promise<EnregistrerResult> {
+  const verified = await verifyNeedsAnalysisToken(token);
+  if (!verified.ok) return { ok: false, error: verified.error === 'expired_token' ? 'Ce lien a expiré.' : 'Ce lien n’est pas valide.' };
+  const { assignmentId, dossierId, organizationId } = verified.value;
+  const sb = admin();
+
+  const { data: existing } = await sb.schema('app').from('questionnaire_responses').select('id').eq('assignment_id', assignmentId).maybeSingle();
+  if (existing) return { ok: true };
+
+  const { data: a } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('template_id, template:questionnaire_templates(schema)')
+    .eq('id', assignmentId)
+    .maybeSingle();
+  const assignation = a as unknown as { template_id: string; template: { schema: unknown } | Array<{ schema: unknown }> | null } | null;
+  if (!assignation) return { ok: false, error: 'Ce lien n’est pas valide.' };
+  const modele = Array.isArray(assignation.template) ? assignation.template[0] : assignation.template;
+  const questions = questionsDuSchema(modele?.schema);
+  const propres = nettoyerReponses(reponses, clesDeQuestions(questions));
+  if (!ficheBesoinRemplie(propres as ReponsesFicheBesoin)) return { ok: false, error: 'Merci de répondre au moins à une question.' };
+
+  const h = headers();
+  const { error: insertErr } = await sb
+    .schema('app')
+    .from('questionnaire_responses')
+    .insert({
+      organization_id: organizationId,
+      assignment_id: assignmentId,
+      template_id: assignation.template_id,
+      dossier_id: dossierId,
+      answers: propres,
+      submitter_ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+      submitter_user_agent: h.get('user-agent') ?? null,
+    });
+  if (insertErr) {
+    console.error('[fiche besoin] réponse non enregistrée', assignmentId, insertErr.message);
+    return { ok: false, error: 'Vos réponses n’ont pas pu être enregistrées. Réessayez dans un instant.' };
+  }
+
+  const { error: statutErr } = await sb.schema('app').from('questionnaire_assignments').update({ status: 'completed' } as never).eq('id', assignmentId);
+  if (statutErr) console.error('[fiche besoin] bascule du statut en « completed » échouée', statutErr.message);
+  if (dossierId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (sb as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossierId });
+    if (error) console.error('[fiche besoin] checklist Qualiopi non recalculée', dossierId, error.message);
+    await tryEnsureQuoteForDossier(sb, dossierId);
+  }
+  return { ok: true };
 }

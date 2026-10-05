@@ -21,6 +21,8 @@ import {
 } from '@/features/questionnaire/programmation-seance';
 import { programmationsDeLaSeance } from '@/features/questionnaire/questionnaires-de-seance';
 import { QuestionnairesSeance, type LigneQuestionnaire } from './questionnaires-seance.client';
+import { AdapterFiche } from './adapter-fiche.client';
+import { questionsDuSchema } from '@/features/questionnaire/fiche-besoin';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,13 +33,15 @@ type Modele = {
   code: string | null;
   audience?: string | null;
   organization_id: string | null;
+  formation_id?: string | null;
+  schema?: unknown;
 };
 
 export default async function SessionQuestionnairesTab({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
-  const { session, dossierIds } = loaded;
+  const { session, dossierIds, formation } = loaded;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = sb as unknown as SupabaseClient<any, any, any>;
 
@@ -51,14 +55,13 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
       .order('title', { ascending: true }),
     programmationsDeLaSeance(db, params.id),
     canManageSection('dossiers'),
-    dossierIds.length
-      ? db
-          .schema('app')
-          .from('questionnaire_assignments')
-          .select('template_id, status')
-          .in('dossier_id', dossierIds)
-          .neq('status', 'expired')
-      : Promise.resolve({ data: [] }),
+    // Les envois de la séance : rattachés à elle, ou à l'un de ses dossiers.
+    db
+      .schema('app')
+      .from('questionnaire_assignments')
+      .select('id, template_id, status')
+      .or(dossierIds.length ? `session_id.eq.${params.id},dossier_id.in.(${dossierIds.join(',')})` : `session_id.eq.${params.id}`)
+      .neq('status', 'expired'),
   ]);
 
   const suivi = new Map<string, { total: number; repondu: number }>();
@@ -73,7 +76,11 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
   const ordreEtape = new Map<string, number>(ETAPES.map((e, n) => [e.cle, n]));
   const seance = { startsAt: session.starts_at, endsAt: session.ends_at };
 
-  const lignes: LigneQuestionnaire[] = ((tData ?? []) as Modele[])
+  // Une fiche adaptée à une autre formation n'a rien à faire ici.
+  const modeles = ((tData ?? []) as Modele[]).filter((m) => !m.formation_id || m.formation_id === session.formation_id);
+  const adaptee = modeles.find((m) => m.kind === 'positionnement' && m.formation_id && m.formation_id === session.formation_id) ?? null;
+
+  const lignes: LigneQuestionnaire[] = modeles
     .map((m) => {
       const p = programmations.get(m.id);
       const moment = p ? { ancre: p.ancre, decalage: p.decalage_jours } : momentParDefaut(m);
@@ -103,8 +110,8 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 max-w-2xl">
           Cochez les questionnaires à envoyer pour cette séance et choisissez quand. Ils partent
-          tout seuls le jour dit, par e-mail — le stagiaire répond dans son espace, l’entreprise, le
-          financeur et le formateur par un lien.
+          tout seuls le jour dit, par e-mail — les liens des stagiaires partent groupés à leur entreprise,
+          le financeur et le formateur reçoivent le leur. « Voir » montre les questions et les réponses.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <a
@@ -130,6 +137,12 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
           </Link>
         </div>
       </div>
+      <AdapterFiche
+        sessionId={params.id}
+        formation={formation?.title ?? null}
+        ficheAdaptee={adaptee ? { id: adaptee.id, titre: adaptee.title, questions: questionsDuSchema(adaptee.schema).length } : null}
+        gerer={gerer}
+      />
       <QuestionnairesSeance sessionId={params.id} lignes={lignes} gerer={gerer} />
     </div>
   );

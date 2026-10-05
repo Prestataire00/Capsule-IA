@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Pencil, Send } from 'lucide-react';
 import { FormulaireFicheBesoin } from '@/features/questionnaire/ui/formulaire-fiche-besoin.client';
 import type { ReponsesFicheBesoin } from '@/features/questionnaire/fiche-besoin';
+import type { Question } from '@/features/questionnaire/schema';
 import { renvoyerFicheBesoin, saisirFicheBesoinApprenant } from './actions';
 
 /**
@@ -18,12 +19,15 @@ export function ActionsFiche({
   sessionId,
   reponses,
   dejaRepondu,
+  questions,
 }: {
   learnerId: string;
-  dossierId: string;
+  dossierId: string | null;
   sessionId: string;
   reponses: ReponsesFicheBesoin | null;
   dejaRepondu: boolean;
+  /** Les questions de la fiche de cette formation. */
+  questions: readonly Question[];
 }) {
   const router = useRouter();
   const [saisie, setSaisie] = useState(false);
@@ -48,6 +52,7 @@ export function ActionsFiche({
       <div className="mt-3 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/30 p-4">
         <FormulaireFicheBesoin
           valeurs={reponses}
+          questions={questions}
           enregistrer={async (v) => {
             const r = await saisirFicheBesoinApprenant(learnerId, dossierId, sessionId, v);
             if (r.ok) router.refresh();

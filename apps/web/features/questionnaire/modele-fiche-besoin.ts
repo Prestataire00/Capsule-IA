@@ -42,6 +42,7 @@ export async function questionsFicheBesoin(
     .eq('kind', 'positionnement')
     .eq('is_active', true)
     .is('deleted_at', null)
+    .is('formation_id', null)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -57,3 +58,31 @@ export async function questionsFicheBesoin(
 
 /** Les clés que le nettoyage doit accepter, pour ce modèle. */
 export const clesDeQuestions = (questions: readonly Question[]): string[] => questions.map((q) => q.id);
+
+/**
+ * Les questions posées pour une formation : celles de sa fiche adaptée
+ * (0211) quand l'organisme en a une, sinon celles de l'organisme.
+ */
+export async function questionsFicheBesoinDeLaFormation(
+  sb: Client,
+  organizationId: string,
+  formationId: string | null,
+): Promise<Question[]> {
+  if (formationId) {
+    const { data } = await sb
+      .schema('app')
+      .from('questionnaire_templates')
+      .select('schema')
+      .eq('organization_id', organizationId)
+      .eq('formation_id', formationId)
+      .eq('kind', 'positionnement')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const questions = data ? questionsDuSchema((data as { schema?: unknown }).schema) : [];
+    if (questions.length > 0) return questions;
+  }
+  return questionsFicheBesoin(sb, organizationId);
+}

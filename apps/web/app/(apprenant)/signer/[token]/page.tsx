@@ -25,6 +25,7 @@ type SignatureContextRow = {
   attendance_status: string | null;
   learner_dossier_id?: string | null;
   organization_id?: string;
+  session_id?: string;
 };
 
 const HALF_DAY: Record<string, string> = { morning: 'Matin', afternoon: 'Après-midi', full: 'Journée', evening: 'Soirée' };
@@ -111,13 +112,15 @@ export default async function SignerPage({ params }: { params: { token: string }
   }
 
   // Entrée déjà signée, fiche de positionnement pas encore remplie : on la
-  // propose à chaque retour sur ce lien, jusqu'à ce qu'elle le soit.
+  // propose à chaque retour sur ce lien, jusqu'à ce qu'elle le soit — avec ou
+  // sans dossier (stagiaire inscrit directement à la séance).
   const fiche =
-    signerKind === 'learner' && row.entry_signed_at && row.learner_dossier_id && row.organization_id
+    signerKind === 'learner' && row.entry_signed_at && row.organization_id
       ? await ficheDePositionnement(supabaseAdmin() as never, {
           organizationId: row.organization_id,
-          dossierId: row.learner_dossier_id,
+          dossierId: row.learner_dossier_id ?? null,
           learnerId: signerId,
+          sessionId: row.session_id ?? null,
         })
       : null;
   const ficheUrl = fiche?.statut === 'a_remplir' ? fiche.url : null;

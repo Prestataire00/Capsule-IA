@@ -36,7 +36,23 @@ const admin = () =>
  * les appels qui n'ont pas l'organisation sous la main ne changent pas de
  * comportement.
  */
-export async function ensureNeedsAnalysisTemplate(sb: Sb, organizationId?: string | null): Promise<string> {
+export async function ensureNeedsAnalysisTemplate(sb: Sb, organizationId?: string | null, formationId?: string | null): Promise<string> {
+  // La fiche adaptée à la formation d'abord (0211), puis celle de l'organisme.
+  if (organizationId && formationId) {
+    const { data: adaptee } = await sb
+      .schema('app')
+      .from('questionnaire_templates')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('formation_id' as never, formationId as never)
+      .eq('kind', 'positionnement')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (adaptee) return (adaptee as { id: string }).id;
+  }
   if (organizationId) {
     const { data: propre } = await sb
       .schema('app')
@@ -46,6 +62,7 @@ export async function ensureNeedsAnalysisTemplate(sb: Sb, organizationId?: strin
       .eq('kind', 'positionnement')
       .eq('is_active', true)
       .is('deleted_at', null)
+      .is('formation_id' as never, null)
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -155,7 +172,7 @@ export async function sendNeedsAnalysisForDossier(opts: {
   const { data: dossierRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, organization_id, learner_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), formation:formations(title)',
+    .select('id, organization_id, formation_id, learner_id, learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), formation:formations(title)',
     )
     .eq('id', opts.dossierId)
     .maybeSingle();
@@ -164,13 +181,14 @@ export async function sendNeedsAnalysisForDossier(opts: {
   const dossier = dossierRow as unknown as {
     id: string;
     organization_id: string;
+    formation_id: string | null;
     learner_id: string | null;
     learner: { first_name: string; last_name: string; email: string | null } | null;
     formation: { title: string } | null;
   };
   if (!dossier.learner_id || !dossier.learner?.email) return { ok: true, status: 'no_email' };
 
-  const templateId = await ensureNeedsAnalysisTemplate(sb, dossier.organization_id);
+  const templateId = await ensureNeedsAnalysisTemplate(sb, dossier.organization_id, dossier.formation_id);
 
   // Réponses d'inscription (étape 3 « Fiche besoin ») déjà saisies pour cet apprenant.
   const inscriptionNa = await loadInscriptionNeedsAnalysis(sb, {
@@ -432,16 +450,31 @@ export type FicheDuStagiaire =
   | { readonly statut: 'a_remplir'; readonly assignmentId: string; readonly url: string }
   | { readonly statut: 'indisponible' };
 
+/** La formation qui choisit la fiche : celle de la séance, sinon celle du dossier. */
+async function formationDeLaFiche(sb: Sb, sessionId: string | null, dossierId: string | null): Promise<string | null> {
+  if (sessionId) {
+    const { data } = await sb.schema('app').from('sessions').select('formation_id').eq('id', sessionId).maybeSingle();
+    const f = (data as { formation_id: string | null } | null)?.formation_id ?? null;
+    if (f) return f;
+  }
+  if (dossierId) {
+    const { data } = await sb.schema('app').from('dossiers').select('formation_id').eq('id', dossierId).maybeSingle();
+    return (data as { formation_id: string | null } | null)?.formation_id ?? null;
+  }
+  return null;
+}
+
 /**
- * La fiche de positionnement d'UN stagiaire pour UN dossier : remplie, ou le
- * lien pour la remplir — créée au besoin, rattachée au dossier (c'est ce que
- * compte l'indicateur Qualiopi). Sert là où le stagiaire n'a pas d'adresse
- * connue : après son émargement, il la remplit sur place (« comme RFC »).
- * Chaque stagiaire d'un dossier de groupe a la sienne.
+ * La fiche de positionnement d'UN stagiaire : remplie, ou le lien pour la
+ * remplir — créée au besoin, rattachée à son dossier (c'est ce que compte
+ * l'indicateur Qualiopi), ou à la séance pour un stagiaire inscrit sans
+ * dossier. Sert là où le stagiaire n'a pas d'adresse connue : après son
+ * émargement, il la remplit sur place (« comme RFC »). La fiche posée est
+ * celle de la formation quand l'organisme l'a adaptée (0211).
  */
 export async function ficheDePositionnement(
   sb: Sb,
-  args: { organizationId: string; dossierId: string; learnerId: string },
+  args: { organizationId: string; dossierId: string | null; learnerId: string; sessionId?: string | null },
 ): Promise<FicheDuStagiaire> {
   const baseUrl = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   if (!baseUrl) return { statut: 'indisponible' };
@@ -454,15 +487,14 @@ export async function ficheDePositionnement(
     .or(`organization_id.eq.${args.organizationId},organization_id.is.null`);
   const modeleIds = ((modeles ?? []) as Array<{ id: string }>).map((m) => m.id);
 
-  const { data: existantes } = modeleIds.length
-    ? await sb
-        .schema('app')
-        .from('questionnaire_assignments')
-        .select('id, status')
-        .eq('dossier_id', args.dossierId)
-        .eq('recipient_learner_id', args.learnerId)
-        .in('template_id', modeleIds)
-    : { data: [] };
+  let requete = sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('id, status')
+    .eq('recipient_learner_id', args.learnerId)
+    .in('template_id', modeleIds);
+  requete = args.dossierId ? requete.eq('dossier_id', args.dossierId) : requete.is('dossier_id', null);
+  const { data: existantes } = modeleIds.length ? await requete : { data: [] };
   const fiches = (existantes ?? []) as Array<{ id: string; status: string }>;
   if (fiches.some((f) => f.status === 'completed')) return { statut: 'remplie' };
 
@@ -475,24 +507,26 @@ export async function ficheDePositionnement(
       .eq('id', args.learnerId)
       .maybeSingle();
     const learner = l as { first_name: string | null; last_name: string | null; email: string | null } | null;
+    const formationId = await formationDeLaFiche(sb, args.sessionId ?? null, args.dossierId);
     const { data: cree, error } = await sb
       .schema('app')
       .from('questionnaire_assignments')
       .insert({
         organization_id: args.organizationId,
-        template_id: await ensureNeedsAnalysisTemplate(sb, args.organizationId),
+        template_id: await ensureNeedsAnalysisTemplate(sb, args.organizationId, formationId),
         dossier_id: args.dossierId,
+        ...(args.sessionId ? { session_id: args.sessionId } : {}),
         recipient_kind: 'learner',
         recipient_learner_id: args.learnerId,
         recipient_email: learner?.email?.endsWith('.invalid') ? null : (learner?.email ?? null),
         recipient_name: `${learner?.first_name ?? ''} ${learner?.last_name ?? ''}`.trim() || null,
         token_hash: createHash('sha256').update(randomBytes(24)).digest('hex'),
         status: 'pending',
-      })
+      } as never)
       .select('id')
       .single();
     if (error || !cree) {
-      console.error('[fiche de positionnement] création impossible', args.dossierId, error?.message);
+      console.error('[fiche de positionnement] création impossible', args.dossierId ?? args.sessionId, error?.message);
       return { statut: 'indisponible' };
     }
     assignmentId = (cree as { id: string }).id;

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Loader2, Send } from 'lucide-react';
+import Link from 'next/link';
+import { Check, Eye, Loader2, Pencil, Send } from 'lucide-react';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { INTERLOCUTEURS, type Interlocuteur } from '@/features/questionnaire/cartographie';
 import { MOMENTS, cleMoment, libelleMoment, lireCleMoment, jourParis } from '@/features/questionnaire/programmation-seance';
@@ -108,6 +109,25 @@ function Ligne({ sessionId, l, gerer }: { sessionId: string; l: LigneQuestionnai
           </p>
         )}
       </div>
+
+      <Link
+        href={`/sessions/${sessionId}/questionnaires/${l.templateId}`}
+        title="Voir les questions et les réponses"
+        className="inline-flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-1.5 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700"
+      >
+        <Eye className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Voir</span>
+      </Link>
+      {gerer && (
+        <Link
+          href={`/questionnaires/${l.templateId}`}
+          title="Modifier les questions"
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-1.5 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Modifier</span>
+        </Link>
+      )}
 
       {gerer ? (
         <select

@@ -68,16 +68,18 @@ export async function signStep(input: { token: string; moment: 'entry' | 'exit';
               p_signer_kind: signerKind,
             } as never)
             .maybeSingle()
-        ).data as { learner_dossier_id: string | null; organization_id: string } | null)
+        ).data as { learner_dossier_id: string | null; organization_id: string; session_id: string | null } | null)
       : null;
 
   // Pas encore de fiche de positionnement : il la remplit dans la foulée, sur
-  // le téléphone qui vient de signer — on n'a pas toujours son adresse.
-  if (ctx?.learner_dossier_id) {
+  // le téléphone qui vient de signer — on n'a pas toujours son adresse. Un
+  // stagiaire inscrit sans dossier a la sienne, rattachée à la séance.
+  if (ctx) {
     const fiche = await ficheDePositionnement(supabaseAdmin() as never, {
       organizationId: ctx.organization_id,
       dossierId: ctx.learner_dossier_id,
       learnerId: signerId,
+      sessionId: ctx.session_id,
     });
     if (fiche.statut === 'a_remplir') ficheUrl = fiche.url;
   }

@@ -1,10 +1,12 @@
 // ARCHETYPE: workflow
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
-import { ShieldCheck, Send, ClipboardList, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ClipboardList, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Logo } from '@/shared/ui/logo';
 import { verifyNeedsAnalysisToken } from '@/shared/lib/needs-analysis-token';
-import { submitNeedsAnalysis } from './actions';
+import { questionsDuSchema } from '@/features/questionnaire/fiche-besoin';
+import { FormulaireFicheBesoin } from '@/features/questionnaire/ui/formulaire-fiche-besoin.client';
+import { enregistrerFicheBesoinParLien } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,14 +46,26 @@ async function loadContext(token: string) {
     firstName = (learner as { first_name: string }).first_name ?? '';
   }
 
-  const { data: existing } = await sb
-    .schema('app')
-    .from('questionnaire_responses')
-    .select('id')
-    .eq('assignment_id', verified.value.assignmentId)
-    .maybeSingle();
+  const [{ data: existing }, { data: a }] = await Promise.all([
+    sb.schema('app').from('questionnaire_responses').select('id').eq('assignment_id', verified.value.assignmentId).maybeSingle(),
+    sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .select('template:questionnaire_templates(schema), session:sessions(formation:formations(title))')
+      .eq('id', verified.value.assignmentId)
+      .maybeSingle(),
+  ]);
+  // Les questions du modèle de cette fiche : celles de la formation quand
+  // l'organisme l'a adaptée, sinon les questions habituelles.
+  const un = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
+  const assignation = a as unknown as {
+    template: { schema: unknown } | Array<{ schema: unknown }> | null;
+    session: { formation: { title: string } | Array<{ title: string }> | null } | null;
+  } | null;
+  const questions = questionsDuSchema(un(assignation?.template)?.schema);
+  formationTitle ??= un(un(assignation?.session)?.formation)?.title ?? null;
 
-  return { kind: 'ok' as const, answered: Boolean(existing), firstName, formationTitle };
+  return { kind: 'ok' as const, answered: Boolean(existing), firstName, formationTitle, questions };
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -97,9 +111,6 @@ function InfoScreen({
     </Shell>
   );
 }
-
-const inputCls =
-  'w-full bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-violet-300 dark:focus:border-violet-700';
 
 export default async function FicheBesoinPage({
   params,
@@ -159,98 +170,17 @@ export default async function FicheBesoinPage({
         </div>
       )}
 
-      <form
-        action={submitNeedsAnalysis}
-        className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-6"
-      >
-        <input type="hidden" name="token" value={params.token} />
-
-        <fieldset>
-          <legend className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 mb-3">
-            Votre niveau actuel sur le sujet de la formation
-          </legend>
-          <div className="grid grid-cols-5 gap-1.5">
-            {[
-              { v: 1, l: 'Débutant' },
-              { v: 2, l: 'Bases' },
-              { v: 3, l: 'Intermédiaire' },
-              { v: 4, l: 'Avancé' },
-              { v: 5, l: 'Expert' },
-            ].map((opt) => (
-              <label
-                key={opt.v}
-                className="border border-zinc-200/60 dark:border-zinc-800 rounded-md px-2 py-2 text-[11px] text-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 has-[:checked]:bg-violet-600 has-[:checked]:text-white has-[:checked]:border-violet-600 transition"
-              >
-                <input
-                  type="radio"
-                  name="currentLevel"
-                  value={opt.v}
-                  defaultChecked={opt.v === 1}
-                  className="sr-only"
-                />
-                {opt.l}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <label className="block">
-          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
-            Quels sont vos objectifs pour cette formation ? <span className="text-rose-500">*</span>
-          </span>
-          <textarea
-            name="objectives"
-            required
-            rows={3}
-            placeholder="Ce que vous souhaitez savoir faire à l'issue de la formation…"
-            className={inputCls}
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
-            Vos attentes particulières
-          </span>
-          <textarea
-            name="expectations"
-            rows={2}
-            placeholder="Thèmes prioritaires, applications concrètes attendues…"
-            className={inputCls}
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
-            Contraintes éventuelles (planning, organisation…)
-          </span>
-          <textarea name="constraints" rows={2} placeholder="Disponibilités, contraintes…" className={inputCls} />
-        </label>
-
-        <label className="block">
-          <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block mb-1.5">
-            Besoin d&apos;aménagement (situation de handicap)
-          </span>
-          <textarea
-            name="accommodations"
-            rows={2}
-            placeholder="Indiquez tout besoin d'adaptation — nous restons à votre écoute."
-            className={inputCls}
-          />
-        </label>
-
-        <div className="flex items-center justify-between gap-3 pt-2">
-          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 inline-flex items-center gap-1.5">
-            <ShieldCheck className="w-3 h-3" /> Données traitées dans le respect du RGPD.
-          </p>
-          <button
-            type="submit"
-            className="bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium px-4 py-2 rounded-lg transition shadow-sm inline-flex items-center gap-2"
-          >
-            <Send className="w-3.5 h-3.5" />
-            Envoyer ma fiche besoin
-          </button>
-        </div>
-      </form>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-5">
+        <FormulaireFicheBesoin
+          questions={ctx.questions}
+          enregistrer={enregistrerFicheBesoinParLien.bind(null, params.token)}
+          libelleBouton="Envoyer ma fiche besoin"
+          messageSucces="Merci, vos réponses sont enregistrées. Votre formateur les consultera avant le démarrage."
+        />
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 inline-flex items-center gap-1.5">
+          <ShieldCheck className="w-3 h-3" /> Données traitées dans le respect du RGPD.
+        </p>
+      </div>
     </Shell>
   );
 }

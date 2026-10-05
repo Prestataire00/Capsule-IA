@@ -248,6 +248,7 @@ export async function envoyerQuestionnaireSeance(sb: Client, args: { sessionId: 
           organization_id: session.organization_id,
           template_id: modele.id,
           dossier_id: c.dossierId,
+          session_id: session.id,
           recipient_kind: c.kind,
           [cle]: valeur,
           recipient_email: c.email,

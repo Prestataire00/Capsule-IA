@@ -43,9 +43,13 @@ export async function envoyerFichesAvantSeance(
     if (coupes.has(s.organization_id)) continue;
     const loaded = await loadSession(sb, s.id);
     if (!loaded) continue;
-    for (const l of loaded.learners) {
-      if (!adresseUtile(l.email) || !l.dossierId) continue;
-      const fiche = await ficheDePositionnement(sb, { organizationId: s.organization_id, dossierId: l.dossierId, learnerId: l.id });
+    const stagiaires = [
+      ...loaded.learners.map((l) => ({ ...l, dossierId: l.dossierId as string | null })),
+      ...loaded.directLearners.map((l) => ({ ...l, dossierId: null as string | null })),
+    ];
+    for (const l of stagiaires) {
+      if (!adresseUtile(l.email)) continue;
+      const fiche = await ficheDePositionnement(sb, { organizationId: s.organization_id, dossierId: l.dossierId, learnerId: l.id, sessionId: s.id });
       if (fiche.statut !== 'a_remplir') continue;
       const { subject, html } = needsAnalysisEmail({
         firstName: l.first_name,
@@ -59,7 +63,7 @@ export async function envoyerFichesAvantSeance(
         html,
         kind: 'fiche_besoin',
         organizationId: s.organization_id,
-        dossierId: l.dossierId,
+        ...(l.dossierId ? { dossierId: l.dossierId } : {}),
         idempotencyKey: `fiche_besoin_veille:${fiche.assignmentId}`,
         metadata: { session_id: s.id, learner_id: l.id },
       });

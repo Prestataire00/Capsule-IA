@@ -1,5 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { questionsDuSchema } from './fiche-besoin';
 
 /**
  * Fiches besoin (analyse des besoins) des participants d'une séance.
@@ -28,21 +29,27 @@ export type NeedsParticipant = {
   readonly id: string;
   readonly first_name: string;
   readonly last_name: string;
-  readonly email: string;
-  readonly dossierId: string;
+  readonly email: string | null;
+  /** null : stagiaire inscrit directement à la séance, sans dossier. */
+  readonly dossierId: string | null;
   readonly companyName?: string | null;
 };
 
+/** Une question de la fiche, telle que posée au stagiaire. */
+export type QuestionFiche = { readonly id: string; readonly label: string; readonly type: string; readonly max?: number };
+
 export type FicheBesoin = {
   readonly learnerId: string;
-  readonly dossierId: string;
+  readonly dossierId: string | null;
   readonly name: string;
   readonly companyName: string | null;
   /** `recue` : réponses disponibles · `envoyee` : questionnaire parti, sans réponse · `absente` : rien d'envoyé. */
   readonly statut: 'recue' | 'envoyee' | 'absente';
   readonly source: 'questionnaire' | 'inscription' | null;
   readonly dateIso: string | null;
-  readonly answers: NeedsAnswers;
+  readonly answers: NeedsAnswers & Record<string, unknown>;
+  /** Les questions du modèle auquel il a répondu ; null = celles du modèle intégré. */
+  readonly questions: readonly QuestionFiche[] | null;
 };
 
 export const NIVEAUX: Record<number, string> = {
@@ -78,21 +85,29 @@ export async function loadSessionNeeds(
     .eq('kind', 'positionnement');
   const modeleIds = ((modeles ?? []) as { id: string }[]).map((m) => m.id);
 
-  const { data: aff } =
+  const sansDossier = participants.filter((p) => !p.dossierId).map((p) => p.id);
+  const colonnes = 'id, dossier_id, recipient_learner_id, status, created_at, template_id';
+  const [{ data: aff }, { data: affSans }] = await Promise.all([
     modeleIds.length && dossierIds.length
-      ? await sb
+      ? sb.schema('app').from('questionnaire_assignments').select(colonnes).in('template_id', modeleIds).in('dossier_id', [...dossierIds])
+      : Promise.resolve({ data: [] }),
+    modeleIds.length && sansDossier.length
+      ? sb
           .schema('app')
           .from('questionnaire_assignments')
-          .select('id, dossier_id, recipient_learner_id, status, created_at')
+          .select(colonnes)
           .in('template_id', modeleIds)
-          .in('dossier_id', [...dossierIds])
-      : { data: [] };
-  const affectations = (aff ?? []) as {
+          .is('dossier_id', null)
+          .in('recipient_learner_id', sansDossier)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const affectations = [...(aff ?? []), ...(affSans ?? [])] as {
     id: string;
     dossier_id: string | null;
     recipient_learner_id: string | null;
     status: string;
     created_at: string;
+    template_id: string;
   }[];
 
   const { data: rep } = affectations.length
@@ -106,14 +121,27 @@ export async function loadSessionNeeds(
         )
     : { data: [] };
   const reponses = new Map(
-    ((rep ?? []) as { assignment_id: string; answers: NeedsAnswers | null; submitted_at: string | null }[]).map((r) => [
+    ((rep ?? []) as { assignment_id: string; answers: (NeedsAnswers & Record<string, unknown>) | null; submitted_at: string | null }[]).map((r) => [
       r.assignment_id,
       r,
     ]),
   );
 
+  // Les questions de chaque modèle répondu : une fiche adaptée à la formation
+  // pose les siennes, et ses réponses doivent se lire avec leur libellé.
+  const modelesRepondus = [...new Set(affectations.filter((a) => reponses.has(a.id)).map((a) => a.template_id))];
+  const { data: schemas } = modelesRepondus.length
+    ? await sb.schema('app').from('questionnaire_templates').select('id, schema').in('id', modelesRepondus)
+    : { data: [] };
+  const questionsDuModele = new Map(
+    ((schemas ?? []) as Array<{ id: string; schema: unknown }>).map((t) => [
+      t.id,
+      questionsDuSchema(t.schema).map((q) => ({ id: q.id, label: q.label, type: q.type, ...('max' in q && q.max ? { max: q.max } : {}) })),
+    ]),
+  );
+
   // Repli inscription : prospects de l'organisme, par email d'apprenant.
-  const emails = [...new Set(participants.map((p) => p.email).filter(Boolean))];
+  const emails = [...new Set(participants.map((p) => p.email).filter((e): e is string => Boolean(e)))];
   const { data: prosp } = emails.length
     ? await sb
         .schema('app')
@@ -146,6 +174,7 @@ export async function loadSessionNeeds(
         source: 'questionnaire' as const,
         dateIso: r.submitted_at ?? a?.created_at ?? null,
         answers: r.answers ?? {},
+        questions: a ? (questionsDuModele.get(a.template_id) ?? null) : null,
       };
     }
 
@@ -162,6 +191,7 @@ export async function loadSessionNeeds(
         source: 'inscription' as const,
         dateIso: duProspect.created_at,
         answers: duProspect.needs_analysis ?? {},
+        questions: null,
       };
     }
 
@@ -174,6 +204,7 @@ export async function loadSessionNeeds(
       source: null,
       dateIso: a?.created_at ?? null,
       answers: {},
+      questions: null,
     };
   });
 }

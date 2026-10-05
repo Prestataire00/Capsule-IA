@@ -12,7 +12,7 @@ import type { Question } from '@/features/questionnaire/schema';
  * fiche besoin pose les siennes : ne rendre que les six intégrées revenait à
  * ignorer son travail — c'est exactement ce qui s'est passé jusqu'ici.
  */
-type ChampAffiche = { cle: string; label: string; type: 'rating' | 'text'; requis: boolean };
+type ChampAffiche = { cle: string; label: string; type: 'rating' | 'text' | 'choice'; requis: boolean; options?: readonly string[]; max?: number };
 
 const CHAMPS_PAR_DEFAUT: ChampAffiche[] = CHAMPS_FICHE_BESOIN.map((c) => ({
   cle: c.cle,
@@ -22,14 +22,16 @@ const CHAMPS_PAR_DEFAUT: ChampAffiche[] = CHAMPS_FICHE_BESOIN.map((c) => ({
 }));
 
 const depuisQuestions = (questions: readonly Question[]): ChampAffiche[] =>
-  questions.map((q) => ({
-    cle: q.id,
-    label: q.label,
-    // `nps` et `rating` se saisissent de la même façon ici : une note. Le reste
-    // devient du texte — mieux vaut une réponse libre qu'une question muette.
-    type: q.type === 'rating' || q.type === 'nps' ? 'rating' : 'text',
-    requis: Boolean(q.required),
-  }));
+  questions.map((q) => {
+    // Une fiche adaptée à la formation pose des questions fermées (« Avez-vous
+    // déjà utilisé une IA ? ») : elles se répondent d'un toucher.
+    if (q.type === 'choice' && q.options.length > 0) {
+      return { cle: q.id, label: q.label, type: 'choice' as const, requis: Boolean(q.required), options: q.options };
+    }
+    if (q.type === 'rating') return { cle: q.id, label: q.label, type: 'rating' as const, requis: Boolean(q.required), max: q.max };
+    if (q.type === 'nps') return { cle: q.id, label: q.label, type: 'rating' as const, requis: Boolean(q.required), max: 10 };
+    return { cle: q.id, label: q.label, type: 'text' as const, requis: Boolean(q.required) };
+  });
 
 /**
  * Le formulaire de fiche besoin, un seul pour deux usages : le client qui
@@ -95,9 +97,26 @@ export function FormulaireFicheBesoin({
             {c.label}
             {c.requis && <span className="text-orange-600"> *</span>}
           </label>
-          {c.type === 'rating' ? (
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((n) => (
+          {c.type === 'choice' ? (
+            <div className="flex flex-wrap gap-2">
+              {(c.options ?? []).map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => setReponses((v) => ({ ...v, [c.cle]: o }) as ReponsesFicheBesoin)}
+                  className={`min-h-10 px-3.5 rounded-lg border text-[14px] transition ${
+                    (reponses as Record<string, unknown>)[c.cle] === o
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:border-orange-300'
+                  }`}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          ) : c.type === 'rating' ? (
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: c.max ?? 5 }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
                   type="button"

@@ -1,4 +1,4 @@
-import { CHAMPS_BESOIN, NIVEAUX, type FicheBesoin } from '@/features/questionnaire/session-needs';
+import { CHAMPS_BESOIN, NIVEAUX, type FicheBesoin, type QuestionFiche } from '@/features/questionnaire/session-needs';
 import { StatusPill } from '@/shared/ui/status-pill';
 
 /**
@@ -8,6 +8,15 @@ import { StatusPill } from '@/shared/ui/status-pill';
 
 const dateCourte = (iso: string) =>
   new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'medium' }).format(new Date(iso));
+
+/** Une réponse telle qu'on la lit : une note sur son échelle, un texte tel quel. */
+function valeurLisible(q: QuestionFiche, v: unknown): string | null {
+  if (v === undefined || v === null || v === '') return null;
+  if (q.id === 'currentLevel' && typeof v === 'number') return NIVEAUX[v] ?? String(v);
+  if (q.type === 'rating') return `${String(v)} / ${q.max ?? 5}`;
+  if (q.type === 'nps') return `${String(v)} / 10`;
+  return Array.isArray(v) ? v.join(', ') : String(v);
+}
 
 function Ligne({ label, valeur }: { label: string; valeur: string | null | undefined }) {
   if (!valeur) return null;
@@ -51,7 +60,15 @@ export function NeedsCard({
         )}
       </div>
 
-      {fiche.statut === 'recue' ? (
+      {fiche.statut === 'recue' && fiche.questions && fiche.questions.length > 0 ? (
+        // Fiche d'un modèle propre (adaptée à la formation) : chaque question
+        // avec sa réponse, dans l'ordre où elle a été posée.
+        <dl className="grid sm:grid-cols-2 gap-3">
+          {fiche.questions.map((q) => (
+            <Ligne key={q.id} label={q.label} valeur={valeurLisible(q, fiche.answers[q.id])} />
+          ))}
+        </dl>
+      ) : fiche.statut === 'recue' ? (
         <dl className="grid sm:grid-cols-2 gap-3">
           <Ligne label="Niveau actuel" valeur={niveau} />
           {CHAMPS_BESOIN.map((c) => (

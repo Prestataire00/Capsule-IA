@@ -44,8 +44,10 @@ describe('1 — le modèle de l’organisme est choisi', () => {
     // différents pour la même formation.
     // Envoi au dossier, envoi à l'apprenant, et fiche remplie à l'émargement.
     expect(SELECTION.match(/ensureNeedsAnalysisTemplate\(sb, /g)?.length).toBe(3);
+    // La saisie depuis la séance passe aussi la formation : la fiche adaptée
+    // à la formation (0211) est celle que l'écran a posée.
     expect(lire('../app/(dashboard)/sessions/[id]/fiches-besoin/actions.ts')).toContain(
-      'ensureNeedsAnalysisTemplate(sb, orgId)',
+      'ensureNeedsAnalysisTemplate(sb, orgId, seance.formation_id)',
     );
   });
 });
