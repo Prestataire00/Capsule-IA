@@ -9,7 +9,9 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { loadSession } from '@/features/sessions/load-session';
 import { canManageSection } from '@/shared/lib/auth/require-access';
-import { AUTOMATION_KEYS, loadSessionAutomations, scheduleKey } from '@/features/automation/session-automations';
+import { AUTOMATION_KEYS, CLES_EQUIPE_PEDAGOGIQUE, loadSessionAutomations, scheduleKey } from '@/features/automation/session-automations';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { estDansLEquipePedagogique } from '@/features/trainer-space/validation-recipients';
 import { AutomationToggle } from './automation-toggle';
 import { loadReglesOrganisme } from '@/features/emails/programmation-store';
 import { phraseDuDelai, reglageEffectif } from '@/features/emails/programmation-envois';
@@ -56,6 +58,10 @@ export default async function SessionAutomatisations({ params }: { params: { id:
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
   const gerer = await canManageSection('dossiers');
+  // L'équipe pédagogique désignée règle les rappels de séance, même sans gérer les dossiers.
+  const me = await getCurrentMember();
+  const equipePedagogique = me ? await estDansLEquipePedagogique(me.organizationId, me.userId) : false;
+  const peutRegler = (cle: string) => gerer || (equipePedagogique && CLES_EQUIPE_PEDAGOGIQUE.includes(cle));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = sb as unknown as SupabaseClient<any, any, any>;
 
@@ -141,7 +147,7 @@ export default async function SessionAutomatisations({ params }: { params: { id:
                   )}
                 </div>
               </div>
-              {gerer ? (
+              {peutRegler(e.key) ? (
                 <AutomationToggle sessionId={params.id} cle={e.key} actif={actif(e.key)} libelle={e.label} />
               ) : (
                 <StatusPill tone={actif(e.key) ? 'success' : 'neutral'}>{actif(e.key) ? 'Actif' : 'Coupé'}</StatusPill>

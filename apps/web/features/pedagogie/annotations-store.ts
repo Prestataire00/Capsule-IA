@@ -1,6 +1,6 @@
 import 'server-only';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
-import { estCouleur, type Couleur } from './annotations';
+import { estCouleur, MOTIF_MODIFICATIONS, pointsOuverts, type Couleur } from './annotations';
 import type { AnnotationInput } from './annotations.schema';
 
 /**
@@ -165,4 +165,31 @@ export async function annotationParId(
   return r
     ? { organizationId: r.organization_id, targetKind: r.target_kind, targetId: r.target_id, authorUserId: r.author_user_id }
     : null;
+}
+
+/** Points à corriger encore ouverts sur un contenu. */
+export async function pointsOuvertsDe(targetKind: 'support' | 'cours', targetId: string): Promise<number> {
+  const annotations = (await loadAnnotations(targetKind, [targetId])).get(targetId) ?? [];
+  return pointsOuverts(annotations);
+}
+
+/**
+ * Une modification est demandée : le contenu n'est plus validé ni en attente,
+ * il est « à corriger » — retiré aux stagiaires s'il l'était, jusqu'à ce que
+ * le formateur corrige et le renvoie en validation.
+ */
+export async function demanderModification(targetKind: 'support' | 'cours', targetId: string): Promise<void> {
+  const table = targetKind === 'support' ? 'session_resources' : 'exercises';
+  const { error } = await supabaseAdmin()
+    .schema('app')
+    .from(table as never)
+    .update({
+      validation_status: 'refuse',
+      rejection_reason: MOTIF_MODIFICATIONS,
+      validated_at: null,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq('id', targetId)
+    .neq('validation_status', 'refuse');
+  if (error) console.error('[annotations] contenu non repassé à corriger', targetId, error.message);
 }

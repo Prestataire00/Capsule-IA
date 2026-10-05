@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { surligner } from './annotations';
+import { pointsOuverts, surligner } from './annotations';
 
 describe('surligner', () => {
   it('surligne l’extrait cité, sans tenir compte de la casse', () => {
@@ -28,5 +28,19 @@ describe('surligner', () => {
       { texte: ' deux ', couleur: null },
       { texte: 'trois', couleur: 'bien' },
     ]);
+  });
+});
+
+describe('pointsOuverts', () => {
+  it('compte les points à revoir ou à préciser non corrigés, pas les suggestions', () => {
+    expect(
+      pointsOuverts([
+        { couleur: 'a_revoir', resolvedAt: null },
+        { couleur: 'a_preciser', resolvedAt: null },
+        { couleur: 'a_revoir', resolvedAt: '2026-10-05T10:00:00Z' },
+        { couleur: 'suggestion', resolvedAt: null },
+        { couleur: 'bien', resolvedAt: null },
+      ]),
+    ).toBe(2);
   });
 });

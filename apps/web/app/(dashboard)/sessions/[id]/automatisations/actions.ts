@@ -1,5 +1,7 @@
 'use server';
 
+import { CLES_EQUIPE_PEDAGOGIQUE } from '@/features/automation/session-automations';
+import { estDansLEquipePedagogique } from '@/features/trainer-space/validation-recipients';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
@@ -29,7 +31,9 @@ export async function setSessionAutomation(input: z.input<typeof schema>): Promi
 
   const membre = await getCurrentMember();
   if (!membre) return { ok: false, error: 'Session expirée — reconnectez-vous.' };
-  if (can(membre.role, 'dossiers') !== 'manage') {
+  const equipePedagogique =
+    CLES_EQUIPE_PEDAGOGIQUE.includes(p.data.key) && (await estDansLEquipePedagogique(membre.organizationId, membre.userId));
+  if (can(membre.role, 'dossiers') !== 'manage' && !equipePedagogique) {
     return { ok: false, error: 'Votre rôle ne permet pas de modifier les automatisations.' };
   }
 

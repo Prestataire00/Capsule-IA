@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2, Loader2, Check, X, Sparkles, ListChecks, PenLine, Layers, Video, FileText } from 'lucide-react';
+import { Plus, Trash2, Loader2, Check, X, Sparkles, ListChecks, PenLine, Layers, Video, FileText, Pencil } from 'lucide-react';
 import { problemesDuQuiz, type QuestionQuiz } from '@/features/pedagogie/quiz';
 import { FORMES, FORME_LABELS, FORME_DESCRIPTIONS, problemesDuContenu, type Forme } from '@/features/pedagogie/kinds';
 import { parseTexteATrou } from '@/features/pedagogie/cloze';
-import { creerTravailFormateur, genererAvecIA, type Ancrage } from './actions';
+import { creerTravailFormateur, genererAvecIA, modifierTravailFormateur, type Ancrage } from './actions';
 
 /**
  * Création d'un exercice, sous l'une des cinq formes.
@@ -45,28 +45,52 @@ const nouvelleQuestion = (): Brouillon => ({
   points: 1,
 });
 
+/** Un exercice déjà enregistré, à corriger : le formulaire s'ouvre prérempli. */
+export type TravailExistant = {
+  readonly id: string;
+  readonly kind: Forme;
+  readonly title: string;
+  readonly instructions: string | null;
+  readonly sessionId: string | null;
+  readonly dueAt: string | null;
+  readonly passScore: number | null;
+  readonly questions: readonly QuestionQuiz[];
+  readonly contenu: { texte?: string; cartes?: readonly Carte[]; url?: string };
+  readonly aiAssisted: boolean;
+};
+
 export function CreerTravail({
   ancrage,
   seances,
+  existant,
 }: {
   ancrage: Ancrage;
   /** Vide quand le cours est déjà rattaché à une séance : il n'y a rien à choisir. */
   seances: Array<{ id: string; label: string }>;
+  existant?: TravailExistant;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
-  const [kind, setKind] = useState<Forme>('quiz');
-  const [title, setTitle] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [sessionId, setSessionId] = useState('');
-  const [dueAt, setDueAt] = useState('');
-  const [passScore, setPassScore] = useState('');
-  const [questions, setQuestions] = useState<Brouillon[]>([nouvelleQuestion()]);
-  const [texte, setTexte] = useState('');
-  const [cartes, setCartes] = useState<Carte[]>([{ recto: '', verso: '' }]);
-  const [urlVideo, setUrlVideo] = useState('');
+  const [kind, setKind] = useState<Forme>(existant?.kind ?? 'quiz');
+  const [title, setTitle] = useState(existant?.title ?? '');
+  const [instructions, setInstructions] = useState(existant?.instructions ?? '');
+  const [sessionId, setSessionId] = useState(existant?.sessionId ?? '');
+  const [dueAt, setDueAt] = useState(existant?.dueAt ? existant.dueAt.slice(0, 16) : '');
+  const [passScore, setPassScore] = useState(existant?.passScore != null ? String(existant.passScore) : '');
+  const [questions, setQuestions] = useState<Brouillon[]>(
+    existant && existant.questions.length > 0
+      ? existant.questions.map((q) => ({ id: q.id, enonce: q.enonce, choix: [...q.choix], bonnes: [...q.bonnes], points: q.points }))
+      : [nouvelleQuestion()],
+  );
+  const [texte, setTexte] = useState(existant?.contenu.texte ?? '');
+  const [cartes, setCartes] = useState<Carte[]>(
+    existant?.contenu.cartes && existant.contenu.cartes.length > 0
+      ? existant.contenu.cartes.map((c) => ({ recto: c.recto, verso: c.verso }))
+      : [{ recto: '', verso: '' }],
+  );
+  const [urlVideo, setUrlVideo] = useState(existant?.contenu.url ?? '');
   const [consigneIA, setConsigneIA] = useState('');
-  const [aiAssisted, setAiAssisted] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(existant?.aiAssisted ?? false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [genere, setGenere] = useState(false);
@@ -148,7 +172,7 @@ export function CreerTravail({
     setErreur(null);
     if (!title.trim()) return setErreur('Donnez un titre.');
     startTransition(async () => {
-      const res = await creerTravailFormateur({
+      const saisie = {
         ancrage,
         kind,
         aiAssisted,
@@ -164,13 +188,28 @@ export function CreerTravail({
         passScore: kind === 'quiz' && passScore.trim() ? Number(passScore) : null,
         questions: utiliseQuestions ? pourValidation.map((q) => ({ ...q, choix: [...q.choix], bonnes: [...q.bonnes] })) : undefined,
         publier,
-      });
+      };
+      const res = existant
+        ? await modifierTravailFormateur({ ...saisie, travailId: existant.id })
+        : await creerTravailFormateur(saisie);
       if (!res.ok) return setErreur(res.error);
-      reinitialiser();
+      if (!existant) reinitialiser();
       setOuvert(false);
       router.refresh();
     });
   };
+
+  if (!ouvert && existant) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOuvert(true)}
+        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+      >
+        <Pencil className="w-3.5 h-3.5" /> Modifier
+      </button>
+    );
+  }
 
   if (!ouvert) {
     return (
@@ -205,7 +244,9 @@ export function CreerTravail({
     <section className="rounded-xl border border-amber-100 dark:border-amber-900/40 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/25 dark:to-zinc-900 p-4 shadow-sm space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{FORME_LABELS[kind]}</h2>
+          <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+            {existant ? `Modifier · ${FORME_LABELS[kind]}` : FORME_LABELS[kind]}
+          </h2>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{FORME_DESCRIPTIONS[kind]}</p>
         </div>
         <button
@@ -482,7 +523,7 @@ export function CreerTravail({
           className="h-9 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 transition disabled:opacity-50"
         >
           {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          Envoyer à la validation
+          {existant ? 'Enregistrer et renvoyer en validation' : 'Envoyer à la validation'}
         </button>
         <button
           type="button"

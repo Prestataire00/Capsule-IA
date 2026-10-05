@@ -1,5 +1,6 @@
 'use server';
 
+import { pointsOuvertsDe } from '@/features/pedagogie/annotations-store';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
@@ -33,6 +34,15 @@ export async function deciderCours(input: {
   if (!me) return { ok: false, error: 'Votre session a expiré, reconnectez-vous.' };
   if (!(await peutValiderPourMembre(me))) {
     return { ok: false, error: 'Seuls la direction et les validateurs désignés valident les contenus.' };
+  }
+  if (p.data.decision === 'valide') {
+    const ouverts = await pointsOuvertsDe('cours', p.data.exerciseId);
+    if (ouverts > 0) {
+      return {
+        ok: false,
+        error: `${ouverts} point${ouverts > 1 ? 's' : ''} à revoir n'${ouverts > 1 ? 'ont' : 'a'} pas encore été corrigé${ouverts > 1 ? 's' : ''} : le contenu n'est pas validable.`,
+      };
+    }
   }
   if (p.data.decision === 'refuse' && !p.data.reason) {
     return { ok: false, error: 'Indiquez le motif du refus : le formateur doit savoir quoi corriger.' };

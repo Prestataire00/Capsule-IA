@@ -46,12 +46,14 @@ export async function envoyerRappelsSeances(
     .filter((s): s is typeof s & { rappel: Rappel } => s.rappel !== null);
   if (dues.length === 0) return { seances: 0, sent: 0, errors: [] };
 
-  const [coupees, coupe48, coupe2] = await Promise.all([
-    sessionsAutomationOff(sb, dues.map((s) => s.id), 'rappel_seance'),
+  const [coupees48, coupees2, coupe48, coupe2] = await Promise.all([
+    sessionsAutomationOff(sb, dues.filter((s) => s.rappel === '48h').map((s) => s.id), 'rappel_48h'),
+    sessionsAutomationOff(sb, dues.filter((s) => s.rappel === '2h').map((s) => s.id), 'rappel_2h'),
     loadReglesParOrganisme(sb, 'rappel_seance_48h').then((r) => organisationsQuiOntCoupe('rappel_seance_48h', r)),
     loadReglesParOrganisme(sb, 'rappel_seance_2h').then((r) => organisationsQuiOntCoupe('rappel_seance_2h', r)),
   ]);
   const coupeParRappel: Record<Rappel, Set<string>> = { '48h': coupe48, '2h': coupe2 };
+  const coupeesParRappel: Record<Rappel, Set<string>> = { '48h': coupees48, '2h': coupees2 };
 
   const appUrl = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   let seances = 0;
@@ -59,7 +61,7 @@ export async function envoyerRappelsSeances(
   const errors: string[] = [];
 
   for (const s of dues) {
-    if (coupees.has(s.id) || coupeParRappel[s.rappel].has(s.organization_id)) continue;
+    if (coupeesParRappel[s.rappel].has(s.id) || coupeParRappel[s.rappel].has(s.organization_id)) continue;
     const seance = await seancePourEmail(sb, s.id);
     if (!seance) continue;
     seances += 1;

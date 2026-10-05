@@ -10,7 +10,7 @@ export type SupportStatus = (typeof SUPPORT_STATUSES)[number];
 export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
   en_attente: 'À valider',
   valide: 'Validé',
-  refuse: 'Refusé',
+  refuse: 'À corriger',
 };
 
 /**

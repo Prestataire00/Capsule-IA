@@ -13,6 +13,7 @@ import { genererBrouillon, type BrouillonIA } from '@/features/pedagogie/generat
 import { chargerContexteFormation } from '@/features/pedagogie/contexte';
 import { creerTravail, majTravail, supprimerTravail } from '@/features/pedagogie/store';
 import { notifySupportDepose } from '@/features/trainer-space/support-notifications';
+import { pointsOuvertsDe } from '@/features/pedagogie/annotations-store';
 
 /**
  * Préparation du cours par le formateur.
@@ -133,6 +134,49 @@ async function organisationDuDossier(dossierId: string): Promise<string | null> 
   return (data as { organization_id: string } | null)?.organization_id ?? null;
 }
 
+type Saisie = z.infer<typeof creationSchema>;
+
+/**
+ * Ce qu'on enregistre d'un exercice, création ou modification : la même
+ * règle dans les deux cas — on garde un brouillon incomplet, on ne publie
+ * que ce qui tient.
+ */
+function preparer(
+  data: Saisie,
+): { ok: true; questions: QuestionQuiz[]; contenu: ContenuExercice } | { ok: false; error: string } {
+  const questions: QuestionQuiz[] = (data.questions ?? []).map((q) => ({
+    id: q.id && q.id.length > 0 ? q.id : randomUUID(),
+    enonce: q.enonce,
+    choix: q.choix,
+    bonnes: q.bonnes,
+    points: q.points,
+  }));
+
+  const contenu: ContenuExercice = data.contenu ?? {};
+
+  // Un contenu incomplet n'est refusé qu'à la publication : on enregistre un
+  // brouillon autant de fois qu'il le faut, on ne diffuse que ce qui tient.
+  if (data.publier) {
+    if (data.kind === 'quiz' || data.kind === 'video') {
+      const problemes = problemesDuQuiz(questions);
+      if (problemes.length > 0) {
+        const premier = problemes[0]!;
+        return {
+          ok: false,
+          error: premier.question ? `Question ${premier.question} : ${premier.motif}` : premier.motif,
+        };
+      }
+    }
+    const trous = data.kind === 'texte_a_trou' ? parseTexteATrou(contenu.texte ?? '').reponses.length : 0;
+    const soucis = problemesDuContenu(data.kind, contenu, trous);
+    if (soucis.length > 0) return { ok: false, error: soucis[0]!.motif };
+  }
+  if (data.kind === 'quiz' && questions.length === 0) {
+    return { ok: false, error: 'Ajoutez au moins une question.' };
+  }
+  return { ok: true, questions, contenu };
+}
+
 export async function creerTravailFormateur(input: {
   ancrage: Ancrage;
   kind: Forme;
@@ -152,36 +196,9 @@ export async function creerTravailFormateur(input: {
   const acces = await garder(p.data.ancrage);
   if (!acces.ok) return acces;
 
-  const questions: QuestionQuiz[] = (p.data.questions ?? []).map((q) => ({
-    id: q.id && q.id.length > 0 ? q.id : randomUUID(),
-    enonce: q.enonce,
-    choix: q.choix,
-    bonnes: q.bonnes,
-    points: q.points,
-  }));
-
-  const contenu: ContenuExercice = p.data.contenu ?? {};
-
-  // Un contenu incomplet n'est refusé qu'à la publication : on enregistre un
-  // brouillon autant de fois qu'il le faut, on ne diffuse que ce qui tient.
-  if (p.data.publier) {
-    if (p.data.kind === 'quiz' || p.data.kind === 'video') {
-      const problemes = problemesDuQuiz(questions);
-      if (problemes.length > 0) {
-        const premier = problemes[0]!;
-        return {
-          ok: false,
-          error: premier.question ? `Question ${premier.question} : ${premier.motif}` : premier.motif,
-        };
-      }
-    }
-    const trous = p.data.kind === 'texte_a_trou' ? parseTexteATrou(contenu.texte ?? '').reponses.length : 0;
-    const soucis = problemesDuContenu(p.data.kind, contenu, trous);
-    if (soucis.length > 0) return { ok: false, error: soucis[0]!.motif };
-  }
-  if (p.data.kind === 'quiz' && questions.length === 0) {
-    return { ok: false, error: 'Ajoutez au moins une question.' };
-  }
+  const prepare = preparer(p.data);
+  if (!prepare.ok) return prepare;
+  const { questions, contenu } = prepare;
 
   const res = await creerTravail({
     organizationId: acces.organizationId,
@@ -316,4 +333,78 @@ export async function genererAvecIA(input: {
     };
   }
   return { ok: true, brouillon: res.brouillon };
+}
+
+const modificationSchema = creationSchema.extend({ travailId: z.string().uuid() });
+
+/** Ce qui remet un contenu dans la file : relu à neuf, comme s'il venait d'arriver. */
+const RETOUR_EN_VALIDATION = {
+  validation_status: 'en_attente',
+  rejection_reason: null,
+  validated_by: null,
+  validated_at: null,
+} as const;
+
+/**
+ * Le formateur corrige son exercice. Une modification d'un contenu publié le
+ * renvoie en validation : rien de modifié n'atteint les stagiaires sans être
+ * relu, même un contenu déjà validé.
+ */
+export async function modifierTravailFormateur(input: z.input<typeof modificationSchema>): Promise<Resultat> {
+  const p = modificationSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Saisie invalide.' };
+  const acces = await garder(p.data.ancrage);
+  if (!acces.ok) return acces;
+
+  const prepare = preparer(p.data);
+  if (!prepare.ok) return prepare;
+
+  const maintenant = new Date().toISOString();
+  const ok = await majTravail(p.data.ancrage, p.data.travailId, {
+    title: p.data.title,
+    instructions: p.data.instructions ?? null,
+    content: prepare.contenu,
+    questions: p.data.kind === 'quiz' || p.data.kind === 'video' ? prepare.questions : [],
+    pass_score: p.data.kind === 'quiz' ? (p.data.passScore ?? null) : null,
+    due_at: p.data.dueAt ? new Date(p.data.dueAt).toISOString() : null,
+    is_published: p.data.publier,
+    ...(p.data.publier ? { ...RETOUR_EN_VALIDATION, submitted_at: maintenant } : {}),
+  });
+  if (!ok) return { ok: false, error: "La modification n'a pas été enregistrée." };
+
+  if (p.data.publier) await prevenirValidateurs(acces, p.data.travailId);
+  revalidatePath(cheminDuRetour(p.data.ancrage));
+  return { ok: true };
+}
+
+const renvoiSchema = z.object({ ancrage: ancrageSchema, travailId: z.string().uuid() });
+
+/**
+ * Renvoyer en validation un exercice à corriger. Chaque point à revoir doit
+ * d'abord être marqué corrigé : sinon la relecture recommencerait à l'aveugle.
+ */
+export async function renvoyerTravail(input: { ancrage: Ancrage; travailId: string }): Promise<Resultat> {
+  const p = renvoiSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Demande invalide.' };
+  const acces = await garder(p.data.ancrage);
+  if (!acces.ok) return acces;
+
+  const ouverts = await pointsOuvertsDe('cours', p.data.travailId);
+  if (ouverts > 0) {
+    return {
+      ok: false,
+      error: `Marquez d'abord ${ouverts > 1 ? `les ${ouverts} points` : 'le point'} à revoir comme corrigé${ouverts > 1 ? 's' : ''}.`,
+    };
+  }
+
+  const ok = await majTravail(p.data.ancrage, p.data.travailId, {
+    ...RETOUR_EN_VALIDATION,
+    is_published: true,
+    submitted_at: new Date().toISOString(),
+  });
+  if (!ok) return { ok: false, error: "Le renvoi n'a pas été enregistré." };
+
+  await prevenirValidateurs(acces, p.data.travailId);
+  revalidatePath(cheminDuRetour(p.data.ancrage));
+  return { ok: true };
 }

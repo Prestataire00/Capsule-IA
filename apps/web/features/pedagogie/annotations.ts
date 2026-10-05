@@ -77,3 +77,18 @@ export function surligner(
   if (curseur < texte.length) segments.push({ texte: texte.slice(curseur), couleur: null });
   return segments;
 }
+
+/**
+ * Les couleurs qui demandent une modification. Tant qu'un de ces points n'est
+ * pas marqué corrigé, le contenu n'est pas validable : il n'est pas « ok ».
+ */
+export const COULEURS_BLOQUANTES: readonly Couleur[] = ['a_revoir', 'a_preciser'];
+
+export const demandeModification = (couleur: Couleur): boolean => COULEURS_BLOQUANTES.includes(couleur);
+
+/** Points à corriger encore ouverts. */
+export function pointsOuverts(annotations: ReadonlyArray<{ couleur: Couleur; resolvedAt: string | null }>): number {
+  return annotations.filter((a) => demandeModification(a.couleur) && !a.resolvedAt).length;
+}
+
+export const MOTIF_MODIFICATIONS = 'Modifications demandées : voir les annotations.';

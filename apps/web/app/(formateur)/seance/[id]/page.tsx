@@ -3,7 +3,7 @@
 // comment les joindre, où se retrouver en visio, et par où passer pour le reste.
 
 import { notFound } from 'next/navigation';
-import { Mail, Phone, Users, Building2, Home, Video } from 'lucide-react';
+import { Mail, Phone, Users, Building2, Home, Video, QrCode } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
 import { loadSession } from '@/features/sessions/load-session';
@@ -14,6 +14,8 @@ import { LienVisio } from '@/shared/ui/lien-visio.client';
 import { SeanceNav } from './_components/seance-nav';
 
 export const dynamic = 'force-dynamic';
+
+const DEMI_JOURNEE: Record<string, string> = { morning: 'Matin', afternoon: 'Après-midi', full: 'Journée', evening: 'Soirée' };
 
 function ContactList({
   titre,
@@ -121,6 +123,44 @@ export default async function SeancePage({ params }: { params: { id: string } })
       ) : (
         <VisioForm sessionId={params.id} initialUrl={null} />
       )}
+
+      <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-2 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-lg grid place-items-center shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <QrCode className="w-4 h-4" />
+          </span>
+          <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Émargement en salle</h2>
+        </div>
+        <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
+          Affichez le QR code en début de cours : chaque stagiaire le scanne avec son téléphone et signe. Vous suivez les
+          signatures en direct.
+        </p>
+        {loaded.sheets.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {loaded.sheets.map((sh) => (
+              <a
+                key={sh.id}
+                href={`/projection/${sh.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                <QrCode className="w-4 h-4" /> Afficher le QR · {DEMI_JOURNEE[sh.half_day] ?? 'Journée'}
+                <span className="text-zinc-400 tabular-nums">
+                  {sh.signed}/{sh.total}
+                </span>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <a
+            href={`/emarger/${params.id}`}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <QrCode className="w-4 h-4" /> Préparer les feuilles d&apos;émargement
+          </a>
+        )}
+      </section>
 
       <ContactList
         titre="Participants"

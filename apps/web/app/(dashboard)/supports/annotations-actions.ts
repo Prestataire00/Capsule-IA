@@ -6,11 +6,12 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { peutValiderPourMembre } from '@/features/trainer-space/validation-recipients';
 import { peutValiderSupports } from '@/features/trainer-space/support-status';
 import { annotationSchema, type AnnotationInput } from '@/features/pedagogie/annotations.schema';
-import { COULEUR_LABELS } from '@/features/pedagogie/annotations';
+import { COULEUR_LABELS, demandeModification } from '@/features/pedagogie/annotations';
 import {
   ajouterAnnotation,
   annotationParId,
   contenuAnnote,
+  demanderModification,
   majAnnotation,
 } from '@/features/pedagogie/annotations-store';
 
@@ -52,6 +53,8 @@ export async function annoterContenu(input: AnnotationInput): Promise<Annotation
     authorName: me.fullName,
   });
   if (!ok) return { ok: false, error: "L'annotation n'a pas été enregistrée." };
+  // Un point à revoir rend le contenu « à corriger » : il repartira en validation une fois corrigé.
+  if (demandeModification(p.data.couleur)) await demanderModification(p.data.targetKind, p.data.targetId);
 
   if (cible.auteurUserId && cible.auteurUserId !== me.userId) {
     const { error } = await supabaseAdmin()

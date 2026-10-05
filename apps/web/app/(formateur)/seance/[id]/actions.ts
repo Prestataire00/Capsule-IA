@@ -11,6 +11,7 @@ import {
   resubmitResource,
 } from '@/features/trainer-space/session-resources';
 import { notifySupportDepose } from '@/features/trainer-space/support-notifications';
+import { pointsOuvertsDe } from '@/features/pedagogie/annotations-store';
 import { postSessionMessage, markThreadRead, MESSAGE_MAX_LENGTH } from '@/features/trainer-space/session-messages';
 
 /**
@@ -141,6 +142,10 @@ export async function resubmitSupport(input: { sessionId: string; resourceId: st
   const acces = await requireMyTrainerSession(p.data.sessionId);
   if (!acces.ok) return { ok: false, error: humain(acces.error) };
 
+  const ouverts = await pointsOuvertsDe('support', p.data.resourceId);
+  if (ouverts > 0) {
+    return { ok: false, error: `Marquez d'abord ${ouverts > 1 ? `les ${ouverts} points` : 'le point'} à revoir comme corrigé${ouverts > 1 ? 's' : ''}.` };
+  }
   const ok = await resubmitResource(p.data.sessionId, p.data.resourceId);
   if (!ok) return { ok: false, error: humain('erreur') };
 

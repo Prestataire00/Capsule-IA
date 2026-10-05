@@ -99,7 +99,7 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     moment: 'avant',
     declencheur: 'Entre 48 h et 24 h avant le début de la séance, depuis la boîte formateur.',
     destinataires: 'L’entreprise (référent du dossier) et le formateur',
-    coupureKey: 'rappel_seance',
+    coupureKey: 'rappel_48h',
     obligatoire: null,
   },
   {
@@ -108,7 +108,7 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     moment: 'avant',
     declencheur: 'Dans les deux heures qui précèdent le début de la séance, depuis la boîte formateur.',
     destinataires: 'L’entreprise (référent du dossier) et le formateur',
-    coupureKey: 'rappel_seance',
+    coupureKey: 'rappel_2h',
     obligatoire: null,
   },
   {

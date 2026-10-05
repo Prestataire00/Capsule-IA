@@ -104,3 +104,9 @@ export async function loadEquipeValidation(
     .map((g, i) => ({ ...g, role: membres[i]!.role, choix: designations.get(g.userId) ?? null }))
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 }
+
+/** Validateur ou copie désigné : l'équipe pédagogique de l'organisme. */
+export async function estDansLEquipePedagogique(organizationId: string, userId: string): Promise<boolean> {
+  const designations = await loadDesignations(supabaseAdmin(), organizationId);
+  return designations.some((d) => d.userId === userId);
+}

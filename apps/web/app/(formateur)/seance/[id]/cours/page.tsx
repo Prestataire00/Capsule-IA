@@ -16,6 +16,7 @@ import { TravailActions } from '../../../_cours/travail-actions.client';
 import { SeanceNav } from '../_components/seance-nav';
 import { loadAnnotations } from '@/features/pedagogie/annotations-store';
 import { RetoursRelecture } from '../../../_cours/retours-relecture';
+import { RenvoyerTravail } from '../../../_cours/renvoyer.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +123,7 @@ export default async function SeanceCoursPage({ params }: { params: { id: string
                             {t.validationStatus === 'valide'
                               ? 'Validé, visible'
                               : t.validationStatus === 'refuse'
-                                ? 'Refusé'
+                                ? 'À corriger'
                                 : 'En attente de validation'}
                           </span>
                         )}
@@ -150,6 +151,26 @@ export default async function SeanceCoursPage({ params }: { params: { id: string
                 </div>
 
                 <RetoursRelecture annotations={annotations.get(t.id) ?? []} travail={t} />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <CreerTravail
+                    ancrage={ancrage}
+                    seances={[]}
+                    existant={{
+                      id: t.id,
+                      kind: t.kind,
+                      title: t.title,
+                      instructions: t.instructions,
+                      sessionId: t.sessionId,
+                      dueAt: t.dueAt,
+                      passScore: t.passScore,
+                      questions: t.questions,
+                      contenu: t.contenu,
+                      aiAssisted: t.aiAssisted,
+                    }}
+                  />
+                  {t.validationStatus === 'refuse' && <RenvoyerTravail ancrage={ancrage} travailId={t.id} />}
+                </div>
 
                 <div className="border-t border-zinc-100 dark:border-zinc-800 pt-2.5">
                   {rendus.length === 0 ? (
