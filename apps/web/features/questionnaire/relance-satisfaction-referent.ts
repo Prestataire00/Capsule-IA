@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { relanceSatisfactionReferentEmail } from '@/shared/lib/email/templates';
 import { loadSession } from '@/features/sessions/load-session';
 import { referentDuDossier } from '@/features/sessions/invites-visio';
-import { envoyerDepuisLaBoite } from '@/features/sessions/visio';
+import { envoyerDepuisLOrganisme } from '@/features/sessions/visio';
 import { sessionsAutomationOff } from '@/features/automation/session-automations';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { organisationsQuiOntCoupe } from '@/features/emails/programmation-envois';
@@ -107,7 +107,7 @@ export async function relancerReferentsSatisfaction(
         organisme: (o as { name: string | null } | null)?.name ?? 'Votre organisme de formation',
         stagiaires: sansReponse,
       });
-      const r = await envoyerDepuisLaBoite(sb, s.organization_id, {
+      const r = await envoyerDepuisLOrganisme(sb, s.organization_id, {
         to: email,
         subject,
         html,

@@ -94,6 +94,12 @@ export default async function GoogleCalendarIntegrationPage({
           cet agenda et invite automatiquement les stagiaires et le formateur. Les outils d&apos;enregistrement reliés à
           cette boîte (tl;dv, Lexi) rejoignent ainsi toutes les visios. Sans elle, l&apos;agenda de la personne qui
           planifie sert.
+        {' '}
+          Les e-mails (lien de la visio, rappels) partent, eux, de l&apos;adresse de contact de l&apos;organisme, réglée dans{' '}
+          <Link href="/parametres/organisation" className="text-orange-600 dark:text-orange-400 hover:underline">
+            Paramètres → Organisation
+          </Link>
+          .
         </p>
         {direction ? (
           <GoogleCalendarForm initialStatus={statusOrganisme} error={null} cible="organisme" />

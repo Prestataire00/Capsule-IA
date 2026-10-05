@@ -114,7 +114,7 @@ async function provisionMeet(
     })
     .eq('id', sessionId);
 
-  // L'entreprise reçoit le lien pour ses salariés, depuis la boîte formateur.
+  // L'entreprise reçoit le lien pour ses salariés, depuis l'adresse de contact.
   await diffuserLienVisio(sb, sessionId);
 
   // Envoi du lien aux apprenants (en plus de l'invitation Google Agenda automatique).

@@ -7,7 +7,7 @@ import {
 } from '@/shared/lib/integrations/google-calendar-store';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { sendEmail, type SendEmailInput, type SendEmailResult } from '@/shared/lib/email/resend';
-import { expediteurDeLOrganisme, nomAffichable, type Expediteur } from '@/shared/lib/email/expediteur-organisme';
+import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 import { lienVisioEntrepriseEmail, type SeanceEmailData } from '@/shared/lib/email/templates';
 import { heure, jourLong } from '@/features/trainer-space/dates';
 import { envoiActif } from '@/features/emails/programmation-store';
@@ -169,37 +169,20 @@ export async function emailsStagiairesDeSeance(sb: Sb, sessionId: string): Promi
 }
 
 /**
- * Ce qui part au sujet d'une visio part de la boîte formateur quand elle est
- * connectée : c'est l'adresse que les entreprises et les formateurs
- * connaissent pour les séances. Sinon, l'adresse de l'organisme.
+ * Les e-mails partent de l'adresse de contact de l'organisme (Paramètres →
+ * Organisation) : c'est elle qui écrit aux clients et reçoit leurs réponses.
+ * La boîte formateur ne sert qu'aux visios — agenda, Meet, tl;dv, Lexi
+ * (demande d'Ismael, 05/10/2026). Si le prestataire refuse l'adresse de
+ * contact (domaine non vérifié), on renvoie depuis l'adresse du serveur, la
+ * réponse revenant toujours au contact : mieux vaut un expéditeur moins joli
+ * qu'un rappel perdu. Le repli a sa propre clé, la première étant réservée.
  */
-async function expediteurVisio(sb: Sb, organizationId: string): Promise<Expediteur> {
-  const [organisme, { data }] = await Promise.all([
-    expediteurDeLOrganisme(sb, organizationId),
-    sb
-      .schema('app')
-      .from('organization_google_calendar')
-      .select('account_email')
-      .eq('organization_id', organizationId)
-      .maybeSingle(),
-  ]);
-  const boite = ((data as { account_email: string | null } | null)?.account_email ?? '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(boite)) return organisme;
-  return { ...organisme, from: `${nomAffichable(organisme.nom)} <${boite}>`, email: boite, source: 'organisme' };
-}
-
-/**
- * Envoie depuis la boîte formateur. Si le prestataire refuse cette adresse
- * (domaine non vérifié), on renvoie depuis l'adresse du serveur, la réponse
- * revenant toujours à la boîte : mieux vaut un expéditeur moins joli qu'un
- * rappel perdu. Le repli a sa propre clé, la première étant déjà réservée.
- */
-export async function envoyerDepuisLaBoite(
+export async function envoyerDepuisLOrganisme(
   sb: Sb,
   organizationId: string,
   message: Omit<SendEmailInput, 'from' | 'replyTo' | 'organizationId'>,
 ): Promise<SendEmailResult> {
-  const expediteur = await expediteurVisio(sb, organizationId);
+  const expediteur = await expediteurDeLOrganisme(sb, organizationId);
   const commun = { ...message, organizationId, ...(expediteur.email ? { replyTo: expediteur.email } : {}) };
   const envoi = await sendEmail({ ...commun, from: expediteur.from });
   if (envoi.ok || envoi.reason !== 'send_failed' || expediteur.source !== 'organisme') return envoi;
@@ -283,7 +266,7 @@ export async function diffuserLienVisio(sb: Sb, sessionId: string): Promise<numb
   let envoyes = 0;
   const { subject, html } = lienVisioEntrepriseEmail({ ...seance.donnees, lienVisio: lien });
   for (const email of await emailsReferentsDeSeance(sb, sessionId)) {
-    const r = await envoyerDepuisLaBoite(sb, seance.organizationId, {
+    const r = await envoyerDepuisLOrganisme(sb, seance.organizationId, {
       to: email,
       subject,
       html,

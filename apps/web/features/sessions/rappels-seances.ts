@@ -9,13 +9,13 @@ import { rappelDu, type Rappel } from './invites-visio';
 import {
   emailsFormateursDeSeance,
   emailsReferentsDeSeance,
-  envoyerDepuisLaBoite,
+  envoyerDepuisLOrganisme,
   seancePourEmail,
 } from './visio';
 
 /**
  * Rappels 48 h et 2 h avant chaque séance, à l'entreprise (référent du
- * dossier) et au formateur, depuis la boîte formateur. Le passage est
+ * dossier) et au formateur, depuis l'adresse de l'organisme. Le passage est
  * fréquent (0203) ; chaque rappel n'en part pas moins qu'une fois par
  * destinataire et par horaire, grâce à sa clé : déplacer la séance le relance.
  */
@@ -82,7 +82,7 @@ export async function envoyerRappelsSeances(
         pour,
         lienEspace: appUrl ? `${appUrl}/seance/${s.id}` : null,
       });
-      const r = await envoyerDepuisLaBoite(sb, s.organization_id, {
+      const r = await envoyerDepuisLOrganisme(sb, s.organization_id, {
         to: email,
         subject,
         html,
