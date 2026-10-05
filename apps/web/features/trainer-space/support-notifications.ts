@@ -96,7 +96,7 @@ export async function notifySupportDepose(input: {
     title: input.title,
     trainerName: input.trainerName,
     ...(await contexteSeance(admin, input.sessionId)),
-    validationUrl: `${(env.PUBLIC_APP_URL ?? '').replace(/\/$/, '')}/supports`,
+    validationUrl: `${(env.PUBLIC_APP_URL ?? '').replace(/\/$/, '')}${input.sessionId ? `/sessions/${input.sessionId}/cours` : '/supports'}`,
   });
   const envoi = await sendEmail({
     to: a,

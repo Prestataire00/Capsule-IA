@@ -1,0 +1,32 @@
+import { describe, it, expect } from 'vitest';
+import { surligner } from './annotations';
+
+describe('surligner', () => {
+  it('surligne l’extrait cité, sans tenir compte de la casse', () => {
+    expect(surligner('Le tableau croisé dynamique résume.', [{ extrait: 'tableau CROISÉ', couleur: 'a_revoir' }])).toEqual([
+      { texte: 'Le ', couleur: null },
+      { texte: 'tableau croisé', couleur: 'a_revoir' },
+      { texte: ' dynamique résume.', couleur: null },
+    ]);
+  });
+
+  it('ignore un extrait qui n’est plus dans le texte', () => {
+    expect(surligner('Texte corrigé.', [{ extrait: 'ancienne phrase', couleur: 'a_preciser' }])).toEqual([
+      { texte: 'Texte corrigé.', couleur: null },
+    ]);
+  });
+
+  it('plusieurs couleurs dans l’ordre du texte, le premier posé gagne en cas de chevauchement', () => {
+    expect(
+      surligner('un deux trois', [
+        { extrait: 'trois', couleur: 'bien' },
+        { extrait: 'un', couleur: 'suggestion' },
+        { extrait: 'deux trois', couleur: 'a_revoir' },
+      ]),
+    ).toEqual([
+      { texte: 'un', couleur: 'suggestion' },
+      { texte: ' deux ', couleur: null },
+      { texte: 'trois', couleur: 'bien' },
+    ]);
+  });
+});

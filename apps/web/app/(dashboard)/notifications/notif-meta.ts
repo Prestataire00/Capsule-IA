@@ -11,8 +11,7 @@ import {
   ListChecks,
   BookOpen,
   BookCheck,
-  BookX,
-} from 'lucide-react';
+  BookX, Highlighter, AtSign } from 'lucide-react';
 
 export type Notif = {
   id: string;
@@ -40,6 +39,8 @@ export const NOTIF_META: Record<string, Meta> = {
   task_assigned: { label: 'Tâche attribuée', icon: ListChecks, tone: 'text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50' },
   'support.pending_validation': { label: 'Support à valider', icon: BookOpen, tone: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50' },
   'support.validated': { label: 'Support validé', icon: BookCheck, tone: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50' },
+  'support.annotated': { label: 'Retour sur votre cours', icon: Highlighter, tone: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50' },
+  'discussion.mention': { label: 'Mention dans une discussion', icon: AtSign, tone: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50' },
   'support.rejected': { label: 'Support refusé', icon: BookX, tone: 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50' },
 };
 
@@ -54,7 +55,12 @@ export function notifHref(n: Notif): string | null {
   const p = n.payload ?? {};
   if (typeof p.quote_id === 'string') return `/devis/${p.quote_id}`;
   // L'administrateur va à la file de validation ; le formateur, à sa séance.
-  if (n.template_code === 'support.pending_validation') return '/supports';
+  if (n.template_code === 'support.pending_validation') {
+    return typeof p.session_id === 'string' ? `/sessions/${p.session_id}/cours` : '/supports';
+  }
+  if (n.template_code === 'discussion.mention' && typeof p.dossier_id === 'string') {
+    return `/messagerie?dossier=${p.dossier_id}`;
+  }
   if (n.related_aggregate_type === 'session_resource' && typeof p.session_id === 'string') {
     return `/seance/${p.session_id}/supports`;
   }

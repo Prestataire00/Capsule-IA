@@ -14,6 +14,8 @@ import { FORME_LABELS } from '@/features/pedagogie/kinds';
 import { CreerTravail } from '../../../_cours/creer-travail.client';
 import { TravailActions } from '../../../_cours/travail-actions.client';
 import { SeanceNav } from '../_components/seance-nav';
+import { loadAnnotations } from '@/features/pedagogie/annotations-store';
+import { RetoursRelecture } from '../../../_cours/retours-relecture';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,7 @@ export default async function SeanceCoursPage({ params }: { params: { id: string
 
   const ancrage = { type: 'seance' as const, id: params.id };
   const travaux = await loadTravaux(ancrage);
+  const annotations = await loadAnnotations('cours', travaux.map((t) => t.id));
   const rendusParTravail = new Map(
     await Promise.all(travaux.map(async (t) => [t.id, await loadRendus(t.id)] as const)),
   );
@@ -145,6 +148,8 @@ export default async function SeanceCoursPage({ params }: { params: { id: string
                     rendus={t.rendus}
                   />
                 </div>
+
+                <RetoursRelecture annotations={annotations.get(t.id) ?? []} travail={t} />
 
                 <div className="border-t border-zinc-100 dark:border-zinc-800 pt-2.5">
                   {rendus.length === 0 ? (

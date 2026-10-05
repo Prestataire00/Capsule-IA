@@ -63,11 +63,19 @@ export default async function MesNotificationsPage() {
             const meta = NOTIF_META[n.template_code] ?? NOTIF_FALLBACK;
             const Icone = meta.icon;
             const sessionId = typeof n.payload?.session_id === 'string' ? n.payload.session_id : null;
-            const href = sessionId
-              ? n.related_aggregate_type === 'session_resource'
-                ? `/seance/${sessionId}/supports`
-                : `/seance/${sessionId}`
-              : null;
+            const dossierId = typeof n.payload?.dossier_id === 'string' ? n.payload.dossier_id : null;
+            const href =
+              n.template_code === 'discussion.mention' && dossierId
+                ? `/mes-discussions?dossier=${dossierId}`
+                : sessionId
+                  ? n.related_aggregate_type === 'session_resource'
+                    ? `/seance/${sessionId}/supports`
+                    : n.related_aggregate_type === 'exercise'
+                      ? `/seance/${sessionId}/cours`
+                      : `/seance/${sessionId}`
+                  : n.related_aggregate_type === 'exercise' && dossierId
+                    ? `/mes-dossiers/${dossierId}/cours`
+                    : null;
 
             const contenu = (
               <span className={`flex items-start gap-3 px-4 py-3.5 ${n.read_at ? 'opacity-60' : ''}`}>
