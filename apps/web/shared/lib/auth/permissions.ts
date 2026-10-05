@@ -97,6 +97,7 @@ const ROUTE_SECTION: Array<[string, Section]> = [
   // qu'à masquer l'entrée de sidebar aux commerciaux ; avec la garde centrale il
   // les aurait purement bloqués.
   ['/dossiers', 'dossiers'],
+  ['/messagerie', 'dossiers'],
   ['/planning', 'dossiers'],
   // Racine distincte : la recherche exige `/planning` ou `/planning/…`, donc
   // `/planning-formateurs` ne serait rattaché à rien sans cette ligne.

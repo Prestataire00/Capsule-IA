@@ -214,6 +214,24 @@ export function rappelSeanceEmail(
   return { subject, html };
 }
 
+/** Quelqu'un vous mentionne dans la discussion d'équipe d'un dossier. */
+export function mentionEquipeEmail(d: { auteur: string; dossier: string; message: string; lien: string }): {
+  subject: string;
+  html: string;
+} {
+  const subject = `${d.auteur} vous a mentionné — ${d.dossier}`;
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Discussion d'équipe</p>
+      <h1 style="font-size:18px; font-weight:600; margin:0 0 12px;">${escapeHtml(d.auteur)} vous a mentionné</h1>
+      <p style="font-size:13px; color:#71717a; margin:0 0 12px;">${escapeHtml(d.dossier)}</p>
+      <blockquote style="margin:0 0 20px; padding:12px 14px; background:#fafafa; border-left:3px solid #f97316; font-size:14px; color:#3f3f46; white-space:pre-wrap;">${escapeHtml(d.message)}</blockquote>
+      <div>${button(d.lien, 'Répondre')}</div>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;

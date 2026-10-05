@@ -16,8 +16,7 @@ import {
   Wallet,
   Star,
   UserRound,
-  FileBadge,
-} from 'lucide-react';
+  FileBadge, MessagesSquare } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
 
@@ -74,6 +73,7 @@ const GROUPES: Groupe[] = [
     ],
   },
   { cle: 'dossiers', label: 'Mes dossiers', court: 'Dossiers', icon: FolderOpen, href: '/mes-dossiers' },
+  { cle: 'discussions', label: 'Discussions', icon: MessagesSquare, href: '/mes-discussions' },
 ];
 
 /** En pied de colonne, là où l'espace organisme met « Paramètres ». */

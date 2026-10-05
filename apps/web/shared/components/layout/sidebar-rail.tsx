@@ -9,7 +9,7 @@ import {
   FileText, ClipboardList, ClipboardCheck, Wallet, Receipt,
   MessageSquareWarning, Settings, Plus, Activity, ShieldCheck,
   Bell, BarChart3, Inbox, Eye, Telescope, CalendarDays, CalendarClock, Mail, Briefcase, Hourglass,
-  TrendingUp, ListChecks, Sparkles, BookCheck,
+  TrendingUp, ListChecks, Sparkles, BookCheck, MessagesSquare,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import { Logo } from '@/shared/ui/logo';
@@ -75,6 +75,8 @@ export const GROUPS: Group[] = [
   // Le dossier est l'objet central — tout s'y rattache. Il était le 4e item d'un
   // groupe nommé « Formations » : on le sort en tête, à sa place.
   { key: 'dossiers', label: 'Dossiers', icon: FolderOpen, href: '/dossiers' },
+  // La discussion de l'équipe pédagogique, classée par dossier (0204).
+  { key: 'messagerie', label: 'Messagerie', icon: MessagesSquare, href: '/messagerie' },
   {
     key: 'exploitation',
     label: 'Déroulement des formations',
