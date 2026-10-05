@@ -24,7 +24,7 @@ const A4: [number, number] = [595.28, 841.89];
 const MARGE = 50;
 const TEXTE = rgb(0.094, 0.094, 0.106);
 const DISCRET = rgb(0.42, 0.42, 0.45);
-const ACCENT = rgb(0.976, 0.451, 0.086);
+const ACCENT = rgb(0.298, 0.114, 0.584); // violet de la charte Capsule IA
 
 const dateParis = (iso: string) =>
   new Intl.DateTimeFormat('fr-FR', {

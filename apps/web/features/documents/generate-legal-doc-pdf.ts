@@ -1,7 +1,7 @@
 import 'server-only';
 import { drawRgpdMention } from './pdf-rgpd';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { drawOrgLogo } from './pdf-logo';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { DISCRET, TEXTE, couper, ouvrirDocument, dessinerLigneLibelle, dessinerTitreSection, hauteurLigneLibelle } from './charte-pdf';
 import { orgIdentityLines } from './legal/org-identity';
 import { identityOf } from './pdf-org-header';
 
@@ -20,44 +20,65 @@ export type LegalPdfInput = {
   contentMd: string;
 };
 
-// Rendu simple : en-tête OF + titre + corps markdown (lignes) sur pages A4.
+/**
+ * Document à la charte Capsule IA (celle des propositions) : bandeau violet,
+ * identité de l'organisme, puis le corps — « ### Titre » devient une section,
+ * « Libellé : valeur » une ligne sur fond lavande, le reste un paragraphe.
+ */
 export async function generateLegalDocPDF(input: LegalPdfInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const margin = 50;
-  const width = 595.28; // A4
-  const height = 841.89;
-  let page = pdf.addPage([width, height]);
-  let y = height - margin;
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await pdf.embedFont(StandardFonts.HelveticaOblique);
+  const polices = { font, fontBold, fontItalic };
+  const marge = 40;
+  const largeurPage = 595.28; // A4
+  const hauteurPage = 841.89;
+  const largeur = largeurPage - 2 * marge;
+  const bas = 70;
 
-  // Logo de l'organisme — coin supérieur droit
-  await drawOrgLogo(pdf, page, input.logoPng, { right: width - margin, top: height - margin + 6, maxW: 150, maxH: 48 });
+  let page = pdf.addPage([largeurPage, hauteurPage]);
+  let y = await ouvrirDocument(pdf, page, polices, { titre: input.title, ligne: input.organization.name, logoPng: input.logoPng });
 
-  const line = (text: string, f = font, fs = 10) => {
-    if (y < margin + 20) {
-      page = pdf.addPage([width, height]);
-      y = height - margin;
-    }
-    page.drawText(text, { x: margin, y, size: fs, font: f, color: rgb(0.1, 0.1, 0.1) });
-    y -= fs + 4;
-  };
-
-  // Même bloc d'identité que sur les autres documents.
-  const [orgName, ...orgMeta] = orgIdentityLines(identityOf(input.organization));
-  line(orgName ?? input.organization.name, bold, 14);
-  for (const l of orgMeta) line(l, font, 9);
-  y -= 10;
-  line(input.title, bold, 16);
+  // Le même bloc d'identité que sur les autres documents, en discret.
+  const [, ...orgMeta] = orgIdentityLines(identityOf(input.organization));
+  for (const l of orgMeta) {
+    page.drawText(l, { x: marge, y, size: 8, font, color: DISCRET });
+    y -= 11;
+  }
   y -= 6;
 
-  for (const raw of input.contentMd.split('\n')) {
-    const t = raw.replace(/[*_`]/g, '');
-    if (t.startsWith('### ')) line(t.slice(4), bold, 11);
-    else if (t.startsWith('## ')) line(t.slice(3), bold, 12);
-    else if (t.startsWith('# ')) line(t.slice(2), bold, 13);
-    else if (t.trim() === '') y -= 6;
-    else for (let i = 0; i < t.length; i += 95) line(t.slice(i, i + 95));
+  const place = (h: number) => {
+    if (y - h < bas) {
+      page = pdf.addPage([largeurPage, hauteurPage]);
+      y = hauteurPage - 50;
+    }
+  };
+
+  let apresTitre = false;
+  for (const brut of input.contentMd.split('\n')) {
+    const t = brut.replace(/[*_`]/g, '').trimEnd();
+    if (apresTitre && t.trim() === '') continue;
+    apresTitre = false;
+    const titre = /^#{1,3}\s+(.*)$/.exec(t);
+    const libelle = /^([^:]{2,40}?)\s:\s(.+)$/.exec(t);
+    if (titre) {
+      place(48);
+      y = dessinerTitreSection(page, polices, marge, y - 22, largeur, titre[1] ?? '');
+      apresTitre = true;
+    } else if (libelle && !/^https?$/i.test(libelle[1] ?? '')) {
+      const h = hauteurLigneLibelle(polices, largeur, libelle[1] ?? '', libelle[2] ?? '');
+      place(h);
+      y = dessinerLigneLibelle(page, polices, marge, y, largeur, libelle[1] ?? '', libelle[2] ?? '');
+    } else if (t.trim() === '') {
+      y -= 6;
+    } else {
+      for (const l of couper(t, font, 10, largeur)) {
+        place(14);
+        page.drawText(l, { x: marge, y: y - 10, size: 10, font, color: TEXTE });
+        y -= 14;
+      }
+    }
   }
   drawRgpdMention(pdf, font, null);
 

@@ -1,7 +1,7 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
-import { drawOrgLogo } from './pdf-logo';
+import { dessinerLigneLibelle, dessinerTitreSection, ouvrirDocument, VIOLET } from './charte-pdf';
 import { drawRgpdMention } from './pdf-rgpd';
 import { drawOrgIdentity, identityOf } from './pdf-org-header';
 
@@ -50,8 +50,7 @@ const MARGIN = 48;
 const COL = A4.width - MARGIN * 2;
 const COLOR_BODY = rgb(0.094, 0.094, 0.106);
 const COLOR_MUTED = rgb(0.42, 0.42, 0.45);
-const COLOR_RULE = rgb(0.89, 0.89, 0.91);
-const COLOR_ACCENT = rgb(0.486, 0.227, 0.929);
+const COLOR_ACCENT = VIOLET;
 
 type Cursor = { page: PDFPage; y: number };
 
@@ -94,15 +93,8 @@ function drawText(c: Cursor, font: PDFFont, text: string, opts: { size?: number;
 }
 
 function drawKeyValue(c: Cursor, font: PDFFont, fontBold: PDFFont, key: string, value: string): Cursor {
-  c.page.drawText(key, { x: MARGIN, y: c.y, size: 9, font, color: COLOR_MUTED });
-  const lines = wrapText(value, fontBold, 11, COL - 160);
-  c.page.drawText(lines[0] ?? '—', { x: MARGIN + 160, y: c.y, size: 11, font: fontBold, color: COLOR_BODY });
-  let y = c.y - 16;
-  for (let i = 1; i < lines.length; i++) {
-    c.page.drawText(lines[i] ?? '', { x: MARGIN + 160, y, size: 11, font: fontBold, color: COLOR_BODY });
-    y -= 16;
-  }
-  return { page: c.page, y };
+  const y = dessinerLigneLibelle(c.page, { font, fontBold }, MARGIN, c.y + 10, COL, key, value, { largeurLibelle: 160, taille: 10 });
+  return { page: c.page, y: y - 10 };
 }
 
 export async function generateAttestationPDF(input: AttestationInput): Promise<Uint8Array> {
@@ -113,41 +105,16 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
   const page = doc.addPage([A4.width, A4.height]);
   let c: Cursor = { page, y: A4.height - MARGIN };
 
-  // Logo de l'organisme — coin supérieur droit
-  await drawOrgLogo(doc, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
-
-  // Header — barre d'accent + organisme
-  c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });
-  c = { ...c, y: c.y - 22 };
-  c = { ...c, y: drawOrgIdentity(c.page, { font, fontBold }, identityOf(input.organization), { x: MARGIN, y: c.y }) };
-  c = { ...c, y: c.y - 24 };
-
-  // Titre
+  // En-tête à la charte Capsule IA : bandeau violet, logo, référence.
   const isEntree = input.variant === 'entree';
-  c.page.drawText(isEntree ? "ATTESTATION D'ENTRÉE EN FORMATION" : 'ATTESTATION DE RÉALISATION', {
-    x: MARGIN, y: c.y, size: 18, font: fontBold, color: COLOR_BODY,
+  const titre = isEntree ? "Attestation d'entrée en formation" : 'Attestation de réalisation';
+  const yTete = await ouvrirDocument(doc, page, { font, fontBold }, {
+    titre,
+    sousTitre: "Action de formation professionnelle continue — article L.6353-1 du Code du Travail",
+    ligne: `Référence dossier ${input.dossier.reference} · générée le ${fmtDate(input.generatedAt.toISOString())}`,
+    logoPng: input.logoPng,
   });
-  c = { ...c, y: c.y - 18 };
-  c.page.drawText("Action de formation professionnelle continue — article L.6353-1 du Code du Travail", {
-    x: MARGIN, y: c.y, size: 9, font, color: COLOR_MUTED,
-  });
-  c = { ...c, y: c.y - 6 };
-  c.page.drawLine({
-    start: { x: MARGIN, y: c.y },
-    end: { x: MARGIN + COL, y: c.y },
-    thickness: 0.5,
-    color: COLOR_RULE,
-  });
-  c = { ...c, y: c.y - 30 };
-
-  // Référence + génération
-  c.page.drawText(`Référence dossier : ${input.dossier.reference}`, {
-    x: MARGIN, y: c.y, size: 9, font, color: COLOR_BODY,
-  });
-  c.page.drawText(`Généré le ${fmtDate(input.generatedAt.toISOString())}`, {
-    x: MARGIN + COL - 150, y: c.y, size: 9, font, color: COLOR_MUTED,
-  });
-  c = { ...c, y: c.y - 28 };
+  c = { ...c, y: drawOrgIdentity(c.page, { font, fontBold }, identityOf(input.organization), { x: MARGIN, y: yTete }) - 22 };
 
   // Texte d'attestation
   const orgName = input.organization.name;
@@ -198,10 +165,7 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
 
   // Objectifs (si présents)
   if (input.formation.objectives.length > 0) {
-    c.page.drawText('OBJECTIFS PÉDAGOGIQUES VISÉS', {
-      x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED,
-    });
-    c = { ...c, y: c.y - 14 };
+    c = { ...c, y: dessinerTitreSection(c.page, { font, fontBold }, MARGIN, c.y, COL, 'Objectifs pédagogiques visés') + 4 };
     for (const obj of input.formation.objectives) {
       c = drawText(c, font, `•  ${obj}`, { size: 10 });
     }

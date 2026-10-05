@@ -1,7 +1,7 @@
 import 'server-only';
 import { drawRgpdMention } from './pdf-rgpd';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import { drawOrgLogo } from './pdf-logo';
+import { dessinerTitreSection, ouvrirDocument, VIOLET } from './charte-pdf';
 import { orgIdentityLines } from './legal/org-identity';
 import { identityOf } from './pdf-org-header';
 
@@ -30,7 +30,6 @@ const COL = A4.width - MARGIN * 2;
 const BODY = rgb(0.094, 0.094, 0.106);
 const MUTED = rgb(0.42, 0.42, 0.45);
 const RULE = rgb(0.89, 0.89, 0.91);
-const ACCENT = rgb(0.92, 0.45, 0.13); // orange brand
 
 const fmtDateTime = (iso: string): string =>
   new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
@@ -62,8 +61,13 @@ export async function generateQuestionnairePDF(input: QuestionnairePdfInput): Pr
   let page: PDFPage = pdf.addPage([A4.width, A4.height]);
   let y = A4.height - MARGIN;
 
-  // Logo de l'organisme — coin supérieur droit
-  await drawOrgLogo(pdf, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
+  // En-tête à la charte Capsule IA : bandeau violet, logo.
+  y = await ouvrirDocument(pdf, page, { font, fontBold: bold }, {
+    titre: input.questionnaireTitle,
+    sousTitre: `Dossier ${input.dossierReference} — ${input.formationTitle}`,
+    ligne: input.organization.name,
+    logoPng: input.logoPng,
+  });
 
   const ensureSpace = (needed: number) => {
     if (y - needed < MARGIN) {
@@ -76,30 +80,22 @@ export async function generateQuestionnairePDF(input: QuestionnairePdfInput): Pr
     page.drawText(s, { x: MARGIN, y, size, font: f, color });
   };
 
-  // En-tête organisme — même bloc d'identité que sur les autres documents.
-  const [orgName, ...orgMeta] = orgIdentityLines(identityOf(input.organization));
-  text(orgName ?? input.organization.name, bold, 14);
-  y -= 16;
+  // Identité de l'organisme, puis le répondant.
+  const [, ...orgMeta] = orgIdentityLines(identityOf(input.organization));
   for (const l of orgMeta) {
     text(l, font, 8, MUTED);
     y -= 11;
   }
-  y -= 6;
-  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + COL, y }, thickness: 1, color: RULE });
-  y -= 24;
-
-  // Titre
-  text(input.questionnaireTitle, bold, 16, ACCENT);
-  y -= 22;
+  y -= 14;
+  y = dessinerTitreSection(page, { font, fontBold: bold }, MARGIN, y, COL, 'Réponses');
   for (const meta of [
-    `Dossier : ${input.dossierReference} — ${input.formationTitle}`,
     input.respondent ? `Répondant : ${input.respondent}` : null,
     input.submittedAt ? `Répondu le ${fmtDateTime(input.submittedAt)}` : 'Réponse enregistrée',
   ].filter((m): m is string => !!m)) {
     text(meta, font, 10, MUTED);
     y -= 14;
   }
-  y -= 12;
+  y -= 10;
 
   // Réponses
   for (const a of input.answers) {
@@ -107,7 +103,7 @@ export async function generateQuestionnairePDF(input: QuestionnairePdfInput): Pr
     const valueLines = wrap(a.value || '—', font, 11, COL);
     ensureSpace(labelLines.length * 15 + valueLines.length * 15 + 14);
     for (const l of labelLines) {
-      text(l, bold, 11);
+      text(l, bold, 11, VIOLET);
       y -= 15;
     }
     for (const l of valueLines) {

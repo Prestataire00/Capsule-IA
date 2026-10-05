@@ -1,7 +1,7 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
-import { drawOrgLogo } from './pdf-logo';
+import { BLANC, ouvrirDocument, VIOLET } from './charte-pdf';
 import { drawRgpdMention } from './pdf-rgpd';
 import { formaterSiren, formaterSiret, sirenDeSiret } from '@/shared/lib/siret';
 
@@ -63,8 +63,7 @@ const COL = A4.width - MARGIN * 2;
 const COLOR_BODY = rgb(0.094, 0.094, 0.106);
 const COLOR_MUTED = rgb(0.42, 0.42, 0.45);
 const COLOR_RULE = rgb(0.89, 0.89, 0.91);
-const COLOR_ACCENT = rgb(0.486, 0.227, 0.929);
-const COLOR_BG_ROW = rgb(0.98, 0.98, 0.99);
+const COLOR_ACCENT = VIOLET;
 
 type Cursor = { page: PDFPage; y: number };
 
@@ -129,78 +128,47 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
   const page = doc.addPage([A4.width, A4.height]);
   let c: Cursor = { page, y: A4.height - MARGIN };
 
-  // Logo de l'organisme — coin supérieur droit
-  await drawOrgLogo(doc, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
-
-  // Header avec accent
-  c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });
-  c = { ...c, y: c.y - 22 };
-  c.page.drawText(input.organization.name.toUpperCase(), {
-    x: MARGIN, y: c.y, size: 11, font: fontBold, color: COLOR_BODY,
+  // En-tête à la charte Capsule IA : bandeau violet (FACTURE, ACOMPTE ou AVOIR), logo.
+  const title = input.invoice.kind === 'credit_note' ? 'Avoir' : input.invoice.kind === 'deposit' ? 'Acompte' : 'Facture';
+  const statusLabel =
+    input.invoice.kind === 'deposit'
+      ? "Facture d'acompte"
+      : input.invoice.kind === 'balance'
+        ? 'Facture de solde'
+        : (STATUS_LABEL[input.invoice.status] ?? input.invoice.status);
+  const yTete = await ouvrirDocument(doc, page, { font, fontBold }, {
+    titre: `${title} ${input.invoice.reference}`,
+    sousTitre: [statusLabel, input.invoice.relatedReference ? `sur facture ${input.invoice.relatedReference}` : null].filter(Boolean).join(' · '),
+    ligne: input.organization.name,
+    logoPng: input.logoPng,
   });
-  c = { ...c, y: c.y - 12 };
+  c = { ...c, y: yTete };
   const orgMeta = [
     input.organization.siret ? `SIRET ${input.organization.siret}` : null,
     input.organization.nda ? `NDA ${input.organization.nda}` : null,
   ].filter(Boolean).join('  ·  ');
-  if (orgMeta) {
-    c.page.drawText(orgMeta, { x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED });
+  for (const l of [orgMeta, input.organization.address, [input.organization.contactEmail, input.organization.contactPhone].filter(Boolean).join('  ·  ')]) {
+    if (!l) continue;
+    c.page.drawText(l, { x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED });
     c = { ...c, y: c.y - 10 };
   }
-  if (input.organization.address) {
-    c.page.drawText(input.organization.address, { x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED });
-    c = { ...c, y: c.y - 10 };
-  }
-  const contactLine = [input.organization.contactEmail, input.organization.contactPhone].filter(Boolean).join('  ·  ');
-  if (contactLine) {
-    c.page.drawText(contactLine, { x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED });
-    c = { ...c, y: c.y - 10 };
-  }
-
-  // Titre en grand à droite : FACTURE, ACOMPTE (facture d'acompte) ou AVOIR.
-  const title = input.invoice.kind === 'credit_note' ? 'AVOIR' : input.invoice.kind === 'deposit' ? 'ACOMPTE' : 'FACTURE';
-  c.page.drawText(title, {
-    x: MARGIN + COL - 100, y: A4.height - MARGIN - 4, size: 24, font: fontBold, color: COLOR_BODY,
-  });
-  const statusLabel =
-    input.invoice.kind === 'deposit'
-      ? "FACTURE D'ACOMPTE"
-      : input.invoice.kind === 'balance'
-        ? 'FACTURE DE SOLDE'
-        : (STATUS_LABEL[input.invoice.status] ?? input.invoice.status.toUpperCase());
-  c.page.drawText(statusLabel, {
-    x: MARGIN + COL - 100, y: A4.height - MARGIN - 22, size: 8, font: fontBold, color: COLOR_ACCENT,
-  });
-  if (input.invoice.relatedReference) {
-    c.page.drawText(`Sur facture ${input.invoice.relatedReference}`, {
-      x: MARGIN + COL - 100, y: A4.height - MARGIN - 34, size: 8, font, color: COLOR_MUTED,
-    });
-  }
-
-  c = { ...c, y: c.y - 20 };
-  c.page.drawLine({
-    start: { x: MARGIN, y: c.y },
-    end: { x: MARGIN + COL, y: c.y },
-    thickness: 0.5,
-    color: COLOR_RULE,
-  });
-  c = { ...c, y: c.y - 20 };
+  c = { ...c, y: c.y - 18 };
 
   // Bloc référence / dates (gauche) + destinataire (droite)
   const blockY = c.y;
-  c.page.drawText('RÉFÉRENCE', { x: MARGIN, y: blockY, size: 8, font: fontBold, color: COLOR_MUTED });
+  c.page.drawText('RÉFÉRENCE', { x: MARGIN, y: blockY, size: 8, font: fontBold, color: COLOR_ACCENT });
   c.page.drawText(input.invoice.reference, { x: MARGIN, y: blockY - 14, size: 11, font: fontBold, color: COLOR_BODY });
 
   if (input.invoice.issuedAt) {
-    c.page.drawText('DATE D\'ÉMISSION', { x: MARGIN, y: blockY - 36, size: 8, font: fontBold, color: COLOR_MUTED });
+    c.page.drawText('DATE D\'ÉMISSION', { x: MARGIN, y: blockY - 36, size: 8, font: fontBold, color: COLOR_ACCENT });
     c.page.drawText(fmtDate(input.invoice.issuedAt), { x: MARGIN, y: blockY - 50, size: 10, font, color: COLOR_BODY });
   }
   if (input.invoice.dueAt) {
-    c.page.drawText('ÉCHÉANCE', { x: MARGIN + 140, y: blockY - 36, size: 8, font: fontBold, color: COLOR_MUTED });
+    c.page.drawText('ÉCHÉANCE', { x: MARGIN + 140, y: blockY - 36, size: 8, font: fontBold, color: COLOR_ACCENT });
     c.page.drawText(fmtDate(input.invoice.dueAt), { x: MARGIN + 140, y: blockY - 50, size: 10, font, color: COLOR_BODY });
   }
   if (input.invoice.dossierReference) {
-    c.page.drawText('DOSSIER', { x: MARGIN, y: blockY - 72, size: 8, font: fontBold, color: COLOR_MUTED });
+    c.page.drawText('DOSSIER', { x: MARGIN, y: blockY - 72, size: 8, font: fontBold, color: COLOR_ACCENT });
     c.page.drawText(input.invoice.dossierReference, {
       x: MARGIN, y: blockY - 86, size: 10, font, color: COLOR_BODY,
     });
@@ -208,7 +176,7 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
 
   // Destinataire à droite
   const rightX = MARGIN + COL / 2 + 20;
-  c.page.drawText('FACTURER À', { x: rightX, y: blockY, size: 8, font: fontBold, color: COLOR_MUTED });
+  c.page.drawText('FACTURER À', { x: rightX, y: blockY, size: 8, font: fontBold, color: COLOR_ACCENT });
   c.page.drawText(input.recipient.name, { x: rightX, y: blockY - 14, size: 11, font: fontBold, color: COLOR_BODY });
   let recipY = blockY - 30;
   if (input.recipient.siret) {
@@ -243,13 +211,13 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
   c.page.drawRectangle({
     x: MARGIN, y: c.y - 18,
     width: COL, height: 22,
-    color: COLOR_BG_ROW,
+    color: VIOLET,
   });
-  c.page.drawText('DÉSIGNATION', { x: MARGIN + 8, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
-  c.page.drawText('QTÉ', { x: MARGIN + COL - 240, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
-  c.page.drawText('PU HT', { x: MARGIN + COL - 180, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
-  c.page.drawText('TVA', { x: MARGIN + COL - 100, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
-  c.page.drawText('TOTAL HT', { x: MARGIN + COL - 60, y: c.y - 12, size: 8, font: fontBold, color: COLOR_MUTED });
+  c.page.drawText('DÉSIGNATION', { x: MARGIN + 8, y: c.y - 12, size: 8, font: fontBold, color: BLANC });
+  c.page.drawText('QTÉ', { x: MARGIN + COL - 240, y: c.y - 12, size: 8, font: fontBold, color: BLANC });
+  c.page.drawText('PU HT', { x: MARGIN + COL - 180, y: c.y - 12, size: 8, font: fontBold, color: BLANC });
+  c.page.drawText('TVA', { x: MARGIN + COL - 100, y: c.y - 12, size: 8, font: fontBold, color: BLANC });
+  c.page.drawText('TOTAL HT', { x: MARGIN + COL - 60, y: c.y - 12, size: 8, font: fontBold, color: BLANC });
   c = { ...c, y: c.y - 22 };
 
   // Table rows

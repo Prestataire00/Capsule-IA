@@ -71,6 +71,10 @@ const frTime = (iso: string): string =>
   new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 
 const cell = 'padding:8px;border:1px solid #e4e4e7;';
+// La charte Capsule IA, celle des propositions : violet profond et lavande.
+const VIOLET = '#4c1d95';
+const LAVANDE = '#f3effa';
+const TITRE_SECTION = `font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:${VIOLET};border-bottom:1px solid ${VIOLET};padding-bottom:4px;margin:22px 0 10px;`;
 
 function sessionLines(sessions: DevisSession[]): string {
   if (sessions.length === 0) return 'À convenir';
@@ -169,7 +173,7 @@ export function buildDevisHtml(input: QuoteHtmlInput): string {
     ? ''
     : `
 <div style="page-break-before:always;"></div>
-<h2 style="font-size:14px;margin:0 0 8px;">Annexe — Droit de rétractation</h2>
+<h2 style="${TITRE_SECTION}">Annexe — Droit de rétractation</h2>
 <p style="font-size:12px;line-height:1.6;margin:0 0 10px;">
   Vous disposez d'un délai de <strong>10 jours</strong> à compter de la signature du contrat de formation pour vous
   rétracter, par lettre recommandée avec avis de réception (art. L.6353-5 du Code du travail). Ce délai est porté à
@@ -188,19 +192,19 @@ export function buildDevisHtml(input: QuoteHtmlInput): string {
 </div>`;
 
   return `
-<h1 style="font-size:20px;margin:0 0 4px;">Devis n° ${esc(input.reference)}</h1>
-<p style="font-size:12px;color:#71717a;margin:0 0 20px;">
-  Établi le ${frDate(input.issuedOn)} — valable jusqu'au ${frDate(input.validUntil)}.
-</p>
+<section style="background:${VIOLET};color:#fff;padding:18px 22px;margin:0 0 18px;">
+  <h1 style="font-size:22px;margin:0 0 4px;color:#fff;background:none;padding:0;">Devis n° ${esc(input.reference)}</h1>
+  <p style="font-size:12px;margin:0;opacity:.9;">Établi le ${frDate(input.issuedOn)} — valable jusqu'au ${frDate(input.validUntil)}.</p>
+</section>
 
 <table style="width:100%;border-collapse:collapse;margin-bottom:22px;font-size:12px;line-height:1.6;">
   <tr>
     <td style="width:50%;vertical-align:top;padding-right:16px;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#a1a1aa;margin-bottom:4px;">Organisme de formation</div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:${VIOLET};font-weight:700;margin-bottom:4px;">Organisme de formation</div>
       ${orgLines}
     </td>
     <td style="width:50%;vertical-align:top;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#a1a1aa;margin-bottom:4px;">${
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:${VIOLET};font-weight:700;margin-bottom:4px;">${
         isCompany ? 'Client' : 'Client — à titre individuel'
       }</div>
       ${clientLines}
@@ -210,20 +214,20 @@ export function buildDevisHtml(input: QuoteHtmlInput): string {
 
 <p style="font-size:12px;margin:0 0 14px;"><strong>Objet :</strong> ${esc(input.object)}</p>
 
-<h2 style="font-size:14px;margin:0 0 8px;">Détails de la formation</h2>
+<h2 style="${TITRE_SECTION}">Détails de la formation</h2>
 <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">
   ${details
     .map(
       ([k, v]) =>
-        `<tr><td style="${cell}width:28%;background:#fafafa;color:#52525b;">${k}</td><td style="${cell}">${v}</td></tr>`,
+        `<tr><td style="${cell}width:28%;background:${LAVANDE};color:${VIOLET};font-weight:600;">${k}</td><td style="${cell}">${v}</td></tr>`,
     )
     .join('')}
 </table>
 
-<h2 style="font-size:14px;margin:0 0 8px;">Prestation</h2>
+<h2 style="${TITRE_SECTION}">Prestation</h2>
 <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">
   <thead>
-    <tr style="background:#f4f4f5;">
+    <tr style="background:${VIOLET};color:#fff;">
       <th style="${cell}text-align:left;">Désignation</th>
       <th style="${cell}text-align:center;">Quantité</th>
       <th style="${cell}text-align:right;">${exempt ? 'Prix unit. net' : 'Prix unit. HT'}</th>
@@ -237,7 +241,7 @@ export function buildDevisHtml(input: QuoteHtmlInput): string {
 <table style="margin-left:auto;font-size:12px;line-height:1.8;">
   <tr><td style="padding-right:24px;">Total HT</td><td style="text-align:right">${euros(input.totals.subtotalCents)}</td></tr>
   ${vatRows}
-  <tr style="font-weight:700;border-top:1px solid #e4e4e7;">
+  <tr style="font-weight:700;border-top:1px solid #e4e4e7;color:${VIOLET};">
     <td style="padding-right:24px;">${exempt ? 'Total net de taxe' : 'Total TTC'}</td>
     <td style="text-align:right">${euros(input.totals.totalCents)}</td>
   </tr>
@@ -245,11 +249,11 @@ export function buildDevisHtml(input: QuoteHtmlInput): string {
 
 ${
   input.notes
-    ? `<h2 style="font-size:14px;margin:22px 0 8px;">Informations complémentaires</h2><p style="font-size:12px;line-height:1.6;white-space:pre-line;margin:0;">${esc(input.notes)}</p>`
+    ? `<h2 style="${TITRE_SECTION}">Informations complémentaires</h2><p style="font-size:12px;line-height:1.6;white-space:pre-line;margin:0;">${esc(input.notes)}</p>`
     : ''
 }
 
-<h2 style="font-size:14px;margin:22px 0 8px;">Conditions</h2>
+<h2 style="${TITRE_SECTION}">Conditions</h2>
 <ul style="font-size:12px;line-height:1.7;padding-left:18px;margin:0 0 18px;">${conditions}</ul>
 ${retractation}
 <table style="width:100%;font-size:12px;margin-top:26px;page-break-inside:avoid;">

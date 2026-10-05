@@ -1,7 +1,7 @@
 import 'server-only';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
-import { drawOrgLogo } from './pdf-logo';
+import { dessinerLigneLibelle, dessinerTitreSection, hauteurLigneLibelle, ouvrirDocument, VIOLET } from './charte-pdf';
 import { drawRgpdMention } from './pdf-rgpd';
 import { richTextBlocks, richTextToPlain } from './rich-text';
 
@@ -99,7 +99,6 @@ const COL = A4.width - MARGIN * 2;
 const COLOR_BODY = rgb(0.094, 0.094, 0.106);
 const COLOR_MUTED = rgb(0.42, 0.42, 0.45);
 const COLOR_RULE = rgb(0.89, 0.89, 0.91);
-const COLOR_ACCENT = rgb(0.486, 0.227, 0.929);
 
 type Cursor = { page: PDFPage; y: number };
 
@@ -132,21 +131,15 @@ function drawLabel(doc: PDFDocument, c: Cursor, font: PDFFont, label: string): C
     y: out.y,
     size: 8,
     font,
-    color: COLOR_MUTED,
+    color: VIOLET,
   });
   return { ...out, y: out.y - 12 };
 }
 
 function drawHeading(doc: PDFDocument, c: Cursor, fontBold: PDFFont, text: string): Cursor {
-  const out = ensureRoom(doc, c, 30);
-  out.page.drawText(text, { x: MARGIN, y: out.y, size: 13, font: fontBold, color: COLOR_BODY });
-  out.page.drawLine({
-    start: { x: MARGIN, y: out.y - 6 },
-    end: { x: MARGIN + COL, y: out.y - 6 },
-    thickness: 0.5,
-    color: COLOR_RULE,
-  });
-  return { ...out, y: out.y - 18 };
+  const out = ensureRoom(doc, c, 44);
+  const y = dessinerTitreSection(out.page, { font: fontBold, fontBold }, MARGIN, out.y - 10, COL, text);
+  return { ...out, y: y - 6 };
 }
 
 function drawText(
@@ -189,17 +182,12 @@ function drawRichText(doc: PDFDocument, c: Cursor, font: PDFFont, html: string |
 }
 
 function drawKeyValue(doc: PDFDocument, c: Cursor, font: PDFFont, fontBold: PDFFont, key: string, value: string): Cursor {
-  const cursor = ensureRoom(doc, c, 16);
-  cursor.page.drawText(key, { x: MARGIN, y: cursor.y, size: 9, font, color: COLOR_MUTED });
-  const lines = wrapText(value, fontBold, 10, COL - 140);
-  cursor.page.drawText(lines[0] ?? '—', { x: MARGIN + 140, y: cursor.y, size: 10, font: fontBold, color: COLOR_BODY });
-  let y = cursor.y - 14;
-  for (let i = 1; i < lines.length; i++) {
-    const c2 = ensureRoom(doc, { page: cursor.page, y }, 14);
-    c2.page.drawText(lines[i] ?? '', { x: MARGIN + 140, y: c2.y, size: 10, font: fontBold, color: COLOR_BODY });
-    y = c2.y - 14;
-  }
-  return { page: cursor.page, y };
+  const polices = { font, fontBold };
+  const h = hauteurLigneLibelle(polices, COL, key, value, { largeurLibelle: 150 });
+  const cursor = ensureRoom(doc, c, h + 4);
+  // Le texte des lignes s'aligne sur la ligne de base : la case commence un peu au-dessus.
+  const y = dessinerLigneLibelle(cursor.page, polices, MARGIN, cursor.y + 10, COL, key, value, { largeurLibelle: 150 });
+  return { page: cursor.page, y: y - 10 };
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
@@ -224,35 +212,14 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-  let page = doc.addPage([A4.width, A4.height]);
+  const page = doc.addPage([A4.width, A4.height]);
   let c: Cursor = { page, y: A4.height - MARGIN };
 
-  // Logo de l'organisme — coin supérieur droit
-  await drawOrgLogo(doc, page, input.logoPng, { right: MARGIN + COL, top: A4.height - MARGIN + 6, maxW: 150, maxH: 48 });
-
-  // Header
-  c.page.drawRectangle({ x: MARGIN, y: c.y - 4, width: 32, height: 4, color: COLOR_ACCENT });
-  c = { ...c, y: c.y - 24 };
   const contrat = input.contractKind === 'contrat';
   // Destinataire : explicite quand l'appelant le fixe, sinon déduit de la liste
   // des participants (plusieurs noms = c'est l'exemplaire du client).
   const destinataire = input.audience ?? ((input.participants?.length ?? 0) > 1 ? 'entreprise' : 'stagiaire');
   const entrepriseSurLeDocument = destinataire === 'entreprise' && !!input.company && !contrat;
-  c.page.drawText(contrat ? 'CONTRAT DE FORMATION PROFESSIONNELLE' : 'CONVENTION DE FORMATION PROFESSIONNELLE', {
-    x: MARGIN, y: c.y, size: 14, font: fontBold, color: COLOR_BODY,
-  });
-  c = { ...c, y: c.y - 14 };
-  c.page.drawText(contrat ? 'Articles L.6353-3 à L.6353-7 du Code du travail' : 'Article L.6353-1 et suivants du Code du Travail', {
-    x: MARGIN, y: c.y, size: 8, font, color: COLOR_MUTED,
-  });
-  c = { ...c, y: c.y - 18 };
-  c.page.drawText(`Référence : ${input.dossier.reference}`, {
-    x: MARGIN, y: c.y, size: 9, font, color: COLOR_BODY,
-  });
-  c.page.drawText(`Généré le ${fmtDate(input.generatedAt.toISOString())}`, {
-    x: MARGIN + COL - 150, y: c.y, size: 9, font, color: COLOR_MUTED,
-  });
-  c = { ...c, y: c.y - 14 };
 
   // Un client entreprise reçoit deux jeux de documents : le sien, qui couvre
   // tous ses salariés, et celui de chaque stagiaire, nominatif. Le lecteur doit
@@ -262,10 +229,15 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
     : input.company
       ? `Exemplaire du stagiaire — ${input.learner.firstName} ${input.learner.lastName}`
       : null;
-  if (exemplaire) {
-    c.page.drawText(exemplaire, { x: MARGIN, y: c.y, size: 9, font, color: COLOR_MUTED });
-  }
-  c = { ...c, y: c.y - (exemplaire ? 24 : 10) };
+
+  // En-tête à la charte Capsule IA : bandeau violet, logo, références.
+  const yTete = await ouvrirDocument(doc, page, { font, fontBold }, {
+    titre: contrat ? 'Contrat de formation professionnelle' : 'Convention de formation professionnelle',
+    sousTitre: contrat ? 'Articles L.6353-3 à L.6353-7 du Code du travail' : 'Article L.6353-1 et suivants du Code du Travail',
+    ligne: [`Référence ${input.dossier.reference}`, `générée le ${fmtDate(input.generatedAt.toISOString())}`, exemplaire].filter(Boolean).join(' · '),
+    logoPng: input.logoPng,
+  });
+  c = { ...c, y: yTete - 4 };
 
   // Section 1 — Organisme de formation
   c = drawHeading(doc, c, fontBold, '1. Organisme de formation');
@@ -350,32 +322,32 @@ export async function generateConventionPDF(input: ConventionInput): Promise<Uin
 
   const objectifs = puces(input.formation.objectives);
   if (objectifs.length > 0) {
-    c = drawLabel(doc, c, font, 'Objectifs pédagogiques');
+    c = drawLabel(doc, c, fontBold, 'Objectifs pédagogiques');
     for (const obj of objectifs) {
       c = drawText(doc, c, font, `• ${obj}`, { hanging: 10 });
     }
     c = { ...c, y: c.y - 4 };
   }
   if (richTextToPlain(input.formation.targetAudience)) {
-    c = drawLabel(doc, c, font, 'Public cible');
+    c = drawLabel(doc, c, fontBold, 'Public cible');
     c = drawRichText(doc, c, font, input.formation.targetAudience);
     c = { ...c, y: c.y - 4 };
   }
   const prerequis = puces(input.formation.prerequisites);
   if (prerequis.length > 0) {
-    c = drawLabel(doc, c, font, 'Prérequis');
+    c = drawLabel(doc, c, fontBold, 'Prérequis');
     for (const p of prerequis) {
       c = drawText(doc, c, font, `• ${p}`, { hanging: 10 });
     }
     c = { ...c, y: c.y - 4 };
   }
   if (richTextToPlain(input.formation.pedagogicalMethod)) {
-    c = drawLabel(doc, c, font, 'Méthodes pédagogiques');
+    c = drawLabel(doc, c, fontBold, 'Méthodes pédagogiques');
     c = drawRichText(doc, c, font, input.formation.pedagogicalMethod);
     c = { ...c, y: c.y - 4 };
   }
   if (richTextToPlain(input.formation.evaluationMethod)) {
-    c = drawLabel(doc, c, font, "Modalités d'évaluation");
+    c = drawLabel(doc, c, fontBold, "Modalités d'évaluation");
     c = drawRichText(doc, c, font, input.formation.evaluationMethod);
     c = { ...c, y: c.y - 4 };
   }

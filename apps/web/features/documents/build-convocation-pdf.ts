@@ -110,8 +110,9 @@ export async function buildConvocationPdf(
   const lienVisio = session.zoom_join_url ?? session.remote_url;
 
   const lignes = [
-    `### ${formationTitle}`,
+    '### Formation',
     '',
+    `Intitulé : ${formationTitle}`,
     `Apprenant : ${learnerName}`,
     `Dossier : ${dossier.reference}`,
     '',
@@ -124,8 +125,9 @@ export async function buildConvocationPdf(
     lienVisio ? `Lien de connexion : ${lienVisio}` : null,
     trainerName ? `Formateur : ${trainerName}` : null,
     '',
-    'Merci de vous présenter 10 minutes avant le début de la séance. La présence',
-    "est attestée par l'émargement de chaque demi-journée.",
+    '### Informations pratiques',
+    '',
+    "Merci de vous présenter 10 minutes avant le début de la séance. La présence est attestée par l'émargement de chaque demi-journée.",
     '',
     "En cas d'empêchement, prévenez l'organisme au plus tôt afin de replanifier.",
     org?.siret ? `` : null,
