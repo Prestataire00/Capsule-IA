@@ -7,24 +7,7 @@ import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
-
-const COMPLAINT_CATEGORIES = [
-  'pedagogie',
-  'organisation',
-  'accessibilite',
-  'administratif',
-  'relation',
-  'autre',
-] as const;
-
-const CATEGORY_LABELS: Record<(typeof COMPLAINT_CATEGORIES)[number], string> = {
-  pedagogie: 'Contenu / pédagogie',
-  organisation: 'Organisation / logistique',
-  accessibilite: 'Accessibilité',
-  administratif: 'Administratif',
-  relation: 'Relation formateur',
-  autre: 'Autre',
-};
+import { CATEGORY_LABELS, COMPLAINT_CATEGORIES } from '@/features/complaints/categories';
 
 const complaintSchema = z.object({
   token: z.string().trim().min(3),

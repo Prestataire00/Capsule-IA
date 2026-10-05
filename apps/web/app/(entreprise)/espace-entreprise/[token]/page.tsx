@@ -3,8 +3,9 @@
 // documents que l'organisme lui a rendus visibles. Lecture seule, pas de
 // signature : les documents y arrivent déjà signés.
 
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Building2, CalendarDays, Download, Eye, FileText, FolderOpen } from 'lucide-react';
+import { Building2, CalendarDays, Download, Eye, FileText, FolderOpen, MessageSquareWarning } from 'lucide-react';
 import { verifyEntrepriseToken } from '@/shared/lib/entreprise-token';
 import { chargerEspaceEntreprise } from '@/features/espace-entreprise/load';
 import { TEMPLATE_KIND_LABELS } from '@/app/(dashboard)/documents/modeles/schema';
@@ -111,6 +112,19 @@ export default async function EspaceEntreprisePage({ params }: { params: { token
             </section>
           ))
         )}
+
+        <Link
+          href={`/espace-entreprise/${params.token}/reclamation`}
+          className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md px-5 py-4 flex items-center gap-3"
+        >
+          <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+            <MessageSquareWarning className="w-4 h-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[13px] font-medium text-zinc-900 dark:text-zinc-100">Faire une réclamation</span>
+            <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">Un souci avec une formation ? Signalez-le à l’organisme.</span>
+          </span>
+        </Link>
 
         <p className="text-[11px] text-zinc-400 text-center">
           Ce lien vous est personnel. Une question ? Répondez à l’e-mail qui vous l’a transmis.
