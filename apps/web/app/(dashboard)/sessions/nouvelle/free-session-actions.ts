@@ -8,7 +8,8 @@ import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance } from '@/features/sessions/visio';
+import { invitesVisio } from '@/features/sessions/invites-visio';
 import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
 
 /**
@@ -172,17 +173,18 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
     if (partErr) console.error('[séance libre] formateur non inscrit comme participant', partErr.message);
   }
 
-  // Visio Google Meet, au mieux : seulement si l'agenda du membre est connecté.
+  // Visio Google Meet, au mieux : agenda de l'organisme, sinon celui du membre.
   if (REMOTE.has(v.modality)) {
-    const creds = await loadGoogleCredsForUser(sb as never, membre.userId);
-    if (creds) {
+    const organisateur = await organisateurDuMeet(sb as never, org, membre.userId);
+    if (organisateur) {
       const { data: emailRows } = v.learnerIds.length
         ? await sb.schema('app').from('learners').select('email').in('id', v.learnerIds)
         : { data: [] };
-      const emails = ((emailRows ?? []) as { email: string | null }[])
-        .map((l) => l.email)
-        .filter((e): e is string => Boolean(e));
-      const res = await createMeetEvent(creds, {
+      const emails = invitesVisio(
+        ((emailRows ?? []) as { email: string | null }[]).map((l) => l.email),
+        await emailsFormateursDeSeance(sb as never, sessionId),
+      );
+      const res = await createMeetEvent(organisateur.creds, {
         title: v.title,
         startsAt: v.startsAt,
         endsAt: v.endsAt,
@@ -195,7 +197,7 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
           .from('sessions')
           .update({
             remote_url: res.value.meetUrl,
-            zoom_metadata: { provider: 'google_meet', calendar_event_id: res.value.eventId, owner_user_id: membre.userId },
+            zoom_metadata: metadataMeet(res.value.eventId, organisateur.proprietaire),
           } as never)
           .eq('id', sessionId);
       }

@@ -4,6 +4,7 @@ import {
   estVisibleParApprenant,
   peutResoumettre,
   isSupportStatus,
+  destinatairesValidation,
 } from '../support-status';
 
 describe('validation des supports de cours', () => {
@@ -38,5 +39,46 @@ describe('validation des supports de cours', () => {
     expect(isSupportStatus('valide')).toBe(true);
     expect(isSupportStatus('publie')).toBe(false);
     expect(isSupportStatus(null)).toBe(false);
+  });
+});
+
+describe('validation désignée (0203)', () => {
+  it('un validateur désigné décide, quel que soit son rôle', () => {
+    expect(peutValiderSupports('gestionnaire', true)).toBe(true);
+    expect(peutValiderSupports('gestionnaire')).toBe(false);
+  });
+
+  it('sans validateur désigné, la direction relit', () => {
+    expect(destinatairesValidation([], ['owner-1', 'admin-1'])).toEqual({
+      validateurs: ['owner-1', 'admin-1'],
+      copie: [],
+    });
+  });
+
+  it('les validateurs désignés remplacent la direction, la copie suit', () => {
+    expect(
+      destinatairesValidation(
+        [
+          { userId: 'faouzi', role: 'validateur' },
+          { userId: 'isma', role: 'validateur' },
+          { userId: 'laurie', role: 'copie' },
+        ],
+        ['owner-1'],
+      ),
+    ).toEqual({ validateurs: ['faouzi', 'isma'], copie: ['laurie'] });
+  });
+
+  it('la copie seule laisse la direction valider', () => {
+    expect(destinatairesValidation([{ userId: 'laurie', role: 'copie' }], ['owner-1'])).toEqual({
+      validateurs: ['owner-1'],
+      copie: ['laurie'],
+    });
+  });
+
+  it('personne ne reçoit deux fois le même e-mail', () => {
+    expect(destinatairesValidation([{ userId: 'owner-1', role: 'copie' }], ['owner-1'])).toEqual({
+      validateurs: ['owner-1'],
+      copie: [],
+    });
   });
 });

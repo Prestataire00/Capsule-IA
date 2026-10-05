@@ -12,6 +12,7 @@ import { parseTexteATrou } from '@/features/pedagogie/cloze';
 import { genererBrouillon, type BrouillonIA } from '@/features/pedagogie/generate-with-ai';
 import { chargerContexteFormation } from '@/features/pedagogie/contexte';
 import { creerTravail, majTravail, supprimerTravail } from '@/features/pedagogie/store';
+import { notifySupportDepose } from '@/features/trainer-space/support-notifications';
 
 /**
  * Préparation du cours par le formateur.
@@ -61,6 +62,37 @@ async function garder(ancrage: Ancrage): Promise<Acces> {
 
 const cheminDuRetour = (a: Ancrage): string =>
   a.type === 'seance' ? `/seance/${a.id}/cours` : `/mes-dossiers/${a.id}/cours`;
+
+/**
+ * Un cours publié attend la validation : les validateurs l'apprennent ici,
+ * sinon il resterait en file sans que personne ne le sache. Un cours déjà
+ * validé, republié après un retrait, ne repart pas en relecture.
+ */
+async function prevenirValidateurs(
+  acces: Extract<Acces, { ok: true }>,
+  travailId: string,
+): Promise<void> {
+  const admin = supabaseAdmin();
+  const [{ data: travail }, { data: profil }] = await Promise.all([
+    admin
+      .schema('app')
+      .from('exercises' as never)
+      .select('title, validation_status')
+      .eq('id', travailId)
+      .maybeSingle(),
+    admin.schema('app').from('profiles').select('full_name').eq('user_id', acces.userId).maybeSingle(),
+  ]);
+  const t = travail as unknown as { title: string; validation_status: string | null } | null;
+  if (!t || (t.validation_status !== null && t.validation_status !== 'en_attente')) return;
+  await notifySupportDepose({
+    organizationId: acces.organizationId,
+    resourceId: travailId,
+    sessionId: acces.sessionId,
+    title: t.title,
+    trainerName: (profil as { full_name: string | null } | null)?.full_name ?? 'Un formateur',
+    nature: 'cours',
+  });
+}
 
 const questionSchema = z.object({
   id: z.string().optional(),
@@ -168,6 +200,7 @@ export async function creerTravailFormateur(input: {
     isPublished: p.data.publier,
   });
   if (!res.ok) return { ok: false, error: "Le travail n'a pas été enregistré." };
+  if (p.data.publier) await prevenirValidateurs(acces, res.id);
 
   revalidatePath(cheminDuRetour(p.data.ancrage));
   return { ok: true };
@@ -215,6 +248,7 @@ export async function publierTravail(input: {
 
   const ok = await majTravail(p.data.ancrage, p.data.travailId, { is_published: p.data.publier });
   if (!ok) return { ok: false, error: "La publication n'a pas été enregistrée." };
+  if (p.data.publier) await prevenirValidateurs(acces, p.data.travailId);
 
   revalidatePath(cheminDuRetour(p.data.ancrage));
   return { ok: true };

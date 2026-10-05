@@ -99,3 +99,78 @@ export async function loadGoogleCredsForUser(
     return null;
   }
 }
+
+// ── Agenda de l'ORGANISME (0203) : la boîte formateur générique ─────────────
+// Une ligne par organisme. Quand elle existe, c'est elle qui organise les Meet
+// des séances ; les outils branchés sur cette boîte (tl;dv, Lexi) rejoignent
+// alors toutes les visios.
+
+const PREFIXE_ORGANISME = 'organisme:';
+
+/** État OAuth d'une connexion faite pour l'organisme, et non pour soi. */
+export const signOrganisationState = (userId: string): string => signState(`${PREFIXE_ORGANISME}${userId}`);
+
+/** Lit l'état OAuth : qui connecte, et pour qui. */
+export function readState(state: string | null): { userId: string; pourOrganisme: boolean } | null {
+  const contenu = verifyState(state);
+  if (!contenu) return null;
+  return contenu.startsWith(PREFIXE_ORGANISME)
+    ? { userId: contenu.slice(PREFIXE_ORGANISME.length), pourOrganisme: true }
+    : { userId: contenu, pourOrganisme: false };
+}
+
+export async function saveGoogleCredsForOrganization(
+  sb: Sb,
+  args: { organizationId: string; connectedBy: string },
+  creds: GoogleCalendarCredentials,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let enc: ReturnType<typeof encryptGoogleCredentials>;
+  try {
+    enc = encryptGoogleCredentials(creds);
+  } catch (e) {
+    return { ok: false, error: `cipher_failed:${(e as Error).message}` };
+  }
+  const maintenant = new Date().toISOString();
+  const { error } = await sb
+    .schema('app')
+    .from('organization_google_calendar')
+    .upsert(
+      {
+        organization_id: args.organizationId,
+        account_email: creds.accountEmail,
+        config_encrypted: toByteaHex(enc.ciphertextWithTag),
+        config_nonce: toByteaHex(enc.iv),
+        config_key_id: enc.keyId,
+        connected_by: args.connectedBy,
+        last_test_at: maintenant,
+        last_test_status: 'success',
+        last_test_error: null,
+        updated_at: maintenant,
+      },
+      { onConflict: 'organization_id' },
+    );
+  if (error) return { ok: false, error: `persistence_failed:${error.message}` };
+  return { ok: true };
+}
+
+export async function loadGoogleCredsForOrganization(
+  sb: Sb,
+  organizationId: string,
+): Promise<GoogleCalendarCredentials | null> {
+  const { data } = await sb
+    .schema('app')
+    .from('organization_google_calendar')
+    .select('config_encrypted, config_nonce, config_key_id')
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+  if (!data) return null;
+  const row = data as { config_encrypted: unknown; config_nonce: unknown; config_key_id: string | null };
+  const cipherBuf = bytesToBuffer(row.config_encrypted);
+  const ivBuf = bytesToBuffer(row.config_nonce);
+  if (!cipherBuf || !ivBuf) return null;
+  try {
+    return decryptGoogleCredentials({ ciphertextWithTag: cipherBuf, iv: ivBuf, keyId: row.config_key_id });
+  } catch {
+    return null;
+  }
+}

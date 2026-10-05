@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance } from '@/features/sessions/visio';
+import { invitesVisio } from '@/features/sessions/invites-visio';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 
@@ -94,15 +95,15 @@ export async function createFormationSession(input: Input): Promise<Result> {
     for (const d of dossiers) await tryEnsureQuoteForDossier(sb, d.id as string);
   }
 
-  // Meet de groupe (best-effort) si distanciel/hybride et agenda Google connecté.
+  // Meet de groupe (au mieux) si distanciel/hybride : agenda de l'organisme, sinon celui du membre.
   if (REMOTE.has(input.modality)) {
-    const userId = await currentUserId();
-    const creds = userId ? await loadGoogleCredsForUser(sb, userId) : null;
-    if (creds) {
-      const emails = dossiers
-        .map((d) => (one(d.learner) as { email?: string } | null)?.email)
-        .filter((e): e is string => !!e);
-      const res = await createMeetEvent(creds, {
+    const organisateur = await organisateurDuMeet(sb, org, await currentUserId());
+    if (organisateur) {
+      const emails = invitesVisio(
+        dossiers.map((d) => (one(d.learner) as { email?: string } | null)?.email),
+        await emailsFormateursDeSeance(sb, sessionId),
+      );
+      const res = await createMeetEvent(organisateur.creds, {
         title: input.title.trim(),
         startsAt: input.startsAt,
         endsAt: input.endsAt,
@@ -115,7 +116,7 @@ export async function createFormationSession(input: Input): Promise<Result> {
           .from('sessions')
           .update({
             remote_url: res.value.meetUrl,
-            zoom_metadata: { provider: 'google_meet', calendar_event_id: res.value.eventId, owner_user_id: userId },
+            zoom_metadata: metadataMeet(res.value.eventId, organisateur.proprietaire),
           } as never)
           .eq('id', sessionId);
       }

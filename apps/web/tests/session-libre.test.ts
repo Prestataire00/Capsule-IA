@@ -49,9 +49,14 @@ describe('création d’une séance libre', () => {
     expect(actions).toContain('new Date(v.endsAt) > new Date(v.startsAt)');
   });
 
-  it('ne crée un Meet qu’en distanciel ou hybride, et seulement si l’agenda est connecté', () => {
+  it('ne crée un Meet qu’en distanciel ou hybride, et seulement si un agenda est connecté', () => {
     expect(actions).toContain('REMOTE.has(v.modality)');
-    expect(actions).toContain('loadGoogleCredsForUser');
+    // Agenda de l'organisme (boîte formateur), sinon celui du membre (0203).
+    expect(actions).toContain('organisateurDuMeet(');
+  });
+
+  it('invite le formateur de la séance avec les stagiaires', () => {
+    expect(actions).toContain('emailsFormateursDeSeance(');
   });
 });
 

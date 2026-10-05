@@ -17,11 +17,31 @@ export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
  * Qui ouvre un support aux apprenants.
  *
  * Volontairement plus étroit que la matrice de rôles : l'organisme répond de ce
- * qu'il diffuse, donc la décision revient à la direction — pas à un
- * gestionnaire, et surtout pas au formateur qui a déposé le fichier.
+ * qu'il diffuse, donc la décision revient à la direction et aux validateurs
+ * qu'elle a désignés (0203) — jamais au formateur qui a déposé le fichier.
  */
-export function peutValiderSupports(role: string | null | undefined): boolean {
-  return role === 'owner' || role === 'admin';
+export function peutValiderSupports(role: string | null | undefined, estValidateurDesigne = false): boolean {
+  return estValidateurDesigne || role === 'owner' || role === 'admin';
+}
+
+export const ROLES_VALIDATION = ['validateur', 'copie'] as const;
+export type RoleValidation = (typeof ROLES_VALIDATION)[number];
+
+/**
+ * Qui reçoit un contenu à relire (0203) : les validateurs désignés, sinon la
+ * direction. La copie ne doublonne jamais un validateur — on ne reçoit pas
+ * deux fois le même e-mail.
+ */
+export function destinatairesValidation(
+  designations: ReadonlyArray<{ userId: string; role: RoleValidation }>,
+  direction: readonly string[],
+): { validateurs: string[]; copie: string[] } {
+  const designes = [...new Set(designations.filter((d) => d.role === 'validateur').map((d) => d.userId))];
+  const validateurs = designes.length > 0 ? designes : [...new Set(direction)];
+  const copie = [
+    ...new Set(designations.filter((d) => d.role === 'copie').map((d) => d.userId)),
+  ].filter((id) => !validateurs.includes(id));
+  return { validateurs, copie };
 }
 
 /**

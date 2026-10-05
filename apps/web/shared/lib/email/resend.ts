@@ -62,6 +62,8 @@ export type EmailAttachment = {
 
 export type SendEmailInput = {
   to: string | string[];
+  /** Personnes tenues au courant, visibles des destinataires principaux. */
+  cc?: string | string[];
   subject: string;
   html: string;
   /**
@@ -111,6 +113,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       const info = await transport.sendMail({
         from,
         to: input.to,
+        ...(input.cc && input.cc.length > 0 ? { cc: input.cc } : {}),
         subject: input.subject,
         html: input.html,
         replyTo: input.replyTo,
@@ -141,6 +144,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     const { data, error } = await c.emails.send({
       from,
       to: input.to,
+      ...(input.cc && input.cc.length > 0 ? { cc: input.cc } : {}),
       subject: input.subject,
       html: input.html,
       replyTo: input.replyTo,

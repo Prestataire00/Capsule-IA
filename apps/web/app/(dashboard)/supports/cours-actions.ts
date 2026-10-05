@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
-import { peutValiderSupports } from '@/features/trainer-space/support-status';
+import { peutValiderPourMembre } from '@/features/trainer-space/validation-recipients';
 import { notifySupportDecide } from '@/features/trainer-space/support-notifications';
 import { decideCours } from '@/features/pedagogie/validation';
 
@@ -31,8 +31,8 @@ export async function deciderCours(input: {
 
   const me = await getCurrentMember();
   if (!me) return { ok: false, error: 'Votre session a expiré, reconnectez-vous.' };
-  if (!peutValiderSupports(me.role)) {
-    return { ok: false, error: 'Seuls le propriétaire et les administrateurs valident les contenus.' };
+  if (!(await peutValiderPourMembre(me))) {
+    return { ok: false, error: 'Seuls la direction et les validateurs désignés valident les contenus.' };
   }
   if (p.data.decision === 'refuse' && !p.data.reason) {
     return { ok: false, error: 'Indiquez le motif du refus : le formateur doit savoir quoi corriger.' };

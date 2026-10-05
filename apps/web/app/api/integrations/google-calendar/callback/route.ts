@@ -2,7 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { exchangeCodeForTokens, fetchAccountEmail } from '@/shared/lib/integrations/google-calendar-client';
-import { verifyState, googleRedirectUri, saveGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import {
+  readState,
+  googleRedirectUri,
+  saveGoogleCredsForUser,
+  saveGoogleCredsForOrganization,
+} from '@/shared/lib/integrations/google-calendar-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,9 +19,10 @@ export async function GET(req: NextRequest) {
   if (sp.get('error')) return NextResponse.redirect(settings('?error=denied'));
 
   const code = sp.get('code');
-  const userId = verifyState(sp.get('state'));
+  const etat = readState(sp.get('state'));
   const redirectUri = googleRedirectUri();
-  if (!code || !userId || !redirectUri) return NextResponse.redirect(settings('?error=invalid_callback'));
+  if (!code || !etat || !redirectUri) return NextResponse.redirect(settings('?error=invalid_callback'));
+  const { userId, pourOrganisme } = etat;
 
   const tokens = await exchangeCodeForTokens({ code, redirectUri });
   if (!tokens.ok) return NextResponse.redirect(settings(`?error=${tokens.error}`));
@@ -31,11 +37,24 @@ export async function GET(req: NextRequest) {
   const { data: member } = await admin
     .schema('app')
     .from('members')
-    .select('organization_id')
+    .select('organization_id, role')
     .eq('user_id', userId)
     .maybeSingle();
-  const organizationId = (member as { organization_id: string } | null)?.organization_id;
+  const m = member as { organization_id: string; role: string } | null;
+  const organizationId = m?.organization_id;
   if (!organizationId) return NextResponse.redirect(settings('?error=no_membership'));
+
+  if (pourOrganisme) {
+    // Le rôle est relu ici : il a pu changer pendant le passage chez Google.
+    if (m.role !== 'owner' && m.role !== 'admin') return NextResponse.redirect(settings('?error=reserve_direction'));
+    const enregistre = await saveGoogleCredsForOrganization(
+      admin,
+      { organizationId, connectedBy: userId },
+      { refreshToken: tokens.value.refreshToken, accountEmail, calendarId: 'primary' },
+    );
+    if (!enregistre.ok) return NextResponse.redirect(settings(`?error=${encodeURIComponent(enregistre.error)}`));
+    return NextResponse.redirect(settings('?connected=organisme'));
+  }
 
   const saved = await saveGoogleCredsForUser(
     admin,

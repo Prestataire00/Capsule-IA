@@ -22,7 +22,8 @@ export function googleOAuthAuthorizeUrl(args: { state: string; redirectUri: stri
     response_type: 'code',
     scope: SCOPE,
     access_type: 'offline',
-    prompt: 'consent',
+    // Choix du compte : on connecte parfois la boîte formateur, pas la sienne.
+    prompt: 'consent select_account',
     include_granted_scopes: 'true',
     state: args.state,
   });

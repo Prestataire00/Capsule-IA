@@ -10,7 +10,8 @@ import { loadSessionMessages, markThreadRead } from '@/features/trainer-space/se
 import { loadSessionResources } from '@/features/trainer-space/session-resources';
 import { MessageThread } from '@/features/trainer-space/ui/message-thread';
 import { MessageComposer } from '@/features/trainer-space/ui/message-composer.client';
-import { peutValiderSupports, SUPPORT_STATUS_LABELS } from '@/features/trainer-space/support-status';
+import { SUPPORT_STATUS_LABELS } from '@/features/trainer-space/support-status';
+import { peutValiderPourMembre } from '@/features/trainer-space/validation-recipients';
 import { DecisionButtons } from '../../../supports/decision-buttons.client';
 import { sendStaffMessage } from './actions';
 
@@ -28,7 +29,7 @@ export default async function SessionMessagesPage({ params }: { params: { id: st
   if (!loaded) notFound();
 
   const me = await getCurrentMember();
-  const peutValider = peutValiderSupports(me?.role);
+  const peutValider = await peutValiderPourMembre(me);
   const [messages, supports] = await Promise.all([
     loadSessionMessages(params.id),
     loadSessionResources(params.id),

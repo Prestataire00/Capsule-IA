@@ -18,7 +18,7 @@ import { env } from '@/env.mjs';
 
 type Modality = ProgrammeFormation['modality'];
 
-type OrgJson = {
+export type OrgJson = {
   name: string | null;
   legal_name: string | null;
   siret: string | null;
@@ -30,7 +30,7 @@ type OrgJson = {
   logo_path: string | null;
 };
 
-type CatalogMeta = {
+export type CatalogMeta = {
   subtitle?: string;
   durationDays?: number | null;
   effectifMax?: number | null;
@@ -59,7 +59,7 @@ async function orgAssetDataUri(path: string | null | undefined): Promise<string 
   return `data:image/png;base64,${buf.toString('base64')}`;
 }
 
-type FullRow = {
+export type FullRow = {
   id: string;
   organization_id: string;
   code: string;
@@ -96,7 +96,7 @@ function toModality(m: string | null): Modality {
   return m === 'distanciel' || m === 'hybride' ? m : 'presentiel';
 }
 
-function mapFormation(row: FullRow, c: CatalogMeta): ProgrammeFormation {
+export function mapFormation(row: FullRow, c: CatalogMeta): ProgrammeFormation {
   return {
     title: row.title ?? '',
     subtitle: c.subtitle ?? row.summary ?? '',
@@ -127,7 +127,7 @@ function mapFormation(row: FullRow, c: CatalogMeta): ProgrammeFormation {
   };
 }
 
-function mapOrg(o: OrgJson | null): ProgrammeOrg {
+export function mapOrg(o: OrgJson | null): ProgrammeOrg {
   return {
     name: o?.name ?? null,
     legalName: o?.legal_name ?? null,

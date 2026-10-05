@@ -10,7 +10,7 @@ import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
 import { parisIso } from '@/features/import/paris-time';
 import { convoquerSeance, stagiairesDejaConvoques, type SeanceAConvoquer } from '@/features/sessions/convoquer-seance';
 import { moveEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import { agendaDeLEvenement, type ZoomMetadataMeet } from '@/features/sessions/visio';
 
 /**
  * Modification d'une séance depuis sa fiche (statut, capacité, tarif, notes).
@@ -188,16 +188,15 @@ async function repercuterHoraires(sessionId: string, userId: string): Promise<st
     .select('id, starts_at, ends_at, modality, location, remote_url, dossier_id, organization_id, formation_id, status, zoom_metadata')
     .eq('id', sessionId)
     .maybeSingle();
-  const s = data as (SeanceAConvoquer & { status: string; zoom_metadata: { calendar_event_id?: string; owner_user_id?: string } | null }) | null;
+  const s = data as (SeanceAConvoquer & { status: string; zoom_metadata: ZoomMetadataMeet }) | null;
   if (!s) return 'Horaires enregistrés.';
   const bilan: string[] = ['Horaires enregistrés.'];
 
   const eventId = s.zoom_metadata?.calendar_event_id;
   if (eventId) {
-    // L'évènement vit dans l'agenda de celui qui l'a créé ; avant qu'on le
-    // note, on tente celui de la personne qui modifie.
-    const proprietaire = s.zoom_metadata?.owner_user_id ?? userId;
-    const creds = await loadGoogleCredsForUser(sb as never, proprietaire);
+    // L'évènement vit dans l'agenda qui l'a créé : celui de l'organisme, ou
+    // celui du membre ; avant qu'on le note, on tente celui de qui modifie.
+    const creds = await agendaDeLEvenement(sb as never, s.organization_id, s.zoom_metadata, userId);
     const r = creds ? await moveEvent(creds, eventId, { startsAt: s.starts_at, endsAt: s.ends_at }) : null;
     if (r?.ok) bilan.push('Évènement Google Agenda déplacé, invités prévenus.');
     else {

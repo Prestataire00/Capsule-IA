@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, Users, BookOpen, MessagesSquare, ListChecks, ClipboardList, Star, PenLine } from 'lucide-react';
+import { ArrowLeft, Users, BookOpen, BookOpenText, MessagesSquare, ListChecks, ClipboardList, Star, PenLine } from 'lucide-react';
 
 /**
  * En-tête et onglets d'une séance, côté formateur.
@@ -17,6 +17,13 @@ const ONGLETS = [
     icone: Users,
     doux: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
     chemin: '',
+  },
+  {
+    cle: 'programme' as const,
+    label: 'Programme',
+    icone: BookOpenText,
+    doux: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
+    chemin: '/programme',
   },
   {
     cle: 'cours' as const,

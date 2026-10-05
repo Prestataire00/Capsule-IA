@@ -6,7 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance } from '@/features/sessions/visio';
+import { invitesVisio } from '@/features/sessions/invites-visio';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { parisIso } from '@/features/import/paris-time';
@@ -77,12 +78,12 @@ function meetEmailHtml(args: { meetUrl: string; title: string; startsAt: string;
 <p style="color:#a1a1aa;font-size:11px;margin-top:16px;">Capsule IA</p></div></body></html>`;
 }
 
-/** Génère le lien Meet (via Make) pour une session distancielle/hybride, le stocke et l'envoie aux apprenants. */
 async function currentUserId(): Promise<string | null> {
   const { data } = await supabaseServer().auth.getUser();
   return data?.user?.id ?? null;
 }
 
+/** Crée le Meet d'une séance distancielle ou hybride, le note sur la séance et l'envoie aux stagiaires. */
 async function provisionMeet(
   sb: ReturnType<typeof admin>,
   userId: string | null,
@@ -92,14 +93,11 @@ async function provisionMeet(
   endsAt: string,
   ctx: DossierCtx,
 ): Promise<'created' | 'skipped' | 'failed'> {
-  const attendeeEmails = ctx.learnerEmail ? [ctx.learnerEmail] : [];
+  const organisateur = await organisateurDuMeet(sb, ctx.organizationId, userId);
+  if (!organisateur) return 'skipped';
+  const attendeeEmails = invitesVisio([ctx.learnerEmail], await emailsFormateursDeSeance(sb, sessionId));
 
-  // Par utilisateur : on crée le Meet sur l'agenda Google du créateur de la session.
-  if (!userId) return 'skipped';
-  const creds = await loadGoogleCredsForUser(sb, userId);
-  if (!creds) return 'skipped';
-
-  const res = await createMeetEvent(creds, {
+  const res = await createMeetEvent(organisateur.creds, {
     title,
     startsAt,
     endsAt,
@@ -113,7 +111,7 @@ async function provisionMeet(
     .from('sessions')
     .update({
       remote_url: res.value.meetUrl,
-      zoom_metadata: { provider: 'google_meet', calendar_event_id: res.value.eventId, owner_user_id: userId },
+      zoom_metadata: metadataMeet(res.value.eventId, organisateur.proprietaire),
     })
     .eq('id', sessionId);
 

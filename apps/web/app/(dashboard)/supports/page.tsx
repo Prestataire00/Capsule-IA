@@ -5,13 +5,15 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BookCheck, FileText, Link2, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
-import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { getCurrentMember, roleLabel } from '@/shared/lib/auth/current-member';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { loadSupportsAValider } from '@/features/trainer-space/session-resources';
+import { peutValiderPourMembre, loadEquipeValidation } from '@/features/trainer-space/validation-recipients';
 import { peutValiderSupports } from '@/features/trainer-space/support-status';
 import { loadCoursAValider } from '@/features/pedagogie/validation';
 import { DecisionButtons } from './decision-buttons.client';
 import { CoursDecision } from './cours-decision.client';
+import { Destinataires } from './destinataires.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,11 +35,12 @@ const poids = (octets: number | null): string => {
 export default async function SupportsAValiderPage() {
   const me = await getCurrentMember();
   // La garde centrale filtre déjà sur la section ; celle-ci nomme la vraie règle.
-  if (!peutValiderSupports(me?.role)) redirect('/');
+  if (!(await peutValiderPourMembre(me))) redirect('/');
 
-  const [supports, cours] = await Promise.all([
+  const [supports, cours, equipe] = await Promise.all([
     loadSupportsAValider(me!.organizationId),
     loadCoursAValider(me!.organizationId),
+    loadEquipeValidation(me!.organizationId),
   ]);
 
   return (
@@ -50,6 +53,17 @@ export default async function SupportsAValiderPage() {
           cours, ni les quiz et exercices. Ouvrez, vérifiez, puis validez — ou refusez en disant pourquoi.
         </p>
       </header>
+
+      <Destinataires
+        modifiable={peutValiderSupports(me!.role)}
+        membres={equipe.map((m) => ({
+          userId: m.userId,
+          nom: m.nom,
+          roleLabel: roleLabel(m.role),
+          peutValider: m.role === 'owner' || m.role === 'admin',
+          choix: m.choix,
+        }))}
+      />
 
       {cours.length > 0 && (
         <section className="mb-8 space-y-3">

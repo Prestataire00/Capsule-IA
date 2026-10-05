@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { decideSupport } from '@/features/trainer-space/session-resources';
 import { notifySupportDecide } from '@/features/trainer-space/support-notifications';
-import { peutValiderSupports } from '@/features/trainer-space/support-status';
+import { peutValiderPourMembre } from '@/features/trainer-space/validation-recipients';
 
 /**
  * Décision de l'administration sur un support déposé par un formateur.
@@ -33,8 +33,8 @@ export async function decideSupportValidation(input: {
 
   const me = await getCurrentMember();
   if (!me) return { ok: false, error: 'Votre session a expiré, reconnectez-vous.' };
-  if (!peutValiderSupports(me.role)) {
-    return { ok: false, error: 'Seuls le propriétaire et les administrateurs valident les supports.' };
+  if (!(await peutValiderPourMembre(me))) {
+    return { ok: false, error: 'Seuls la direction et les validateurs désignés valident les supports.' };
   }
   // Un refus sans motif laisse le formateur sans rien à corriger.
   if (p.data.decision === 'refuse' && !p.data.reason) {

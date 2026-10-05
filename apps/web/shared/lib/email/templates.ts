@@ -108,6 +108,38 @@ export function trainerWelcomeEmail(data: TrainerWelcomeData): { subject: string
   return { subject, html };
 }
 
+export type ContenuAValiderData = {
+  nature: 'support' | 'cours';
+  title: string;
+  trainerName: string;
+  formationTitle: string | null;
+  seanceLabel: string | null;
+  validationUrl: string;
+};
+
+export function contenuAValiderEmail(data: ContenuAValiderData): { subject: string; html: string } {
+  const quoi = data.nature === 'cours' ? 'un contenu de cours' : 'un support';
+  const subject = `À valider : ${data.title} (${data.trainerName})`;
+  const lignes = [
+    dataRow('Formateur', escapeHtml(data.trainerName)),
+    data.formationTitle ? dataRow('Formation', escapeHtml(data.formationTitle)) : '',
+    data.seanceLabel ? dataRow('Séance', escapeHtml(data.seanceLabel)) : '',
+  ].join('');
+
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Validation pédagogique</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">${escapeHtml(data.title)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">
+        ${escapeHtml(data.trainerName)} a préparé ${quoi}. Les stagiaires n'y auront accès qu'une fois validé.
+      </p>
+      <table style="width:100%; border-collapse:collapse; margin:0 0 20px;">${lignes}</table>
+      <div>${button(data.validationUrl, 'Relire et valider')}</div>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;
