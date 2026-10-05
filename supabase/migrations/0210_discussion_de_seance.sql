@@ -25,7 +25,9 @@ ALTER TABLE app.dossier_team_messages
 CREATE INDEX IF NOT EXISTS ix_dossier_team_messages_fil
   ON app.dossier_team_messages (fil_id, created_at) WHERE deleted_at IS NULL;
 
--- Les lectures suivent le fil, plus le seul dossier.
+-- Les lectures suivent le fil, plus le seul dossier. La clé primaire tombe
+-- d'abord : une colonne de clé primaire ne peut pas devenir facultative.
+ALTER TABLE app.dossier_team_reads DROP CONSTRAINT IF EXISTS dossier_team_reads_pkey;
 ALTER TABLE app.dossier_team_reads
   ALTER COLUMN dossier_id DROP NOT NULL,
   ADD COLUMN IF NOT EXISTS session_id UUID REFERENCES app.sessions(id) ON DELETE CASCADE;
@@ -38,7 +40,6 @@ ALTER TABLE app.dossier_team_reads
 ALTER TABLE app.dossier_team_reads
   ADD COLUMN IF NOT EXISTS fil_id UUID GENERATED ALWAYS AS (COALESCE(dossier_id, session_id)) STORED;
 
-ALTER TABLE app.dossier_team_reads DROP CONSTRAINT IF EXISTS dossier_team_reads_pkey;
 ALTER TABLE app.dossier_team_reads ADD CONSTRAINT dossier_team_reads_pkey PRIMARY KEY (user_id, fil_id);
 
 -- Le formateur lit aussi le fil de ses séances.
