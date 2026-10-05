@@ -5,6 +5,8 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession, type SessionLearner } from '@/features/sessions/load-session';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ACCENTS } from '@/shared/ui/kpi-card';
+import { loadSuiviStagiaires } from '@/features/sessions/suivi-stagiaires';
+import { SuiviPastilles } from '@/features/sessions/ui/suivi-pastilles';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,10 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
   const { learners, directLearners, client } = loaded;
+  const { parStagiaire, avecAcquis } = await loadSuiviStagiaires(params.id, [
+    ...learners.map((l) => ({ id: l.id, dossierId: l.dossierId })),
+    ...directLearners.map((l) => ({ id: l.id, dossierId: null })),
+  ]);
 
   if (learners.length === 0 && directLearners.length === 0) {
     return (
@@ -77,6 +83,7 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                       {l.first_name} {l.last_name}
                     </p>
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{l.email ?? 'sans e-mail'}</p>
+                    {parStagiaire.get(l.id) && <SuiviPastilles suivi={parStagiaire.get(l.id)!} avecAcquis={avecAcquis} />}
                   </div>
                 </div>
                 <Link
@@ -126,6 +133,7 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
                       {l.email} · dossier <span className="font-mono">{l.dossierReference}</span>
                     </p>
+                    {parStagiaire.get(l.id) && <SuiviPastilles suivi={parStagiaire.get(l.id)!} avecAcquis={avecAcquis} />}
                   </div>
                 </div>
                 <Link
