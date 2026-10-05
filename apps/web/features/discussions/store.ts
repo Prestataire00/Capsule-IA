@@ -5,12 +5,13 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { mentionEquipeEmail } from '@/shared/lib/email/templates';
 import { sendTrainerInvite } from '@/features/trainers/send-trainer-invite';
 import { mentionsDans } from './mentions';
-import { equipeDuDossier, libellesDossiers, type LibelleDossier, type MembreDiscussion } from './equipe';
+import { colonneDuFil, equipeDuFil, filDe, libellesFils, type LibelleDossier, type MembreDiscussion } from './equipe';
 
 /**
- * Discussion d'équipe par dossier (0204). Lectures et écritures en service
- * role : l'appelant a vérifié avant que le dossier est le sien (équipe de
- * l'organisme, ou formateur du dossier).
+ * Discussion d'équipe par dossier (0204), ou par séance sans dossier (0210) :
+ * le fil est désigné par l'identifiant de l'un ou de l'autre. Lectures et
+ * écritures en service role : l'appelant a vérifié avant que le fil est le
+ * sien (équipe de l'organisme, ou formateur du dossier ou de la séance).
  */
 
 export type MessageEquipe = {
@@ -22,12 +23,12 @@ export type MessageEquipe = {
   readonly createdAt: string;
 };
 
-export async function loadMessagesEquipe(dossierId: string): Promise<MessageEquipe[]> {
+export async function loadMessagesEquipe(filId: string): Promise<MessageEquipe[]> {
   const { data, error } = await supabaseAdmin()
     .schema('app')
     .from('dossier_team_messages' as never)
     .select('id, author_user_id, author_name, body, mentions, created_at')
-    .eq('dossier_id', dossierId)
+    .eq('fil_id', filId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
     .limit(500);
@@ -58,7 +59,7 @@ export type Fil = {
 
 /**
  * Les fils visibles par cette personne, le plus récent d'abord. Pour un
- * formateur, `dossierIds` borne la liste à ses dossiers.
+ * formateur, `dossierIds` borne la liste à ses fils (dossiers et séances).
  */
 export async function loadFils(input: {
   organizationId: string | null;
@@ -69,19 +70,19 @@ export async function loadFils(input: {
   let q = admin
     .schema('app')
     .from('dossier_team_messages' as never)
-    .select('dossier_id, author_user_id, author_name, body, mentions, created_at')
+    .select('fil_id, author_user_id, author_name, body, mentions, created_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(2000);
   if (input.organizationId) q = q.eq('organization_id', input.organizationId);
   if (input.dossierIds) {
     if (input.dossierIds.length === 0) return [];
-    q = q.in('dossier_id', [...input.dossierIds]);
+    q = q.in('fil_id', [...input.dossierIds]);
   }
   const { data, error } = await q;
   if (error) throw new Error(`[discussion] fils illisibles : ${error.message}`);
   const messages = (data ?? []) as unknown as Array<{
-    dossier_id: string;
+    fil_id: string;
     author_user_id: string | null;
     author_name: string;
     body: string;
@@ -89,26 +90,26 @@ export async function loadFils(input: {
     created_at: string;
   }>;
 
-  const dossierIds = [...new Set(messages.map((m) => m.dossier_id))];
+  const dossierIds = [...new Set(messages.map((m) => m.fil_id))];
   const [libelles, { data: lectures }] = await Promise.all([
-    libellesDossiers(dossierIds),
+    libellesFils(dossierIds),
     dossierIds.length
       ? admin
           .schema('app')
           .from('dossier_team_reads' as never)
-          .select('dossier_id, last_read_at')
+          .select('fil_id, last_read_at')
           .eq('user_id', input.userId)
-          .in('dossier_id', dossierIds)
+          .in('fil_id', dossierIds)
       : Promise.resolve({ data: [] }),
   ]);
   const lu = new Map(
-    ((lectures ?? []) as unknown as Array<{ dossier_id: string; last_read_at: string }>).map((r) => [r.dossier_id, r.last_read_at]),
+    ((lectures ?? []) as unknown as Array<{ fil_id: string; last_read_at: string }>).map((r) => [r.fil_id, r.last_read_at]),
   );
 
   return dossierIds.flatMap((id) => {
     const dossier = libelles.get(id);
     if (!dossier) return [];
-    const duFil = messages.filter((m) => m.dossier_id === id);
+    const duFil = messages.filter((m) => m.fil_id === id);
     const depuis = lu.get(id);
     const nouveaux = duFil.filter((m) => m.author_user_id !== input.userId && (!depuis || m.created_at > depuis));
     const dernier = duFil[0];
@@ -123,14 +124,16 @@ export async function loadFils(input: {
   });
 }
 
-export async function marquerFilLu(userId: string, dossierId: string): Promise<void> {
+export async function marquerFilLu(userId: string, filId: string): Promise<void> {
+  const fil = await filDe(filId);
+  if (!fil) return;
   const { error } = await supabaseAdmin()
     .schema('app')
     .from('dossier_team_reads' as never)
-    .upsert({ user_id: userId, dossier_id: dossierId, last_read_at: new Date().toISOString() } as never, {
-      onConflict: 'user_id,dossier_id',
+    .upsert({ user_id: userId, ...colonneDuFil(fil), last_read_at: new Date().toISOString() } as never, {
+      onConflict: 'user_id,fil_id',
     });
-  if (error) console.error('[discussion] lecture non notée', dossierId, error.message);
+  if (error) console.error('[discussion] lecture non notée', filId, error.message);
 }
 
 export type ResultatEnvoi = { ok: true } | { ok: false; error: string };
@@ -147,7 +150,9 @@ export async function publierMessageEquipe(input: {
   authorName: string;
   body: string;
 }): Promise<ResultatEnvoi> {
-  let equipe = await equipeDuDossier(input.organizationId, input.dossierId);
+  const fil = await filDe(input.dossierId);
+  if (!fil || fil.organizationId !== input.organizationId) return { ok: false, error: 'Discussion introuvable.' };
+  let equipe = await equipeDuFil(input.organizationId, input.dossierId);
   const mentionnes = (e: readonly MembreDiscussion[]) =>
     mentionsDans(
       input.body,
@@ -167,7 +172,7 @@ export async function publierMessageEquipe(input: {
       const r = await sendTrainerInvite({ email: m.email!, firstName: m.prenom ?? m.nom, orgName, trainerId: m.trainerId! });
       if (!r.ok) console.error('[discussion] invitation du formateur mentionné impossible', m.trainerId, r.reason);
     }
-    equipe = await equipeDuDossier(input.organizationId, input.dossierId);
+    equipe = await equipeDuFil(input.organizationId, input.dossierId);
     mentions = mentionnes(equipe);
   }
 
@@ -177,7 +182,7 @@ export async function publierMessageEquipe(input: {
     .from('dossier_team_messages' as never)
     .insert({
       organization_id: input.organizationId,
-      dossier_id: input.dossierId,
+      ...colonneDuFil(fil),
       author_user_id: input.authorUserId,
       author_name: input.authorName,
       body: input.body,
@@ -186,10 +191,10 @@ export async function publierMessageEquipe(input: {
   if (error) return { ok: false, error: "Le message n'a pas été envoyé." };
   await marquerFilLu(input.authorUserId, input.dossierId);
 
-  const libelle = (await libellesDossiers([input.dossierId])).get(input.dossierId);
+  const libelle = (await libellesFils([input.dossierId])).get(input.dossierId);
   await prevenirMentionnes(
     equipe.filter((m) => mentions.includes(m.userId)),
-    { ...input, titre: libelle ? `${libelle.titre} (${libelle.reference})` : 'un dossier' },
+    { ...input, seance: fil.kind === 'seance', titre: libelle ? `${libelle.titre} (${libelle.reference})` : 'un dossier' },
   );
   return { ok: true };
 }
@@ -201,7 +206,7 @@ async function nomOrganisme(organizationId: string): Promise<string> {
 
 async function prevenirMentionnes(
   personnes: readonly MembreDiscussion[],
-  ctx: { organizationId: string; dossierId: string; authorName: string; body: string; titre: string },
+  ctx: { organizationId: string; dossierId: string; seance: boolean; authorName: string; body: string; titre: string },
 ): Promise<void> {
   const admin = supabaseAdmin();
   const maintenant = new Date().toISOString();
@@ -220,7 +225,7 @@ async function prevenirMentionnes(
         payload: { dossier_id: ctx.dossierId, author_name: ctx.authorName, extrait: ctx.body.slice(0, 280) },
         status: 'sent',
         sent_at: maintenant,
-        related_aggregate_type: 'dossier',
+        related_aggregate_type: ctx.seance ? 'session' : 'dossier',
         related_aggregate_id: ctx.dossierId,
       })) as never,
     );
@@ -241,7 +246,7 @@ async function prevenirMentionnes(
       subject,
       html,
       organizationId: ctx.organizationId,
-      dossierId: ctx.dossierId,
+      ...(ctx.seance ? {} : { dossierId: ctx.dossierId }),
       kind: 'discussion_mention',
     });
     if (!r.ok && r.reason !== 'no_api_key') console.error('[discussion] e-mail de mention non parti', r.reason);

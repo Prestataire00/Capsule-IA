@@ -15,7 +15,7 @@ SELECT policies_are('app', 'dossier_team_messages',
 SELECT policies_are('app', 'dossier_team_reads',
   ARRAY['dossier_team_reads_read', 'dossier_team_reads_write'], 'policies des lectures');
 
-SELECT col_is_pk('app', 'dossier_team_reads', ARRAY['user_id', 'dossier_id'], 'une lecture par personne et par dossier');
+SELECT col_is_pk('app', 'dossier_team_reads', ARRAY['user_id', 'fil_id'], 'une lecture par personne et par fil (0210)');
 
 -- Un message sans personne mentionnée n'existe pas.
 SELECT throws_ok(

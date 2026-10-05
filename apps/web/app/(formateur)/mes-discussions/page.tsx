@@ -4,7 +4,7 @@
 
 import { notFound } from 'next/navigation';
 import { accesFormateur, mesDossiersFormateur } from '@/features/discussions/acces';
-import { equipeDuDossier, libellesDossiers } from '@/features/discussions/equipe';
+import { equipeDuFil, libellesFils } from '@/features/discussions/equipe';
 import { loadFils, loadMessagesEquipe, marquerFilLu } from '@/features/discussions/store';
 import { Messagerie } from '@/features/discussions/ui/messagerie';
 import { envoyerMessageFormateur } from './actions';
@@ -32,13 +32,13 @@ export default async function MesDiscussionsPage({ searchParams }: { searchParam
 
   const fils = await loadFils({ organizationId: null, dossierIds: mesDossiers, userId: moi.userId });
   const avecFil = new Set(fils.map((f) => f.dossier.id));
-  const libelles = await libellesDossiers(mesDossiers);
+  const libelles = await libellesFils(mesDossiers);
 
   let ouvert = null;
   if (choisi && acces?.ok) {
     const dossier = libelles.get(choisi);
     if (dossier) {
-      const [messages, equipe] = await Promise.all([loadMessagesEquipe(choisi), equipeDuDossier(acces.organizationId, choisi)]);
+      const [messages, equipe] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(acces.organizationId, choisi)]);
       await marquerFilLu(acces.userId, choisi);
       ouvert = { dossier, messages, equipe };
     }

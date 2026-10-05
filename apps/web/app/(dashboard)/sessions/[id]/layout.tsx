@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronRight, Clock, MapPin, Users as UsersIcon } from 'lucide-react';
+import { ChevronRight, Clock, MapPin, MessagesSquare, Users as UsersIcon } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { loadSession } from '@/features/sessions/load-session';
@@ -50,6 +50,10 @@ export default async function SessionLayout({
   const { data: g } = await sb.schema('app').from('sessions').select('groupe:dossier_groupes(nom)' as never).eq('id', params.id).maybeSingle();
   const groupeBrut = (g as unknown as { groupe: { nom: string } | Array<{ nom: string }> | null } | null)?.groupe;
   const nomGroupe = Array.isArray(groupeBrut) ? groupeBrut[0]?.nom : groupeBrut?.nom;
+
+  // La discussion de la séance vit dans la messagerie : celle de son dossier,
+  // ou un fil de séance quand elle n'en a pas (ou en réunit plusieurs).
+  const filDiscussion = session.dossier_id ?? (loaded.dossierIds.length === 1 ? loaded.dossierIds[0]! : session.id);
 
   const st = STATUS[session.status] ?? { label: session.status, tone: 'neutral' as const };
   const etape = ETAPES.findIndex((e) => e.key === session.status);
@@ -107,14 +111,24 @@ export default async function SessionLayout({
                 {client && <span className="inline-flex items-center gap-1.5">Client : {client.name}</span>}
               </p>
             </div>
-            <LienVisio
-              url={session.remote_url}
-              creer={
-                gerer && ['distanciel', 'hybride'].includes(session.modality) && session.status !== 'cancelled'
-                  ? creerLienVisio.bind(null, session.id)
-                  : undefined
-              }
-            />
+            <div className="flex items-start gap-2 flex-wrap">
+              {gerer && (
+                <Link
+                  href={`/messagerie?dossier=${filDiscussion}`}
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  <MessagesSquare className="w-4 h-4" /> Ouvrir la messagerie
+                </Link>
+              )}
+              <LienVisio
+                url={session.remote_url}
+                creer={
+                  gerer && ['distanciel', 'hybride'].includes(session.modality) && session.status !== 'cancelled'
+                    ? creerLienVisio.bind(null, session.id)
+                    : undefined
+                }
+              />
+            </div>
           </div>
 
           {session.status === 'cancelled' ? (

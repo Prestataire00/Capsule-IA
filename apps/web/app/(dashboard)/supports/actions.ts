@@ -71,6 +71,5 @@ export async function decideSupportValidation(input: {
   });
 
   revalidatePath('/supports');
-  revalidatePath(`/sessions/${decide.sessionId}/messages`);
   return { ok: true };
 }

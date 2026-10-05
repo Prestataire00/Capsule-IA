@@ -14,6 +14,8 @@ import { ensureSessionSheets } from '@/app/(dashboard)/dossiers/[id]/emargements
 import { HalfDaySheetBlock } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/half-day-sheet-block';
 import { AttendanceMatrix } from './attendance-matrix';
 import { AjoutJourJ } from '@/features/attendance/ui/ajout-jour-j.client';
+import { BandeauHeures } from '@/features/attendance/ui/bandeau-heures';
+import { loadSession } from '@/features/sessions/load-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,8 +24,8 @@ export default async function SessionAttendanceTab({ params }: { params: { id: s
   await requireAccess('attendance');
   // Idempotent : garantit les feuilles matin / après-midi de la séance.
   await ensureSessionSheets(params.id);
-  const view = await loadSessionEmargement(supabaseServer(), params.id);
-  if (!view) notFound();
+  const [view, seance] = await Promise.all([loadSessionEmargement(supabaseServer(), params.id), loadSession(supabaseServer(), params.id)]);
+  if (!view || !seance) notFound();
 
   if (view.sheets.length === 0) {
     return (
@@ -72,7 +74,15 @@ export default async function SessionAttendanceTab({ params }: { params: { id: s
   }
 
   return (
-    <div className="space-y-6">
+    <div className="grid lg:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
+      <BandeauHeures
+        debut={seance.session.starts_at}
+        fin={seance.session.ends_at}
+        dureeHeures={Number(seance.session.duration_hours ?? 0)}
+        inscrits={seance.learners.length + seance.directLearners.length}
+        feuilles={seance.sheets}
+      />
+      <div className="space-y-6 min-w-0">
       <AjoutJourJ sessionId={view.session.id} />
       <AttendanceMatrix sheets={view.sheets} vignettes={vignettes} pdfs={pdfs} csvHref={`/api/emargements/export.csv?sessionId=${view.session.id}`} />
 
@@ -88,6 +98,7 @@ export default async function SessionAttendanceTab({ params }: { params: { id: s
       </details>
 
       {emargementEnCours(view.sheets) && <LiveRefresh />}
+      </div>
     </div>
   );
 }
