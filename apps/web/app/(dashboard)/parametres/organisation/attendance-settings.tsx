@@ -103,7 +103,7 @@ export function AttendanceSettings({
               {pending && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />}
             </label>
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              De 30 minutes avant le début de chaque demi-journée à 10 minutes après, à chaque apprenant qui n’a pas encore signé — une
+              À l’heure de début de chaque demi-journée, quand l’émargement s’ouvre, à chaque apprenant qui n’a pas encore signé — une
               seule fois par personne et par demi-journée. L’envoi est lancé par la base toutes les 10 minutes, dès que le secret des
               tâches programmées est enregistré dans le coffre Supabase.
             </p>

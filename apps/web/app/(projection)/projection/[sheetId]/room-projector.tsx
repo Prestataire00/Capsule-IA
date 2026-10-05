@@ -135,6 +135,12 @@ export function RoomProjector({ sheetId, title, halfDayLabel }: { sheetId: strin
                 {data?.qr ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={data.qr} alt="QR code d’émargement, renouvelé toutes les dix secondes" className="w-[min(70vw,460px)] h-auto aspect-square [image-rendering:pixelated]" />
+                ) : data && !data.ouvert ? (
+                  <div className="w-[min(70vw,460px)] aspect-square rounded-xl bg-zinc-50 grid place-items-center text-center px-6">
+                    <p className="text-[20px] font-medium text-zinc-800">
+                      L’émargement ouvre à <span className="tabular-nums">{heure(data.windowStart)}</span>
+                    </p>
+                  </div>
                 ) : (
                   <div className="w-[min(70vw,460px)] aspect-square animate-pulse bg-zinc-100 rounded-xl" />
                 )}

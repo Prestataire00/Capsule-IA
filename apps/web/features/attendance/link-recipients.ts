@@ -47,9 +47,13 @@ export function linkRecipients(
   return { envoyer, ignores, sansEmail };
 }
 
-/** L'envoi automatique part de 30 minutes avant le début à 10 minutes après. */
+/**
+ * L'envoi automatique part à l'heure de début, quand l'émargement s'ouvre
+ * (0209) — un lien reçu avant ne servirait qu'à se voir refuser. Le quart
+ * d'heure couvre le passage du cron toutes les 10 minutes.
+ */
 export function autoSendDue(windowStart: Date, now: Date): boolean {
   const t = now.getTime();
   const debut = windowStart.getTime();
-  return t >= debut - 30 * 60_000 && t <= debut + 10 * 60_000;
+  return t >= debut && t < debut + 15 * 60_000;
 }

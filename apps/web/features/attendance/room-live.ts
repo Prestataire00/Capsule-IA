@@ -18,6 +18,8 @@ export type LivePayload = {
   readonly qr: string | null;
   readonly rotatesAt: number;
   readonly finalized: boolean;
+  /** L'émargement s'ouvre à l'heure de début (0209) : avant, pas de QR. */
+  readonly ouvert: boolean;
   readonly windowStart: string;
   readonly windowEnd: string;
   readonly expected: number;

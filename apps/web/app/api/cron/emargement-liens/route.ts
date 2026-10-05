@@ -8,8 +8,8 @@ import { sessionsAutomationOff } from '@/features/automation/session-automations
 import { sendSheetLinks } from '@/features/attendance/send-links';
 
 /**
- * Envoi automatique des liens d'émargement, de 30 minutes avant le début de
- * chaque demi-journée à 10 minutes après — pour les seuls organismes qui l'ont
+ * Envoi automatique des liens d'émargement, à l'heure de début de chaque
+ * demi-journée, quand l'émargement s'ouvre (0209), dans le quart d'heure — pour les seuls organismes qui l'ont
  * activé (réglage désactivé par défaut). Idempotent : un apprenant ne reçoit
  * qu'un lien par feuille. Appelée toutes les 10 minutes par la base (0147).
  *

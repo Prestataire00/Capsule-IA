@@ -13,6 +13,7 @@ import { emargementEnCours } from '@/features/attendance/live-window';
 import { ensureSessionSheets } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
 import { HalfDaySheetBlock } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/half-day-sheet-block';
 import { AttendanceMatrix } from './attendance-matrix';
+import { AjoutJourJ } from '@/features/attendance/ui/ajout-jour-j.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,7 @@ export default async function SessionAttendanceTab({ params }: { params: { id: s
 
   return (
     <div className="space-y-6">
+      <AjoutJourJ sessionId={view.session.id} />
       <AttendanceMatrix sheets={view.sheets} vignettes={vignettes} pdfs={pdfs} csvHref={`/api/emargements/export.csv?sessionId=${view.session.id}`} />
 
       <details className="group rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900">

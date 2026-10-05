@@ -24,10 +24,13 @@ export async function GET(_req: Request, { params }: { params: { sheetId: string
   const now = Date.now();
   const attendus = feuille.participants.filter((p) => p.expected);
   const apprenants = attendus.filter((p) => p.kind === 'learner');
+  // L'émargement s'ouvre à l'heure de début (0209) : pas de QR à scanner avant.
+  const ouvert = now >= new Date(feuille.windowStart).getTime();
   const payload: LivePayload = {
-    qr: feuille.finalized ? null : await renderQrDataUrl(roomUrl(env.PUBLIC_APP_URL, feuille.id, now), { width: 560 }),
+    qr: feuille.finalized || !ouvert ? null : await renderQrDataUrl(roomUrl(env.PUBLIC_APP_URL, feuille.id, now), { width: 560 }),
     rotatesAt: nextRotation(now),
     finalized: feuille.finalized,
+    ouvert,
     windowStart: feuille.windowStart,
     windowEnd: feuille.windowEnd,
     expected: apprenants.length,

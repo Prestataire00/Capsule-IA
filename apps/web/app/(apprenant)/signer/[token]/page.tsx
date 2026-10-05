@@ -161,7 +161,8 @@ export default async function SignerPage({ params }: { params: { token: string }
 
   // Fenêtre de signature, vérifiée avant de faire dessiner quoi que ce soit.
   const maintenant = Date.now();
-  const ouverture = new Date(row.window_start).getTime() - 60 * 60_000;
+  // L'entrée s'ouvre à l'heure de début (0209).
+  const ouverture = new Date(row.window_start).getTime();
   const fermetureEntree = new Date(row.window_end).getTime();
   const fermetureSortie = fermetureEntree + 120 * 60_000;
   const etape = row.entry_signed_at ? 'exit' : 'entry';

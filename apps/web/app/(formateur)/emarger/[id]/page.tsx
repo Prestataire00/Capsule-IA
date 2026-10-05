@@ -11,6 +11,7 @@ import { LiveRefresh } from '@/features/attendance/live-refresh';
 import { emargementEnCours } from '@/features/attendance/live-window';
 import { ensureSessionSheets } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
 import { HalfDaySheetBlock } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/half-day-sheet-block';
+import { AjoutJourJ } from '@/features/attendance/ui/ajout-jour-j.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,8 @@ export default async function FormateurEmargerPage({ params }: { params: { id: s
           {session.location ? ` · ${session.location}` : ''}
         </p>
       </header>
+
+      <AjoutJourJ sessionId={session.id} />
 
       {sheets.length === 0 ? (
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Aucune feuille pour cette séance.</p>

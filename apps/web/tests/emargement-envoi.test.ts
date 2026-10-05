@@ -24,11 +24,12 @@ describe('destinataires des liens', () => {
 
 describe('fenêtre de l’envoi automatique', () => {
   const debut = new Date('2026-09-14T07:00:00Z');
-  it('part de 30 minutes avant à 10 minutes après le début', () => {
-    expect(autoSendDue(debut, new Date('2026-09-14T06:25:00Z'))).toBe(false);
-    expect(autoSendDue(debut, new Date('2026-09-14T06:35:00Z'))).toBe(true);
-    expect(autoSendDue(debut, new Date('2026-09-14T07:09:00Z'))).toBe(true);
-    expect(autoSendDue(debut, new Date('2026-09-14T07:11:00Z'))).toBe(false);
+  it('part à l’heure de début, quand l’émargement s’ouvre, jamais avant (0209)', () => {
+    expect(autoSendDue(debut, new Date('2026-09-14T06:35:00Z'))).toBe(false);
+    expect(autoSendDue(debut, new Date('2026-09-14T06:59:00Z'))).toBe(false);
+    expect(autoSendDue(debut, new Date('2026-09-14T07:00:00Z'))).toBe(true);
+    expect(autoSendDue(debut, new Date('2026-09-14T07:14:00Z'))).toBe(true);
+    expect(autoSendDue(debut, new Date('2026-09-14T07:15:00Z'))).toBe(false);
   });
 });
 

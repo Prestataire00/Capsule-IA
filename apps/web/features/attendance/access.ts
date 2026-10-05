@@ -72,12 +72,14 @@ export async function accessibleSheet(sheetId: string): Promise<AccessResult<She
   return { ok: true, userId: role.userId, value: feuille };
 }
 
-export async function accessibleSession(sessionId: string): Promise<AccessResult<{ id: string; organization_id: string }>> {
+export async function accessibleSession(
+  sessionId: string,
+): Promise<AccessResult<{ id: string; organization_id: string; formateur: boolean }>> {
   const role = await roleAutorise();
   if (!role.ok) return role;
   const { data, error } = await supabaseServer().schema('app').from('sessions').select('id, organization_id').eq('id', sessionId).maybeSingle();
   exigerLecture('séance', error);
   if (!data) return { ok: false, error: 'forbidden' };
   if (role.formateur && !(await seanceDuFormateur(sessionId))) return { ok: false, error: 'forbidden' };
-  return { ok: true, userId: role.userId, value: data as { id: string; organization_id: string } };
+  return { ok: true, userId: role.userId, value: { ...(data as { id: string; organization_id: string }), formateur: role.formateur } };
 }
