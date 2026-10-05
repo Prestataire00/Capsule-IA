@@ -33,7 +33,7 @@ export async function deciderCours(input: {
   const me = await getCurrentMember();
   if (!me) return { ok: false, error: 'Votre session a expiré, reconnectez-vous.' };
   if (!(await peutValiderPourMembre(me))) {
-    return { ok: false, error: 'Seuls la direction et les validateurs désignés valident les contenus.' };
+    return { ok: false, error: 'Seuls les propriétaires et administrateurs valident les contenus.' };
   }
   if (p.data.decision === 'valide') {
     const ouverts = await pointsOuvertsDe('cours', p.data.exerciseId);

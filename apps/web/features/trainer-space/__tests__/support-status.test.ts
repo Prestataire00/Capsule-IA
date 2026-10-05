@@ -42,43 +42,20 @@ describe('validation des supports de cours', () => {
   });
 });
 
-describe('validation désignée (0203)', () => {
-  it('un validateur désigné décide, quel que soit son rôle', () => {
-    expect(peutValiderSupports('gestionnaire', true)).toBe(true);
-    expect(peutValiderSupports('gestionnaire')).toBe(false);
-  });
-
-  it('sans validateur désigné, la direction relit', () => {
-    expect(destinatairesValidation([], ['owner-1', 'admin-1'])).toEqual({
-      validateurs: ['owner-1', 'admin-1'],
-      copie: [],
-    });
-  });
-
-  it('les validateurs désignés remplacent la direction, la copie suit', () => {
+describe('qui relit (rôles)', () => {
+  it('la direction valide, les gestionnaires sont en copie, les autres rien', () => {
     expect(
-      destinatairesValidation(
-        [
-          { userId: 'faouzi', role: 'validateur' },
-          { userId: 'isma', role: 'validateur' },
-          { userId: 'laurie', role: 'copie' },
-        ],
-        ['owner-1'],
-      ),
+      destinatairesValidation([
+        { userId: 'faouzi', role: 'admin' },
+        { userId: 'isma', role: 'owner' },
+        { userId: 'laurie', role: 'gestionnaire' },
+        { userId: 'paul', role: 'commercial' },
+      ]),
     ).toEqual({ validateurs: ['faouzi', 'isma'], copie: ['laurie'] });
   });
 
-  it('la copie seule laisse la direction valider', () => {
-    expect(destinatairesValidation([{ userId: 'laurie', role: 'copie' }], ['owner-1'])).toEqual({
-      validateurs: ['owner-1'],
-      copie: ['laurie'],
-    });
-  });
-
-  it('personne ne reçoit deux fois le même e-mail', () => {
-    expect(destinatairesValidation([{ userId: 'owner-1', role: 'copie' }], ['owner-1'])).toEqual({
-      validateurs: ['owner-1'],
-      copie: [],
-    });
+  it('un gestionnaire ne valide pas', () => {
+    expect(peutValiderSupports('gestionnaire')).toBe(false);
+    expect(peutValiderSupports('admin')).toBe(true);
   });
 });

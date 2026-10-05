@@ -37,12 +37,6 @@ export const AUTOMATION_KEYS = [
 
 export type AutomationKey = (typeof AUTOMATION_KEYS)[number]['key'];
 
-/**
- * Envois que l'équipe pédagogique désignée (« Qui valide ? », 0203) règle
- * aussi séance par séance, même sans gérer les dossiers.
- */
-export const CLES_EQUIPE_PEDAGOGIQUE: readonly string[] = ['rappel_48h', 'rappel_2h'];
-
 /** Clé d'une programmation de l'organisme (app.email_schedules). */
 export const scheduleKey = (ruleId: string) => `schedule:${ruleId}`;
 

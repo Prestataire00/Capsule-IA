@@ -53,7 +53,7 @@ export default async function SessionCoursPage({ params }: { params: { id: strin
         ) : null}
         Relisez ce que le formateur prépare. Annotez en couleur ce qui est à revoir : il le voit dans son espace et
         marque chaque point corrigé.
-        {!peutValider && ' La décision revient à la direction et aux validateurs désignés.'}
+        {!peutValider && ' La décision revient aux propriétaires et administrateurs.'}
       </p>
 
       <section className="space-y-3">

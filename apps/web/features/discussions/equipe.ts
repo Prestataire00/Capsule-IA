@@ -1,12 +1,11 @@
 import 'server-only';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { nomDuDossier } from '@/features/dossier/referent';
-import { loadDesignations } from '@/features/trainer-space/validation-recipients';
+import { membresParRole } from '@/features/trainer-space/validation-recipients';
 
 /**
  * Qui fait partie de la discussion d'équipe d'un dossier (0204) : ses
- * formateurs, et l'équipe pédagogique de l'organisme — validateurs et copie
- * désignés (0203), sinon la direction. Seuls ceux qui ont un compte peuvent
+ * formateurs, la direction et les gestionnaires de l'organisme. Seuls ceux qui ont un compte peuvent
  * être mentionnés : on ne prévient pas une fiche sans adresse de connexion.
  */
 
@@ -64,18 +63,9 @@ async function formateursDuDossier(admin: Admin, dossierId: string): Promise<Mem
 }
 
 async function equipeOrganisme(admin: Admin, organizationId: string): Promise<MembreDiscussion[]> {
-  const designations = await loadDesignations(admin, organizationId);
-  let userIds = [...new Set(designations.map((d) => d.userId))];
-  if (userIds.length === 0) {
-    const { data } = await admin
-      .schema('app')
-      .from('members')
-      .select('user_id')
-      .eq('organization_id', organizationId)
-      .in('role', ['owner', 'admin'])
-      .is('deleted_at', null);
-    userIds = [...new Set(((data ?? []) as Array<{ user_id: string }>).map((m) => m.user_id))];
-  }
+  const userIds = [
+    ...new Set((await membresParRole(admin, organizationId, ['owner', 'admin', 'gestionnaire'])).map((m) => m.userId)),
+  ];
   if (userIds.length === 0) return [];
   const { data: p } = await admin.schema('app').from('profiles').select('user_id, full_name, email').in('user_id', userIds);
   const profils = new Map(

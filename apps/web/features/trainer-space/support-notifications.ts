@@ -11,8 +11,8 @@ import { heure, jourLong } from './dates';
  *
  * Un contenu en attente que personne ne voit bloque le formateur la veille de
  * sa séance ; un refus que le formateur ignore ne sera jamais corrigé. Les deux
- * bouts de la chaîne sont donc notifiés. Au dépôt, les validateurs désignés
- * (sinon la direction) reçoivent aussi un e-mail, la copie en cc (0203).
+ * bouts de la chaîne sont donc notifiés. Au dépôt, la direction reçoit aussi
+ * un e-mail, les gestionnaires en copie.
  */
 
 type Admin = ReturnType<typeof supabaseAdmin>;

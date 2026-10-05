@@ -35,7 +35,7 @@ export async function decideSupportValidation(input: {
   const me = await getCurrentMember();
   if (!me) return { ok: false, error: 'Votre session a expiré, reconnectez-vous.' };
   if (!(await peutValiderPourMembre(me))) {
-    return { ok: false, error: 'Seuls la direction et les validateurs désignés valident les supports.' };
+    return { ok: false, error: 'Seuls les propriétaires et administrateurs valident les supports.' };
   }
   if (p.data.decision === 'valide') {
     const ouverts = await pointsOuvertsDe('support', p.data.resourceId);

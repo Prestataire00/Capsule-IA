@@ -16,9 +16,9 @@ import {
 } from '@/features/pedagogie/annotations-store';
 
 /**
- * Annoter ce qu'un formateur a préparé : ceux qui valident (direction et
- * validateurs désignés, 0203) marquent en couleur ce qui est à revoir. Le
- * formateur en est prévenu dans son espace.
+ * Annoter ce qu'un formateur a préparé : ceux qui valident (propriétaires et
+ * administrateurs) marquent en couleur ce qui est à revoir. Le formateur en
+ * est prévenu dans son espace.
  */
 
 export type AnnotationResult = { ok: true } | { ok: false; error: string };
@@ -40,7 +40,7 @@ export async function annoterContenu(input: AnnotationInput): Promise<Annotation
   const me = await getCurrentMember();
   if (!me) return { ok: false, error: 'Votre session a expiré, reconnectez-vous.' };
   if (!(await peutValiderPourMembre(me))) {
-    return { ok: false, error: 'Seuls la direction et les validateurs désignés annotent les contenus.' };
+    return { ok: false, error: 'Seuls les propriétaires et administrateurs annotent les contenus.' };
   }
 
   const cible = await contenuAnnote(p.data.targetKind, p.data.targetId);
