@@ -32,6 +32,8 @@ import { filDesEchanges, type EmailJournal, type Suivi } from '@/features/prospe
 import { ecrireALaDemande } from './ecrire-actions';
 import { Propositions, type PropositionVue } from './propositions.client';
 import { totalHtCents, type ContenuProposition } from '@/features/proposition/contenu';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { prixSelonGrille } from '@/features/billing/grille-tarifaire';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,6 +88,8 @@ type Prospect = {
   formation_id: string | null;
   custom_formation_title: string | null;
   custom_formation_hours: number | string | null;
+  custom_formation_price_mode?: 'par_stagiaire' | 'forfait' | null;
+  employees_to_train?: number | null;
   custom_formation_price_cents: number | string | null;
   preferred_modality: string | null;
   preferred_start_date: string | null;
@@ -225,7 +229,7 @@ export default async function ProspectDetailPage({
     .schema('app')
     .from('prospects' as never)
     .select(
-      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, message, formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, preferred_modality, preferred_start_date, created_at, source',
+      'id, organization_id, first_name, last_name, email, phone, situation, company_name, company_siret, convention_collective, funder_kinds, funder_kind, company_batch_id, validation_status, validation_rejected_reason, documents, needs_analysis, message, formation_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, custom_formation_price_mode, employees_to_train, preferred_modality, preferred_start_date, created_at, source',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -262,6 +266,19 @@ export default async function ProspectDetailPage({
   // Ce qui est parti à cette adresse, écrit à la main ou envoyé tout seul.
   const adresse = (prospect.email ?? '').trim();
   const orgId = prospect.organization_id;
+  // Sans tarif saisi, c'est la grille tarifaire qui s'appliquera : on l'affiche.
+  const heuresPrevues = Number(prospect.custom_formation_hours ?? 0);
+  const stagiairesPrevus = prospect.employees_to_train && prospect.employees_to_train > 0 ? prospect.employees_to_train : 1;
+  const tarifSaisi = Number(prospect.custom_formation_price_cents ?? 0) > 0;
+  const parGrille =
+    !tarifSaisi && orgId && heuresPrevues > 0
+      ? prixSelonGrille(await chargerGrille(orgId), { stagiaires: stagiairesPrevus, heures: heuresPrevues })
+      : null;
+  const tarifAffiche = tarifSaisi
+    ? `${tarif(prospect.custom_formation_price_cents)} ${prospect.custom_formation_price_mode === 'forfait' ? '(prix global)' : 'par stagiaire'}`
+    : parGrille
+      ? `${tarif(parGrille.totalCents)} selon la grille (${tarif(parGrille.horaireParStagiaireCents)}/h × ${stagiairesPrevus} stagiaire${stagiairesPrevus > 1 ? 's' : ''} × ${heuresPrevues} h)`
+      : tarif(prospect.custom_formation_price_cents);
   const [{ data: emailRows }, expediteur] = await Promise.all([
     adresse.includes('@') && orgId
       ? sb
@@ -902,7 +919,7 @@ export default async function ProspectDetailPage({
               />
               {formationCatalogue && <SummaryRow label="Origine" value="Catalogue" />}
               <SummaryRow label="Durée prévue" value={heures(prospect.custom_formation_hours)} />
-              <SummaryRow label="Tarif prévu" value={tarif(prospect.custom_formation_price_cents)} />
+              <SummaryRow label="Tarif prévu" value={tarifAffiche} />
               <SummaryRow label="Modalité" value={modalite(prospect.preferred_modality)} />
               <SummaryRow label="Début souhaité" value={jourFr(prospect.preferred_start_date)} />
 

@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Users, ShieldCheck, Plug, Link2, Trash2 } from 'lucide-react';
+import { Building2, Users, ShieldCheck, Plug, Link2, Trash2, Euro } from 'lucide-react';
 import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 
 const ITEMS: { href: string; label: string; icon: typeof Building2; accent: Accent }[] = [
   { href: '/parametres/organisation', label: 'Organisation', icon: Building2, accent: 'orange' },
   { href: '/parametres/membres', label: 'Membres', icon: Users, accent: 'rose' },
+  { href: '/parametres/tarifs', label: 'Tarifs', icon: Euro, accent: 'emerald' },
   { href: '/parametres/inscription', label: "Lien d'inscription", icon: Link2, accent: 'amber' },
   { href: '/parametres/securite', label: 'Sécurité', icon: ShieldCheck, accent: 'purple' },
   { href: '/parametres/integrations', label: 'Intégrations', icon: Plug, accent: 'blue' },

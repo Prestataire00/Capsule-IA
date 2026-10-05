@@ -8,11 +8,16 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { DemandeForm, type FormationOption } from './demande-form.client';
 import { chargerEntreprisesCrm } from './entreprises-crm';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { GRILLE_PAR_DEFAUT } from '@/features/billing/grille-tarifaire';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NouvelleDemandePage() {
   await requireAccess('crm', 'manage');
+  const me = await getCurrentMember();
+  const grille = me ? await chargerGrille(me.organizationId) : GRILLE_PAR_DEFAUT;
   const sb = supabaseServer();
   const [{ data }, entreprisesCrm] = await Promise.all([
     sb
@@ -60,7 +65,7 @@ export default async function NouvelleDemandePage() {
         </p>
       </header>
 
-      <DemandeForm formations={formations} entreprisesCrm={entreprisesCrm} />
+      <DemandeForm formations={formations} entreprisesCrm={entreprisesCrm} grille={grille} />
     </div>
   );
 }

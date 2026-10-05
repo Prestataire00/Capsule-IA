@@ -1,5 +1,6 @@
 'use server';
 
+import { marquerMontantConvenu } from '@/features/billing/montant-convenu';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -49,6 +50,7 @@ export async function setDossierTotalAmount(formData: FormData): Promise<void> {
   if (error) {
     redirect(`/dossiers/${parsed.data.dossierId}/facturation?amountError=1`);
   }
+  await marquerMontantConvenu(sb as never, parsed.data.dossierId);
 
   revalidatePath(`/dossiers/${parsed.data.dossierId}/facturation`);
   redirect(`/dossiers/${parsed.data.dossierId}/facturation?amountSaved=1`);

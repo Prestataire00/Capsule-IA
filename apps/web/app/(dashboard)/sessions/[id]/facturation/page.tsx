@@ -12,6 +12,8 @@ import { isQuoteActive } from '@/features/billing/domain/quote';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { QuoteCard } from '../../../devis/_components/quote-card.client';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { prixSelonGrille } from '@/features/billing/grille-tarifaire';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,8 +66,18 @@ export default async function SessionInvoicingTab({ params }: { params: { id: st
       .eq('id', session.formation_id)
       .maybeSingle();
     const row = f as { default_price_cents: number | null; price_mode?: string | null } | null;
-    unitPrice = row?.default_price_cents ?? null;
-    forfait = row?.price_mode === 'forfait';
+    unitPrice = row?.default_price_cents && row.default_price_cents > 0 ? row.default_price_cents : null;
+    forfait = unitPrice != null && row?.price_mode === 'forfait';
+  }
+  // Aucun tarif saisi : celui de la grille (0208), pour l'effectif de la séance.
+  let parGrille = false;
+  if (unitPrice == null) {
+    const heures = (new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()) / 3_600_000;
+    if (heures > 0) {
+      const p = prixSelonGrille(await chargerGrille(session.organization_id), { stagiaires: Math.max(1, dossierIds.length), heures });
+      unitPrice = Math.round(p.horaireParStagiaireCents * heures);
+      parGrille = true;
+    }
   }
 
   // CA prévisionnel = somme des devis réels (un par client) ; les stagiaires
@@ -81,7 +93,10 @@ export default async function SessionInvoicingTab({ params }: { params: { id: st
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat label={forfait ? 'Prix global' : 'Tarif / stagiaire'} value={unitPrice != null ? `${euros(unitPrice)} HT` : '—'} />
+        <Stat
+          label={forfait ? 'Prix global' : parGrille ? 'Tarif / stagiaire (grille)' : 'Tarif / stagiaire'}
+          value={unitPrice != null ? `${euros(unitPrice)} HT` : '—'}
+        />
         <Stat label="CA prévisionnel" value={`${euros(forecast)} HT`} />
         <Stat label="Devis signés" value={`${euros(signed)} HT`} />
         <Stat label="Facturé" value={euros(total)} />

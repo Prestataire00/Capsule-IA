@@ -14,6 +14,8 @@ import { loadBoardFacts } from '@/features/sessions/load-session-board';
 import { buildBoard, type BoardStep } from '@/features/sessions/session-board';
 import { estTarifBase, formatEuros, ligneSeance } from '@/features/trainer-space/billing-rules';
 import { SessionInfoEdit } from './session-info-edit';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { prixSelonGrille } from '@/features/billing/grille-tarifaire';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,7 +114,14 @@ export default async function SessionOverview({ params }: { params: { id: string
   // participants. Un tarif posé sur la séance reste, lui, par participant.
   const forfait =
     infos.price_cents == null && (form as { price_mode?: string } | null)?.price_mode === 'forfait';
-  const tarif = infos.price_cents ?? (tarifFormation && tarifFormation > 0 ? tarifFormation : null);
+  const tarifSaisi = infos.price_cents ?? (tarifFormation && tarifFormation > 0 ? tarifFormation : null);
+  // Aucun tarif saisi : celui de la grille (0208), pour l'effectif de la séance.
+  const heuresSeance = (new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()) / 3_600_000;
+  const parGrille =
+    tarifSaisi == null && heuresSeance > 0
+      ? prixSelonGrille(await chargerGrille(session.organization_id), { stagiaires: Math.max(1, n), heures: heuresSeance })
+      : null;
+  const tarif = tarifSaisi ?? (parGrille ? Math.round(parGrille.horaireParStagiaireCents * heuresSeance) : null);
   const devisValables = devis.filter((d) => d.status === 'sent' || d.status === 'signed');
   const couverts = learners.filter((l) => devisValables.some((d) => (l.companyId && d.company_id === l.companyId) || d.learner_id === l.id));
   const ca =
@@ -216,6 +225,11 @@ export default async function SessionOverview({ params }: { params: { id: string
                 {formatEuros(Number(tarif))}
                 {infos.price_cents != null && tarifFormation !== null && Number(infos.price_cents) !== Number(tarifFormation) && (
                   <span className="ml-2 text-[12px] text-amber-700 dark:text-amber-400">(prix de la séance)</span>
+                )}
+                {parGrille && (
+                  <span className="ml-2 text-[12px] text-zinc-500 dark:text-zinc-400">
+                    (grille : {formatEuros(parGrille.horaireParStagiaireCents)}/h pour {Math.max(1, n)} participant{n > 1 ? 's' : ''})
+                  </span>
                 )}
               </span>
             ) : (

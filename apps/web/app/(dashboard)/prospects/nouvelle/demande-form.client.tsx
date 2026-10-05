@@ -13,6 +13,7 @@ import { parseEurosToCents } from '@/features/billing/domain/quote';
 import { siretValide } from '@/shared/lib/siret';
 import { EntrepriseAutocomplete } from '@/app/inscription/entreprise-autocomplete';
 import { createDemande } from './actions';
+import { GRILLE_PAR_DEFAUT, prixSelonGrille, type GrilleTarifaire } from '@/features/billing/grille-tarifaire';
 
 export type FormationOption = { id: string; title: string; code: string | null; priceCents: number; hours: number };
 /** La personne à reprendre comme « qui fait la demande » pour une entreprise. */
@@ -114,8 +115,11 @@ export function DemandeForm({
   valeurs,
   enregistrer,
   libelleBouton,
+  grille = GRILLE_PAR_DEFAUT,
 }: {
   formations: FormationOption[];
+  /** Grille tarifaire de l'organisme : proposée quand aucun tarif n'est saisi. */
+  grille?: GrilleTarifaire;
   /** Entreprises du CRM auxquelles rattacher la demande. */
   entreprisesCrm?: EntrepriseCrm[];
   /** Demande existante à modifier ; absent = création. */
@@ -782,9 +786,39 @@ export function DemandeForm({
                 </p>
               );
             })()}
+            {(() => {
+              // Aucun tarif saisi : la grille tarifaire s'appliquera. On montre
+              // ce qu'elle donne, et on peut la reprendre comme tarif à négocier.
+              if (form.customPrice.trim()) return null;
+              const heures = Number(form.customHours.replace(',', '.'));
+              if (!(heures > 0)) return null;
+              const nb = Number(form.nbStagiaires) >= 1 ? Number(form.nbStagiaires) : 1;
+              const p = prixSelonGrille(grille, { stagiaires: nb, heures });
+              const eur = (c: number) =>
+                (c / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+              return (
+                <div className="md:col-span-3 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-900/40 px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300 flex items-center justify-between gap-3 flex-wrap">
+                  <span className="tabular-nums">
+                    Grille tarifaire : {eur(p.horaireParStagiaireCents)} HT de l’heure par stagiaire pour {nb} stagiaire
+                    {nb > 1 ? 's' : ''}, soit <strong>{eur(p.totalCents)} HT</strong> pour {heures} h
+                    {p.plancherApplique ? ' (plancher par séance appliqué)' : ''}.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      set('customPriceMode', 'par_stagiaire');
+                      set('customPrice', String(Math.round(p.horaireParStagiaireCents * heures) / 100).replace('.', ','));
+                    }}
+                    className="text-[12px] font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+                  >
+                    Partir de ce tarif
+                  </button>
+                </div>
+              );
+            })()}
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400 md:col-span-3">
               La formation sera créée à l’ouverture du dossier, hors catalogue public. Durée et tarif servent de base au devis ;
-              tout reste modifiable ensuite.
+              sans tarif saisi, la grille tarifaire s’applique. Tout reste modifiable ensuite.
             </p>
           </div>
         )}

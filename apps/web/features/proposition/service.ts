@@ -12,9 +12,12 @@ import { wrapGeneratedHtml } from '@/features/documents/templates/wrap-generated
 import { resolveOrgVariables } from '@/features/documents/templates/resolve-org-variables';
 import { controlerCadre, type ContenuProposition } from './contenu';
 import { genererProposition, type ContexteProposition } from './generer-avec-ia';
+import { appliquerGrille } from './contenu';
 import { propositionHtml } from './proposition-html';
 import { creerDevisProposition, type ClientDemande } from './devis';
 import { preparerProgramme } from './preparer-programme';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { prixSelonGrille, tableauGrille, type GrilleTarifaire } from '@/features/billing/grille-tarifaire';
 
 export const BUCKET_PROGRAMMES = 'prospect-documents';
 
@@ -99,6 +102,10 @@ async function contexte(sb: SupabaseClient, p: Prospect): Promise<ContextePropos
   if (p.internal_notes?.trim()) notes.unshift(p.internal_notes.trim());
 
   const besoin = p.needs_analysis && typeof p.needs_analysis === 'object' ? JSON.stringify(p.needs_analysis).slice(0, 4000) : null;
+  // Aucun prix sur la demande : l'IA chiffre avec la grille de l'organisme
+  // (0208) plutôt que de laisser le tarif à 0. Un prix saisi l'emporte.
+  const sansPrix = !(Number(p.custom_formation_price_cents ?? 0) > 0);
+  const grille = sansPrix ? await chargerGrille(p.organization_id) : null;
   return {
     organisme: {
       nom: o.name ?? 'Organisme de formation',
@@ -125,9 +132,28 @@ async function contexte(sb: SupabaseClient, p: Prospect): Promise<ContextePropos
       Financement: [p.funder_kind, ...(p.funder_kinds ?? [])].filter(Boolean).join(', ') || null,
       'Message du client': p.message,
       'Analyse du besoin': besoin,
+      ...(grille
+        ? {
+            'Grille tarifaire de l’organisme (à appliquer, mode heure par apprenant)': decrireGrille(grille, p.employees_to_train),
+          }
+        : {}),
     },
     notes,
   };
+}
+
+/** La grille en clair pour l'IA : le tarif horaire par stagiaire selon l'effectif. */
+function decrireGrille(grille: GrilleTarifaire, prevus: number | null): string {
+  const lignes = tableauGrille(grille, [1, 2, 3, 4, 5, 6, 8, 10, 11, 15]).map(
+    (l) => `${l.stagiaires} stagiaire${l.stagiaires > 1 ? 's' : ''} : ${l.horaireParStagiaireCents / 100} € HT/h par stagiaire`,
+  );
+  const n = prevus && prevus > 0 ? prevus : null;
+  const retenu = n ? prixSelonGrille(grille, { stagiaires: n, heures: 1 }).horaireParStagiaireCents / 100 : null;
+  return [
+    `Plancher : ${grille.plancherHoraireCents / 100} € HT par heure de séance, réparti entre les stagiaires.`,
+    ...lignes,
+    retenu ? `Pour ${n} stagiaires : ${retenu} € HT/h par stagiaire.` : 'Effectif inconnu : retiens 6 stagiaires.',
+  ].join(' ; ');
 }
 
 function clientDe(p: Prospect): ClientDemande {
@@ -207,6 +233,11 @@ export async function creerVersion(
     }
   }
   contenu = { ...contenu, finale: Boolean(args.finale) };
+  // Pas de prix sur la demande : la grille de l'organisme chiffre la proposition,
+  // et son tableau des scénarios devient dégressif (0208).
+  if (!(Number(p.custom_formation_price_cents ?? 0) > 0)) {
+    contenu = appliquerGrille(contenu, await chargerGrille(p.organization_id), p.employees_to_train && p.employees_to_train > 0 ? p.employees_to_train : 6);
+  }
 
   const { data: derniere } = await sb
     .schema('app')

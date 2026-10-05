@@ -7,12 +7,13 @@ import { generateDocumentSignatureToken } from '@/shared/lib/document-signature-
 import { buildDevisHtml, type DevisSession } from '@/features/documents/generate-devis-html';
 import { wrapGeneratedHtml } from '@/features/documents/templates/wrap-generated-html';
 import { resolveOrgVariables } from '@/features/documents/templates/resolve-org-variables';
+import { prixParDefaut, prixSelonGrille } from '@/features/billing/grille-tarifaire';
+import { chargerGrille } from '@/features/billing/grille-store';
 import {
   QUOTE_VALIDITY_DAYS,
   addDays,
   canSendQuote,
   computeQuoteTotals,
-  defaultUnitPriceCents,
   quoteObject,
   resolveQuoteClient,
   type QuoteClientKind,
@@ -260,7 +261,7 @@ export async function ensureQuoteForDossier(
   const { data: dRow } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, organization_id, learner_id, company_id, formation_id, deleted_at, metadata')
+    .select('id, organization_id, learner_id, company_id, formation_id, deleted_at, metadata, total_amount_cents, total_hours')
     .eq('id', dossierId)
     .maybeSingle();
   const dossier = dRow as {
@@ -271,6 +272,8 @@ export async function ensureQuoteForDossier(
     formation_id: string | null;
     deleted_at: string | null;
     metadata: Record<string, unknown> | null;
+    total_amount_cents: number | null;
+    total_hours: number | string | null;
   } | null;
   if (!dossier || dossier.deleted_at) return { ok: false, reason: 'dossier_not_found' };
   if (opts.organizationId && dossier.organization_id !== opts.organizationId) {
@@ -343,9 +346,21 @@ export async function ensureQuoteForDossier(
   const issuedOn = todayParis();
   const title = formation.title ?? 'Formation';
   const vatRate = org.vat_regime === 'subject' ? Number(org.default_vat_rate ?? 0) : 0;
-  const unit = defaultUnitPriceCents(session?.price_cents, formation.default_price_cents);
   const prevus = Number((dossier.metadata as { nb_stagiaires_prevus?: unknown } | null)?.nb_stagiaires_prevus);
   const nbStagiaires = Number.isInteger(prevus) && prevus > 0 ? prevus : 1;
+  // Un prix saisi (séance, formation, dossier) l'emporte ; sinon la grille (0208).
+  const prix = prixParDefaut({
+    grille: await chargerGrille(orgId),
+    stagiaires: nbStagiaires,
+    heures: Number(dossier.total_hours ?? formation.default_duration_hours ?? 0),
+    seanceCents: session?.price_cents ?? null,
+    formationCents: formation.default_price_cents ?? null,
+    formationMode: formation.price_mode ?? null,
+    // Un montant tiré de la grille à la conversion n'est pas un prix convenu :
+    // la grille le recalcule ici, à l'effectif du devis.
+    dossierTotalCents:
+      (dossier.metadata as { montant_source?: string } | null)?.montant_source === 'grille' ? null : dossier.total_amount_cents,
+  });
 
   const { data: inserted, error: insErr } = await sb
     .schema('app')
@@ -366,7 +381,13 @@ export async function ensureQuoteForDossier(
       valid_until: addDays(issuedOn, QUOTE_VALIDITY_DAYS),
       vat_rate: vatRate,
       auto_generated: !opts.force,
-      metadata: { auto_line: true, formation_title: title },
+      metadata: {
+        auto_line: true,
+        formation_title: title,
+        // Prix de la grille : il se recalcule quand l'effectif du devis change.
+        prix_source: prix.source,
+        heures: Number(dossier.total_hours ?? formation.default_duration_hours ?? 0),
+      },
     } as never)
     .select('id')
     .single();
@@ -376,7 +397,7 @@ export async function ensureQuoteForDossier(
   const details = [
     formation.default_duration_hours ? `${formation.default_duration_hours} h` : null,
     formation.default_modality ? (MODALITY_LABELS[formation.default_modality] ?? formation.default_modality) : null,
-    formation.price_mode === 'forfait' ? 'prix global de la formation' : 'tarif par stagiaire',
+    prix.explication,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -393,8 +414,8 @@ export async function ensureQuoteForDossier(
         details,
         // Un prix global se facture une fois ; un tarif par stagiaire, autant
         // de fois que de stagiaires prévus sur la demande.
-        quantity: formation.price_mode === 'forfait' ? 1 : nbStagiaires,
-        unit_amount_cents: unit,
+        quantity: prix.quantite,
+        unit_amount_cents: prix.unitaireCents,
         vat_rate: null,
       } as never),
     sb
@@ -470,14 +491,23 @@ async function syncAutoLine(sb: Sb, quoteId: string): Promise<void> {
   }
   const count = (await coveredDossierIds(sb, quoteId)).length;
   const title = String(quote.metadata.formation_title ?? 'Formation');
+  const n = Math.max(1, count);
+  // Grille dégressive : le prix par stagiaire dépend de l'effectif du devis.
+  const parGrille = quote.metadata.prix_source === 'grille';
+  const unitaire = parGrille
+    ? Math.round(
+        prixSelonGrille(await chargerGrille(quote.organization_id), { stagiaires: n, heures: 1 }).horaireParStagiaireCents *
+          Number(quote.metadata.heures ?? 0),
+      )
+    : null;
   await Promise.all([
     sb
       .schema('app')
       .from('quote_lines')
-      .update({ quantity: Math.max(1, count) } as never)
+      .update({ quantity: n, ...(unitaire !== null ? { unit_amount_cents: unitaire } : {}) } as never)
       .eq('quote_id', quoteId)
       .eq('position', 0),
-    sb.schema('app').from('quotes').update({ object: quoteObject(title, Math.max(1, count)) } as never).eq('id', quoteId),
+    sb.schema('app').from('quotes').update({ object: quoteObject(title, n) } as never).eq('id', quoteId),
   ]);
   await recomputeQuoteTotals(sb, quoteId);
 }

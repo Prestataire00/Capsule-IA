@@ -1,5 +1,6 @@
 'use server';
 
+import { marquerMontantConvenu } from '@/features/billing/montant-convenu';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
@@ -70,6 +71,7 @@ export async function modifierMontantDossier(brut: z.input<typeof Schema>): Prom
     console.error('[dossier] montant non enregistré', p.data.dossierId, error.message);
     return { ok: false, error: 'Le montant n’a pas pu être enregistré.' };
   }
+  await marquerMontantConvenu(sb as never, p.data.dossierId);
 
   // Le reste à payer se calcule à partir de ce montant : les deux écrans qui
   // l'affichent doivent le relire, sans quoi ils annonceraient deux chiffres

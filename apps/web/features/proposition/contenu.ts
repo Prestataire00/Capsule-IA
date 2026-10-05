@@ -8,6 +8,8 @@
 // évaluation, accueil, tarif. L'IA la remplit ; le code, lui, fait les
 // comptes — un total de devis ne se confie pas à un modèle de langage.
 
+import { prixSelonGrille, type GrilleTarifaire } from '@/features/billing/grille-tarifaire';
+
 export type LigneLibelle = { libelle: string; valeur: string };
 export type Objectif = { verbe: string; texte: string };
 export type Module = {
@@ -49,6 +51,12 @@ export type ContenuProposition = {
     participants: number;
     scenarios_participants: number[];
     financement: string;
+    /**
+     * Grille tarifaire de l'organisme (0208), gardée quand le prix en vient :
+     * chaque effectif du tableau des scénarios prend alors son propre tarif
+     * horaire, dégressif. Absente = prix négocié, le même pour tous.
+     */
+    grille?: GrilleTarifaire;
   };
   points_a_valider: string[];
   /**
@@ -235,7 +243,9 @@ const heuresFr = (h: number): string => `${h.toLocaleString('fr-FR', { maximumFr
 export function totalHtCents(t: ContenuProposition['tarif'], participants = t.participants): number {
   switch (t.mode) {
     case 'heure_apprenant':
-      return Math.round(t.prix_unitaire_cents * t.heures * participants);
+      return t.grille
+        ? prixSelonGrille(t.grille, { stagiaires: participants, heures: t.heures }).totalCents
+        : Math.round(t.prix_unitaire_cents * t.heures * participants);
     case 'par_apprenant':
       return Math.round(t.prix_unitaire_cents * participants);
     default:
@@ -301,4 +311,19 @@ export function normaliser(c: ContenuProposition): ContenuProposition {
       scenarios_participants: t.scenarios_participants.map((p) => entier(p, 1, 500)).slice(0, 6),
     },
   };
+}
+
+/**
+ * Aucun prix négocié : le tarif vient de la grille de l'organisme, au tarif
+ * horaire de l'effectif retenu. Un prix que l'IA a tiré des notes (non nul et
+ * différent de la grille) est respecté.
+ */
+export function appliquerGrille(c: ContenuProposition, grille: GrilleTarifaire, effectifParDefaut: number): ContenuProposition {
+  const t = c.tarif;
+  const participants = t.participants > 0 ? t.participants : effectifParDefaut;
+  const horaire = prixSelonGrille(grille, { stagiaires: participants, heures: 1 }).horaireParStagiaireCents;
+  const vientDeLaGrille = t.prix_unitaire_cents === 0 || (t.mode === 'heure_apprenant' && t.prix_unitaire_cents === horaire);
+  if (!vientDeLaGrille) return c;
+  const heures = t.heures > 0 ? t.heures : c.duree_totale_heures;
+  return { ...c, tarif: { ...t, mode: 'heure_apprenant', prix_unitaire_cents: horaire, heures, participants, grille } };
 }

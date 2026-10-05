@@ -175,6 +175,8 @@ export const createDossierAction = authActionClient
     });
 
     const metadata: Record<string, unknown> = {};
+    // Un montant saisi est convenu : la grille tarifaire ne s'y substitue pas (0208).
+    if (parsedInput.totalAmountCents) metadata.montant_source = 'saisi';
     if (statut === 'archived') metadata.saisie_retroactive = true;
 
     const { error } = await sb.rpc('save_dossier' as never, {

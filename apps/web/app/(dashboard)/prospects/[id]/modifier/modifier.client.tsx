@@ -8,6 +8,7 @@ import {
   type ValeursDemande,
 } from '../../nouvelle/demande-form.client';
 import { modifierDemande } from './actions';
+import type { GrilleTarifaire } from '@/features/billing/grille-tarifaire';
 
 /**
  * Pont entre l'écran serveur et le formulaire partagé : ce dernier reçoit une
@@ -18,8 +19,10 @@ export function ModifierDemande({
   formations,
   entreprisesCrm,
   valeurs,
+  grille,
 }: {
   prospectId: string;
+  grille: GrilleTarifaire;
   formations: FormationOption[];
   entreprisesCrm: EntrepriseCrm[];
   valeurs: ValeursDemande;
@@ -31,6 +34,7 @@ export function ModifierDemande({
       formations={formations}
       entreprisesCrm={entreprisesCrm}
       valeurs={valeurs}
+      grille={grille}
       libelleBouton="Enregistrer les modifications"
       enregistrer={async (v) => {
         const heures = v.customHours.trim() ? Number(v.customHours.replace(',', '.')) : null;

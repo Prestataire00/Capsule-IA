@@ -16,6 +16,7 @@ import {
 import { InfoCallout } from '@/shared/ui/info-callout';
 import { createDossierAction } from '../actions';
 import { CreateDossierSchema, MODALITIES, type Modality } from '../schema';
+import { prixSelonGrille, type GrilleTarifaire } from '@/features/billing/grille-tarifaire';
 
 const FUNDER_KIND_LABELS: Record<string, string> = {
   opco: 'OPCO',
@@ -55,6 +56,9 @@ const MODALITY_LABELS: Record<Modality, string> = {
   hybride: 'Hybride',
 };
 
+const eurosEntiers = (cents: number) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
+
 export function NewDossierForm({
   learners,
   companies,
@@ -64,6 +68,7 @@ export function NewDossierForm({
   modulesByFormation,
   initialLearnerId,
   initialFormationId,
+  grille,
 }: {
   learners: LearnerOption[];
   companies: CompanyOption[];
@@ -74,6 +79,8 @@ export function NewDossierForm({
   /** Pré-remplissage depuis une fiche client (?learnerId=…&formationId=…). */
   initialLearnerId?: string;
   initialFormationId?: string;
+  /** Grille tarifaire de l'organisme : appliquée au devis si aucun montant n'est saisi. */
+  grille: GrilleTarifaire;
 }) {
   const router = useRouter();
   const { executeAsync } = useAction(createDossierAction);
@@ -578,6 +585,19 @@ export function NewDossierForm({
                     />
                     <span className="text-[13px] text-zinc-500 dark:text-zinc-400">€</span>
                   </div>
+                  {amountEuros.trim() === '' && (
+                    <p className="mt-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                      Laissé vide, le devis applique la grille tarifaire à l’effectif du groupe — par exemple{' '}
+                      <span className="tabular-nums">
+                        {eurosEntiers(prixSelonGrille(grille, { stagiaires: 1, heures: totalHours || 7 }).totalCents)}
+                      </span>{' '}
+                      pour un stagiaire seul, ou{' '}
+                      <span className="tabular-nums">
+                        {eurosEntiers(prixSelonGrille(grille, { stagiaires: 6, heures: totalHours || 7 }).horaireParStagiaireCents * (totalHours || 7))}
+                      </span>{' '}
+                      par stagiaire dans un groupe de 6 ({totalHours || 7} h). Un montant saisi l’emporte.
+                    </p>
+                  )}
                 </Field>
 
                 <div>

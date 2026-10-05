@@ -10,6 +10,9 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import type { FormationOption, ValeursDemande } from '../../nouvelle/demande-form.client';
 import { ModifierDemande } from './modifier.client';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { GRILLE_PAR_DEFAUT } from '@/features/billing/grille-tarifaire';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +49,8 @@ type Ligne = {
 
 export default async function ModifierDemandePage({ params }: { params: { id: string } }) {
   await requireAccess('crm', 'manage');
+  const me = await getCurrentMember();
+  const grille = me ? await chargerGrille(me.organizationId) : GRILLE_PAR_DEFAUT;
   const sb = supabaseServer();
 
   const [{ data: ligne, error: erreurLecture }, { data: formationsRows }, entreprisesCrm] = await Promise.all([
@@ -150,7 +155,7 @@ export default async function ModifierDemandePage({ params }: { params: { id: st
         </p>
       )}
 
-      <ModifierDemande prospectId={params.id} formations={formations} entreprisesCrm={entreprisesCrm} valeurs={valeurs} />
+      <ModifierDemande prospectId={params.id} formations={formations} entreprisesCrm={entreprisesCrm} valeurs={valeurs} grille={grille} />
     </div>
   );
 }

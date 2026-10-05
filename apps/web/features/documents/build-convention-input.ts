@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { type ConventionInput } from './generate-convention-pdf';
 import { loadOrgBranding } from './load-org-branding';
 import type { DossierPayer } from './dossier-payers';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { prixParDefaut } from '@/features/billing/grille-tarifaire';
 
 type AddressJson = {
   line1?: string;
@@ -37,10 +39,10 @@ export async function buildConventionInput(
     .from('dossiers')
     .select(`
       reference, start_date, end_date, total_hours, modality, modalities, total_amount_cents, currency, accessibility_notes,
-      organization_id, learner_id, company_id,
+      organization_id, learner_id, company_id, metadata,
       learner:learners!dossiers_learner_id_fkey(first_name, last_name, email, birth_date, address),
       company:companies(name, siret, address, contact_name),
-      formation:formations(title, description, objectives, prerequisites, target_audience, evaluation_method, pedagogical_method)
+      formation:formations(title, description, objectives, prerequisites, target_audience, evaluation_method, pedagogical_method, default_price_cents, price_mode)
     `)
     .eq('id', dossierId)
     .maybeSingle();
@@ -58,6 +60,7 @@ export async function buildConventionInput(
     currency: string;
     accessibility_notes: string | null;
     organization_id: string;
+    metadata: { nb_stagiaires_prevus?: unknown } | null;
     learner_id: string | null;
     company_id: string | null;
     learner: { first_name: string; last_name: string; email: string; birth_date: string | null; address: AddressJson | null } | null;
@@ -81,6 +84,21 @@ export async function buildConventionInput(
 
   const orgId = d.organization_id;
   const branding = await loadOrgBranding(sb as never, orgId);
+
+  // Sans montant convenu sur le dossier, celui du prix de la formation, sinon
+  // de la grille tarifaire (0208) : une convention ne part pas sans montant.
+  const prevus = Number(d.metadata?.nb_stagiaires_prevus);
+  const formationPrix = d.formation as { default_price_cents?: number | null; price_mode?: 'par_stagiaire' | 'forfait' | null } | null;
+  const montantCents =
+    d.total_amount_cents && d.total_amount_cents > 0
+      ? d.total_amount_cents
+      : prixParDefaut({
+          grille: await chargerGrille(d.organization_id),
+          stagiaires: Number.isInteger(prevus) && prevus > 0 ? prevus : 1,
+          heures: Number(d.total_hours ?? 0),
+          formationCents: formationPrix?.default_price_cents ?? null,
+          formationMode: formationPrix?.price_mode ?? null,
+        }).totalCents || null;
 
   const input: ConventionInput = {
     organization: {
@@ -140,7 +158,7 @@ export async function buildConventionInput(
       totalHours: d.total_hours,
       modality: d.modality,
       modalities: d.modalities ?? undefined,
-      totalAmountCents: d.total_amount_cents,
+      totalAmountCents: montantCents,
       currency: d.currency,
       accessibilityNotes: d.accessibility_notes,
     },

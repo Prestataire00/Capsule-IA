@@ -1,4 +1,6 @@
 import 'server-only';
+import { prixParDefaut } from '@/features/billing/grille-tarifaire';
+import { chargerGrille } from '@/features/billing/grille-store';
 import { randomUUID } from 'node:crypto';
 import { matchLearner, matchCompany, detectPotentialDuplicates } from './matching';
 import { generateDossierReference } from './dossier-reference';
@@ -281,6 +283,29 @@ export async function convertProspectToDossier(
     dureeCatalogue = Number.isFinite(h) && h > 0 ? h : null;
   }
 
+  // Aucun prix saisi sur la demande : le montant du dossier vient du prix de
+  // la formation, sinon de la grille tarifaire (0208). Il reste modifiable.
+  let montantDossierCents = montantPrevuCents;
+  let montantSource: 'demande' | 'formation' | 'grille' = 'demande';
+  if (!montantDossierCents) {
+    const { data: fp } = await sb
+      .schema('app')
+      .from('formations')
+      .select('default_price_cents, price_mode')
+      .eq('id', formationId)
+      .maybeSingle();
+    const prixFormation = fp as { default_price_cents: number | null; price_mode: 'par_stagiaire' | 'forfait' | null } | null;
+    const prix = prixParDefaut({
+      grille: await chargerGrille(orgId),
+      stagiaires: nbPrevus ?? 1,
+      heures: dureeCatalogue ?? hours,
+      formationCents: prixFormation?.default_price_cents ?? null,
+      formationMode: prixFormation?.price_mode ?? null,
+    });
+    montantDossierCents = prix.totalCents > 0 ? prix.totalCents : null;
+    montantSource = prix.source === 'grille' ? 'grille' : 'formation';
+  }
+
   // Référent du dossier : celui qui commande la formation. La demande a
   // recueilli son nom, son e-mail et son téléphone — jusqu'ici ils n'allaient
   // que sur la fiche entreprise, si bien que toutes les affaires d'un même
@@ -374,6 +399,8 @@ export async function convertProspectToDossier(
         funder_kinds: p.funder_kinds?.length ? p.funder_kinds : [prospect.funderKind],
         // Repris par le devis automatique comme nombre de stagiaires.
         ...(nbPrevus ? { nb_stagiaires_prevus: nbPrevus } : {}),
+        // D'où vient le montant : un montant de grille se recalcule, un montant convenu non.
+        montant_source: montantSource,
       },
     },
     p_events: [],
@@ -401,7 +428,7 @@ export async function convertProspectToDossier(
       // l'interlocuteur, une contrainte — disparaissait au moment précis où le
       // dossier commençait à servir.
       notes: noteInterne,
-      ...(montantPrevuCents ? { total_amount_cents: montantPrevuCents } : {}),
+      ...(montantDossierCents ? { total_amount_cents: montantDossierCents } : {}),
     })
     .eq('id', dossierId);
   if (majErr) console.error('[conversion] référent / titulaire non enregistrés', dossierId, majErr.message);

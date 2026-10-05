@@ -6,6 +6,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { NewDossierForm } from './_components/new-dossier-form';
 import { requireAccess } from '@/shared/lib/auth/require-access';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { chargerGrille } from '@/features/billing/grille-store';
+import { GRILLE_PAR_DEFAUT } from '@/features/billing/grille-tarifaire';
 import type {
   LearnerOption,
   FormationOption,
@@ -23,6 +26,8 @@ export default async function NewDossierPage({
 }) {
   await requireAccess('dossiers', 'manage');
   const sb = supabaseServer();
+  const me = await getCurrentMember();
+  const grille = me ? await chargerGrille(me.organizationId) : GRILLE_PAR_DEFAUT;
 
   const [learnersRes, companiesRes, formationsRes, trainersRes, fundersRes, formationModulesRes] =
     await Promise.all([
@@ -176,6 +181,7 @@ export default async function NewDossierPage({
       modulesByFormation={modulesByFormation}
       initialLearnerId={searchParams?.learnerId}
       initialFormationId={searchParams?.formationId}
+      grille={grille}
     />
   );
 }
