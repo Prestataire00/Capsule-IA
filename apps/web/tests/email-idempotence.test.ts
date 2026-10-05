@@ -69,7 +69,8 @@ describe('les envois du cron qui ne vérifiaient rien', () => {
     expect(src).toContain('convoquerSeance(');
     expect(lire('../features/sessions/convoquer-seance.ts')).toContain(': `convocation_j7:${session.id}:${learner.id}`');
     expect(src).toContain('idempotencyKey: `satisfaction_chaud:${d.id}:${d.learner_id}`');
-    expect(src).toContain('idempotencyKey: `fin_de_formation:${d.id}:${d.learner_id}`');
+    // La fin de formation part groupée au référent : sa clé porte sur le groupe de dossiers.
+    expect(lire('../features/espace-entreprise/attestations.ts')).toContain('idempotencyKey: `${kind}:groupe:');
   });
 
   it('la clé de satisfaction et de fin lit l’identifiant réellement disponible', () => {

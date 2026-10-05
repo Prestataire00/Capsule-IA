@@ -308,6 +308,39 @@ export function liensStagiairesReferentEmail(d: {
   return { subject: d.objet, html };
 }
 
+/** Les attestations de tous les stagiaires d'une entreprise, en un seul e-mail. */
+export function attestationsReferentEmail(d: {
+  prenom: string;
+  moment: 'entree' | 'fin';
+  stagiaires: ReadonlyArray<{ nom: string; formation: string | null }>;
+  organisme: string;
+  lienEspace: string | null;
+}): { subject: string; html: string } {
+  const n = d.stagiaires.length;
+  const quoi = d.moment === 'entree' ? 'd’entrée en formation' : 'de fin de formation';
+  const subject = `Attestation${n > 1 ? 's' : ''} ${quoi} — ${n} stagiaire${n > 1 ? 's' : ''}`;
+  const lignes = d.stagiaires
+    .map((s) => `<li style="margin:0 0 6px;">${escapeHtml(s.nom)}${s.formation ? ` — ${escapeHtml(s.formation)}` : ''}</li>`)
+    .join('');
+  const html = wrapper(`
+    ${card(`
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bonjour ${escapeHtml(d.prenom)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 12px;">
+        ${n > 1 ? 'Les attestations' : 'L’attestation'} ${quoi} de ${n > 1 ? 'vos stagiaires sont disponibles' : 'votre stagiaire est disponible'} :
+      </p>
+      <ul style="font-size:14px; color:#18181b; padding-left:18px; margin:0 0 16px;">${lignes}</ul>
+      ${
+        d.lienEspace
+          ? `<div>${button(d.lienEspace, 'Ouvrir mon espace entreprise')}</div>
+             <p style="font-size:12px; color:#71717a; margin:12px 0 0;">Vous les y retrouvez à tout moment, avec les autres documents de vos formations.</p>`
+          : `<p style="font-size:13px; color:#52525b; margin:0;">Elles sont jointes à ce message.</p>`
+      }
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">Merci de les transmettre à vos stagiaires. — ${escapeHtml(d.organisme)}</p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;

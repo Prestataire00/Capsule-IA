@@ -24,16 +24,12 @@ describe('les liens envoyés au stagiaire', () => {
     expect(CRON).not.toMatch(/certificateUrl[^\n]*\/api\/dossiers\//);
   });
 
-  it('pointent vers l’espace du stagiaire, servi par jeton', () => {
-    expect(CRON).toContain('const attestationUrl = espace ? `${espace}/documents` : null');
-    expect(CRON).toContain('attestationUrl: espaceEntree ? `${espaceEntree}/documents` : null');
-  });
-
-  it('le lien d’espace est réellement fabriqué, non plus laissé vide', () => {
-    // `espaceUrlFor` renvoyait `null` : aucun e-mail ne portait de lien.
-    expect(CRON).toContain('generateApprenantUrl');
-    expect(CRON).not.toContain('// En prod : JWT signé apprenant');
-    expect(CRON.match(/await espaceUrlFor\(/g)?.length).toBe(2);
+  it('les attestations passent par l’entreprise, plus par l’espace du stagiaire (2026-10-05)', () => {
+    expect(CRON).not.toContain('espaceUrlFor');
+    expect(CRON).not.toContain('generateApprenantUrl');
+    expect(CRON).toContain("deposerAttestation(sb as never, { type: 'attestation_entree'");
+    expect(CRON).toContain("deposerAttestation(sb as never, { type: 'attestation_fin'");
+    expect(CRON).toContain("annoncerAttestations(sb as never, 'fin', 'fin_de_formation'");
   });
 
   it('la convocation ne renvoie plus vers l’espace apprenant (remplacé par l’espace entreprise, 2026-10-05)', () => {
@@ -41,11 +37,6 @@ describe('les liens envoyés au stagiaire', () => {
     expect(CONVOCATION).not.toContain('espaceUrl');
   });
 
-  it('aucun repli sur localhost pour un lien envoyé au dehors', () => {
-    expect(CRON).toContain('function origineDesLiens');
-    const fn = CRON.slice(CRON.indexOf('function origineDesLiens'));
-    expect(fn.slice(0, 200)).not.toContain('localhost');
-  });
 });
 
 describe('archivage automatique des pièces', () => {
@@ -75,7 +66,8 @@ describe('archivage automatique des pièces', () => {
     // Le cron répond 500 dès la première erreur depuis e11d0f0 : encore
     // faut-il que l'échec y arrive.
     expect(CONVOCATION).toContain('archivage — ${a.raison}');
-    expect(CRON).toContain('archivage — ${att.raison}');
+    expect(CRON).toContain('attestation non archivée');
+    expect(CRON).toContain('archivage impossible');
   });
 
   it('l’archivage est idempotent : repasser ne crée pas de doublon', () => {

@@ -9,15 +9,12 @@ import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import {
   satisfactionSurveyEmail,
-  endOfTrainingEmail,
-  startOfTrainingEmail,
 } from '@/shared/lib/email/templates';
 import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
 import { ensureTrainerSatisfactionTemplate } from '@/features/questionnaire/satisfaction-formateur';
 import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
-import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
 import {
   sendNeedsAnalysisForDossier,
   sendNeedsAnalysisForLearner,
@@ -35,11 +32,10 @@ import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { delaisAConsiderer, doitPartirAujourdhui, organisationsQuiOntCoupe } from '@/features/emails/programmation-envois';
 import { automatisationApplicable } from '@/features/dossier/saisie-retroactive';
 import { dossiersAuFinancementArrete } from '@/features/funders/arret-automatisations';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
-import { archiverDocument } from '@/features/documents/archiver-automatiquement';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 import { reponseCron } from '@/shared/lib/http/cron-response';
 import { assignationSatisfaction } from '@/features/questionnaire/satisfaction';
+import { annoncerAttestations, dejaAnnoncee, deposerAttestation, type AttestationAAnnoncer } from '@/features/espace-entreprise/attestations';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -87,32 +83,6 @@ function admin() {
 // d'accès. La base appelle déjà avec `Authorization: Bearer` (0147) ; un cron
 // HTTP externe doit passer l'en-tête `x-cron-secret`.
 const isAuthorized = verifierSecretMachine;
-
-/**
- * Lien personnel du stagiaire vers son espace.
- *
- * Il renvoyait `null` : aucun e-mail ne portait donc de lien vers l'espace, et
- * les documents étaient annoncés par des URL `/api/dossiers/...` réservées au
- * personnel — un stagiaire cliquant dessus recevait « interdit » (recette du
- * 20/09/2026). C'est ici que se règle le problème, à la source.
- */
-async function espaceUrlFor(learnerId: string, dossierId: string, organizationId: string): Promise<string | null> {
-  const base = origineDesLiens();
-  if (!base || !learnerId || !dossierId) return null;
-  try {
-    const { url } = await generateApprenantUrl({ learnerId, organizationId, dossierId }, base);
-    return url;
-  } catch (e) {
-    console.error('[espace apprenant] lien non généré', learnerId, e);
-    return null;
-  }
-}
-
-/** Adresse publique de l'application, sans repli sur localhost. */
-function origineDesLiens(): string | null {
-  const brut = env.PUBLIC_APP_URL?.trim();
-  return brut ? brut.replace(/\/$/, '') : null;
-}
 
 /** Jour UTC d'une date, en millisecondes — base des écarts en jours entiers. */
 const jourUTC = (d: Date): number => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
@@ -274,6 +244,7 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     dossiersAutomationOff(sb, dossierIdsFin, 'fin_formation'),
   ]);
 
+  const finAAnnoncer: AttestationAAnnoncer[] = [];
   for (const d of rows) {
     // Jours écoulés depuis la fin du dossier : c'est ce nombre que chaque
     // réglage compare à son délai.
@@ -355,49 +326,20 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     // Fin de formation : attestation de fin (apprenant) + certificat de réalisation
     // (administratif) — les deux pour tous les dossiers terminés.
     if (jourFin && !finOff.has(d.id)) try {
-      // Les routes /api/dossiers/... exigent un compte du personnel : un
-      // stagiaire qui cliquait dessus recevait « interdit ». On l'envoie vers
-      // son espace, où ses documents lui sont servis par jeton.
-      const espace = await espaceUrlFor(d.learner_id, d.id, d.organization_id);
-      const attestationUrl = espace ? `${espace}/documents` : null;
-      const certificateUrl = attestationUrl;
-      const eot = endOfTrainingEmail({
-        firstName: learner.first_name,
-        formationTitle,
-        endDate: d.end_date,
-        totalHours: d.total_hours,
-        attendanceRate: await computeDossierAttendanceRate(sb, d.id),
-        attestationUrl,
-        certificateUrl,
-        espaceUrl: espace,
-      });
-      // Sans adresse, le bloc suivant envoie tout de même le certificat à
-      // l'entreprise cliente : rien n'est perdu pour la traçabilité.
-      if (!learner.email) {
-        errors.push(`certificate ${d.id}: stagiaire sans adresse`);
-      } else {
-        const r = await sendEmail({
-          to: learner.email,
-          subject: eot.subject,
-          html: eot.html,
-          kind: 'fin_de_formation',
-          dossierId: d.id,
-          // Une attestation de fin par dossier et par stagiaire (0180).
-          idempotencyKey: `fin_de_formation:${d.id}:${d.learner_id}`,
-        });
-        if (r.ok) certificateSent++;
-        else if (r.reason !== 'no_api_key') errors.push(`certificate ${d.id}: send_failed`);
-
-        // L'attestation n'existait qu'au clic sur un lien que le stagiaire ne
-        // pouvait pas ouvrir : elle n'était donc jamais produite. On l'archive
-        // ici, comme le certificat l'est déjà par sendCertificatToCompany.
-        // L'attestation ne dépend que du dossier, d'où la séance vide.
-        const att = await archiverDocument(sb as unknown as SupabaseClient, {
-          type: 'attestation_fin',
-          dossierId: d.id,
-          sessionId: '',
-        });
-        if (!att.ok) errors.push(`attestation ${d.id}: archivage — ${att.raison}`);
+      // L'attestation de fin passe par l'entreprise : déposée dans son espace
+      // (visible d'office), puis annoncée au référent en un seul e-mail pour
+      // tous ses stagiaires, après la boucle. Plus d'e-mail au stagiaire.
+      if (!(await dejaAnnoncee(sb as never, 'fin_de_formation', d.id))) {
+        const documentId = await deposerAttestation(sb as never, { type: 'attestation_fin', dossierId: d.id, sessionId: '' });
+        if (!documentId) errors.push(`attestation ${d.id}: archivage impossible`);
+        else
+          finAAnnoncer.push({
+            dossierId: d.id,
+            organizationId: d.organization_id,
+            stagiaire: `${learner.first_name} ${learner.last_name ?? ''}`.trim(),
+            formation: formationTitle,
+            documentId,
+          });
       }
     } catch (e) {
       errors.push(`certificate ${d.id}: ${(e as Error).message}`);
@@ -416,6 +358,10 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
       errors.push(`certificat entreprise ${d.id}: ${(e as Error).message}`);
     }
   }
+
+  const annonceFin = await annoncerAttestations(sb as never, 'fin', 'fin_de_formation', finAAnnoncer);
+  certificateSent += annonceFin.sent;
+  errors.push(...annonceFin.errors);
 
   return { candidates: rows.length, satisfactionSent, certificateSent, errors };
 }
@@ -837,6 +783,7 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
   // Coupée pour tout l'organisme dans Envois automatiques.
   const entreeCoupee = organisationsQuiOntCoupe('attestation_demarrage', await loadReglesParOrganisme(sb, 'attestation_demarrage'));
 
+  const aAnnoncer: AttestationAAnnoncer[] = [];
   for (const [dossierId, ctx] of byDossier) {
     if (ctx.sessionId && entreeOff.has(ctx.sessionId)) continue;
     if (entreeCoupee.has(ctx.organizationId)) continue;
@@ -850,7 +797,7 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
         .eq('kind', 'attestation_demarrage')
         .limit(1)
         .maybeSingle();
-      if (already) continue;
+      if (already || (await dejaAnnoncee(sb as never, 'attestation_demarrage', dossierId))) continue;
 
       const [{ data: dossierRow }, { data: learnerRow }] = await Promise.all([
         sb
@@ -859,7 +806,7 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
           .select('start_date, status, created_at, formation:formations(title)')
           .eq('id', dossierId)
           .maybeSingle(),
-        sb.schema('app').from('learners').select('first_name, email').eq('id', ctx.learnerId).maybeSingle(),
+        sb.schema('app').from('learners').select('first_name, last_name').eq('id', ctx.learnerId).maybeSingle(),
       ]);
       const dossier = dossierRow as {
         start_date: string;
@@ -867,8 +814,8 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
         created_at: string;
         formation: { title: string } | null;
       } | null;
-      const learner = learnerRow as { first_name: string; email: string } | null;
-      if (!dossier || !learner?.email) continue;
+      const learner = learnerRow as { first_name: string; last_name: string } | null;
+      if (!dossier) continue;
       // Un seul dossier en main ici : la lecture est unitaire, mais la règle
       // reste la même que sur les lots.
       const arretes = await dossiersAuFinancementArrete(sb, [dossierId]);
@@ -884,31 +831,28 @@ async function runStartAttestation(): Promise<{ candidates: number; sent: number
       ) {
         continue;
       }
-      const espaceEntree = await espaceUrlFor(ctx.learnerId, dossierId, ctx.organizationId);
-
-      const tpl = startOfTrainingEmail({
-        firstName: learner.first_name,
-        formationTitle: dossier.formation?.title ?? 'Votre formation',
-        startDate: dossier.start_date,
-        // Même correction : l'espace du stagiaire, pas la route du personnel.
-        attestationUrl: espaceEntree ? `${espaceEntree}/documents` : null,
-        espaceUrl: espaceEntree,
-      });
-      const r = await sendEmail({
-        to: learner.email,
-        subject: tpl.subject,
-        html: tpl.html,
-        organizationId: ctx.organizationId,
+      // L'attestation passe par l'entreprise : déposée dans son espace, puis
+      // annoncée au référent en un seul e-mail pour tous ses stagiaires.
+      const documentId = await deposerAttestation(sb as never, { type: 'attestation_entree', dossierId, sessionId: ctx.sessionId ?? '' });
+      if (!documentId) {
+        errors.push(`start_attestation ${dossierId}: attestation non archivée`);
+        continue;
+      }
+      aAnnoncer.push({
         dossierId,
-        kind: 'attestation_demarrage',
+        organizationId: ctx.organizationId,
+        stagiaire: `${learner?.first_name ?? ''} ${learner?.last_name ?? ''}`.trim() || 'Stagiaire',
+        formation: dossier.formation?.title ?? null,
+        documentId,
       });
-      if (r.ok) sent++;
-      else if (r.reason !== 'no_api_key') errors.push(`start_attestation ${dossierId}: send_failed`);
     } catch (e) {
       errors.push(`start_attestation ${dossierId}: ${(e as Error).message}`);
     }
   }
 
+  const annonce = await annoncerAttestations(sb as never, 'entree', 'attestation_demarrage', aAnnoncer);
+  sent += annonce.sent;
+  errors.push(...annonce.errors);
   return { candidates: byDossier.size, sent, errors };
 }
 
