@@ -426,3 +426,81 @@ export async function sendNeedsAnalysisForLearner(opts: {
 
   return { ok: true, status: 'sent' };
 }
+
+export type FicheDuStagiaire =
+  | { readonly statut: 'remplie' }
+  | { readonly statut: 'a_remplir'; readonly assignmentId: string; readonly url: string }
+  | { readonly statut: 'indisponible' };
+
+/**
+ * La fiche de positionnement d'UN stagiaire pour UN dossier : remplie, ou le
+ * lien pour la remplir — créée au besoin, rattachée au dossier (c'est ce que
+ * compte l'indicateur Qualiopi). Sert là où le stagiaire n'a pas d'adresse
+ * connue : après son émargement, il la remplit sur place (« comme RFC »).
+ * Chaque stagiaire d'un dossier de groupe a la sienne.
+ */
+export async function ficheDePositionnement(
+  sb: Sb,
+  args: { organizationId: string; dossierId: string; learnerId: string },
+): Promise<FicheDuStagiaire> {
+  const baseUrl = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  if (!baseUrl) return { statut: 'indisponible' };
+
+  const { data: modeles } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .select('id')
+    .eq('kind', 'positionnement')
+    .or(`organization_id.eq.${args.organizationId},organization_id.is.null`);
+  const modeleIds = ((modeles ?? []) as Array<{ id: string }>).map((m) => m.id);
+
+  const { data: existantes } = modeleIds.length
+    ? await sb
+        .schema('app')
+        .from('questionnaire_assignments')
+        .select('id, status')
+        .eq('dossier_id', args.dossierId)
+        .eq('recipient_learner_id', args.learnerId)
+        .in('template_id', modeleIds)
+    : { data: [] };
+  const fiches = (existantes ?? []) as Array<{ id: string; status: string }>;
+  if (fiches.some((f) => f.status === 'completed')) return { statut: 'remplie' };
+
+  let assignmentId = fiches.find((f) => f.status === 'pending')?.id ?? null;
+  if (!assignmentId) {
+    const { data: l } = await sb
+      .schema('app')
+      .from('learners')
+      .select('first_name, last_name, email')
+      .eq('id', args.learnerId)
+      .maybeSingle();
+    const learner = l as { first_name: string | null; last_name: string | null; email: string | null } | null;
+    const { data: cree, error } = await sb
+      .schema('app')
+      .from('questionnaire_assignments')
+      .insert({
+        organization_id: args.organizationId,
+        template_id: await ensureNeedsAnalysisTemplate(sb, args.organizationId),
+        dossier_id: args.dossierId,
+        recipient_kind: 'learner',
+        recipient_learner_id: args.learnerId,
+        recipient_email: learner?.email?.endsWith('.invalid') ? null : (learner?.email ?? null),
+        recipient_name: `${learner?.first_name ?? ''} ${learner?.last_name ?? ''}`.trim() || null,
+        token_hash: createHash('sha256').update(randomBytes(24)).digest('hex'),
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+    if (error || !cree) {
+      console.error('[fiche de positionnement] création impossible', args.dossierId, error?.message);
+      return { statut: 'indisponible' };
+    }
+    assignmentId = (cree as { id: string }).id;
+  }
+
+  const { url } = await generateNeedsAnalysisUrl(
+    { assignmentId, dossierId: args.dossierId, organizationId: args.organizationId, learnerId: args.learnerId },
+    baseUrl,
+  );
+  return { statut: 'a_remplir', assignmentId, url };
+}

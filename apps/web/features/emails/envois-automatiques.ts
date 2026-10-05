@@ -43,7 +43,7 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     kind: 'fiche_besoin',
     nom: 'Fiche besoin (positionnement)',
     moment: 'avant',
-    declencheur: 'À l’inscription : dès qu’un stagiaire est rattaché à un dossier. Un filet repasse dans les 48 h.',
+    declencheur: 'À l’inscription, puis 24 h avant la séance à qui ne l’a pas remplie. Sans adresse : à l’émargement, sur le téléphone qui signe.',
     destinataires: 'Le stagiaire',
     coupureKey: null,
     obligatoire: 'À savoir avant de le couper : l’analyse du besoin est un attendu Qualiopi (indicateurs 4 et 5) — il faudra la recueillir autrement.',

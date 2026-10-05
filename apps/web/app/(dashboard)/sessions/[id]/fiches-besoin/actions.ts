@@ -4,13 +4,16 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { guardAction } from '@/shared/lib/auth/guard-action';
-import { ensureNeedsAnalysisTemplate, sendNeedsAnalysisForLearner } from '@/features/questionnaire/needs-analysis';
+import { ensureNeedsAnalysisTemplate, sendNeedsAnalysisForLearner, ficheDePositionnement } from '@/features/questionnaire/needs-analysis';
 import {
   nettoyerReponses,
   ficheBesoinRemplie,
   type ReponsesFicheBesoin,
 } from '@/features/questionnaire/fiche-besoin';
 import { questionsFicheBesoin, clesDeQuestions } from '@/features/questionnaire/modele-fiche-besoin';
+import { loadSession } from '@/features/sessions/load-session';
+import { sendEmail } from '@/shared/lib/email/resend';
+import { needsAnalysisEmail } from '@/shared/lib/email/templates';
 
 /**
  * Fiche besoin d'un stagiaire, depuis la séance : la renvoyer, ou la remplir.
@@ -51,6 +54,43 @@ export async function renvoyerFicheBesoin(learnerId: string, sessionId: string):
   const sb = admin();
   if (!(await apprenantDeLOrganisme(sb, learnerId, garde.member.organizationId))) {
     return { ok: false, error: 'Stagiaire introuvable.' };
+  }
+
+  // La fiche du stagiaire POUR son dossier sur cette séance : c'est elle que
+  // l'onglet affiche et que l'indicateur Qualiopi compte. Une fiche hors
+  // dossier restait invisible ici et ne justifiait rien.
+  const seance = await loadSession(sb, sessionId);
+  const stagiaire = seance?.learners.find((l) => l.id === learnerId);
+  if (seance && stagiaire?.dossierId) {
+    const fiche = await ficheDePositionnement(sb as never, {
+      organizationId: garde.member.organizationId,
+      dossierId: stagiaire.dossierId,
+      learnerId,
+    });
+    revalidatePath(`/sessions/${sessionId}/fiches-besoin`);
+    if (fiche.statut === 'remplie') return { ok: true, message: 'Sa fiche est déjà remplie.' };
+    if (fiche.statut === 'indisponible') return { ok: false, error: 'La fiche n’a pas pu être préparée.' };
+    const email = stagiaire.email?.trim();
+    if (!email || email.toLowerCase().endsWith('.invalid')) {
+      return { ok: false, error: 'Pas d’adresse e-mail : il remplira sa fiche en émargeant.' };
+    }
+    const { subject, html } = needsAnalysisEmail({
+      firstName: stagiaire.first_name,
+      formationTitle: seance.formation?.title ?? null,
+      formUrl: fiche.url,
+      durationMinutes: 10,
+    });
+    const envoi = await sendEmail({
+      to: email,
+      subject,
+      html,
+      kind: 'fiche_besoin',
+      organizationId: garde.member.organizationId,
+      dossierId: stagiaire.dossierId,
+    });
+    return envoi.ok || envoi.reason === 'no_api_key'
+      ? { ok: true, message: 'Fiche besoin envoyée.' }
+      : { ok: false, error: 'L’envoi a échoué.' };
   }
 
   const r = await sendNeedsAnalysisForLearner({ learnerId, sb, manuel: true });

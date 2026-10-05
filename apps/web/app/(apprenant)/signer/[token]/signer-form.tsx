@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, FileText, Loader2, MonitorCheck, Type } from 'lucide-react';
 import { InfoCallout } from '@/shared/ui/info-callout';
 import { SignaturePad, type SignaturePadHandle } from '@/features/attendance/signature-pad';
@@ -23,8 +23,8 @@ type Moment = 'entry' | 'exit';
 type Etat =
   | { nom: 'consentement' }
   | { nom: 'signature'; moment: Moment }
-  | { nom: 'entree_faite'; heure: string; retard: string | null }
-  | { nom: 'termine'; espaceUrl: string | null; depart: string | null };
+  | { nom: 'entree_faite'; heure: string; retard: string | null; ficheUrl: string | null }
+  | { nom: 'termine'; espaceUrl: string | null; depart: string | null; ficheUrl: string | null };
 
 const PARIS = 'Europe/Paris';
 const heure = (iso: string) => new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: PARIS }).format(new Date(iso));
@@ -40,14 +40,19 @@ export function SignerForm({
   context,
   initialStep,
   entrySignedAt,
+  ficheUrlInitiale = null,
 }: {
   token: string;
   context: SignerContext;
   initialStep: Moment;
   entrySignedAt: string | null;
+  /** Fiche de positionnement pas encore remplie, l'entrée étant déjà signée. */
+  ficheUrlInitiale?: string | null;
 }) {
   const [etat, setEtat] = useState<Etat>(
-    initialStep === 'exit' && entrySignedAt ? { nom: 'entree_faite', heure: heure(entrySignedAt), retard: null } : { nom: 'consentement' },
+    initialStep === 'exit' && entrySignedAt
+      ? { nom: 'entree_faite', heure: heure(entrySignedAt), retard: null, ficheUrl: ficheUrlInitiale }
+      : { nom: 'consentement' },
   );
   const [accepte, setAccepte] = useState(false);
   const [encre, setEncre] = useState(false);
@@ -76,8 +81,8 @@ export function SignerForm({
       setErreur(attendanceErrorLabel(r.error));
       return;
     }
-    if (moment === 'entry' && !unSeulTemps) setEtat({ nom: 'entree_faite', heure: heure(r.signedAt), retard: r.lateArrival });
-    else setEtat({ nom: 'termine', espaceUrl: r.espaceUrl, depart: r.earlyDeparture });
+    if (moment === 'entry' && !unSeulTemps) setEtat({ nom: 'entree_faite', heure: heure(r.signedAt), retard: r.lateArrival, ficheUrl: r.ficheUrl });
+    else setEtat({ nom: 'termine', espaceUrl: r.espaceUrl, depart: r.earlyDeparture, ficheUrl: r.ficheUrl });
   };
 
   const entete = (
@@ -131,6 +136,7 @@ export function SignerForm({
             {context.organizationName}.
           </p>
           {etat.depart && <p className="text-[12px] text-amber-600 mt-2">Départ anticipé noté à {etat.depart}.</p>}
+          {etat.ficheUrl && <FicheAPresenter url={etat.ficheUrl} />}
           {etat.espaceUrl && (
             <a href={etat.espaceUrl} className="mt-6 inline-flex items-center h-10 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-semibold px-4 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition">
               Accéder à mon espace de formation
@@ -151,10 +157,15 @@ export function SignerForm({
             {etat.retard ? ` (arrivée notée à ${etat.retard})` : ''}. Revenez sur ce même lien à la fin de la demi-journée ({finPrevue}) pour
             signer votre sortie.
           </InfoCallout>
+          {etat.ficheUrl && <FicheAPresenter url={etat.ficheUrl} redirection />}
           <button
             type="button"
             onClick={() => setEtat({ nom: 'signature', moment: 'exit' })}
-            className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition"
+            className={
+              etat.ficheUrl
+                ? 'w-full h-11 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 text-[13px] font-medium px-4 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition'
+                : 'w-full h-11 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition'
+            }
           >
             Signer ma sortie
           </button>
@@ -260,6 +271,46 @@ export function SignerForm({
           {unSeulTemps ? 'Signer la feuille' : 'Signer mon entrée'}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * La fiche de positionnement, juste après l'émargement : on n'a pas toujours
+ * l'adresse du stagiaire, alors il la remplit sur le téléphone qui vient de
+ * signer. Juste après l'entrée, on l'y emmène tout seul.
+ */
+function FicheAPresenter({ url, redirection = false }: { url: string; redirection?: boolean }) {
+  const [restant, setRestant] = useState(redirection ? 4 : null);
+  useEffect(() => {
+    if (restant === null) return;
+    if (restant <= 0) {
+      window.location.assign(url);
+      return;
+    }
+    const t = setTimeout(() => setRestant((r) => (r === null ? null : r - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [restant, url]);
+
+  return (
+    <div className="my-5 rounded-xl border border-orange-200 dark:border-orange-900/50 bg-orange-50 dark:bg-orange-950/30 p-4 text-left space-y-2">
+      <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
+        <FileText className="w-4 h-4 text-orange-600" /> Votre fiche de positionnement
+      </p>
+      <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+        Avant de commencer, dites au formateur où vous en êtes et ce que vous attendez de la formation. Cinq minutes.
+      </p>
+      <a
+        href={url}
+        className="w-full h-11 inline-flex items-center justify-center rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[14px] font-semibold"
+      >
+        Remplir ma fiche{restant !== null && restant > 0 ? ` (${restant})` : ''}
+      </a>
+      {restant !== null && restant > 0 && (
+        <button type="button" onClick={() => setRestant(null)} className="w-full text-[12px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+          Plus tard
+        </button>
+      )}
     </div>
   );
 }

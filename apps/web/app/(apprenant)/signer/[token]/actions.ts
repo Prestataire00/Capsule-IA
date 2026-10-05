@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
 import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { recordAttendanceStep } from '@/features/attendance/record-step';
+import { ficheDePositionnement } from '@/features/questionnaire/needs-analysis';
 
 export type SignStepResult =
   | {
@@ -15,6 +16,8 @@ export type SignStepResult =
       earlyDeparture: string | null;
       /** Après la sortie, pour un lien reçu par l'apprenant : son espace de formation. */
       espaceUrl: string | null;
+      /** Fiche de positionnement pas encore remplie : il la remplit sur place. */
+      ficheUrl: string | null;
     }
   | { ok: false; error: string };
 
@@ -52,17 +55,34 @@ export async function signStep(input: { token: string; moment: 'entry' | 'exit';
   if (!r.ok) return r;
 
   let espaceUrl: string | null = null;
+  let ficheUrl: string | null = null;
   const lienPersonnel = r.channel === 'email' || r.channel === 'espace';
+  const ctx =
+    signerKind === 'learner'
+      ? ((
+          await supabaseAdmin()
+            .schema('app')
+            .rpc('get_signature_context' as never, {
+              p_attendance_sheet_id: attendanceSheetId,
+              p_signer_id: signerId,
+              p_signer_kind: signerKind,
+            } as never)
+            .maybeSingle()
+        ).data as { learner_dossier_id: string | null; organization_id: string } | null)
+      : null;
+
+  // Pas encore de fiche de positionnement : il la remplit dans la foulée, sur
+  // le téléphone qui vient de signer — on n'a pas toujours son adresse.
+  if (ctx?.learner_dossier_id) {
+    const fiche = await ficheDePositionnement(supabaseAdmin() as never, {
+      organizationId: ctx.organization_id,
+      dossierId: ctx.learner_dossier_id,
+      learnerId: signerId,
+    });
+    if (fiche.statut === 'a_remplir') ficheUrl = fiche.url;
+  }
+
   if (input.moment === 'exit' && signerKind === 'learner' && lienPersonnel && env.PUBLIC_APP_URL) {
-    const { data } = await supabaseAdmin()
-      .schema('app')
-      .rpc('get_signature_context' as never, {
-        p_attendance_sheet_id: attendanceSheetId,
-        p_signer_id: signerId,
-        p_signer_kind: signerKind,
-      } as never)
-      .maybeSingle();
-    const ctx = data as { learner_dossier_id: string | null; organization_id: string } | null;
     if (ctx?.learner_dossier_id) {
       espaceUrl = (
         await generateApprenantUrl({ learnerId: signerId, organizationId: ctx.organization_id, dossierId: ctx.learner_dossier_id }, env.PUBLIC_APP_URL)
@@ -70,5 +90,5 @@ export async function signStep(input: { token: string; moment: 'entry' | 'exit';
     }
   }
 
-  return { ok: true, signedAt: r.signedAt, status: r.status, lateArrival: r.lateArrival, earlyDeparture: r.earlyDeparture, espaceUrl };
+  return { ok: true, signedAt: r.signedAt, status: r.status, lateArrival: r.lateArrival, earlyDeparture: r.earlyDeparture, espaceUrl, ficheUrl };
 }

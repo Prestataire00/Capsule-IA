@@ -42,7 +42,8 @@ describe('1 — le modèle de l’organisme est choisi', () => {
   it('les trois points d’envoi passent l’organisation', () => {
     // En oublier un aurait envoyé, selon le chemin, deux questionnaires
     // différents pour la même formation.
-    expect(SELECTION.match(/ensureNeedsAnalysisTemplate\(sb, /g)?.length).toBe(2);
+    // Envoi au dossier, envoi à l'apprenant, et fiche remplie à l'émargement.
+    expect(SELECTION.match(/ensureNeedsAnalysisTemplate\(sb, /g)?.length).toBe(3);
     expect(lire('../app/(dashboard)/sessions/[id]/fiches-besoin/actions.ts')).toContain(
       'ensureNeedsAnalysisTemplate(sb, orgId)',
     );

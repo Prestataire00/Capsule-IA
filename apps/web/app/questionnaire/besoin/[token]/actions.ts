@@ -108,6 +108,13 @@ export async function submitNeedsAnalysis(formData: FormData): Promise<void> {
   if (statutErr) {
     console.error('[besoin] bascule du statut en « completed » échouée', statutErr);
   }
+  // L'indicateur de positionnement du dossier se lit dans la checklist stockée :
+  // sans ce recalcul, une fiche remplie après l'émargement n'y comptait pas.
+  if (dossierId && !statutErr) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (sb as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossierId });
+    if (error) console.error('[besoin] checklist Qualiopi non recalculée', dossierId, error.message);
+  }
 
   // Retour vers la demande d'origine. Le flux était à sens unique : le client
   // répondait, et sa fiche de demande continuait d'afficher « Aucune fiche

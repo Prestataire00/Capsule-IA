@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
 import { JustificationUpload } from '@/features/attendance/justification-upload';
 import { SignerForm, type SignerContext } from './signer-form';
+import { ficheDePositionnement } from '@/features/questionnaire/needs-analysis';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,8 @@ type SignatureContextRow = {
   entry_signed_at: string | null;
   exit_signed_at: string | null;
   attendance_status: string | null;
+  learner_dossier_id?: string | null;
+  organization_id?: string;
 };
 
 const HALF_DAY: Record<string, string> = { morning: 'Matin', afternoon: 'Après-midi', full: 'Journée', evening: 'Soirée' };
@@ -107,6 +110,18 @@ export default async function SignerPage({ params }: { params: { token: string }
     );
   }
 
+  // Entrée déjà signée, fiche de positionnement pas encore remplie : on la
+  // propose à chaque retour sur ce lien, jusqu'à ce qu'elle le soit.
+  const fiche =
+    signerKind === 'learner' && row.entry_signed_at && row.learner_dossier_id && row.organization_id
+      ? await ficheDePositionnement(supabaseAdmin() as never, {
+          organizationId: row.organization_id,
+          dossierId: row.learner_dossier_id,
+          learnerId: signerId,
+        })
+      : null;
+  const ficheUrl = fiche?.statut === 'a_remplir' ? fiche.url : null;
+
   // Terminé : pas d'accès à l'espace depuis cette page, qui s'ouvre avec le seul lien.
   if (row.entry_signed_at && (signerKind === 'trainer' || row.exit_signed_at)) {
     return (
@@ -121,6 +136,17 @@ export default async function SignerPage({ params }: { params: { token: string }
               <>
                 <br />
                 Sortie enregistrée le {date(row.exit_signed_at)}
+              </>
+            )}
+            {ficheUrl && (
+              <>
+                <br />
+                <a
+                  href={ficheUrl}
+                  className="mt-5 inline-flex items-center h-11 px-5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[14px] font-semibold"
+                >
+                  Remplir ma fiche de positionnement
+                </a>
               </>
             )}
           </>
@@ -201,5 +227,5 @@ export default async function SignerPage({ params }: { params: { token: string }
     organizationName: row.organization_name,
   };
 
-  return <SignerForm token={params.token} context={context} initialStep={etape} entrySignedAt={row.entry_signed_at} />;
+  return <SignerForm token={params.token} context={context} initialStep={etape} entrySignedAt={row.entry_signed_at} ficheUrlInitiale={ficheUrl} />;
 }
