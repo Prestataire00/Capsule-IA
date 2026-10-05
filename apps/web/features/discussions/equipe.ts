@@ -19,6 +19,8 @@ export type MembreDiscussion = {
   readonly role: 'formateur' | 'equipe';
   /** Formateur sans compte : le mentionner lui envoie son invitation. */
   readonly sansCompte: boolean;
+  /** Sa fonction, telle que l'écran l'affiche (Direction, Gestion, Formateur). */
+  readonly fonction: string;
   readonly trainerId: string | null;
   readonly prenom: string | null;
 };
@@ -56,16 +58,19 @@ async function formateursDuDossier(admin: Admin, dossierId: string): Promise<Mem
     nom: `${f.first_name ?? ''} ${f.last_name ?? ''}`.trim() || f.email || 'Formateur',
     email: f.email,
     role: 'formateur' as const,
+    fonction: f.user_id === null ? 'Formateur · sans compte' : 'Formateur',
     sansCompte: f.user_id === null,
     trainerId: f.id,
     prenom: f.first_name,
   }));
 }
 
+const FONCTION: Record<string, string> = { owner: 'Direction', admin: 'Direction', gestionnaire: 'Gestion' };
+
 async function equipeOrganisme(admin: Admin, organizationId: string): Promise<MembreDiscussion[]> {
-  const userIds = [
-    ...new Set((await membresParRole(admin, organizationId, ['owner', 'admin', 'gestionnaire'])).map((m) => m.userId)),
-  ];
+  const membres = await membresParRole(admin, organizationId, ['owner', 'admin', 'gestionnaire']);
+  const roleDe = new Map(membres.map((m) => [m.userId, m.role]));
+  const userIds = [...new Set(membres.map((m) => m.userId))];
   if (userIds.length === 0) return [];
   const { data: p } = await admin.schema('app').from('profiles').select('user_id, full_name, email').in('user_id', userIds);
   const profils = new Map(
@@ -76,6 +81,7 @@ async function equipeOrganisme(admin: Admin, organizationId: string): Promise<Me
     nom: profils.get(id)?.full_name?.trim() || profils.get(id)?.email || 'Membre',
     email: profils.get(id)?.email ?? null,
     role: 'equipe' as const,
+    fonction: FONCTION[roleDe.get(id) ?? ''] ?? 'Équipe',
     sansCompte: false,
     trainerId: null,
     prenom: null,
@@ -167,6 +173,7 @@ async function formateursDeLaSeance(admin: Admin, sessionId: string): Promise<Me
     nom: `${f.first_name ?? ''} ${f.last_name ?? ''}`.trim() || f.email || 'Formateur',
     email: f.email,
     role: 'formateur' as const,
+    fonction: f.user_id === null ? 'Formateur · sans compte' : 'Formateur',
     sansCompte: f.user_id === null,
     trainerId: f.id,
     prenom: f.first_name,

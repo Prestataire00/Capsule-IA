@@ -8,11 +8,12 @@ import { accesEquipe } from '@/features/discussions/acces';
 import { dossiersEnCours, equipeDuFil, libellesFils } from '@/features/discussions/equipe';
 import { loadFils, loadMessagesEquipe, marquerFilLu } from '@/features/discussions/store';
 import { Messagerie } from '@/features/discussions/ui/messagerie';
+import { infosDuFil } from '@/features/discussions/infos-fil';
 import { envoyerMessageEquipe } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function MessageriePage({ searchParams }: { searchParams: { dossier?: string } }) {
+export default async function MessageriePage({ searchParams }: { searchParams: { dossier?: string; q?: string; vue?: string } }) {
   const moi = await accesEquipe(null);
   if (!moi.ok) redirect('/');
   const choisi = searchParams.dossier && (await accesEquipe(searchParams.dossier)).ok ? searchParams.dossier : null;
@@ -28,20 +29,21 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
   if (choisi) {
     const dossier = fils.find((f) => f.dossier.id === choisi)?.dossier ?? libelles.get(choisi);
     if (dossier) {
-      const [messages, equipe] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(moi.organizationId, choisi)]);
+      const [messages, equipe, infos] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(moi.organizationId, choisi), infosDuFil(choisi)]);
       await marquerFilLu(moi.userId, choisi);
-      ouvert = { dossier, messages, equipe };
+      ouvert = { dossier, messages, equipe, infos, lien: infos?.kind === 'seance' ? `/sessions/${choisi}` : `/dossiers/${choisi}` };
     }
   }
 
   return (
-    <div className="max-w-6xl w-full mx-auto px-8 py-9">
-      <header className="mb-7">
-        <SectionLabel className="mb-2">Équipe pédagogique</SectionLabel>
-        <h1 className="text-[30px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Messagerie</h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3 max-w-2xl">
-          Une discussion par dossier (ou par séance sans dossier), entre ses formateurs et l&apos;équipe. Mentionnez la personne concernée avec @ :
-          elle est prévenue dans sa cloche et par e-mail.
+    <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6">
+      <header className="mb-4 flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <SectionLabel className="mb-1">Équipe pédagogique</SectionLabel>
+          <h1 className="text-[24px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Messagerie</h1>
+        </div>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 max-w-md">
+          Une discussion par dossier, avec ses formateurs et l&apos;équipe. La personne mentionnée avec @ est prévenue dans sa cloche et par e-mail.
         </p>
       </header>
       <Messagerie
@@ -51,6 +53,8 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
         ouvert={ouvert}
         envoyer={envoyerMessageEquipe}
         meId={moi.userId}
+        recherche={searchParams.q ?? ''}
+        pourMoi={searchParams.vue === 'moi'}
       />
     </div>
   );

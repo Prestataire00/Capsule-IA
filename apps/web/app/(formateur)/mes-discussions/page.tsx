@@ -7,11 +7,12 @@ import { accesFormateur, mesDossiersFormateur } from '@/features/discussions/acc
 import { equipeDuFil, libellesFils } from '@/features/discussions/equipe';
 import { loadFils, loadMessagesEquipe, marquerFilLu } from '@/features/discussions/store';
 import { Messagerie } from '@/features/discussions/ui/messagerie';
+import { infosDuFil } from '@/features/discussions/infos-fil';
 import { envoyerMessageFormateur } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function MesDiscussionsPage({ searchParams }: { searchParams: { dossier?: string } }) {
+export default async function MesDiscussionsPage({ searchParams }: { searchParams: { dossier?: string; q?: string; vue?: string } }) {
   const mesDossiers = await mesDossiersFormateur();
   if (mesDossiers.length === 0 && !searchParams.dossier) {
     return (
@@ -38,14 +39,15 @@ export default async function MesDiscussionsPage({ searchParams }: { searchParam
   if (choisi && acces?.ok) {
     const dossier = libelles.get(choisi);
     if (dossier) {
-      const [messages, equipe] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(acces.organizationId, choisi)]);
+      const [messages, equipe, infos] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(acces.organizationId, choisi), infosDuFil(choisi)]);
       await marquerFilLu(acces.userId, choisi);
-      ouvert = { dossier, messages, equipe };
+      // Le formateur ouvre sa séance ; un dossier n'a pas de page dans son espace.
+      ouvert = { dossier, messages, equipe, infos, lien: infos?.kind === 'seance' ? `/seance/${choisi}` : null };
     }
   }
 
   return (
-    <div className="max-w-6xl w-full mx-auto px-6 py-8 space-y-6">
+    <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6 space-y-4">
       <header>
         <h1 className="text-[24px] font-semibold text-zinc-900 dark:text-zinc-100">Discussions</h1>
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2 max-w-2xl">
@@ -58,6 +60,8 @@ export default async function MesDiscussionsPage({ searchParams }: { searchParam
         fils={fils}
         aOuvrir={[...libelles.values()].filter((d) => !avecFil.has(d.id))}
         ouvert={ouvert}
+        recherche={searchParams.q ?? ''}
+        pourMoi={searchParams.vue === 'moi'}
         envoyer={envoyerMessageFormateur}
         meId={moi.userId}
       />
