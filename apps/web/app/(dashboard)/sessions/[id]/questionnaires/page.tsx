@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Library, Plus } from 'lucide-react';
+import { Library, Plus, QrCode } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { loadSession } from '@/features/sessions/load-session';
@@ -107,6 +107,15 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
           financeur et le formateur par un lien.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href={`/projection/satisfaction/${params.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="QR code à projeter en fin de séance : chaque stagiaire répond sur son téléphone"
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <QrCode className="w-3.5 h-3.5" /> Projeter la satisfaction
+          </a>
           <Link
             href="/questionnaires"
             className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"

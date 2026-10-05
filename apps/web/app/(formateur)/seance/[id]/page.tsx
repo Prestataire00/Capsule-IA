@@ -3,7 +3,7 @@
 // comment les joindre, où se retrouver en visio, et par où passer pour le reste.
 
 import { notFound } from 'next/navigation';
-import { Mail, Phone, Users, Building2, Home, Video, QrCode } from 'lucide-react';
+import { Mail, Phone, Users, Building2, Home, Video, QrCode, Star } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
 import { loadSession } from '@/features/sessions/load-session';
@@ -160,6 +160,27 @@ export default async function SeancePage({ params }: { params: { id: string } })
             <QrCode className="w-4 h-4" /> Préparer les feuilles d&apos;émargement
           </a>
         )}
+      </section>
+
+      <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-2 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-lg grid place-items-center shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+            <Star className="w-4 h-4" />
+          </span>
+          <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Satisfaction en fin de séance</h2>
+        </div>
+        <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
+          Projetez le QR code : chaque stagiaire le scanne et donne son avis sur son téléphone. Vous voyez les réponses
+          arriver ; ceux qui ont répondu ne recevront pas l’e-mail de fin de formation.
+        </p>
+        <a
+          href={`/projection/satisfaction/${params.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+        >
+          <QrCode className="w-4 h-4" /> Projeter le questionnaire de satisfaction
+        </a>
       </section>
 
       <ContactList

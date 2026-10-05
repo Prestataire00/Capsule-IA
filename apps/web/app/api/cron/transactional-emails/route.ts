@@ -39,6 +39,7 @@ import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { archiverDocument } from '@/features/documents/archiver-automatiquement';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 import { reponseCron } from '@/shared/lib/http/cron-response';
+import { assignationSatisfaction } from '@/features/questionnaire/satisfaction';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — cron peut être long si beaucoup d'emails
@@ -80,81 +81,6 @@ function admin() {
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-}
-
-const SATISFACTION_TEMPLATE_CODE = 'satisfaction_chaud_default';
-
-async function ensureSatisfactionTemplate(sb: ReturnType<typeof admin>): Promise<string> {
-  const { data: existing } = await sb
-    .schema('app')
-    .from('questionnaire_templates')
-    .select('id')
-    .is('organization_id', null)
-    .eq('code', SATISFACTION_TEMPLATE_CODE)
-    .maybeSingle();
-  if (existing) return (existing as { id: string }).id;
-
-  const { data: created } = await sb
-    .schema('app')
-    .from('questionnaire_templates')
-    .insert({
-      organization_id: null,
-      kind: 'satisfaction_chaud',
-      code: SATISFACTION_TEMPLATE_CODE,
-      title: 'Satisfaction à chaud — Qualiopi',
-      schema: {
-        version: 1,
-        fields: [
-          { key: 'nps', kind: 'nps' },
-          { key: 'overallRating', kind: 'rating_5' },
-          { key: 'pedagogyRating', kind: 'rating_5' },
-          { key: 'organizationRating', kind: 'rating_5' },
-          { key: 'whatWorked', kind: 'long_text' },
-          { key: 'whatToImprove', kind: 'long_text' },
-        ],
-      },
-      is_active: true,
-    })
-    .select('id')
-    .single();
-  return (created as { id: string }).id;
-}
-
-async function ensureSatisfactionAssignment(
-  sb: ReturnType<typeof admin>,
-  templateId: string,
-  dossierId: string,
-  organizationId: string,
-  learnerId: string,
-): Promise<string> {
-  const { data: existing } = await sb
-    .schema('app')
-    .from('questionnaire_assignments')
-    .select('id')
-    .eq('template_id', templateId)
-    .eq('dossier_id', dossierId)
-    .eq('recipient_kind', 'learner')
-    .maybeSingle();
-  if (existing) return (existing as { id: string }).id;
-
-  const tokenRaw = randomBytes(24).toString('hex');
-  const tokenHash = createHash('sha256').update(tokenRaw).digest('hex');
-
-  const { data: created } = await sb
-    .schema('app')
-    .from('questionnaire_assignments')
-    .insert({
-      organization_id: organizationId,
-      template_id: templateId,
-      dossier_id: dossierId,
-      recipient_kind: 'learner',
-      recipient_learner_id: learnerId,
-      token_hash: tokenHash,
-      status: 'pending',
-    })
-    .select('id')
-    .single();
-  return (created as { id: string }).id;
 }
 
 // En-tête uniquement : le secret en query string finissait dans les journaux
@@ -371,7 +297,6 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     // Satisfaction — JWT signed URL
     if (jourSatisfaction && !satisfactionOff.has(d.id)) try {
       const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
-      const templateId = await ensureSatisfactionTemplate(sb);
 
       // Récup org_id du dossier
       const { data: dossierRow } = await sb
@@ -383,7 +308,12 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
       const orgId = (dossierRow as { organization_id: string } | null)?.organization_id;
       if (!orgId) throw new Error('dossier org_id missing');
 
-      const assignmentId = await ensureSatisfactionAssignment(sb, templateId, d.id, orgId, d.learner_id);
+      // Une par stagiaire : celui qui a déjà répondu en salle n'est pas relancé.
+      const { assignmentId, complete } = await assignationSatisfaction(sb as never, {
+        organizationId: orgId,
+        dossierId: d.id,
+        learnerId: d.learner_id,
+      });
       const signed = await generateSatisfactionUrl(
         { assignmentId, dossierId: d.id, organizationId: orgId, learnerId: d.learner_id },
         baseUrl,
@@ -395,9 +325,12 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
         surveyUrl: signed.url,
         durationMinutes: 5,
       });
+      // Déjà répondu (en salle, projeté par le formateur) : rien à renvoyer.
       // Sans adresse, on ne peut pas interroger le stagiaire : son avis est
       // personnel, l'employeur ne peut pas y répondre à sa place.
-      if (!learner.email) {
+      if (complete) {
+        // Rien : la réponse est déjà là.
+      } else if (!learner.email) {
         errors.push(`satisfaction ${d.id}: stagiaire sans adresse`);
       } else {
         const r = await sendEmail({
