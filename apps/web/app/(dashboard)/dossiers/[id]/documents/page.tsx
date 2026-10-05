@@ -53,7 +53,13 @@ const ROW_GRID = 'grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_140px_minmax(0,1
 const ICON_BTN =
   'w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition';
 
-export default async function DocumentsPage({ params }: { params: { id: string } }) {
+export default async function DocumentsPage({
+  params,
+  searchParams = {},
+}: {
+  params: { id: string };
+  searchParams?: { groupe?: string };
+}) {
   const sb = supabaseServer();
   // Commenter, c'est suivre le dossier : même droit que déposer une pièce.
   const peutCommenter = await canManageSection('dossiers');
@@ -126,7 +132,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       .order('title', { ascending: true }),
   ]);
 
-  const rows =
+  const toutes =
     (docsRes.data as unknown as Array<{
       id: string;
       title: string;
@@ -142,9 +148,32 @@ export default async function DocumentsPage({ params }: { params: { id: string }
         dossier_ids?: string[] | null;
         /** Ce qu'on sait du document et que son nom ne dit pas. */
         commentaire?: string | null;
+        groupe_id?: string | null;
+        session_id?: string | null;
       } | null;
       created_at: string;
     }>) ?? [];
+
+  // Le groupe de chaque document : porté par le document (convention de
+  // groupe), ou par la séance dont il vient (émargement, convocation).
+  const { data: seancesGroupes } = groupesDuDossier.length
+    ? await sb
+        .schema('app')
+        .from('sessions')
+        .select('id, groupe_id' as never)
+        .eq('dossier_id', params.id)
+        .not('groupe_id' as never, 'is', null)
+    : { data: [] };
+  const groupeDeSeance = new Map(
+    ((seancesGroupes ?? []) as unknown as Array<{ id: string; groupe_id: string }>).map((x) => [x.id, x.groupe_id]),
+  );
+  const nomDuGroupe = new Map(groupesDuDossier.map((g) => [g.id, g.nom]));
+  const groupeDuDocument = (d: (typeof toutes)[number]): string | null =>
+    d.metadata?.groupe_id ?? (d.metadata?.session_id ? (groupeDeSeance.get(d.metadata.session_id) ?? null) : null);
+  const filtre = searchParams.groupe ?? null;
+  const rows = !filtre
+    ? toutes
+    : toutes.filter((d) => (filtre === 'commun' ? groupeDuDocument(d) === null : groupeDuDocument(d) === filtre));
 
   // Héritage : modèles de la formation du dossier d'abord (étoile), puis globaux.
   const tplRows =
@@ -312,6 +341,27 @@ export default async function DocumentsPage({ params }: { params: { id: string }
           <SectionLabel>Documents générés</SectionLabel>
           <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.orange.soft}`}>{rows.length}</span>
         </div>
+        {groupesDuDossier.length > 0 && (
+          <nav aria-label="Filtrer par groupe" className="flex flex-wrap gap-1.5">
+            {[
+              { cle: null as string | null, label: 'Tous' },
+              ...groupesDuDossier.map((g) => ({ cle: g.id as string | null, label: g.nom })),
+              { cle: 'commun' as string | null, label: 'Communs à tous' },
+            ].map((c) => (
+              <Link
+                key={c.cle ?? 'tous'}
+                href={c.cle ? `/dossiers/${params.id}/documents?groupe=${c.cle}` : `/dossiers/${params.id}/documents`}
+                className={`h-7 px-2.5 inline-flex items-center rounded-full text-[12px] font-medium transition ${
+                  filtre === c.cle
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                }`}
+              >
+                {c.label}
+              </Link>
+            ))}
+          </nav>
+        )}
         {rows.length === 0 ? (
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">
             <EmptyState icon={FileText} title="Aucun document généré pour ce dossier." description="Utilisez les options ci-dessus." />
@@ -344,6 +394,11 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{d.title}</span>
+                          {groupeDuDocument(d) && (
+                            <span className="inline-flex items-center h-5 px-1.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                              {nomDuGroupe.get(groupeDuDocument(d)!) ?? 'Groupe'}
+                            </span>
+                          )}
                           {/* Le commentaire se lit sous l'intitulé, sans avoir
                               à ouvrir le document — c'est tout l'intérêt d'une
                               note. */}

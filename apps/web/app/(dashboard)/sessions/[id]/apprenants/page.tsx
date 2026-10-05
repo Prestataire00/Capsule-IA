@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowUpRight, Building2, User, Users } from 'lucide-react';
+import { ArrowUpRight, Building2, Split, User, Users } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession, type SessionLearner } from '@/features/sessions/load-session';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { loadSuiviStagiaires } from '@/features/sessions/suivi-stagiaires';
 import { SuiviPastilles } from '@/features/sessions/ui/suivi-pastilles';
+import { canManageSection } from '@/shared/lib/auth/require-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,8 +54,32 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
     );
   }
 
+  const [{ data: seanceGroupe }, gerer] = await Promise.all([
+    sb.schema('app').from('sessions').select('groupe_id, groupe:dossier_groupes(nom)' as never).eq('id', params.id).maybeSingle(),
+    canManageSection('dossiers'),
+  ]);
+  const groupe = seanceGroupe as unknown as { groupe_id: string | null; groupe: { nom: string } | Array<{ nom: string }> | null } | null;
+  const nomGroupe = Array.isArray(groupe?.groupe) ? groupe?.groupe[0]?.nom : groupe?.groupe?.nom;
+
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        {nomGroupe ? (
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+            Séance du <span className="inline-flex items-center h-6 px-2 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-medium">{nomGroupe}</span>
+          </p>
+        ) : (
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Toute la promotion du dossier.</p>
+        )}
+        {gerer && !groupe?.groupe_id && loaded.session.dossier_id && learners.length > 1 && (
+          <Link
+            href={`/sessions/${params.id}/repartir`}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <Split className="w-4 h-4" /> Répartir en groupes
+          </Link>
+        )}
+      </div>
       {directLearners.length > 0 && (
         <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
           <header

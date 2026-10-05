@@ -279,6 +279,18 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   ]);
   const dossiersById = new Map(dossierRows.map((d) => [d.id, d]));
 
+  // Groupes d'apprenants (0195) : deux séances jumelles se distinguent par leur groupe.
+  const groupeRows = await fetchByIds<{ id: string; groupe_id: string | null }>(sessionIds, 'groupes', (ids) =>
+    sb.schema('app').from('sessions').select('id, groupe_id' as never).in('id', ids).not('groupe_id' as never, 'is', null),
+  );
+  const nomsGroupes = await fetchByIds<{ id: string; nom: string }>(
+    [...new Set(groupeRows.map((g) => g.groupe_id).filter(Boolean))] as string[],
+    'noms de groupes',
+    (ids) => sb.schema('app').from('dossier_groupes' as never).select('id, nom').in('id', ids),
+  );
+  const nomGroupe = new Map(nomsGroupes.map((g) => [g.id, g.nom]));
+  const groupeDeSeance = new Map(groupeRows.map((g) => [g.id, g.groupe_id ? (nomGroupe.get(g.groupe_id) ?? null) : null]));
+
   const activeParticipants = participantRows.filter((p) => p.source !== 'manual_remove');
   const learnerIds = [
     ...new Set([...dossierRows.map((d) => d.learner_id), ...activeParticipants.map((p) => p.learner_id)].filter(Boolean)),
@@ -313,6 +325,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
       formation,
       color: colorOf(formation?.id),
       reference: d?.reference ?? null,
+      groupe: groupeDeSeance.get(s.id) ?? null,
       isGroup: !d,
       learnerName,
       learnerCount,
@@ -591,6 +604,11 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
                         <Link href={`/sessions/${s.id}`} className="block truncate text-[13px] font-semibold text-[color:var(--sess)] hover:underline mt-0.5">
                           {s.title || 'Session'}
                         </Link>
+                        {s.groupe && (
+                          <span className="inline-flex items-center h-5 px-1.5 mt-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                            {s.groupe}
+                          </span>
+                        )}
                         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
                           {s.isGroup ? 'Session de groupe' : s.learnerName || s.reference || 'Dossier individuel'}
                         </p>

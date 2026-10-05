@@ -47,6 +47,9 @@ export default async function SessionLayout({
   // Une séance libre porte ses participants sans dossier : ils comptent aussi.
   const participants = learners.length + directLearners.length;
   const gerer = await canManageSection('dossiers');
+  const { data: g } = await sb.schema('app').from('sessions').select('groupe:dossier_groupes(nom)' as never).eq('id', params.id).maybeSingle();
+  const groupeBrut = (g as unknown as { groupe: { nom: string } | Array<{ nom: string }> | null } | null)?.groupe;
+  const nomGroupe = Array.isArray(groupeBrut) ? groupeBrut[0]?.nom : groupeBrut?.nom;
 
   const st = STATUS[session.status] ?? { label: session.status, tone: 'neutral' as const };
   const etape = ETAPES.findIndex((e) => e.key === session.status);
@@ -77,6 +80,11 @@ export default async function SessionLayout({
                 <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 first-letter:uppercase">
                   {session.title || formation?.title || dayFmt.format(debut)}
                 </h1>
+                {nomGroupe && (
+                  <span className="inline-flex items-center h-6 px-2 rounded-full text-[12px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                    {nomGroupe}
+                  </span>
+                )}
                 {gerer ? <StatusSelect sessionId={session.id} status={session.status} /> : <StatusPill tone={st.tone}>{st.label}</StatusPill>}
               </div>
               <p className="text-[15px] text-zinc-600 dark:text-zinc-300 mt-1.5 tabular-nums first-letter:uppercase">
