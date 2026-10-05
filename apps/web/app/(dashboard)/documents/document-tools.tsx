@@ -20,7 +20,7 @@ const KIND_OPTIONS = [
 const inputCls =
   'w-full h-9 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg px-3 text-[13px] transition focus:outline-none focus:border-orange-300 dark:focus:border-orange-800 focus:ring-4 focus:ring-orange-500/10';
 
-export function DocumentUploadButton() {
+export function DocumentUploadButton({ dossiers }: { dossiers: DossierOption[] }) {
   const [pending, setPending] = useState(false);
   return (
     <details className="relative">
@@ -32,7 +32,7 @@ export function DocumentUploadButton() {
         onSubmit={() => setPending(true)}
         className="absolute right-0 z-20 mt-2 w-96 bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-lg p-4 space-y-3 text-left"
       >
-        <p className="text-[11px] tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400 font-bold">Document libre (sans dossier)</p>
+        <p className="text-[11px] tracking-[0.06em] uppercase text-zinc-500 dark:text-zinc-400 font-bold">Déposer un document</p>
         <label className="block">
           <span className="text-[12px] text-zinc-600 dark:text-zinc-300 block mb-1">Titre *</span>
           <input type="text" name="title" required placeholder="Ex : Règlement intérieur 2026" className={inputCls} />
@@ -47,6 +47,29 @@ export function DocumentUploadButton() {
             ))}
           </select>
         </label>
+        <label className="block">
+          <span className="text-[12px] text-zinc-600 dark:text-zinc-300 block mb-1">Dossier concerné</span>
+          <select name="dossierId" defaultValue="" className={inputCls}>
+            <option value="">Aucun (document de l’organisme)</option>
+            {dossiers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.reference}
+                {d.learner ? ` — ${d.learner}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <fieldset>
+          <legend className="text-[12px] text-zinc-600 dark:text-zinc-300 mb-1">Qui le voit ?</legend>
+          <div className="flex flex-col gap-1 text-[12px] text-zinc-700 dark:text-zinc-300">
+            <label className="inline-flex items-center gap-2">
+              <input type="radio" name="visibilite" value="interne" defaultChecked /> Interne
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="radio" name="visibilite" value="entreprise" /> Public : visible dans l’espace entreprise du dossier
+            </label>
+          </div>
+        </fieldset>
         <label className="block">
           <span className="text-[12px] text-zinc-600 dark:text-zinc-300 block mb-1">Fichier *</span>
           <input

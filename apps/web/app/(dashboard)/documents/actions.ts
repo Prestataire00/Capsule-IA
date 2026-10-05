@@ -78,7 +78,8 @@ async function requireOrg(): Promise<string> {
   return orgId;
 }
 
-// Téléverse un document « libre » (sans dossier). Rattachable ensuite à un dossier.
+// Téléverse un document, rattaché à un dossier ou non (rattachable ensuite),
+// interne ou visible dans l'espace entreprise du dossier.
 export async function uploadStandaloneDocument(fd: FormData): Promise<void> {
   const orgId = await requireOrg();
 
@@ -91,11 +92,25 @@ export async function uploadStandaloneDocument(fd: FormData): Promise<void> {
   if (file.size > MAX_SIZE) redirect('/documents?error=file_too_large');
   if (!ALLOWED.has(file.type)) redirect('/documents?error=invalid_type');
 
+  // Interne par défaut : seul un choix explicite le montre au référent (0207).
+  const visibleEntreprise = fd.get('visibilite') === 'entreprise';
+  const dossierId = (fd.get('dossierId') as string | null)?.trim() || null;
+  const admin = supabaseAdmin();
+  if (dossierId) {
+    const { data: dossier } = await admin
+      .schema('app')
+      .from('dossiers')
+      .select('id')
+      .eq('id', dossierId)
+      .eq('organization_id', orgId)
+      .maybeSingle();
+    if (!dossier) redirect('/documents?error=dossier_not_found');
+  }
+
   const ext = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : 'bin';
   const storagePath = `${orgId}/org/${kind}/${randomUUID()}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  const admin = supabaseAdmin();
   const { error: upErr } = await admin.storage
     .from('documents')
     .upload(storagePath, buffer, { contentType: file.type, upsert: true });
@@ -103,9 +118,10 @@ export async function uploadStandaloneDocument(fd: FormData): Promise<void> {
 
   const { error } = await admin.schema('app').from('documents').insert({
     organization_id: orgId,
-    dossier_id: null,
+    dossier_id: dossierId,
     kind,
     title,
+    visible_entreprise: visibleEntreprise,
     status: 'ready',
     storage_path: storagePath,
     mime_type: file.type,

@@ -54,6 +54,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // est déjà du JSONB : une colonne de plus pour une note facultative aurait
   // coûté une migration sans rien apporter.
   const commentaire = String(fd.get('comment') ?? '').trim().slice(0, 1000);
+  // Interne par défaut : seul un choix explicite le montre au référent (0207).
+  const visibleEntreprise = fd.get('visibleEntreprise') === '1';
 
   if (!(fichier instanceof File) || fichier.size === 0) {
     return NextResponse.json({ ok: false, error: 'missing_file' }, { status: 400 });
@@ -95,6 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       storage_path: chemin,
       file_size_bytes: fichier.size,
       uploaded_by: membre.userId,
+      visible_entreprise: visibleEntreprise,
       metadata: {
         depose: true,
         nom_origine: fichier.name.slice(0, 200),

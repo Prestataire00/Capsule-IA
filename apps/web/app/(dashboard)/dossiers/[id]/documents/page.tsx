@@ -17,6 +17,7 @@ import { GenerateFromTemplate, type TemplateChoice } from './_components/generat
 import { GenerateWithAi } from './_components/generate-with-ai';
 import { EmailDocButton } from './_components/email-doc-button';
 import { GenerateConventionsButton } from './_components/generate-conventions-button';
+import { VisibiliteToggle } from '../../../documents/visibilite-toggle.client';
 
 // PDF générés à la volée (générateurs pdf-lib existants : génèrent, persistent, renvoient le PDF).
 // La convention est générée à part (1 par financeur + reste à charge) via GenerateConventionsButton.
@@ -48,7 +49,7 @@ const EXEMPLAIRE: Record<string, { label: string; tone: string }> = {
 const exemplaireDe = (m: { audience?: string | null; grouped?: boolean | null } | null) =>
   EXEMPLAIRE[m?.audience ?? (m?.grouped ? 'entreprise' : '')] ?? null;
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_112px_minmax(0,1.2fr)] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_140px_minmax(0,1.2fr)] gap-4 px-5';
 const ICON_BTN =
   'w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition';
 
@@ -114,7 +115,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
     sb
       .schema('app')
       .from('documents')
-      .select('id, title, kind, status, content_html, storage_path, metadata, created_at')
+      .select('id, title, kind, status, content_html, storage_path, metadata, created_at, visible_entreprise')
       .eq('dossier_id', params.id)
       .order('created_at', { ascending: false }),
     sb
@@ -132,6 +133,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       kind: string;
       status: string;
       content_html: string | null;
+      visible_entreprise?: boolean;
       storage_path: string | null;
       metadata: {
         payer?: string | null;
@@ -366,8 +368,9 @@ export default async function DocumentsPage({ params }: { params: { id: string }
                         </span>
                       </span>
                       <span className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{d.kind}</span>
-                      <span>
+                      <span className="flex flex-col items-start gap-1">
                         <StatusPill tone={d.status === 'ready' ? 'success' : 'neutral'}>{d.status}</StatusPill>
+                        <VisibiliteToggle documentId={d.id} visible={Boolean(d.visible_entreprise)} modifiable={peutCommenter} />
                       </span>
                       <span className="flex items-center justify-end gap-0.5">
                         {d.storage_path && <EmailDocButton documentId={d.id} defaultEmail={learnerEmail} />}

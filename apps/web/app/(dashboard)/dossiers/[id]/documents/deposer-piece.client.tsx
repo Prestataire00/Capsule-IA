@@ -27,6 +27,7 @@ export function DeposerPiece({
   const [titre, setTitre] = useState('');
   const [indicateur, setIndicateur] = useState('');
   const [commentaire, setCommentaire] = useState('');
+  const [visible, setVisible] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -55,6 +56,7 @@ export function DeposerPiece({
       fd.set('title', titre);
       if (indicateur) fd.set('indicatorId', indicateur);
       if (commentaire.trim()) fd.set('comment', commentaire.trim());
+      if (visible) fd.set('visibleEntreprise', '1');
       const r = await fetch(`/api/dossiers/${dossierId}/documents/upload`, { method: 'POST', body: fd });
       const corps = (await r.json()) as { ok: boolean; error?: string; indicateurRattache?: boolean };
       if (!corps.ok) {
@@ -70,6 +72,7 @@ export function DeposerPiece({
       setTitre('');
       setIndicateur('');
       setCommentaire('');
+      setVisible(false);
       if (champFichier.current) champFichier.current.value = '';
       router.refresh();
     } catch {
@@ -126,6 +129,30 @@ export function DeposerPiece({
             className={`${champ} mt-1`}
           />
         </label>
+
+        <fieldset className="sm:col-span-2">
+          <legend className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">Qui le voit ?</legend>
+          <div className="mt-1 inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
+            {[
+              { valeur: false, label: 'Interne' },
+              { valeur: true, label: 'Visible dans l’espace entreprise' },
+            ].map((o) => (
+              <button
+                key={o.label}
+                type="button"
+                aria-pressed={visible === o.valeur}
+                onClick={() => setVisible(o.valeur)}
+                className={`h-8 px-3 rounded-md text-[12px] transition ${
+                  visible === o.valeur
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                    : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
         {/* Ce qu'on sait du document et que son nom ne dit pas : d'où il
             vient, ce qu'il manque, ce qu'on attend encore. Sans cet endroit,

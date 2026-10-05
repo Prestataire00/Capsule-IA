@@ -232,6 +232,24 @@ export function mentionEquipeEmail(d: { auteur: string; dossier: string; message
   return { subject, html };
 }
 
+/** Le lien de l'espace entreprise, envoyé au référent du client. */
+export function espaceEntrepriseEmail(d: { prenom: string; organisme: string; lien: string }): { subject: string; html: string } {
+  const subject = `Vos documents de formation — ${d.organisme}`;
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Espace entreprise</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bonjour ${escapeHtml(d.prenom)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
+        ${escapeHtml(d.organisme)} met à votre disposition les documents des formations que vous suivez pour votre entreprise :
+        conventions, programmes, attestations… Ils y sont ajoutés au fil de la formation.
+      </p>
+      <div>${button(d.lien, 'Ouvrir mon espace')}</div>
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">Ce lien vous est personnel : merci de ne pas le transférer.</p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;

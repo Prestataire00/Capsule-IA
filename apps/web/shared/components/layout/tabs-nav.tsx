@@ -19,7 +19,7 @@ const tabs = [
   { slug: 'depenses', label: 'Dépenses' },
   { slug: 'activite', label: 'Activité' },
   { slug: 'tracabilite', label: 'Traçabilité' },
-  { slug: 'acces-apprenant', label: 'Accès apprenant' },
+  { slug: 'espace-entreprise', label: 'Espace entreprise' },
 ];
 
 export function TabsNav({ baseHref }: { baseHref: string }) {

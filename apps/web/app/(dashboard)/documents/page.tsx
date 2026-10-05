@@ -12,6 +12,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { DocumentUploadButton, AttachToDossier, type DossierOption } from './document-tools';
+import { VisibiliteToggle } from './visibilite-toggle.client';
 import { KindFilter } from './kind-filter';
 import { StandaloneGenerateButton } from './standalone-generate';
 
@@ -74,6 +75,7 @@ type DocRow = {
     learner: { first_name: string | null; last_name: string | null } | null;
   } | null;
   signatures: { status: string }[] | null;
+  visible_entreprise?: boolean;
 };
 
 export default async function DocumentsPage({
@@ -95,7 +97,7 @@ export default async function DocumentsPage({
     .schema('app')
     .from('documents')
     .select(
-      'id, title, kind, status, created_at, version, source_url, ' +
+      'id, title, kind, status, created_at, version, source_url, visible_entreprise, ' +
         'dossier:dossiers(id, reference, learner:learners!dossiers_learner_id_fkey(first_name, last_name)), ' +
         'signatures:document_signatures(status)',
     )
@@ -170,7 +172,7 @@ export default async function DocumentsPage({
             Générer depuis un dossier
           </Link>
           <StandaloneGenerateButton />
-          <DocumentUploadButton />
+          <DocumentUploadButton dossiers={dossiers} />
         </div>
       </header>
 
@@ -290,8 +292,9 @@ export default async function DocumentsPage({
                       <span className="truncate">{learner}</span>
                     </span>
                     <span className={`truncate font-semibold ${ACCENTS[ks.accent].text}`}>{kindLabel(d.kind)}</span>
-                    <div>
+                    <div className="flex flex-col items-start gap-1">
                       <StatusPill tone={statusPill.tone}>{statusPill.label}</StatusPill>
+                      {d.dossier && <VisibiliteToggle documentId={d.id} visible={Boolean(d.visible_entreprise)} />}
                     </div>
                     <div className="flex items-center justify-end">
                       <Link
