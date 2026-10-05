@@ -39,6 +39,8 @@ export type SessionResource = {
   readonly validationStatus: SupportStatus;
   readonly rejectionReason: string | null;
   readonly validatedAt: string | null;
+  /** Date de la version annotée déposée par l'équipe (0205), s'il y en a une. */
+  readonly annotatedAt: string | null;
 };
 
 type Row = {
@@ -55,12 +57,13 @@ type Row = {
   validation_status: string | null;
   rejection_reason: string | null;
   validated_at: string | null;
+  annotated_at: string | null;
 };
 
 const SIGNED_URL_TTL = 3600;
 
 const SUPPORT_COLUMNS =
-  'id, title, description, kind, storage_path, external_url, mime_type, file_size_bytes, is_published, created_at, validation_status, rejection_reason, validated_at';
+  'id, title, description, kind, storage_path, external_url, mime_type, file_size_bytes, is_published, created_at, validation_status, rejection_reason, validated_at, annotated_at';
 
 /**
  * @param diffusablesSeulement réservé à l'espace apprenant : ni un brouillon du
@@ -113,6 +116,7 @@ export async function loadSessionResources(
     validationStatus: isSupportStatus(r.validation_status) ? r.validation_status : 'en_attente',
     rejectionReason: r.rejection_reason,
     validatedAt: r.validated_at,
+    annotatedAt: r.annotated_at,
   }));
 }
 
@@ -287,6 +291,7 @@ export async function loadSupportsAValider(organizationId: string): Promise<Supp
       validationStatus: 'en_attente' as const,
       rejectionReason: r.rejection_reason,
       validatedAt: r.validated_at,
+      annotatedAt: r.annotated_at ?? null,
       sessionId: r.session_id,
       sessionTitle: seance?.title ?? null,
       sessionStartsAt: seance?.starts_at ?? null,

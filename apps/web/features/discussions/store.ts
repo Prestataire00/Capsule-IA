@@ -3,6 +3,7 @@ import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { mentionEquipeEmail } from '@/shared/lib/email/templates';
+import { sendTrainerInvite } from '@/features/trainers/send-trainer-invite';
 import { mentionsDans } from './mentions';
 import { equipeDuDossier, libellesDossiers, type LibelleDossier, type MembreDiscussion } from './equipe';
 
@@ -146,13 +147,28 @@ export async function publierMessageEquipe(input: {
   authorName: string;
   body: string;
 }): Promise<ResultatEnvoi> {
-  const equipe = await equipeDuDossier(input.organizationId, input.dossierId);
-  const mentions = mentionsDans(
-    input.body,
-    equipe.filter((m) => m.userId !== input.authorUserId),
-  );
+  let equipe = await equipeDuDossier(input.organizationId, input.dossierId);
+  const mentionnes = (e: readonly MembreDiscussion[]) =>
+    mentionsDans(
+      input.body,
+      e.filter((m) => m.userId !== input.authorUserId),
+    );
+  let mentions = mentionnes(equipe);
   if (mentions.length === 0) {
     return { ok: false, error: 'Mentionnez au moins une personne de l’équipe avec @ (cliquez sur son nom).' };
+  }
+
+  // Un formateur mentionné sans compte reçoit d'abord son invitation, qui lui
+  // crée son espace : la mention vise alors son compte, et il pourra répondre.
+  const aInviter = equipe.filter((m) => m.sansCompte && mentions.includes(m.userId) && m.email && m.trainerId);
+  if (aInviter.length > 0) {
+    const orgName = await nomOrganisme(input.organizationId);
+    for (const m of aInviter) {
+      const r = await sendTrainerInvite({ email: m.email!, firstName: m.prenom ?? m.nom, orgName, trainerId: m.trainerId! });
+      if (!r.ok) console.error('[discussion] invitation du formateur mentionné impossible', m.trainerId, r.reason);
+    }
+    equipe = await equipeDuDossier(input.organizationId, input.dossierId);
+    mentions = mentionnes(equipe);
   }
 
   const admin = supabaseAdmin();
@@ -178,17 +194,24 @@ export async function publierMessageEquipe(input: {
   return { ok: true };
 }
 
+async function nomOrganisme(organizationId: string): Promise<string> {
+  const { data } = await supabaseAdmin().schema('app').from('organizations').select('name').eq('id', organizationId).maybeSingle();
+  return (data as { name: string | null } | null)?.name ?? 'Votre organisme de formation';
+}
+
 async function prevenirMentionnes(
   personnes: readonly MembreDiscussion[],
   ctx: { organizationId: string; dossierId: string; authorName: string; body: string; titre: string },
 ): Promise<void> {
   const admin = supabaseAdmin();
   const maintenant = new Date().toISOString();
-  const { error } = await admin
+  const avecCompte = personnes.filter((p) => !p.sansCompte);
+  const { error } = avecCompte.length === 0 ? { error: null } : await admin
     .schema('app')
     .from('notifications')
     .insert(
-      personnes.map((p) => ({
+      // La cloche suppose un compte : un formateur encore sans compte est prévenu par e-mail.
+      avecCompte.map((p) => ({
         organization_id: ctx.organizationId,
         channel: 'in_app',
         template_code: 'discussion.mention',

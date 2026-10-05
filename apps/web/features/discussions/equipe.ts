@@ -13,10 +13,15 @@ import { loadDesignations } from '@/features/trainer-space/validation-recipients
 type Admin = ReturnType<typeof supabaseAdmin>;
 
 export type MembreDiscussion = {
+  /** Son compte ; pour un formateur qui n'en a pas encore, l'id de sa fiche. */
   readonly userId: string;
   readonly nom: string;
   readonly email: string | null;
   readonly role: 'formateur' | 'equipe';
+  /** Formateur sans compte : le mentionner lui envoie son invitation. */
+  readonly sansCompte: boolean;
+  readonly trainerId: string | null;
+  readonly prenom: string | null;
 };
 
 async function formateursDuDossier(admin: Admin, dossierId: string): Promise<MembreDiscussion[]> {
@@ -42,18 +47,20 @@ async function formateursDuDossier(admin: Admin, dossierId: string): Promise<Mem
   const { data: t } = await admin
     .schema('app')
     .from('trainers')
-    .select('user_id, first_name, last_name, email')
+    .select('id, user_id, first_name, last_name, email')
     .in('id', ids)
-    .is('deleted_at', null)
-    .not('user_id', 'is', null);
-  return ((t ?? []) as Array<{ user_id: string; first_name: string | null; last_name: string | null; email: string | null }>).map(
-    (f) => ({
-      userId: f.user_id,
-      nom: `${f.first_name ?? ''} ${f.last_name ?? ''}`.trim() || f.email || 'Formateur',
-      email: f.email,
-      role: 'formateur' as const,
-    }),
-  );
+    .is('deleted_at', null);
+  return (
+    (t ?? []) as Array<{ id: string; user_id: string | null; first_name: string | null; last_name: string | null; email: string | null }>
+  ).map((f) => ({
+    userId: f.user_id ?? f.id,
+    nom: `${f.first_name ?? ''} ${f.last_name ?? ''}`.trim() || f.email || 'Formateur',
+    email: f.email,
+    role: 'formateur' as const,
+    sansCompte: f.user_id === null,
+    trainerId: f.id,
+    prenom: f.first_name,
+  }));
 }
 
 async function equipeOrganisme(admin: Admin, organizationId: string): Promise<MembreDiscussion[]> {
@@ -79,6 +86,9 @@ async function equipeOrganisme(admin: Admin, organizationId: string): Promise<Me
     nom: profils.get(id)?.full_name?.trim() || profils.get(id)?.email || 'Membre',
     email: profils.get(id)?.email ?? null,
     role: 'equipe' as const,
+    sansCompte: false,
+    trainerId: null,
+    prenom: null,
   }));
 }
 

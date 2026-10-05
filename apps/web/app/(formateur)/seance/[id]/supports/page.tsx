@@ -8,6 +8,7 @@ import { loadSession } from '@/features/sessions/load-session';
 import { heure, jourLong } from '@/features/trainer-space/dates';
 import { loadSessionResources } from '@/features/trainer-space/session-resources';
 import { SeanceNav } from '../_components/seance-nav';
+import { FileDown } from 'lucide-react';
 import { SupportsManager } from './supports-manager.client';
 import { loadAnnotations } from '@/features/pedagogie/annotations-store';
 import { RetoursRelecture } from '../../../_cours/retours-relecture';
@@ -26,7 +27,7 @@ export default async function SeanceSupportsPage({ params }: { params: { id: str
   const supports = await loadSessionResources(params.id);
   const publies = supports.filter((s) => s.isPublished).length;
   const annotations = await loadAnnotations('support', supports.map((s) => s.id));
-  const annotes = supports.filter((s) => (annotations.get(s.id) ?? []).length > 0);
+  const annotes = supports.filter((s) => (annotations.get(s.id) ?? []).length > 0 || s.annotatedAt);
 
   return (
     <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
@@ -47,6 +48,14 @@ export default async function SeanceSupportsPage({ params }: { params: { id: str
           {annotes.map((s) => (
             <li key={s.id} className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
               <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{s.title}</p>
+              {s.annotatedAt && (
+                <a
+                  href={`/api/supports/${s.id}/version-annotee`}
+                  className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-orange-600 dark:text-orange-400 hover:underline"
+                >
+                  <FileDown className="w-3.5 h-3.5" /> Télécharger la version annotée par l&apos;équipe
+                </a>
+              )}
               <RetoursRelecture annotations={annotations.get(s.id) ?? []} />
             </li>
           ))}

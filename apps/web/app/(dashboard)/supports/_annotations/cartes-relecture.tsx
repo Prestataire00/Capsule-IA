@@ -9,12 +9,15 @@ import { AnnotationItem, cibleDe } from '@/features/pedagogie/ui/annotation-item
 import { CoursDecision } from '../cours-decision.client';
 import { DecisionButtons } from '../decision-buttons.client';
 import { Annoter, RetirerAnnotation } from './annoter.client';
+import { AnnoterEnWord } from './version-annotee.client';
 
 /**
  * Relire ce que le formateur a préparé, au même endroit : le contenu en
  * entier, la décision, et les annotations en couleur. Sert l'onglet Cours de
  * la séance ; la file « À valider » garde sa présentation compacte.
  */
+
+const jourFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' });
 
 const STATUT_TON: Record<SupportStatus, string> = {
   en_attente: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
@@ -184,8 +187,23 @@ export function CarteSupport({
 
       <Annotations annotations={annotations} questions={[]} meId={meId} peutValider={peutValider} />
 
+      {support.annotatedAt && (
+        <a
+          href={`/api/supports/${support.id}/version-annotee`}
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-orange-600 dark:text-orange-400 hover:underline"
+        >
+          <FileText className="w-3.5 h-3.5" /> Version annotée du {jourFmt.format(new Date(support.annotatedAt))}
+        </a>
+      )}
+
       {peutValider && (
         <div className="flex flex-col gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+          {support.kind === 'fichier' && (
+            <AnnoterEnWord
+              supportId={support.id}
+              estPdf={support.mimeType === 'application/pdf'}
+            />
+          )}
           <Annoter targetKind="support" targetId={support.id} />
           {support.isPublished && support.validationStatus === 'en_attente' && <DecisionButtons resourceId={support.id} />}
         </div>
