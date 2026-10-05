@@ -61,6 +61,8 @@ export const REGLABLES: Readonly<Record<string, Reglable>> = {
   emargement_lien: { coupable: true, delai: null },
   attestation_demarrage: { coupable: true, delai: null },
   alerte_emargement: { coupable: true, delai: null },
+  // 24 h après la dernière séance : un moment fixe, rien à décaler.
+  relance_satisfaction_referent: { coupable: true, delai: null },
   satisfaction_chaud: {
     coupable: true,
     delai: { defaut: 1, min: 0, max: 30, sens: 'apres', libelle: 'après la fin du dossier' },

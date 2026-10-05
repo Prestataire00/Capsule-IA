@@ -139,6 +139,15 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     obligatoire: null,
   },
   {
+    kind: 'relance_satisfaction_referent',
+    nom: 'Relance satisfaction au référent',
+    moment: 'apres',
+    declencheur: '24 h après la dernière séance du dossier, s’il reste des stagiaires sans réponse.',
+    destinataires: 'Le référent du dossier, sinon le contact de l’entreprise, avec le lien de chaque stagiaire à transmettre',
+    coupureKey: 'satisfaction',
+    obligatoire: null,
+  },
+  {
     kind: 'satisfaction_chaud',
     nom: 'Questionnaire de satisfaction à chaud',
     moment: 'apres',

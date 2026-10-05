@@ -29,6 +29,7 @@ const LU_DANS: Record<string, { fichier: string; appel: string }> = {
   lien_visio_entreprise: { fichier: 'features/sessions/visio.ts', appel: "envoiActif(seance.organizationId, 'lien_visio_entreprise')" },
   rappel_seance_48h: { fichier: 'features/sessions/rappels-seances.ts', appel: "loadReglesParOrganisme(sb, 'rappel_seance_48h')" },
   rappel_seance_2h: { fichier: 'features/sessions/rappels-seances.ts', appel: "loadReglesParOrganisme(sb, 'rappel_seance_2h')" },
+  relance_satisfaction_referent: { fichier: 'features/questionnaire/relance-satisfaction-referent.ts', appel: "loadReglesParOrganisme(sb, 'relance_satisfaction_referent')" },
   relance_satisfaction: { fichier: 'features/questionnaire/relancer-assignation.ts', appel: "loadReglesParOrganisme(sb, 'relance_satisfaction')" },
 };
 

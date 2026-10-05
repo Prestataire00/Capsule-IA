@@ -250,6 +250,38 @@ export function espaceEntrepriseEmail(d: { prenom: string; organisme: string; li
   return { subject, html };
 }
 
+/** 24 h après la formation : au référent, les stagiaires qui n'ont pas donné leur avis. */
+export function relanceSatisfactionReferentEmail(d: {
+  prenom: string;
+  formation: string;
+  organisme: string;
+  stagiaires: ReadonlyArray<{ nom: string; lien: string | null }>;
+}): { subject: string; html: string } {
+  const n = d.stagiaires.length;
+  const subject = `${n} stagiaire${n > 1 ? 's n’ont' : ' n’a'} pas encore donné son avis — ${d.formation}`;
+  const lignes = d.stagiaires
+    .map(
+      (s) =>
+        `<li style="margin:0 0 8px;">${escapeHtml(s.nom)}${
+          s.lien ? ` — <a href="${s.lien}" style="color:#c2410c;">son questionnaire</a>` : ''
+        }</li>`,
+    )
+    .join('');
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Satisfaction</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bonjour ${escapeHtml(d.prenom)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">
+        La formation « ${escapeHtml(d.formation)} » est terminée. Pourriez-vous rappeler à ${n > 1 ? 'ces stagiaires' : 'ce stagiaire'}
+        de remplir le questionnaire de satisfaction ? Deux minutes suffisent, et leur avis nous sert à améliorer nos formations.
+      </p>
+      <ul style="font-size:14px; color:#18181b; padding-left:18px; margin:0 0 16px;">${lignes}</ul>
+      <p style="font-size:12px; color:#71717a; margin:0;">Chaque lien est personnel : transmettez-le au stagiaire concerné. — ${escapeHtml(d.organisme)}</p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;
