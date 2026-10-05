@@ -1,4 +1,4 @@
-import { CalendarClock, Clock, UserCheck, Users } from 'lucide-react';
+import { CalendarClock, UserCheck, Users, type LucideIcon } from 'lucide-react';
 import { AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { heuresManquantes, heuresStagiaires, tauxDeRealisation, type DemiJournee } from '@/features/attendance/heures-stagiaires';
 
@@ -14,7 +14,7 @@ const DEMI_JOURNEE: Record<string, string> = { morning: 'Matin', afternoon: 'Apr
 type Feuille = { readonly id: string; readonly half_day: DemiJournee; readonly signed: number; readonly total: number };
 
 function Ligne({ icone: Icone, accent, label, valeur, detail }: {
-  icone: typeof Clock;
+  icone: LucideIcon;
   accent: keyof typeof ACCENTS;
   label: string;
   valeur: string;
