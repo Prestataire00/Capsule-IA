@@ -18,9 +18,10 @@ describe('onglet Informations', () => {
     expect(page).toContain('ligneSeance(');
   });
 
-  it('CA prévisionnel : devis envoyés ou signés, sinon tarif × participants non couverts', () => {
+  it('CA prévisionnel : devis envoyés ou signés, montants convenus, sinon tarif × participants non couverts', () => {
     expect(page).toContain("d.status === 'sent' || d.status === 'signed'");
-    expect(page).toContain('(n - couverts.length) * Number(tarif ?? 0)');
+    expect(page).toContain('convenuTotal');
+    expect(page).toContain('auTarif * Number(tarif ?? 0)');
   });
 });
 

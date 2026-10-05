@@ -130,9 +130,10 @@ const eurosFr = (cents: number) =>
  * saisi l'emporte toujours ; 0 vaut « pas de prix » (les colonnes de prix
  * sont obligatoires et 0 y sert de vide).
  *
- * 1. prix de la séance (par stagiaire) ;
- * 2. prix de la formation, par stagiaire ou global ;
- * 3. montant du dossier, saisi à sa création ou repris de la demande ;
+ * 1. montant du dossier saisi à la main : un accord commercial, du cas par
+ *    cas, qui passe avant tout tarif ;
+ * 2. prix de la séance (par stagiaire) ;
+ * 3. prix de la formation, par stagiaire ou global ;
  * 4. la grille : tarif horaire de l'effectif × heures × stagiaires.
  */
 export function prixParDefaut(args: {
@@ -145,6 +146,9 @@ export function prixParDefaut(args: {
   dossierTotalCents?: number | null;
 }): PrixParDefaut {
   const n = Math.max(1, Math.round(args.stagiaires));
+  if (args.dossierTotalCents != null && args.dossierTotalCents > 0) {
+    return { source: 'dossier', quantite: 1, unitaireCents: args.dossierTotalCents, totalCents: args.dossierTotalCents, explication: 'montant convenu' };
+  }
   if (args.seanceCents != null && args.seanceCents > 0) {
     return { source: 'seance', quantite: n, unitaireCents: args.seanceCents, totalCents: args.seanceCents * n, explication: 'tarif de la séance par stagiaire' };
   }
@@ -152,9 +156,6 @@ export function prixParDefaut(args: {
     return args.formationMode === 'forfait'
       ? { source: 'formation', quantite: 1, unitaireCents: args.formationCents, totalCents: args.formationCents, explication: 'prix global de la formation' }
       : { source: 'formation', quantite: n, unitaireCents: args.formationCents, totalCents: args.formationCents * n, explication: 'tarif par stagiaire' };
-  }
-  if (args.dossierTotalCents != null && args.dossierTotalCents > 0) {
-    return { source: 'dossier', quantite: 1, unitaireCents: args.dossierTotalCents, totalCents: args.dossierTotalCents, explication: 'montant convenu' };
   }
   const p = prixSelonGrille(args.grille, { stagiaires: n, heures: args.heures });
   const unitaire = Math.round(p.horaireParStagiaireCents * Math.max(0, args.heures));
@@ -164,5 +165,38 @@ export function prixParDefaut(args: {
     unitaireCents: unitaire,
     totalCents: unitaire * n,
     explication: `grille : ${eurosFr(p.horaireParStagiaireCents)} HT de l’heure par stagiaire pour ${n} stagiaire${n > 1 ? 's' : ''}`,
+  };
+}
+
+/**
+ * La ligne d'un devis qui couvre plusieurs dossiers (devis de groupe d'une
+ * entreprise). Un dossier au montant convenu compte pour ce montant, ni plus
+ * ni moins ; les autres sont chiffrés au tarif — séance, formation, ou grille
+ * à l'effectif du groupe.
+ */
+export function ligneDeGroupe(args: {
+  grille: GrilleTarifaire;
+  heures: number;
+  seanceCents?: number | null;
+  formationCents?: number | null;
+  formationMode?: 'par_stagiaire' | 'forfait' | null;
+  /** Montant convenu de chaque dossier couvert ; null = pas d'accord particulier. */
+  dossiers: ReadonlyArray<{ convenuCents: number | null }>;
+}): PrixParDefaut {
+  const n = Math.max(1, args.dossiers.length);
+  const tarif = prixParDefaut({ ...args, stagiaires: n, dossierTotalCents: null });
+  const convenus = args.dossiers.map((d) => d.convenuCents ?? 0).filter((c) => c > 0);
+  if (convenus.length === 0) return tarif;
+
+  const autres = n - convenus.length;
+  // Un prix global de formation vaut pour tout le groupe : il ne se compte qu'une fois.
+  const totalAutres = autres === 0 ? 0 : tarif.quantite === 1 ? tarif.totalCents : tarif.unitaireCents * autres;
+  const total = convenus.reduce((a, c) => a + c, 0) + totalAutres;
+  return {
+    source: 'dossier',
+    quantite: 1,
+    unitaireCents: total,
+    totalCents: total,
+    explication: autres === 0 ? 'montant convenu' : `montant convenu pour ${convenus.length}, ${tarif.explication} pour ${autres}`,
   };
 }

@@ -124,9 +124,24 @@ export default async function SessionOverview({ params }: { params: { id: string
   const tarif = tarifSaisi ?? (parGrille ? Math.round(parGrille.horaireParStagiaireCents * heuresSeance) : null);
   const devisValables = devis.filter((d) => d.status === 'sent' || d.status === 'signed');
   const couverts = learners.filter((l) => devisValables.some((d) => (l.companyId && d.company_id === l.companyId) || d.learner_id === l.id));
+  // Un dossier au montant convenu (accord commercial) compte pour ce montant,
+  // pas au tarif : c'est du cas par cas.
+  const nonCouverts = learners.filter((l) => !couverts.includes(l));
+  const { data: montants } = nonCouverts.length
+    ? await db.schema('app').from('dossiers').select('id, total_amount_cents, metadata').in('id', nonCouverts.map((l) => l.dossierId))
+    : { data: [] };
+  const convenus = new Map(
+    ((montants ?? []) as Array<{ id: string; total_amount_cents: number | null; metadata: { montant_source?: string } | null }>)
+      .filter((d) => d.total_amount_cents && d.total_amount_cents > 0 && d.metadata?.montant_source !== 'grille')
+      .map((d) => [d.id, Number(d.total_amount_cents)]),
+  );
+  const convenuTotal = nonCouverts.reduce((t, l) => t + (convenus.get(l.dossierId) ?? 0), 0);
+  const auTarif = nonCouverts.filter((l) => !convenus.has(l.dossierId)).length;
   const ca =
-    devisValables.length || tarif
-      ? devisValables.reduce((t, d) => t + Number(d.subtotal_cents), 0) + (forfait ? (n > couverts.length ? Number(tarif ?? 0) : 0) : (n - couverts.length) * Number(tarif ?? 0))
+    devisValables.length || tarif || convenuTotal
+      ? devisValables.reduce((t, d) => t + Number(d.subtotal_cents), 0) +
+        convenuTotal +
+        (forfait ? (auTarif > 0 ? Number(tarif ?? 0) : 0) : auTarif * Number(tarif ?? 0))
       : null;
 
   // Coût formateur : son tarif (heure, jour, séance) appliqué à la séance ; un tarif posé sur la séance l'emporte.

@@ -7,7 +7,7 @@ import { generateDocumentSignatureToken } from '@/shared/lib/document-signature-
 import { buildDevisHtml, type DevisSession } from '@/features/documents/generate-devis-html';
 import { wrapGeneratedHtml } from '@/features/documents/templates/wrap-generated-html';
 import { resolveOrgVariables } from '@/features/documents/templates/resolve-org-variables';
-import { prixParDefaut, prixSelonGrille } from '@/features/billing/grille-tarifaire';
+import { ligneDeGroupe, prixParDefaut } from '@/features/billing/grille-tarifaire';
 import { chargerGrille } from '@/features/billing/grille-store';
 import {
   QUOTE_VALIDITY_DAYS,
@@ -358,8 +358,10 @@ export async function ensureQuoteForDossier(
     formationMode: formation.price_mode ?? null,
     // Un montant tiré de la grille à la conversion n'est pas un prix convenu :
     // la grille le recalcule ici, à l'effectif du devis.
-    dossierTotalCents:
-      (dossier.metadata as { montant_source?: string } | null)?.montant_source === 'grille' ? null : dossier.total_amount_cents,
+    dossierTotalCents: montantConvenu({
+      total_amount_cents: dossier.total_amount_cents,
+      metadata: dossier.metadata as { montant_source?: string } | null,
+    }),
   });
 
   const { data: inserted, error: insErr } = await sb
@@ -489,27 +491,51 @@ async function syncAutoLine(sb: Sb, quoteId: string): Promise<void> {
     await recomputeQuoteTotals(sb, quoteId);
     return;
   }
-  const count = (await coveredDossierIds(sb, quoteId)).length;
+  const ids = await coveredDossierIds(sb, quoteId);
   const title = String(quote.metadata.formation_title ?? 'Formation');
-  const n = Math.max(1, count);
-  // Grille dégressive : le prix par stagiaire dépend de l'effectif du devis.
-  const parGrille = quote.metadata.prix_source === 'grille';
-  const unitaire = parGrille
-    ? Math.round(
-        prixSelonGrille(await chargerGrille(quote.organization_id), { stagiaires: n, heures: 1 }).horaireParStagiaireCents *
-          Number(quote.metadata.heures ?? 0),
-      )
-    : null;
+  const n = Math.max(1, ids.length);
+
+  // Un dossier au montant convenu compte pour ce montant ; les autres au tarif
+  // du groupe (séance, formation, sinon grille à l'effectif du devis).
+  const [{ data: dossiers }, { data: f }, { data: seance }, grille] = await Promise.all([
+    ids.length
+      ? sb.schema('app').from('dossiers').select('total_amount_cents, metadata').in('id', ids)
+      : Promise.resolve({ data: [] }),
+    quote.formation_id
+      ? sb.schema('app').from('formations').select('default_price_cents, price_mode, default_duration_hours').eq('id', quote.formation_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    quote.session_id
+      ? sb.schema('app').from('sessions').select('price_cents').eq('id', quote.session_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    chargerGrille(quote.organization_id),
+  ]);
+  const formation = f as { default_price_cents: number | null; price_mode: 'par_stagiaire' | 'forfait' | null; default_duration_hours: number | null } | null;
+  const ligne = ligneDeGroupe({
+    grille,
+    heures: Number(quote.metadata.heures ?? formation?.default_duration_hours ?? 0),
+    seanceCents: (seance as { price_cents: number | null } | null)?.price_cents ?? null,
+    formationCents: formation?.default_price_cents ?? null,
+    formationMode: formation?.price_mode ?? null,
+    dossiers: ((dossiers ?? []) as Array<{ total_amount_cents: number | null; metadata: { montant_source?: string } | null }>).map((d) => ({
+      convenuCents: montantConvenu(d),
+    })),
+  });
+
   await Promise.all([
     sb
       .schema('app')
       .from('quote_lines')
-      .update({ quantity: n, ...(unitaire !== null ? { unit_amount_cents: unitaire } : {}) } as never)
+      .update({ quantity: ligne.quantite, unit_amount_cents: ligne.unitaireCents } as never)
       .eq('quote_id', quoteId)
       .eq('position', 0),
     sb.schema('app').from('quotes').update({ object: quoteObject(title, n) } as never).eq('id', quoteId),
   ]);
   await recomputeQuoteTotals(sb, quoteId);
+}
+
+/** Le montant d'un dossier, s'il a été convenu — pas s'il sort de la grille. */
+function montantConvenu(d: { total_amount_cents: number | null; metadata: { montant_source?: string } | null }): number | null {
+  return d.total_amount_cents && d.total_amount_cents > 0 && d.metadata?.montant_source !== 'grille' ? d.total_amount_cents : null;
 }
 
 export async function recomputeQuoteTotals(sb: Sb, quoteId: string): Promise<void> {

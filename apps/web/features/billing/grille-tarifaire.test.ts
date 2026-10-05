@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GRILLE_PAR_DEFAUT, lireGrille, prixParDefaut, prixSelonGrille, tableauGrille } from './grille-tarifaire';
+import { GRILLE_PAR_DEFAUT, ligneDeGroupe, lireGrille, prixParDefaut, prixSelonGrille, tableauGrille } from './grille-tarifaire';
 
 describe('grille d’Anissa', () => {
   const horaire = (n: number) => prixSelonGrille(GRILLE_PAR_DEFAUT, { stagiaires: n, heures: 1 }).horaireParStagiaireCents;
@@ -49,12 +49,41 @@ describe('prixParDefaut — un prix saisi l’emporte sur la grille', () => {
   it('le montant du dossier saisi passe avant la grille', () => {
     expect(prixParDefaut({ ...base, dossierTotalCents: 250000 })).toMatchObject({ source: 'dossier', quantite: 1, totalCents: 250000 });
   });
-  it('le prix de la formation passe avant le dossier, par stagiaire ou global', () => {
-    expect(prixParDefaut({ ...base, dossierTotalCents: 250000, formationCents: 90000 })).toMatchObject({ source: 'formation', quantite: 4, totalCents: 360000 });
-    expect(prixParDefaut({ ...base, formationCents: 300000, formationMode: 'forfait' })).toMatchObject({ quantite: 1, totalCents: 300000 });
+  it('un montant de dossier saisi (accord commercial) passe avant tout tarif', () => {
+    expect(prixParDefaut({ ...base, dossierTotalCents: 250000, formationCents: 90000, seanceCents: 70000 })).toMatchObject({
+      source: 'dossier',
+      totalCents: 250000,
+    });
   });
-  it('le prix de la séance passe avant tout, et 0 vaut « pas de prix »', () => {
+  it('sans montant convenu : la séance, puis la formation, par stagiaire ou global', () => {
+    expect(prixParDefaut({ ...base, formationCents: 90000 })).toMatchObject({ source: 'formation', quantite: 4, totalCents: 360000 });
+    expect(prixParDefaut({ ...base, formationCents: 300000, formationMode: 'forfait' })).toMatchObject({ quantite: 1, totalCents: 300000 });
     expect(prixParDefaut({ ...base, seanceCents: 70000, formationCents: 90000 })).toMatchObject({ source: 'seance', totalCents: 280000 });
+  });
+  it('0 vaut « pas de prix »', () => {
     expect(prixParDefaut({ ...base, seanceCents: 0, formationCents: 0, dossierTotalCents: 0 }).source).toBe('grille');
+  });
+});
+
+describe('ligneDeGroupe — devis d’une entreprise pour plusieurs dossiers', () => {
+  const base = { grille: GRILLE_PAR_DEFAUT, heures: 7 };
+  it('sans accord : la grille à l’effectif du groupe', () => {
+    expect(ligneDeGroupe({ ...base, dossiers: [{ convenuCents: null }, { convenuCents: null }, { convenuCents: null }, { convenuCents: null }] })).toMatchObject({
+      source: 'grille',
+      quantite: 4,
+      unitaireCents: 6000 * 7,
+    });
+  });
+  it('un montant convenu n’est jamais multiplié par l’effectif', () => {
+    expect(ligneDeGroupe({ ...base, dossiers: [{ convenuCents: 150000 }, { convenuCents: 150000 }] })).toMatchObject({
+      quantite: 1,
+      totalCents: 300000,
+    });
+  });
+  it('mélange : les convenus à leur montant, les autres au tarif du groupe', () => {
+    // 4 stagiaires : 60 €/h × 7 h = 420 € pour chacun des 3 sans accord.
+    expect(
+      ligneDeGroupe({ ...base, dossiers: [{ convenuCents: 100000 }, { convenuCents: null }, { convenuCents: null }, { convenuCents: null }] }).totalCents,
+    ).toBe(100000 + 3 * 42000);
   });
 });
