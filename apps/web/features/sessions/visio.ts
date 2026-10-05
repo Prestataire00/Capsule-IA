@@ -333,10 +333,7 @@ export async function creerVisioDeSeance(
     title: s.title ?? seance?.donnees.formationTitle ?? 'Séance',
     startsAt: s.starts_at,
     endsAt: s.ends_at,
-    attendeeEmails: invitesVisio(
-      await emailsStagiairesDeSeance(sb, sessionId),
-      await emailsFormateursDeSeance(sb, sessionId),
-    ),
+    attendeeEmails: await invitesDeLaSeance(sb, sessionId),
     description: seance?.donnees.formationTitle ?? undefined,
   });
   if (!res.ok) return 'failed';
@@ -350,4 +347,23 @@ export async function creerVisioDeSeance(
 
   await diffuserLienVisio(sb, sessionId);
   return 'created';
+}
+
+/**
+ * Les invités de la visio d'une séance : les stagiaires dont on a l'adresse,
+ * le formateur, et le référent de chaque entreprise cliente — l'invitation
+ * part de la boîte formateur. Sans aucune adresse de stagiaire, le lien se
+ * crée quand même : il est sur la séance et part au référent.
+ */
+export async function invitesDeLaSeance(
+  sb: Sb,
+  sessionId: string,
+  stagiaires?: ReadonlyArray<string | null | undefined>,
+): Promise<string[]> {
+  const [connus, formateurs, referents] = await Promise.all([
+    stagiaires ? Promise.resolve(stagiaires) : emailsStagiairesDeSeance(sb, sessionId),
+    emailsFormateursDeSeance(sb, sessionId),
+    emailsReferentsDeSeance(sb, sessionId),
+  ]);
+  return invitesVisio(connus, formateurs, referents);
 }

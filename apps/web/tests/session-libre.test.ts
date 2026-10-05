@@ -55,8 +55,8 @@ describe('création d’une séance libre', () => {
     expect(actions).toContain('organisateurDuMeet(');
   });
 
-  it('invite le formateur de la séance avec les stagiaires', () => {
-    expect(actions).toContain('emailsFormateursDeSeance(');
+  it('invite les stagiaires, le formateur et le référent du client', () => {
+    expect(actions).toContain('invitesDeLaSeance(');
   });
 });
 

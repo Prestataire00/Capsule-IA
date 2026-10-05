@@ -6,8 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance, diffuserLienVisio } from '@/features/sessions/visio';
-import { invitesVisio } from '@/features/sessions/invites-visio';
+import { organisateurDuMeet, metadataMeet, invitesDeLaSeance, diffuserLienVisio } from '@/features/sessions/visio';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { parisIso } from '@/features/import/paris-time';
@@ -95,7 +94,7 @@ async function provisionMeet(
 ): Promise<'created' | 'skipped' | 'failed'> {
   const organisateur = await organisateurDuMeet(sb, ctx.organizationId, userId);
   if (!organisateur) return 'skipped';
-  const attendeeEmails = invitesVisio([ctx.learnerEmail], await emailsFormateursDeSeance(sb, sessionId));
+  const attendeeEmails = await invitesDeLaSeance(sb, sessionId, [ctx.learnerEmail]);
 
   const res = await createMeetEvent(organisateur.creds, {
     title,

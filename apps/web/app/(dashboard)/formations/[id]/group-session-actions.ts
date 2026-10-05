@@ -5,8 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance, diffuserLienVisio } from '@/features/sessions/visio';
-import { invitesVisio } from '@/features/sessions/invites-visio';
+import { organisateurDuMeet, metadataMeet, invitesDeLaSeance, diffuserLienVisio } from '@/features/sessions/visio';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 
@@ -99,9 +98,10 @@ export async function createFormationSession(input: Input): Promise<Result> {
   if (REMOTE.has(input.modality)) {
     const organisateur = await organisateurDuMeet(sb, org, await currentUserId());
     if (organisateur) {
-      const emails = invitesVisio(
+      const emails = await invitesDeLaSeance(
+        sb,
+        sessionId,
         dossiers.map((d) => (one(d.learner) as { email?: string } | null)?.email),
-        await emailsFormateursDeSeance(sb, sessionId),
       );
       const res = await createMeetEvent(organisateur.creds, {
         title: input.title.trim(),

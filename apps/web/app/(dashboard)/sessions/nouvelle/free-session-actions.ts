@@ -8,8 +8,7 @@ import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance, diffuserLienVisio } from '@/features/sessions/visio';
-import { invitesVisio } from '@/features/sessions/invites-visio';
+import { organisateurDuMeet, metadataMeet, invitesDeLaSeance, diffuserLienVisio } from '@/features/sessions/visio';
 import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
 
 /**
@@ -180,9 +179,10 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
       const { data: emailRows } = v.learnerIds.length
         ? await sb.schema('app').from('learners').select('email').in('id', v.learnerIds)
         : { data: [] };
-      const emails = invitesVisio(
+      const emails = await invitesDeLaSeance(
+        sb as never,
+        sessionId,
         ((emailRows ?? []) as { email: string | null }[]).map((l) => l.email),
-        await emailsFormateursDeSeance(sb as never, sessionId),
       );
       const res = await createMeetEvent(organisateur.creds, {
         title: v.title,

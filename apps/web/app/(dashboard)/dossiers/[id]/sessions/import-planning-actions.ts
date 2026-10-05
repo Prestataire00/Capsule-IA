@@ -14,6 +14,7 @@ import {
 } from '@/features/import/planning-seances';
 import type { ImportSession } from '@/features/import/convention-types';
 import { parisIso } from '@/features/import/paris-time';
+import { creerVisioDeSeance, estADistance } from '@/features/sessions/visio';
 
 /**
  * Importer le planning d'un dossier depuis un document.
@@ -179,6 +180,8 @@ export async function creerSeancesDuPlanning(
   ];
 
   let creees = 0;
+
+  const aEquiper: string[] = [];
   let ignorees = 0;
 
   for (const s of seances) {
@@ -221,6 +224,7 @@ export async function creerSeancesDuPlanning(
     }
     deja.add(debut);
     creees += 1;
+    if (estADistance(s.modality)) aEquiper.push((creee as { id: string }).id);
 
     if (apprenants.length > 0) {
       await sb
@@ -237,6 +241,15 @@ export async function creerSeancesDuPlanning(
           { onConflict: 'session_id,participant_kind,participant_id' },
         );
     }
+  }
+
+  // Chaque séance à distance a sa propre visio, créée par la boîte formateur ;
+  // une séance importée ne fait pas exception. Après les inscriptions : les
+  // stagiaires sont alors connus et invités.
+  const membre = aEquiper.length ? await getCurrentMember() : null;
+  for (const id of aEquiper) {
+    const r = await creerVisioDeSeance(sb as never, id, membre?.userId ?? null);
+    if (r === 'failed') console.error('[import planning] visio non créée', id);
   }
 
   revalidatePath(`/dossiers/${dossierId}`);
