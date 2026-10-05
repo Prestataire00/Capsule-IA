@@ -31,6 +31,8 @@ const GUARDS = [
   'canAccessDossier',
   'auth.getUser',
   'CRON_SECRET',
+  // Secret machine en en-tête, comparé à temps constant (cron-auth.ts).
+  'verifierSecretMachine',
   'verifyState',
   'verifyApprenantToken',
   'verifyQuestionnaireToken',

@@ -56,3 +56,14 @@ CREATE POLICY organization_google_calendar_read ON app.organization_google_calen
 DROP POLICY IF EXISTS organization_google_calendar_write ON app.organization_google_calendar;
 CREATE POLICY organization_google_calendar_write ON app.organization_google_calendar FOR ALL TO service_role
   USING (true) WITH CHECK (true);
+
+-- 3. Rappels de séance 48 h et 2 h avant le début : le passage quotidien des
+--    envois ne tombe pas deux heures avant une séance, d'où un passage au
+--    quart d'heure. Même mécanisme que 0147 (secret lu dans le coffre).
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+    PERFORM cron.schedule('capsule_rappels_seances', '*/15 * * * *',
+      $c$SELECT app.call_cron_endpoint('/api/cron/rappels-seances')$c$);
+  END IF;
+END $do$;

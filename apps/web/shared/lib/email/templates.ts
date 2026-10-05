@@ -140,6 +140,80 @@ export function contenuAValiderEmail(data: ContenuAValiderData): { subject: stri
   return { subject, html };
 }
 
+export type SeanceEmailData = {
+  orgName: string;
+  formationTitle: string;
+  /** « vendredi 10 octobre 2026 · 09:00 – 12:30 », heure de Paris. */
+  quand: string;
+  modalite: 'presentiel' | 'distanciel' | 'hybride' | string;
+  lieu: string | null;
+  lienVisio: string | null;
+};
+
+const blocVisio = (lien: string) => `
+      <div style="margin:0 0 20px; padding:14px 16px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px;">
+        <p style="font-size:12px; color:#9a3412; margin:0 0 6px; font-weight:600;">Lien de la visio</p>
+        <a href="${lien}" style="font-size:13px; color:#c2410c; word-break:break-all;">${escapeHtml(lien)}</a>
+      </div>`;
+
+const lignesSeance = (d: SeanceEmailData) =>
+  [
+    dataRow('Formation', escapeHtml(d.formationTitle)),
+    dataRow('Quand', escapeHtml(d.quand)),
+    d.lieu && d.modalite !== 'distanciel' ? dataRow('Lieu', escapeHtml(d.lieu)) : '',
+  ].join('');
+
+/** Lien visio d'une séance à distance, envoyé à l'entreprise pour ses salariés. */
+export function lienVisioEntrepriseEmail(d: SeanceEmailData & { lienVisio: string }): { subject: string; html: string } {
+  const subject = `Lien visio — ${d.formationTitle}, ${d.quand}`;
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Séance à distance</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">${escapeHtml(d.formationTitle)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">
+        Voici le lien de la visio. Merci de le transmettre à vos salariés inscrits : nous n'avons pas toujours leur adresse.
+      </p>
+      <table style="width:100%; border-collapse:collapse; margin:0 0 16px;">${lignesSeance(d)}</table>
+      ${blocVisio(d.lienVisio)}
+      <div>${button(d.lienVisio, 'Rejoindre la visio')}</div>
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">Un rappel vous sera envoyé 48 h puis 2 h avant le début. — ${escapeHtml(d.orgName)}</p>
+    `)}
+  `);
+  return { subject, html };
+}
+
+/** Rappel 48 h ou 2 h avant une séance, à l'entreprise ou au formateur. */
+export function rappelSeanceEmail(
+  d: SeanceEmailData & { delai: '48h' | '2h'; pour: 'entreprise' | 'formateur'; lienEspace: string | null },
+): { subject: string; html: string } {
+  const echeance = d.delai === '2h' ? 'dans 2 heures' : 'dans 48 heures';
+  const subject = `Rappel : ${d.formationTitle} commence ${echeance}`;
+  const consigne =
+    d.pour === 'formateur'
+      ? 'Rejoignez la séance depuis votre espace formateur : le lien de la visio, la liste des stagiaires et l’émargement y sont réunis.'
+      : d.lienVisio
+        ? 'Pensez à transmettre le lien de la visio à vos salariés inscrits.'
+        : 'Merci de rappeler l’horaire et le lieu à vos salariés inscrits.';
+  const action =
+    d.pour === 'formateur' && d.lienEspace
+      ? button(d.lienEspace, 'Ouvrir la séance dans mon espace')
+      : d.lienVisio
+        ? button(d.lienVisio, 'Rejoindre la visio')
+        : '';
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Rappel de séance</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">${escapeHtml(d.formationTitle)} commence ${echeance}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">${consigne}</p>
+      <table style="width:100%; border-collapse:collapse; margin:0 0 16px;">${lignesSeance(d)}</table>
+      ${d.lienVisio ? blocVisio(d.lienVisio) : ''}
+      ${action ? `<div>${action}</div>` : ''}
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">${escapeHtml(d.orgName)}</p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;

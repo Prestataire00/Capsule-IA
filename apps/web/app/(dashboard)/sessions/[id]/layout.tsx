@@ -3,13 +3,15 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronRight, Clock, MapPin, Users as UsersIcon, Video } from 'lucide-react';
+import { ChevronRight, Clock, MapPin, Users as UsersIcon } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { StatusPill } from '@/shared/ui/status-pill';
 import { loadSession } from '@/features/sessions/load-session';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { SessionTabsNav } from './session-tabs-nav';
 import { StatusSelect } from './status-select';
+import { LienVisio } from '@/shared/ui/lien-visio.client';
+import { creerLienVisio } from './visio-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,16 +99,14 @@ export default async function SessionLayout({
                 {client && <span className="inline-flex items-center gap-1.5">Client : {client.name}</span>}
               </p>
             </div>
-            {session.remote_url && (
-              <a
-                href={session.remote_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 shrink-0"
-              >
-                <Video className="w-4 h-4" /> Rejoindre la visio
-              </a>
-            )}
+            <LienVisio
+              url={session.remote_url}
+              creer={
+                gerer && ['distanciel', 'hybride'].includes(session.modality) && session.status !== 'cancelled'
+                  ? creerLienVisio.bind(null, session.id)
+                  : undefined
+              }
+            />
           </div>
 
           {session.status === 'cancelled' ? (

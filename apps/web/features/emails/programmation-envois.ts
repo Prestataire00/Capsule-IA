@@ -53,6 +53,11 @@ export const REGLABLES: Readonly<Record<string, Reglable>> = {
   // Le récapitulatif suit les convocations individuelles : lui donner son
   // propre délai le ferait partir un jour où rien n'a été convoqué.
   convocation_recap_entreprise: { coupable: true, delai: null },
+  // Le lien et les rappels de séance ont leur moment propre (création du
+  // Meet, 48 h, 2 h) : rien à décaler, mais l'organisme peut les couper.
+  lien_visio_entreprise: { coupable: true, delai: null },
+  rappel_seance_48h: { coupable: true, delai: null },
+  rappel_seance_2h: { coupable: true, delai: null },
   emargement_lien: { coupable: true, delai: null },
   attestation_demarrage: { coupable: true, delai: null },
   alerte_emargement: { coupable: true, delai: null },

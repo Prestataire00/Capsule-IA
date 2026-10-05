@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance } from '@/features/sessions/visio';
+import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance, diffuserLienVisio } from '@/features/sessions/visio';
 import { invitesVisio } from '@/features/sessions/invites-visio';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
@@ -119,6 +119,7 @@ export async function createFormationSession(input: Input): Promise<Result> {
             zoom_metadata: metadataMeet(res.value.eventId, organisateur.proprietaire),
           } as never)
           .eq('id', sessionId);
+        await diffuserLienVisio(sb as never, sessionId);
       }
     }
   }

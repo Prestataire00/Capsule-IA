@@ -26,6 +26,9 @@ const LU_DANS: Record<string, { fichier: string; appel: string }> = {
   fin_de_formation: { fichier: 'app/api/cron/transactional-emails/route.ts', appel: "loadReglesParOrganisme(sb, 'fin_de_formation')" },
   certificat_entreprise: { fichier: 'app/api/cron/transactional-emails/route.ts', appel: "loadReglesParOrganisme(sb, 'certificat_entreprise')" },
   satisfaction_formateur: { fichier: 'app/api/cron/transactional-emails/route.ts', appel: "loadReglesParOrganisme(sb, 'satisfaction_formateur')" },
+  lien_visio_entreprise: { fichier: 'features/sessions/visio.ts', appel: "envoiActif(seance.organizationId, 'lien_visio_entreprise')" },
+  rappel_seance_48h: { fichier: 'features/sessions/rappels-seances.ts', appel: "loadReglesParOrganisme(sb, 'rappel_seance_48h')" },
+  rappel_seance_2h: { fichier: 'features/sessions/rappels-seances.ts', appel: "loadReglesParOrganisme(sb, 'rappel_seance_2h')" },
   relance_satisfaction: { fichier: 'features/questionnaire/relancer-assignation.ts', appel: "loadReglesParOrganisme(sb, 'relance_satisfaction')" },
 };
 

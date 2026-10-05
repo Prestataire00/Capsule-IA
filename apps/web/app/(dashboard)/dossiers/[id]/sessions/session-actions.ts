@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance } from '@/features/sessions/visio';
+import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance, diffuserLienVisio } from '@/features/sessions/visio';
 import { invitesVisio } from '@/features/sessions/invites-visio';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
@@ -114,6 +114,9 @@ async function provisionMeet(
       zoom_metadata: metadataMeet(res.value.eventId, organisateur.proprietaire),
     })
     .eq('id', sessionId);
+
+  // L'entreprise reçoit le lien pour ses salariés, depuis la boîte formateur.
+  await diffuserLienVisio(sb, sessionId);
 
   // Envoi du lien aux apprenants (en plus de l'invitation Google Agenda automatique).
   if (ctx.learnerEmail) {

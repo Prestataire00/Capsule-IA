@@ -33,7 +33,7 @@ const ADRESSE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
  * Un nom d'organisme contenant une virgule ou un chevron casse l'en-tête
  * « From: » — le message part alors à côté, ou pas du tout.
  */
-const nomAffichable = (nom: string): string =>
+export const nomAffichable = (nom: string): string =>
   `"${nom.replace(/[<>"\r\n]/g, ' ').replace(/\s+/g, ' ').trim()}"`;
 
 /**

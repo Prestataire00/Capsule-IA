@@ -8,7 +8,7 @@ import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance } from '@/features/sessions/visio';
+import { organisateurDuMeet, metadataMeet, emailsFormateursDeSeance, diffuserLienVisio } from '@/features/sessions/visio';
 import { invitesVisio } from '@/features/sessions/invites-visio';
 import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
 
@@ -200,6 +200,7 @@ export async function createFreeSession(input: FreeSessionInput): Promise<Result
             zoom_metadata: metadataMeet(res.value.eventId, organisateur.proprietaire),
           } as never)
           .eq('id', sessionId);
+        await diffuserLienVisio(sb as never, sessionId);
       }
     }
   }

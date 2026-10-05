@@ -3,13 +3,14 @@
 // comment les joindre, où se retrouver en visio, et par où passer pour le reste.
 
 import { notFound } from 'next/navigation';
-import { Mail, Phone, Users, Building2, Home } from 'lucide-react';
+import { Mail, Phone, Users, Building2, Home, Video } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
 import { loadSession } from '@/features/sessions/load-session';
 import { heure, jourLong } from '@/features/trainer-space/dates';
 import { loadSessionContacts, type Contact } from '@/features/trainer-space/session-contacts';
 import { VisioForm } from './visio-form.client';
+import { LienVisio } from '@/shared/ui/lien-visio.client';
 import { SeanceNav } from './_components/seance-nav';
 
 export const dynamic = 'force-dynamic';
@@ -103,7 +104,23 @@ export default async function SeancePage({ params }: { params: { id: string } })
         actif="seance"
       />
 
-      <VisioForm sessionId={params.id} initialUrl={session.remote_url ?? null} />
+      {session.remote_url ? (
+        <section className="rounded-xl border border-sky-200/70 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-950/20 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-lg grid place-items-center shrink-0 bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
+              <Video className="w-4 h-4" />
+            </span>
+            <h2 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Visio de la séance</h2>
+          </div>
+          <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
+            Rejoignez la séance d&apos;ici. L&apos;invitation est envoyée par la boîte formateur de l&apos;organisme ;
+            les stagiaires et leur entreprise ont reçu le même lien.
+          </p>
+          <LienVisio url={session.remote_url} />
+        </section>
+      ) : (
+        <VisioForm sessionId={params.id} initialUrl={null} />
+      )}
 
       <ContactList
         titre="Participants"

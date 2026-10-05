@@ -22,6 +22,11 @@ export const AUTOMATION_KEYS = [
     quand: '7 jours avant la séance, aux apprenants (et le récapitulatif aux entreprises)',
   },
   {
+    key: 'rappel_seance',
+    label: 'Rappels de séance',
+    quand: '48 h puis 2 h avant le début, à l’entreprise et au formateur',
+  },
+  {
     key: 'emargement_liens',
     label: 'Liens d’émargement',
     quand: 'Au début de chaque demi-journée, si l’envoi automatique est activé dans les paramètres',
