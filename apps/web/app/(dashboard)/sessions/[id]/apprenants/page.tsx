@@ -71,12 +71,13 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
         ) : (
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Toute la promotion du dossier.</p>
         )}
-        {gerer && !groupe?.groupe_id && loaded.session.dossier_id && learners.length > 1 && (
+        {/* Séance d'un dossier, ou séance libre d'un client : ses groupes se créent ici (0212). */}
+        {gerer && !groupe?.groupe_id && (loaded.session.dossier_id || client) && learners.length + directLearners.length > 1 && (
           <Link
             href={`/sessions/${params.id}/repartir`}
             className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
           >
-            <Split className="w-4 h-4" /> Répartir en groupes
+            <Split className="w-4 h-4" /> Créer des groupes
           </Link>
         )}
       </div>

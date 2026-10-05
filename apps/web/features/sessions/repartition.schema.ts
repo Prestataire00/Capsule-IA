@@ -15,6 +15,11 @@ export const repartitionSchema = z.object({
     .min(2)
     .max(10),
   appliquerSuite: z.boolean(),
+  /**
+   * Faux : seulement créer les groupes et y placer les stagiaires, sans toucher
+   * aux séances — on rattache ensuite chaque séance à son groupe.
+   */
+  creerSeances: z.boolean().default(true),
 });
 
-export type RepartitionInput = z.infer<typeof repartitionSchema>;
+export type RepartitionInput = z.input<typeof repartitionSchema>;

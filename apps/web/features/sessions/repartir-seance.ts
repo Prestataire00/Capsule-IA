@@ -16,6 +16,10 @@ import { creerVisioDeSeance, estADistance } from './visio';
  * formateur, ses questionnaires et ses automatisations, sa visio. Les
  * signatures déjà posées suivent le stagiaire dans la séance de son groupe.
  * Sur demande, les séances suivantes du dossier sont réparties de même.
+ *
+ * Une séance sans dossier se répartit aussi : ses groupes appartiennent alors
+ * à son entreprise cliente (0212). Et l'on peut ne créer que les groupes, pour
+ * rattacher ensuite chaque séance au sien depuis ses informations.
  */
 
 type Admin = ReturnType<typeof supabaseAdmin>;
@@ -35,9 +39,14 @@ type Seance = {
   capacity_max: number | null;
   notes: string | null;
   groupe_id: string | null;
+  company_id: string | null;
 };
 
-const COLONNES = 'id, organization_id, dossier_id, formation_id, title, modality, status, starts_at, ends_at, location, price_cents, capacity_max, notes, groupe_id';
+const COLONNES =
+  'id, organization_id, dossier_id, formation_id, title, modality, status, starts_at, ends_at, location, price_cents, capacity_max, notes, groupe_id, company_id';
+
+/** Qui porte les groupes : le dossier de la séance, sinon son entreprise cliente. */
+type Porteur = { dossier_id: string } | { company_id: string };
 
 export type RepartitionResult = { ok: true; seancesCreees: number; seancesReparties: number } | { ok: false; error: string };
 
@@ -52,28 +61,46 @@ export async function repartirSeance(input: RepartitionInput): Promise<Repartiti
   const { data: s } = await admin.schema('app').from('sessions').select(COLONNES).eq('id', p.data.sessionId).maybeSingle();
   const source = s as unknown as Seance | null;
   if (!source || source.organization_id !== me.organizationId) return { ok: false, error: 'Séance introuvable.' };
-  if (!source.dossier_id) return { ok: false, error: 'Seules les séances d’un dossier se répartissent en groupes.' };
   if (source.groupe_id) return { ok: false, error: 'Cette séance est déjà celle d’un groupe.' };
-  const dossierId = source.dossier_id;
+  const porteur: Porteur | null = source.dossier_id
+    ? { dossier_id: source.dossier_id }
+    : source.company_id
+      ? { company_id: source.company_id }
+      : null;
+  if (!porteur) return { ok: false, error: 'Indiquez le client de la séance : c’est lui qui porte ses groupes.' };
 
   const loaded = await loadSession(admin, source.id);
-  const stagiaires = (loaded?.learners ?? []).filter((l) => l.dossierId === dossierId).map((l) => l.id);
+  const stagiaires = source.dossier_id
+    ? (loaded?.learners ?? []).filter((l) => l.dossierId === source.dossier_id).map((l) => l.id)
+    : [...(loaded?.learners ?? []), ...(loaded?.directLearners ?? [])].map((l) => l.id);
   const probleme = problemeDeRepartition(p.data.groupes, stagiaires);
   if (probleme) return { ok: false, error: probleme };
 
-  // Les séances à répartir : celle-ci, et les suivantes du dossier si demandé.
+  if (!p.data.creerSeances) {
+    const crees = await assurerGroupes(admin, porteur, me.organizationId, me.userId, p.data.groupes);
+    if (!crees.ok) return crees;
+    revalidatePath(`/sessions/${source.id}`, 'layout');
+    return { ok: true, seancesCreees: 0, seancesReparties: 0 };
+  }
+
+  // Les séances à répartir : celle-ci, et les suivantes du dossier (ou du client) si demandé.
   let cibles: Seance[] = [source];
   if (p.data.appliquerSuite) {
-    const { data: suite } = await admin
+    let suite = admin
       .schema('app')
       .from('sessions')
       .select(COLONNES)
-      .eq('dossier_id', dossierId)
       .is('groupe_id' as never, null)
       .eq('status', 'planned')
       .gt('starts_at', source.starts_at)
       .order('starts_at', { ascending: true });
-    cibles = [source, ...((suite ?? []) as unknown as Seance[])];
+    if ('dossier_id' in porteur) suite = suite.eq('dossier_id', porteur.dossier_id);
+    else {
+      suite = suite.eq('company_id' as never, porteur.company_id as never).is('dossier_id', null);
+      suite = source.formation_id ? suite.eq('formation_id' as never, source.formation_id as never) : suite.is('formation_id' as never, null);
+    }
+    const { data } = await suite;
+    cibles = [source, ...((data ?? []) as unknown as Seance[])];
   }
 
   // Une feuille clôturée ne se modifie plus : on refuse avant d'écrire quoi que ce soit.
@@ -86,7 +113,7 @@ export async function repartirSeance(input: RepartitionInput): Promise<Repartiti
     return { ok: false, error: 'Une feuille d’émargement est déjà clôturée : la séance ne peut plus être répartie.' };
   }
 
-  const groupeIds = await assurerGroupes(admin, dossierId, me.organizationId, me.userId, p.data.groupes);
+  const groupeIds = await assurerGroupes(admin, porteur, me.organizationId, me.userId, p.data.groupes);
   if (!groupeIds.ok) return groupeIds;
 
   let creees = 0;
@@ -97,27 +124,28 @@ export async function repartirSeance(input: RepartitionInput): Promise<Repartiti
   }
 
   revalidatePath(`/sessions/${source.id}`, 'layout');
-  revalidatePath(`/dossiers/${dossierId}`, 'layout');
+  if (source.dossier_id) revalidatePath(`/dossiers/${source.dossier_id}`, 'layout');
   revalidatePath('/sessions');
   revalidatePath('/planning');
   return { ok: true, seancesCreees: creees, seancesReparties: cibles.length };
 }
 
-/** Les groupes du dossier, réutilisés s'ils existent déjà, et leurs membres. */
+/** Les groupes du dossier (ou du client), réutilisés s'ils existent déjà, et leurs membres. */
 async function assurerGroupes(
   admin: Admin,
-  dossierId: string,
+  porteur: Porteur,
   organizationId: string,
   userId: string,
   groupes: RepartitionInput['groupes'],
 ): Promise<{ ok: true; ids: string[] } | { ok: false; error: string }> {
   const ids: string[] = [];
   for (const [i, g] of groupes.entries()) {
+    const [cle, valeur] = 'dossier_id' in porteur ? ['dossier_id', porteur.dossier_id] : ['company_id', porteur.company_id];
     const { data: existant } = await admin
       .schema('app')
       .from('dossier_groupes' as never)
       .select('id')
-      .eq('dossier_id', dossierId)
+      .eq(cle, valeur)
       .eq('nom', g.nom.trim())
       .maybeSingle();
     let id = (existant as { id: string } | null)?.id ?? null;
@@ -125,7 +153,7 @@ async function assurerGroupes(
       const { data: cree, error } = await admin
         .schema('app')
         .from('dossier_groupes' as never)
-        .insert({ dossier_id: dossierId, organization_id: organizationId, nom: g.nom.trim(), ordre: i, created_by: userId } as never)
+        .insert({ ...porteur, organization_id: organizationId, nom: g.nom.trim(), ordre: i, created_by: userId } as never)
         .select('id')
         .single();
       if (error || !cree) return { ok: false, error: `Le groupe « ${g.nom} » n’a pas pu être créé.` };
@@ -187,6 +215,7 @@ async function repartirUneSeance(
         price_cents: cible.price_cents,
         capacity_max: cible.capacity_max,
         notes: cible.notes,
+        company_id: cible.company_id,
         groupe_id: groupeIds[i],
       } as never)
       .select(COLONNES)
@@ -195,12 +224,14 @@ async function repartirUneSeance(
     const seance = jumelle as unknown as Seance;
     creees += 1;
 
-    await admin
-      .schema('app')
-      .from('session_dossiers')
-      .upsert({ session_id: seance.id, dossier_id: cible.dossier_id, organization_id: cible.organization_id } as never, {
-        onConflict: 'session_id,dossier_id',
-      });
+    if (cible.dossier_id) {
+      await admin
+        .schema('app')
+        .from('session_dossiers')
+        .upsert({ session_id: seance.id, dossier_id: cible.dossier_id, organization_id: cible.organization_id } as never, {
+          onConflict: 'session_id,dossier_id',
+        });
+    }
     await accorderAuGroupe(admin, seance, g.learnerIds);
     await poserFormateur(admin, seance, g.trainerId ?? null, equipe);
     await copier(admin, 'session_questionnaires', seance, (questionnaires ?? []) as unknown as Array<Record<string, unknown>>);

@@ -22,12 +22,15 @@ export function Repartir({
   formateurs,
   formateurActuel,
   seancesSuivantes,
+  porteur,
 }: {
   sessionId: string;
   stagiaires: ReadonlyArray<{ id: string; nom: string }>;
   formateurs: ReadonlyArray<{ id: string; nom: string }>;
   formateurActuel: string | null;
   seancesSuivantes: number;
+  /** Qui porte les groupes : le dossier, ou le client d'une séance sans dossier. */
+  porteur: 'dossier' | 'client';
 }) {
   const router = useRouter();
   const [nb, setNb] = useState(2);
@@ -35,6 +38,7 @@ export function Repartir({
   const [formateurDe, setFormateurDe] = useState<Array<string>>(Array(6).fill(''));
   const [groupeDe, setGroupeDe] = useState<Map<string, number>>(new Map());
   const [suite, setSuite] = useState(true);
+  const [creerSeances, setCreerSeances] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -58,9 +62,10 @@ export function Repartir({
     start(async () => {
       setErreur(null);
       if (probleme) return setErreur(probleme);
-      const r = await repartirSeance({ sessionId, groupes, appliquerSuite: suite });
+      const r = await repartirSeance({ sessionId, groupes, appliquerSuite: suite, creerSeances });
       if (!r.ok) return setErreur(r.error);
-      router.push(`/sessions/${sessionId}/apprenants`);
+      // Groupes seuls : on rattache ensuite chaque séance au sien, dans ses informations.
+      router.push(creerSeances ? `/sessions/${sessionId}/apprenants` : `/sessions/${sessionId}`);
       router.refresh();
     });
 
@@ -157,11 +162,24 @@ export function Repartir({
         ))}
       </ul>
 
+      <fieldset className="space-y-2">
+        <legend className="text-[13px] text-zinc-600 dark:text-zinc-300 mb-1">Et ensuite</legend>
+        <label className="flex items-start gap-2 text-[13px] text-zinc-700 dark:text-zinc-300">
+          <input type="radio" name="mode" checked={creerSeances} onChange={() => setCreerSeances(true)} className="w-4 h-4 mt-0.5" />
+          <span>Répartir cette séance : chaque groupe a sa séance au même créneau</span>
+        </label>
+        <label className="flex items-start gap-2 text-[13px] text-zinc-700 dark:text-zinc-300">
+          <input type="radio" name="mode" checked={!creerSeances} onChange={() => setCreerSeances(false)} className="w-4 h-4 mt-0.5" />
+          <span>Créer seulement les groupes — je rattache ensuite chaque séance à son groupe (Informations › Modifier)</span>
+        </label>
+      </fieldset>
+
       <div className="flex items-center gap-4 flex-wrap">
-        {seancesSuivantes > 0 && (
+        {creerSeances && seancesSuivantes > 0 && (
           <label className="inline-flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-300">
             <input type="checkbox" checked={suite} onChange={(e) => setSuite(e.target.checked)} className="w-4 h-4" />
-            Appliquer aux {seancesSuivantes} séance{seancesSuivantes > 1 ? 's' : ''} suivante{seancesSuivantes > 1 ? 's' : ''} du dossier
+            Appliquer aux {seancesSuivantes} séance{seancesSuivantes > 1 ? 's' : ''} suivante{seancesSuivantes > 1 ? 's' : ''}{' '}
+            {porteur === 'dossier' ? 'du dossier' : 'de ce client'}
           </label>
         )}
         <button
@@ -170,7 +188,7 @@ export function Repartir({
           disabled={pending}
           className="ml-auto h-10 px-5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[14px] font-medium inline-flex items-center gap-2 shadow-sm disabled:opacity-50"
         >
-          {pending && <Loader2 className="w-4 h-4 animate-spin" />} Valider la répartition
+          {pending && <Loader2 className="w-4 h-4 animate-spin" />} {creerSeances ? 'Valider la répartition' : 'Créer les groupes'}
         </button>
       </div>
       {(erreur ?? (groupeDe.size > 0 ? probleme : null)) && (

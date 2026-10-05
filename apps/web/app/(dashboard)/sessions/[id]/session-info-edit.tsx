@@ -167,7 +167,7 @@ export function SessionInfoEdit({
             onChange={(e) => setF({ ...f, groupeId: e.target.value })}
             className={champ}
           >
-            <option value="">Tout le dossier</option>
+            <option value="">Tous les stagiaires</option>
             {groupes.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.nom}

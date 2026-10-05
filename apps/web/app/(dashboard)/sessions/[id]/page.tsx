@@ -82,8 +82,8 @@ export default async function SessionOverview({ params }: { params: { id: string
     : { data: null };
   const nomGroupe = (groupeRow as { nom?: string } | null)?.nom ?? null;
 
-  // Les groupes du dossier de la séance : c'est parmi eux qu'on choisit. Une
-  // séance sans dossier — séance libre — n'en a aucun.
+  // Les groupes parmi lesquels choisir : ceux du dossier de la séance, ou ceux
+  // de son client pour une séance libre (0212).
   const { data: groupesRows } = session.dossier_id
     ? await db
         .schema('app')
@@ -91,7 +91,14 @@ export default async function SessionOverview({ params }: { params: { id: string
         .select('id, nom')
         .eq('dossier_id', session.dossier_id)
         .order('ordre', { ascending: true })
-    : { data: [] };
+    : loaded.client
+      ? await db
+          .schema('app')
+          .from('dossier_groupes' as never)
+          .select('id, nom')
+          .eq('company_id', loaded.client.id)
+          .order('ordre', { ascending: true })
+      : { data: [] };
   const groupesDuDossier = (groupesRows ?? []) as unknown as Array<{ id: string; nom: string }>;
   const seanceFormateurs = (st ?? []) as { trainer_id: string; hourly_rate_cents: number | null; amount_cents: number | null }[];
   const formateurId = seanceFormateurs[0]?.trainer_id ?? ((dt ?? []) as { trainer_id: string }[])[0]?.trainer_id ?? null;

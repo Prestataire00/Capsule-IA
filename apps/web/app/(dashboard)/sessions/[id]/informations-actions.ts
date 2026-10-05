@@ -103,6 +103,30 @@ async function accorderParticipantsAuGroupe(sessionId: string, groupeId: string 
     .eq('groupe_id', groupeId);
   const duGroupe = ((membresRows ?? []) as unknown as Array<{ learner_id: string }>).map((m) => m.learner_id);
 
+  // Les membres du groupe sont attendus : une séance libre n'a pas de dossier
+  // dont les dériver, ils y sont donc inscrits. Ceux qu'on a retirés à la main,
+  // ou déjà là, ne changent pas.
+  if (duGroupe.length > 0) {
+    const { data: s } = await sb.schema('app').from('sessions').select('organization_id').eq('id', sessionId).maybeSingle();
+    const organizationId = (s as { organization_id: string } | null)?.organization_id;
+    if (organizationId) {
+      const { error: ajout } = await sb
+        .schema('app')
+        .from('session_participants')
+        .upsert(
+          duGroupe.map((learnerId) => ({
+            session_id: sessionId,
+            organization_id: organizationId,
+            participant_kind: 'learner',
+            learner_id: learnerId,
+            source: 'manual_add',
+          })) as never,
+          { onConflict: 'session_id,participant_kind,participant_id', ignoreDuplicates: true },
+        );
+      if (ajout) console.error('[séance] membres du groupe non inscrits', sessionId, ajout.message);
+    }
+  }
+
   let suppression = sb
     .schema('app')
     .from('session_participants')
@@ -145,6 +169,10 @@ export async function updateSessionInfo(input: SessionInfoInput): Promise<Result
     (new Date(ancien.starts_at).getTime() !== new Date(startsAt).getTime() ||
       new Date(ancien.ends_at).getTime() !== new Date(endsAt).getTime());
   const groupeApres = p.data.groupeId || null;
+  if (groupeApres) {
+    const { data: gr } = await supabaseAdmin().schema('app').from('dossier_groupes' as never).select('organization_id').eq('id', groupeApres).maybeSingle();
+    if ((gr as { organization_id: string } | null)?.organization_id !== g.organizationId) return { ok: false, error: 'Groupe introuvable.' };
+  }
 
   const { error } = await supabaseAdmin()
     .schema('app')
