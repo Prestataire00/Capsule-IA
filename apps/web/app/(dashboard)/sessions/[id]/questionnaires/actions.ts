@@ -13,7 +13,8 @@ import {
   type ProgrammerQuestionnaireInput,
 } from '@/features/questionnaire/programmation-seance.schema';
 import { envoyerEtTracer } from '@/features/questionnaire/questionnaires-de-seance';
-import { genererFicheBesoinAdaptee } from '@/features/questionnaire/fiche-besoin-ia';
+import { contexteDeFormation, genererFicheBesoinAdaptee } from '@/features/questionnaire/fiche-besoin-ia';
+import { codeFicheDeSeance } from '@/features/questionnaire/fiche-de-seance';
 
 /**
  * Cocher un questionnaire sur une séance, choisir son moment, l'envoyer tout de
@@ -109,27 +110,39 @@ export async function adapterFicheBesoin(sessionId: string): Promise<AdaptationR
   if (!membre) return { ok: false, error: 'Session expirée — reconnectez-vous.' };
   if (can(membre.role, 'dossiers') !== 'manage') return { ok: false, error: 'Votre rôle ne permet pas de modifier les questionnaires.' };
 
-  const { data: s } = await admin().schema('app').from('sessions').select('organization_id, formation_id').eq('id', sessionId).maybeSingle();
-  const seance = s as { organization_id: string; formation_id: string | null } | null;
-  if (!seance || seance.organization_id !== membre.organizationId) return { ok: false, error: 'Séance introuvable.' };
-  if (!seance.formation_id) return { ok: false, error: 'Rattachez d’abord une formation à la séance : la fiche s’adapte à elle.' };
-
-  const { data: f } = await admin()
+  const { data: s } = await admin()
     .schema('app')
-    .from('formations')
-    .select('title, summary, objectives, prerequisites, target_audience')
-    .eq('id', seance.formation_id)
+    .from('sessions')
+    .select('organization_id, formation_id, dossier_id, title, notes')
+    .eq('id', sessionId)
     .maybeSingle();
-  const formation = f as { title: string; summary: string | null; objectives: string[] | null; prerequisites: string[] | null; target_audience: string | null } | null;
-  if (!formation) return { ok: false, error: 'Formation introuvable.' };
+  const seance = s as { organization_id: string; formation_id: string | null; dossier_id: string | null; title: string | null; notes: string | null } | null;
+  if (!seance || seance.organization_id !== membre.organizationId) return { ok: false, error: 'Séance introuvable.' };
 
-  const fiche = await genererFicheBesoinAdaptee({
-    title: formation.title,
-    summary: formation.summary,
-    objectives: formation.objectives ?? [],
-    prerequisites: formation.prerequisites ?? [],
-    targetAudience: formation.target_audience,
-  });
+  // La formation dont la fiche s'inspire : celle de la séance, sinon celle de son dossier.
+  let formationId = seance.formation_id;
+  if (!formationId) {
+    const { data: liens } = await admin().schema('app').from('session_dossiers').select('dossier_id').eq('session_id', sessionId);
+    const ids = [seance.dossier_id, ...((liens ?? []) as Array<{ dossier_id: string }>).map((l) => l.dossier_id)].filter((v): v is string => Boolean(v));
+    if (ids.length) {
+      const { data: d } = await admin().schema('app').from('dossiers').select('formation_id').in('id', ids).not('formation_id', 'is', null).limit(1);
+      formationId = ((d ?? []) as Array<{ formation_id: string | null }>)[0]?.formation_id ?? null;
+    }
+  }
+
+  // Le détail de la formation tel qu'on le lit dans ses Informations ; sans
+  // formation, celui de la séance (titre et notes).
+  const { data: f } = formationId
+    ? await admin().schema('app').from('formations').select('*').eq('id', formationId).maybeSingle()
+    : { data: null };
+  const formation = f as (Record<string, unknown> & { title: string }) | null;
+  const titre = formation?.title ?? seance.title ?? 'Séance';
+  const contexte = formation ? contexteDeFormation(formation) : [seance.notes ? `Notes de la séance : ${seance.notes}` : ''].join('');
+  if (!formation && !seance.title && !seance.notes) {
+    return { ok: false, error: 'Donnez un titre ou des notes à la séance (Informations › Modifier) : l’IA s’en inspire.' };
+  }
+
+  const fiche = await genererFicheBesoinAdaptee({ title: titre, contexte });
   if (!fiche.ok) {
     return {
       ok: false,
@@ -138,16 +151,16 @@ export async function adapterFicheBesoin(sessionId: string): Promise<AdaptationR
   }
 
   const schema = { questions: fiche.questions };
-  const { data: existante } = await admin()
+  // Une fiche par formation ; sans formation, une fiche propre à la séance.
+  let cherche = admin()
     .schema('app')
     .from('questionnaire_templates')
     .select('id')
     .eq('organization_id', membre.organizationId)
-    .eq('formation_id', seance.formation_id)
     .eq('kind', 'positionnement')
-    .is('deleted_at', null)
-    .limit(1)
-    .maybeSingle();
+    .is('deleted_at', null);
+  cherche = formationId ? cherche.eq('formation_id', formationId) : cherche.eq('code', codeFicheDeSeance(sessionId));
+  const { data: existante } = await cherche.limit(1).maybeSingle();
 
   let templateId = (existante as { id: string } | null)?.id ?? null;
   if (templateId) {
@@ -163,12 +176,12 @@ export async function adapterFicheBesoin(sessionId: string): Promise<AdaptationR
       .from('questionnaire_templates')
       .insert({
         organization_id: membre.organizationId,
-        formation_id: seance.formation_id,
+        formation_id: formationId,
         kind: 'positionnement',
         audience: 'apprenant',
-        code: `fiche_besoin_${seance.formation_id.slice(0, 8)}_${Date.now().toString(36)}`,
-        title: `Fiche besoin — ${formation.title}`.slice(0, 200),
-        description: `Analyse des besoins adaptée à la formation « ${formation.title} ».`,
+        code: formationId ? `fiche_besoin_${formationId.slice(0, 8)}_${Date.now().toString(36)}` : codeFicheDeSeance(sessionId),
+        title: `Fiche besoin — ${titre}`.slice(0, 200),
+        description: `Analyse des besoins adaptée à « ${titre} ».`,
         schema,
         is_active: true,
       } as never)

@@ -142,7 +142,7 @@ export async function saisirFicheBesoinApprenant(
     .maybeSingle();
   const seance = s as { formation_id: string | null; organization_id: string } | null;
   if (!seance || seance.organization_id !== garde.member.organizationId) return { ok: false, error: 'Séance introuvable.' };
-  const questions = await questionsFicheBesoinDeLaFormation(admin() as never, garde.member.organizationId, seance.formation_id);
+  const questions = await questionsFicheBesoinDeLaFormation(admin() as never, garde.member.organizationId, seance.formation_id, sessionId);
   const propres = nettoyerReponses(reponses, clesDeQuestions(questions));
   if (!ficheBesoinRemplie(propres as ReponsesFicheBesoin)) {
     return { ok: false, error: 'Indiquez au moins une réponse.' };
@@ -154,7 +154,7 @@ export async function saisirFicheBesoinApprenant(
     return { ok: false, error: 'Stagiaire introuvable.' };
   }
 
-  const templateId = await ensureNeedsAnalysisTemplate(sb, orgId, seance.formation_id);
+  const templateId = await ensureNeedsAnalysisTemplate(sb, orgId, seance.formation_id, sessionId);
 
   let cherche = sb
     .schema('app')

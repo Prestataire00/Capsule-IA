@@ -1,7 +1,7 @@
 import 'server-only';
+import { envoyerDepuisLaBoiteDesCours } from '@/features/sessions/visio';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
-import { sendEmail } from '@/shared/lib/email/resend';
 import { liensStagiairesReferentEmail } from '@/shared/lib/email/templates';
 import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 import { loadSession } from '@/features/sessions/load-session';
@@ -67,13 +67,11 @@ export async function annoncerCoursAuxEntreprises(exerciseId: string): Promise<v
       organisme: expediteur.nom,
       libelleLien: 'son exercice',
     });
-    const r = await sendEmail({
+    // Un cours : il part de la boîte générique des cours.
+    const r = await envoyerDepuisLaBoiteDesCours(admin as never, ex.organization_id, {
       to: email,
-      from: expediteur.from,
-      ...(expediteur.email ? { replyTo: expediteur.email } : {}),
       subject: tpl.subject,
       html: tpl.html,
-      organizationId: ex.organization_id,
       kind: 'cours_stagiaires',
       metadata: { exercise_id: exerciseId, stagiaires: liste.length },
       idempotencyKey: `cours_stagiaires:${exerciseId}:${email}`,

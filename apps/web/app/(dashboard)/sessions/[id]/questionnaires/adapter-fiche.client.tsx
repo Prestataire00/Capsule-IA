@@ -46,10 +46,10 @@ export function AdapterFiche({
         </h2>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-0.5">
           {!formation
-            ? 'Rattachez une formation à la séance : l’IA y adapte la fiche besoin.'
+            ? 'Rattachez une formation à la séance, ou donnez-lui un titre et des notes : l’IA s’en inspire pour la fiche besoin.'
             : ficheAdaptee
               ? `${ficheAdaptee.questions} questions propres à « ${formation} ». C’est elle que reçoivent les stagiaires de cette formation.`
-              : `L’IA rédige les questions qui situent chaque stagiaire dans « ${formation} » (ex. « Avez-vous déjà utilisé une IA ? »), en plus du niveau, des objectifs et des aménagements. Vous la relisez ensuite.`}
+              : `L’IA lit le détail de « ${formation} » (description, objectifs, programme, méthodes) et rédige les questions qui y situent chaque stagiaire (ex. « Avez-vous déjà utilisé une IA ? »), en plus du niveau, des objectifs et des aménagements. Vous la relisez ensuite.`}
         </p>
         {erreur && <p role="alert" className="text-[12px] text-red-600 dark:text-red-400 mt-1">{erreur}</p>}
       </div>

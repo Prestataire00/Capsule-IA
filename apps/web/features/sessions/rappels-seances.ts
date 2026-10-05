@@ -9,7 +9,7 @@ import { rappelDu, type Rappel } from './invites-visio';
 import {
   emailsFormateursDeSeance,
   emailsReferentsDeSeance,
-  envoyerDepuisLOrganisme,
+  envoyerDepuisLaBoiteDesCours,
   seancePourEmail,
 } from './visio';
 
@@ -82,7 +82,7 @@ export async function envoyerRappelsSeances(
         pour,
         lienEspace: appUrl ? `${appUrl}/seance/${s.id}` : null,
       });
-      const r = await envoyerDepuisLOrganisme(sb, s.organization_id, {
+      const r = await envoyerDepuisLaBoiteDesCours(sb, s.organization_id, {
         to: email,
         subject,
         html,

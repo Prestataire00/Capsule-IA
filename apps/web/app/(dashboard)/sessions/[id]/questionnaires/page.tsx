@@ -23,6 +23,7 @@ import { programmationsDeLaSeance } from '@/features/questionnaire/questionnaire
 import { QuestionnairesSeance, type LigneQuestionnaire } from './questionnaires-seance.client';
 import { AdapterFiche } from './adapter-fiche.client';
 import { questionsDuSchema } from '@/features/questionnaire/fiche-besoin';
+import { codeFicheDeSeance, estFicheDeSeance } from '@/features/questionnaire/fiche-de-seance';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,12 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
   const { session, dossierIds, formation } = loaded;
+  // La formation de la fiche : celle de la séance, sinon celle de son dossier.
+  let formationFiche: string | null = session.formation_id;
+  if (!formationFiche && dossierIds.length) {
+    const { data: d } = await sb.schema('app').from('dossiers').select('formation_id').in('id', dossierIds).not('formation_id', 'is', null).limit(1);
+    formationFiche = ((d ?? []) as Array<{ formation_id: string | null }>)[0]?.formation_id ?? null;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = sb as unknown as SupabaseClient<any, any, any>;
 
@@ -77,8 +84,15 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
   const seance = { startsAt: session.starts_at, endsAt: session.ends_at };
 
   // Une fiche adaptée à une autre formation n'a rien à faire ici.
-  const modeles = ((tData ?? []) as Modele[]).filter((m) => !m.formation_id || m.formation_id === session.formation_id);
-  const adaptee = modeles.find((m) => m.kind === 'positionnement' && m.formation_id && m.formation_id === session.formation_id) ?? null;
+  // Celle d'une autre séance non plus.
+  const propreASeance = codeFicheDeSeance(params.id);
+  const modeles = ((tData ?? []) as Modele[]).filter(
+    (m) => (!m.formation_id || m.formation_id === formationFiche) && (!estFicheDeSeance(m.code) || m.code === propreASeance),
+  );
+  const adaptee =
+    modeles.find((m) => m.kind === 'positionnement' && m.code === propreASeance) ??
+    modeles.find((m) => m.kind === 'positionnement' && m.formation_id && m.formation_id === formationFiche) ??
+    null;
 
   const lignes: LigneQuestionnaire[] = modeles
     .map((m) => {
@@ -139,7 +153,7 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
       </div>
       <AdapterFiche
         sessionId={params.id}
-        formation={formation?.title ?? null}
+        formation={formation?.title ?? session.title ?? null}
         ficheAdaptee={adaptee ? { id: adaptee.id, titre: adaptee.title, questions: questionsDuSchema(adaptee.schema).length } : null}
         gerer={gerer}
       />

@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { questionsDuSchema, CHAMPS_FICHE_BESOIN } from './fiche-besoin';
 import type { Question } from './schema';
+import { codeFicheDeSeance } from './fiche-de-seance';
 
 /**
  * Les questions de la fiche besoin telles que cet organisme les pose.
@@ -43,6 +44,7 @@ export async function questionsFicheBesoin(
     .eq('is_active', true)
     .is('deleted_at', null)
     .is('formation_id', null)
+    .not('code', 'like', 'fiche_besoin_seance_%')
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -67,7 +69,21 @@ export async function questionsFicheBesoinDeLaFormation(
   sb: Client,
   organizationId: string,
   formationId: string | null,
+  sessionId?: string | null,
 ): Promise<Question[]> {
+  if (sessionId) {
+    const { data } = await sb
+      .schema('app')
+      .from('questionnaire_templates')
+      .select('schema')
+      .eq('organization_id', organizationId)
+      .eq('code', codeFicheDeSeance(sessionId))
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .maybeSingle();
+    const questions = data ? questionsDuSchema((data as { schema?: unknown }).schema) : [];
+    if (questions.length > 0) return questions;
+  }
   if (formationId) {
     const { data } = await sb
       .schema('app')

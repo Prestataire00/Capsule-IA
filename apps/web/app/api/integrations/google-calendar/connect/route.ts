@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(settings('?error=not_configured'));
   }
   const state = pourOrganisme ? signOrganisationState(auth.user.id) : signState(auth.user.id);
-  const url = googleOAuthAuthorizeUrl({ state, redirectUri });
+  const url = googleOAuthAuthorizeUrl({ state, redirectUri, envoi: pourOrganisme });
   if (!url) return NextResponse.redirect(settings('?error=not_configured'));
   return NextResponse.redirect(url);
 }

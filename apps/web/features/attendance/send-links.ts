@@ -1,7 +1,7 @@
 import 'server-only';
 import { envoiActif } from '@/features/emails/programmation-store';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
-import { sendEmail } from '@/shared/lib/email/resend';
+import { envoyerDepuisLaBoiteDesCours } from '@/features/sessions/visio';
 import { emargementLinkEmail } from '@/shared/lib/email/templates';
 import { halfDayWindow, type HalfDay } from './half-day-window';
 import { issueAttendanceLink } from './issue-attendance-link';
@@ -146,12 +146,13 @@ export async function sendSheetLinks(sheetId: string, mode: LinkMode, baseUrl: s
       end: hhmm(fenetre.end),
       url: lien.link.url,
     });
-    const r = await sendEmail({
+    // L'émargement fait partie du cours : il part de la boîte générique des cours.
+    const dossierId = dossierDe.get(c.id);
+    const r = await envoyerDepuisLaBoiteDesCours(supabaseAdmin() as never, sheet.organization_id, {
       to: c.email!.trim(),
       subject: tpl.subject,
       html: tpl.html,
-      organizationId: sheet.organization_id,
-      dossierId: dossierDe.get(c.id),
+      ...(dossierId ? { dossierId } : {}),
       kind: 'emargement_lien',
       metadata: { attendance_sheet_id: sheetId, mode },
     });

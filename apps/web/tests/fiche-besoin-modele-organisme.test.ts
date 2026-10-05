@@ -47,7 +47,7 @@ describe('1 — le modèle de l’organisme est choisi', () => {
     // La saisie depuis la séance passe aussi la formation : la fiche adaptée
     // à la formation (0211) est celle que l'écran a posée.
     expect(lire('../app/(dashboard)/sessions/[id]/fiches-besoin/actions.ts')).toContain(
-      'ensureNeedsAnalysisTemplate(sb, orgId, seance.formation_id)',
+      'ensureNeedsAnalysisTemplate(sb, orgId, seance.formation_id, sessionId)',
     );
   });
 });

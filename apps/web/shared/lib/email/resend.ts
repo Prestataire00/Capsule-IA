@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
+import { envoyerParGmail } from '@/shared/lib/integrations/google-calendar-client';
 
 const DEFAULT_FROM = 'Capsule IA <onboarding@resend.dev>';
 
@@ -91,6 +92,12 @@ export type SendEmailInput = {
    * `continue` ne résiste ni au rejeu ni à deux crons simultanés.
    */
   idempotencyKey?: string;
+  /**
+   * La boîte générique des cours (Google connecté à l'organisme) : le message
+   * part de chez elle, par Gmail. Si elle refuse (droit d'envoi non accordé,
+   * jeton expiré, pièce jointe), il part par la voie habituelle, de `from`.
+   */
+  boiteCours?: { refreshToken: string; from: string };
 };
 
 export type SendEmailResult =
@@ -105,6 +112,25 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   // Réservation : si la clé est déjà prise, cet e-mail est déjà parti.
   const reservation = await reserverEnvoi(input);
   if (reservation.deja) return { ok: false, reason: 'duplicate' };
+
+  // ── Boîte générique des cours, par Gmail ──
+  if (input.boiteCours && !(input.attachments && input.attachments.length > 0)) {
+    const liste = (v: string | string[] | undefined) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
+    const gmail = await envoyerParGmail(input.boiteCours.refreshToken, {
+      from: input.boiteCours.from,
+      to: liste(input.to),
+      cc: liste(input.cc),
+      ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+      subject: input.subject,
+      html: input.html,
+    });
+    if (gmail.ok) {
+      result = { ok: true, id: `gmail:${gmail.value}` };
+      await logEmailSend({ ...input, metadata: { ...(input.metadata ?? {}), expediteur: 'boite_cours' } }, result, reservation.id);
+      return result;
+    }
+    console.error('[e-mail] boîte des cours indisponible, envoi depuis le contact', gmail.error);
+  }
 
   // ── Voie SMTP (prioritaire si configurée) — pas de vérification de domaine ──
   const transport = smtpTransport();

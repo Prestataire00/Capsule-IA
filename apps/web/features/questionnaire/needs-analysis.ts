@@ -5,6 +5,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { needsAnalysisEmail } from '@/shared/lib/email/templates';
+import { codeFicheDeSeance } from './fiche-de-seance';
 import { generateNeedsAnalysisUrl } from '@/shared/lib/needs-analysis-token';
 
 // « Fiche besoin » = questionnaire de positionnement (analyse des besoins) envoyé
@@ -36,8 +37,25 @@ const admin = () =>
  * les appels qui n'ont pas l'organisation sous la main ne changent pas de
  * comportement.
  */
-export async function ensureNeedsAnalysisTemplate(sb: Sb, organizationId?: string | null, formationId?: string | null): Promise<string> {
-  // La fiche adaptée à la formation d'abord (0211), puis celle de l'organisme.
+export async function ensureNeedsAnalysisTemplate(
+  sb: Sb,
+  organizationId?: string | null,
+  formationId?: string | null,
+  sessionId?: string | null,
+): Promise<string> {
+  // La fiche adaptée à la séance (sans formation), puis à la formation (0211), puis celle de l'organisme.
+  if (organizationId && sessionId) {
+    const { data: deSeance } = await sb
+      .schema('app')
+      .from('questionnaire_templates')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('code', codeFicheDeSeance(sessionId))
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (deSeance) return (deSeance as { id: string }).id;
+  }
   if (organizationId && formationId) {
     const { data: adaptee } = await sb
       .schema('app')
@@ -63,6 +81,7 @@ export async function ensureNeedsAnalysisTemplate(sb: Sb, organizationId?: strin
       .eq('is_active', true)
       .is('deleted_at', null)
       .is('formation_id' as never, null)
+      .not('code', 'like', 'fiche_besoin_seance_%')
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -513,7 +532,7 @@ export async function ficheDePositionnement(
       .from('questionnaire_assignments')
       .insert({
         organization_id: args.organizationId,
-        template_id: await ensureNeedsAnalysisTemplate(sb, args.organizationId, formationId),
+        template_id: await ensureNeedsAnalysisTemplate(sb, args.organizationId, formationId, args.sessionId ?? null),
         dossier_id: args.dossierId,
         ...(args.sessionId ? { session_id: args.sessionId } : {}),
         recipient_kind: 'learner',

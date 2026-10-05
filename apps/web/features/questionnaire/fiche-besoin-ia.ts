@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 import { questionDraftSchema, toRuntimeQuestion } from './template.schema';
 import type { Question } from './schema';
+import { htmlToPlain } from '@/features/formations/programme/from-formation';
 
 /**
  * La fiche besoin adaptée à UNE formation, rédigée par l'IA (demande d'Ismael,
@@ -14,11 +15,47 @@ import type { Question } from './schema';
 
 export type FormationPourFiche = {
   readonly title: string;
-  readonly summary: string | null;
-  readonly objectives: readonly string[];
-  readonly prerequisites: readonly string[];
-  readonly targetAudience: string | null;
+  /** Tout ce que la formation dit d'elle-même (Informations), en texte. */
+  readonly contexte: string;
 };
+
+/** Le texte d'une valeur de catalogue : chaînes et listes, HTML retiré. */
+function texteDe(v: unknown): string[] {
+  if (typeof v === 'string') return v.trim() ? [htmlToPlain(v)] : [];
+  if (Array.isArray(v)) return v.flatMap(texteDe);
+  if (v && typeof v === 'object') return Object.values(v as Record<string, unknown>).flatMap(texteDe);
+  return [];
+}
+
+const LIBELLES: Record<string, string> = {
+  summary: 'Résumé',
+  description: 'Description',
+  objectives: 'Objectifs pédagogiques',
+  prerequisites: 'Prérequis',
+  target_audience: 'Public visé',
+  pedagogical_method: 'Méthodes pédagogiques',
+  evaluation_method: 'Modalités d’évaluation',
+};
+
+/**
+ * Le détail de la formation tel qu'on le lit dans ses Informations : résumé,
+ * description, objectifs, prérequis, public, méthodes, évaluation, et le
+ * contenu du catalogue (programme, déroulé). Borné : l'IA n'a besoin que du sujet.
+ */
+export function contexteDeFormation(f: Record<string, unknown>): string {
+  const parties: string[] = [];
+  for (const [cle, libelle] of Object.entries(LIBELLES)) {
+    const t = texteDe(f[cle]).join(' ; ').trim();
+    if (t) parties.push(`${libelle} : ${t}`);
+  }
+  const catalogue = (f.metadata as { catalog?: Record<string, unknown> } | null)?.catalog ?? null;
+  if (catalogue) {
+    const utiles = ['subtitle', 'deroulement', 'programme', 'contenu', 'sequences', 'competences', 'titreVise'];
+    const t = utiles.flatMap((k) => texteDe(catalogue[k])).join(' ; ').trim();
+    if (t) parties.push(`Programme : ${t}`);
+  }
+  return parties.join('\n').slice(0, 6000);
+}
 
 export type FicheAdapteeResult =
   | { ok: true; questions: Question[] }
@@ -45,15 +82,7 @@ export async function genererFicheBesoinAdaptee(formation: FormationPourFiche): 
   const client = anthropic();
   if (!client) return { ok: false, reason: 'no_api_key' };
 
-  const contexte = [
-    `Formation : ${formation.title}`,
-    formation.summary ? `Résumé : ${formation.summary.slice(0, 1500)}` : null,
-    formation.objectives.length ? `Objectifs pédagogiques : ${formation.objectives.slice(0, 12).join(' ; ')}` : null,
-    formation.prerequisites.length ? `Prérequis : ${formation.prerequisites.slice(0, 8).join(' ; ')}` : null,
-    formation.targetAudience ? `Public visé : ${formation.targetAudience.slice(0, 500)}` : null,
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const contexte = `Formation : ${formation.title}\n${formation.contexte}`.trim();
 
   const prompt = `Tu es responsable pédagogique d'un organisme de formation français certifié Qualiopi.
 Rédige les questions de la fiche de positionnement (analyse des besoins) qu'un stagiaire remplit AVANT cette formation :

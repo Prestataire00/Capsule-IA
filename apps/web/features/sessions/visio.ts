@@ -7,7 +7,7 @@ import {
 } from '@/shared/lib/integrations/google-calendar-store';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { sendEmail, type SendEmailInput, type SendEmailResult } from '@/shared/lib/email/resend';
-import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
+import { expediteurDeLOrganisme, nomAffichable } from '@/shared/lib/email/expediteur-organisme';
 import { lienVisioEntrepriseEmail, type SeanceEmailData } from '@/shared/lib/email/templates';
 import { heure, jourLong } from '@/features/trainer-space/dates';
 import { envoiActif } from '@/features/emails/programmation-store';
@@ -193,6 +193,48 @@ export async function envoyerDepuisLOrganisme(
   });
 }
 
+/**
+ * Les e-mails relatifs au cours — lien de la visio, rappels avant la séance,
+ * cours et quiz validés, contenus à valider — partent de la boîte générique
+ * de l'organisme (Google connecté, Paramètres › Intégrations), par Gmail ; les
+ * réponses y reviennent. Tout le reste part de l'adresse de contact
+ * (`envoyerDepuisLOrganisme`). Demande d'Ismael, 05/10/2026.
+ *
+ * Boîte non connectée, ou sans droit d'envoi : on part du contact plutôt que
+ * de ne rien envoyer.
+ */
+export async function envoyerDepuisLaBoiteDesCours(
+  sb: Sb,
+  organizationId: string,
+  message: Omit<SendEmailInput, 'from' | 'replyTo' | 'organizationId'>,
+): Promise<SendEmailResult> {
+  const boite = await boiteDesCours(sb, organizationId);
+  if (!boite) return envoyerDepuisLOrganisme(sb, organizationId, message);
+  const expediteur = await expediteurDeLOrganisme(sb, organizationId);
+  const envoi = await sendEmail({
+    ...message,
+    organizationId,
+    from: expediteur.from,
+    replyTo: boite.email,
+    boiteCours: { refreshToken: boite.refreshToken, from: `${nomAffichable(expediteur.nom)} <${boite.email}>` },
+  });
+  if (envoi.ok || envoi.reason !== 'send_failed' || expediteur.source !== 'organisme') return envoi;
+  return sendEmail({
+    ...message,
+    organizationId,
+    replyTo: boite.email,
+    ...(message.idempotencyKey ? { idempotencyKey: `${message.idempotencyKey}:repli` } : {}),
+    metadata: { ...(message.metadata ?? {}), source: 'repli' },
+  });
+}
+
+/** La boîte générique connectée à l'organisme : son adresse et son jeton. */
+export async function boiteDesCours(sb: Sb, organizationId: string): Promise<{ email: string; refreshToken: string } | null> {
+  const creds = await loadGoogleCredsForOrganization(sb as never, organizationId);
+  const email = creds?.accountEmail?.trim().toLowerCase();
+  return creds?.refreshToken && email ? { email, refreshToken: creds.refreshToken } : null;
+}
+
 export type SeancePourEmail = {
   readonly id: string;
   readonly organizationId: string;
@@ -266,7 +308,7 @@ export async function diffuserLienVisio(sb: Sb, sessionId: string): Promise<numb
   let envoyes = 0;
   const { subject, html } = lienVisioEntrepriseEmail({ ...seance.donnees, lienVisio: lien });
   for (const email of await emailsReferentsDeSeance(sb, sessionId)) {
-    const r = await envoyerDepuisLOrganisme(sb, seance.organizationId, {
+    const r = await envoyerDepuisLaBoiteDesCours(sb, seance.organizationId, {
       to: email,
       subject,
       html,

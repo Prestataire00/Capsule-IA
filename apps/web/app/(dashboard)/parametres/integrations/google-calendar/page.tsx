@@ -95,11 +95,15 @@ export default async function GoogleCalendarIntegrationPage({
           cette boîte (tl;dv, Lexi) rejoignent ainsi toutes les visios. Sans elle, l&apos;agenda de la personne qui
           planifie sert.
         {' '}
-          Les e-mails (lien de la visio, rappels) partent, eux, de l&apos;adresse de contact de l&apos;organisme, réglée dans{' '}
+          Elle envoie aussi les e-mails du cours : lien de la visio au référent, rappels 48 h et 2 h, liens
+          d&apos;émargement, cours et quiz validés annoncés à l&apos;entreprise, contenus à valider. Tout le reste
+          (devis, conventions, convocations, attestations, questionnaires, espace entreprise, factures) part de
+          l&apos;adresse de contact, réglée dans{' '}
           <Link href="/parametres/organisation" className="text-orange-600 dark:text-orange-400 hover:underline">
             Paramètres → Organisation
           </Link>
-          .
+          . Connectée avant le 05/10/2026 ? Reconnectez-la pour lui donner le droit d&apos;envoyer ; d&apos;ici là, ces
+          e-mails partent de l&apos;adresse de contact.
         </p>
         {direction ? (
           <GoogleCalendarForm initialStatus={statusOrganisme} error={null} cible="organisme" />

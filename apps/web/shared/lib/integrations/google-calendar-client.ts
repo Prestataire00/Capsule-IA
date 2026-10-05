@@ -10,17 +10,23 @@ const USERINFO = 'https://openidconnect.googleapis.com/v1/userinfo';
 const CAL_API = 'https://www.googleapis.com/calendar/v3';
 const SCOPE =
   'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly openid email';
+/**
+ * La boîte générique de l'organisme envoie aussi les e-mails des cours (lien
+ * de la visio, rappels, cours validés) : ils partent de chez elle et restent
+ * dans ses « Envoyés ». Les agendas personnels n'ont pas ce droit.
+ */
+const SCOPE_ENVOI = 'https://www.googleapis.com/auth/gmail.send';
 
 export type GoogleApiError = 'not_configured' | 'token_failed' | 'request_failed' | 'invalid_response';
 
 /** URL de consentement Google (offline + prompt=consent pour obtenir un refresh token). */
-export function googleOAuthAuthorizeUrl(args: { state: string; redirectUri: string }): string | null {
+export function googleOAuthAuthorizeUrl(args: { state: string; redirectUri: string; envoi?: boolean }): string | null {
   if (!env.GOOGLE_CLIENT_ID) return null;
   const p = new URLSearchParams({
     client_id: env.GOOGLE_CLIENT_ID,
     redirect_uri: args.redirectUri,
     response_type: 'code',
-    scope: SCOPE,
+    scope: args.envoi ? `${SCOPE} ${SCOPE_ENVOI}` : SCOPE,
     access_type: 'offline',
     // Choix du compte : on connecte parfois la boîte formateur, pas la sienne.
     prompt: 'consent select_account',
@@ -420,6 +426,53 @@ export async function testConnection(
       headers: { Authorization: `Bearer ${t.value}` },
     });
     return res.ok ? ok(true) : err('request_failed');
+  } catch {
+    return err('request_failed');
+  }
+}
+
+/** Un en-tête MIME en UTF-8 (sujet, nom affiché) : les accents passent intacts. */
+const enTete = (v: string): string => (/^[\x20-\x7e]*$/.test(v) ? v : `=?UTF-8?B?${Buffer.from(v, 'utf8').toString('base64')}?=`);
+
+/** « "Nom" <adresse> » avec le nom encodé, l'adresse telle quelle. */
+function adresseMime(v: string): string {
+  const m = /^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/.exec(v);
+  return m && m[1]?.trim() ? `${enTete(m[1].trim())} <${m[2]}>` : v;
+}
+
+/** Le message brut (RFC 822) d'un e-mail HTML, tel que Gmail l'attend. Pur. */
+export function messageBrut(m: { from: string; to: string[]; cc?: string[]; replyTo?: string; subject: string; html: string }): string {
+  const lignes = [
+    `From: ${adresseMime(m.from)}`,
+    `To: ${m.to.join(', ')}`,
+    ...(m.cc && m.cc.length ? [`Cc: ${m.cc.join(', ')}`] : []),
+    ...(m.replyTo ? [`Reply-To: ${m.replyTo}`] : []),
+    `Subject: ${enTete(m.subject)}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    (Buffer.from(m.html, 'utf8').toString('base64').match(/.{1,76}/g) ?? []).join('\r\n'),
+  ];
+  return lignes.join('\r\n');
+}
+
+/** Envoie un e-mail depuis la boîte Google connectée (droit gmail.send requis). */
+export async function envoyerParGmail(
+  refreshToken: string,
+  m: { from: string; to: string[]; cc?: string[]; replyTo?: string; subject: string; html: string },
+): Promise<Result<string, GoogleApiError>> {
+  const t = await accessTokenFor(refreshToken);
+  if (!t.ok) return err(t.error);
+  try {
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${t.value}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw: Buffer.from(messageBrut(m), 'utf8').toString('base64url') }),
+    });
+    if (!res.ok) return err('request_failed');
+    const j = (await res.json().catch(() => null)) as { id?: string } | null;
+    return j?.id ? ok(j.id) : err('invalid_response');
   } catch {
     return err('request_failed');
   }

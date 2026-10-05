@@ -43,7 +43,7 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
   const recues = fiches.filter((f) => f.statut === 'recue').length;
   const [peutAgir, questions] = await Promise.all([
     canManageSection('qualiopi'),
-    questionsFicheBesoinDeLaFormation(sb as never, session.organization_id, session.formation_id),
+    questionsFicheBesoinDeLaFormation(sb as never, session.organization_id, session.formation_id, session.id),
   ]);
 
   return (
