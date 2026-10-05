@@ -7,6 +7,7 @@ import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { peutValiderPourMembre } from '@/features/trainer-space/validation-recipients';
 import { notifySupportDecide } from '@/features/trainer-space/support-notifications';
 import { decideCours } from '@/features/pedagogie/validation';
+import { annoncerCoursAuxEntreprises } from '@/features/pedagogie/annoncer-aux-entreprises';
 
 /**
  * Décision de la direction sur un contenu pédagogique (quiz, texte à trou,
@@ -66,6 +67,9 @@ export async function deciderCours(input: {
     decision: p.data.decision,
     reason: p.data.reason ?? null,
   });
+
+  // Validé : les entreprises reçoivent les liens de leurs stagiaires.
+  if (p.data.decision === 'valide') await annoncerCoursAuxEntreprises(decide.id);
 
   revalidatePath('/supports');
   revalidatePath(`/mes-dossiers/${decide.dossierId}/cours`);
