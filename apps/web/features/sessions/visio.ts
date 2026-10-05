@@ -10,6 +10,7 @@ import { sendEmail, type SendEmailInput, type SendEmailResult } from '@/shared/l
 import { expediteurDeLOrganisme, nomAffichable } from '@/shared/lib/email/expediteur-organisme';
 import { lienVisioEntrepriseEmail, type SeanceEmailData } from '@/shared/lib/email/templates';
 import { heure, jourLong } from '@/features/trainer-space/dates';
+import { libelleFormateurs } from './agenda-formateurs';
 import { envoiActif } from '@/features/emails/programmation-store';
 import { formateursRetenus, invitesVisio, referentDuDossier } from './invites-visio';
 
@@ -194,11 +195,13 @@ export async function envoyerDepuisLOrganisme(
 }
 
 /**
- * Les e-mails relatifs au cours — lien de la visio, rappels avant la séance,
- * cours et quiz validés, contenus à valider — partent de la boîte générique
- * de l'organisme (Google connecté, Paramètres › Intégrations), par Gmail ; les
- * réponses y reviennent. Tout le reste part de l'adresse de contact
- * (`envoyerDepuisLOrganisme`). Demande d'Ismael, 05/10/2026.
+ * La boîte générique de l'organisme (Google connecté, Paramètres ›
+ * Intégrations) envoie, par Gmail, ce qui touche à la visio du cours : le
+ * lien de la visio au référent et les rappels 48 h / 2 h — en plus des
+ * invitations Meet, que Google envoie lui-même. Les réponses y reviennent.
+ * Tout le reste part de l'adresse de contact (`envoyerDepuisLOrganisme`) :
+ * émargement, cours et quiz annoncés, contenus à valider, questionnaires,
+ * documents. Arbitrage d'Ismael, 05/10/2026.
  *
  * Boîte non connectée, ou sans droit d'envoi : on part du contact plutôt que
  * de ne rien envoyer.
@@ -354,12 +357,15 @@ export async function creerVisioDeSeance(
   if (!organisateur) return 'no_calendar';
   const seance = await seancePourEmail(sb, sessionId);
 
+  // L'agenda de la boîte générique dit qui forme la séance.
+  const formateurs = await nomsDesFormateurs(sb, sessionId);
+  const titre = s.title ?? seance?.donnees.formationTitle ?? 'Séance';
   const res = await createMeetEvent(organisateur.creds, {
-    title: s.title ?? seance?.donnees.formationTitle ?? 'Séance',
+    title: `${titre} · ${libelleFormateurs(formateurs)}`,
     startsAt: s.starts_at,
     endsAt: s.ends_at,
     attendeeEmails: await invitesDeLaSeance(sb, sessionId),
-    description: seance?.donnees.formationTitle ?? undefined,
+    description: [seance?.donnees.formationTitle, libelleFormateurs(formateurs)].filter(Boolean).join('\n'),
   });
   if (!res.ok) return 'failed';
 
@@ -391,4 +397,23 @@ export async function invitesDeLaSeance(
     emailsReferentsDeSeance(sb, sessionId),
   ]);
   return invitesVisio(connus, formateurs, referents);
+}
+
+/** Les formateurs de la séance, à défaut ceux de son dossier. */
+async function nomsDesFormateurs(sb: Sb, sessionId: string): Promise<string[]> {
+  const { data: st } = await sb.schema('app').from('session_trainers').select('trainer_id').eq('session_id', sessionId).is('deleted_at', null);
+  let ids = ((st ?? []) as Array<{ trainer_id: string }>).map((t) => t.trainer_id);
+  if (ids.length === 0) {
+    const { data: s } = await sb.schema('app').from('sessions').select('dossier_id').eq('id', sessionId).maybeSingle();
+    const dossierId = (s as { dossier_id: string | null } | null)?.dossier_id;
+    if (dossierId) {
+      const { data: dt } = await sb.schema('app').from('dossier_trainers').select('trainer_id').eq('dossier_id', dossierId);
+      ids = ((dt ?? []) as Array<{ trainer_id: string }>).map((t) => t.trainer_id);
+    }
+  }
+  if (ids.length === 0) return [];
+  const { data: t } = await sb.schema('app').from('trainers').select('first_name, last_name').in('id', ids);
+  return ((t ?? []) as Array<{ first_name: string | null; last_name: string | null }>)
+    .map((f) => `${f.first_name ?? ''} ${f.last_name ?? ''}`.trim())
+    .filter(Boolean);
 }

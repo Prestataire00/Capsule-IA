@@ -95,9 +95,9 @@ export default async function GoogleCalendarIntegrationPage({
           cette boîte (tl;dv, Lexi) rejoignent ainsi toutes les visios. Sans elle, l&apos;agenda de la personne qui
           planifie sert.
         {' '}
-          Elle envoie aussi les e-mails du cours : lien de la visio au référent, rappels 48 h et 2 h, liens
-          d&apos;émargement, cours et quiz validés annoncés à l&apos;entreprise, contenus à valider. Tout le reste
-          (devis, conventions, convocations, attestations, questionnaires, espace entreprise, factures) part de
+          Elle envoie aussi le lien de la visio au référent et les rappels 48 h et 2 h avant la séance. Tout le
+          reste (émargement, cours et quiz, contenus à valider, questionnaires, devis, conventions, convocations,
+          attestations, espace entreprise, factures) part de
           l&apos;adresse de contact, réglée dans{' '}
           <Link href="/parametres/organisation" className="text-orange-600 dark:text-orange-400 hover:underline">
             Paramètres → Organisation

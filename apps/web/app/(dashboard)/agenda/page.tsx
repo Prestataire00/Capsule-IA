@@ -7,7 +7,10 @@ import { CalendarDays, ChevronLeft, ChevronRight, Plug, Video } from 'lucide-rea
 import { env } from '@/env.mjs';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
-import { loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import { loadGoogleCredsForOrganization, loadGoogleCredsForUser } from '@/shared/lib/integrations/google-calendar-store';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { agendaAvecFormateurs } from '@/features/sessions/agenda-formateurs';
+import { seancesPourAgenda } from '@/features/sessions/load-agenda-seances';
 import { listAgenda, type CalEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { AgendaTabs } from './agenda-tabs.client';
 import { AgendaNowLine } from './agenda-now-line.client';
@@ -107,7 +110,7 @@ function AgendaListRow({ e, timeText }: { e: CalEvent; timeText: string }) {
   );
   return e.htmlLink ? (
     <li>
-      <a href={e.htmlLink} target="_blank" rel="noopener noreferrer" className="block">
+      <a href={e.htmlLink} {...(e.htmlLink.startsWith('/') ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block">
         {inner}
       </a>
     </li>
@@ -119,7 +122,7 @@ function AgendaListRow({ e, timeText }: { e: CalEvent; timeText: string }) {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams?: { week?: string; view?: string };
+  searchParams?: { week?: string; view?: string; source?: string };
 }) {
   const weekOffset = Number.parseInt(searchParams?.week ?? '0', 10) || 0;
   const view: 'liste' | 'semaine' = searchParams?.view === 'liste' ? 'liste' : 'semaine';
@@ -128,21 +131,48 @@ export default async function AgendaPage({
   const userId = auth?.user?.id ?? null;
 
   const sb = admin();
-  const [creds, integRow] = await Promise.all([
+  const me = await getCurrentMember();
+  // L'agenda des sessions est celui de la boîte générique de l'organisme ;
+  // « Mon agenda » montre le Google personnel de chacun.
+  const [credsOrganisme, { data: boiteRow }, credsPerso, integRow] = await Promise.all([
+    me ? loadGoogleCredsForOrganization(sb, me.organizationId) : Promise.resolve(null),
+    me
+      ? sb.schema('app').from('organization_google_calendar').select('account_email').eq('organization_id', me.organizationId).maybeSingle()
+      : Promise.resolve({ data: null }),
     userId ? loadGoogleCredsForUser(sb, userId) : Promise.resolve(null),
     userId
       ? sb.schema('app').from('user_integrations').select('account_email').eq('user_id', userId).eq('kind', 'google_calendar').maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
-  const accountEmail = (integRow?.data as { account_email: string | null } | null)?.account_email ?? null;
+  const source: 'organisme' | 'moi' = searchParams?.source === 'moi' || !credsOrganisme ? 'moi' : 'organisme';
+  const creds = source === 'organisme' ? credsOrganisme : credsPerso;
+  const accountEmail =
+    source === 'organisme'
+      ? ((boiteRow as { account_email: string | null } | null)?.account_email ?? null)
+      : ((integRow?.data as { account_email: string | null } | null)?.account_email ?? null);
+  const suffixe = source === 'moi' && credsOrganisme ? '&source=moi' : '';
 
   const header = (
     <div>
       <SectionLabel className="mb-2">Mon espace</SectionLabel>
       <h1 className="text-[30px] leading-none font-extrabold text-zinc-900 dark:text-zinc-100">Agenda</h1>
       <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-3">
-        {accountEmail ? `Synchronisé avec votre Google Agenda — ${accountEmail}` : 'Vos événements Google Agenda, synchronisés dans Capsule IA.'}
+        {source === 'organisme'
+          ? `Agenda des sessions — boîte générique ${accountEmail ?? ''}. Chaque séance indique son formateur.`
+          : accountEmail
+            ? `Votre Google Agenda — ${accountEmail}. Les séances y figurent avec leur formateur.`
+            : 'Vos événements Google Agenda, synchronisés dans Capsule IA.'}
       </p>
+      {credsOrganisme && (
+        <div className="mt-3 inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5 text-[12px]">
+          <Link href="/agenda" className={`px-3 py-1 rounded-md ${source === 'organisme' ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 font-medium' : 'text-zinc-500'}`}>
+            Sessions (boîte générique)
+          </Link>
+          <Link href="/agenda?source=moi" className={`px-3 py-1 rounded-md ${source === 'moi' ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 font-medium' : 'text-zinc-500'}`}>
+            Mon agenda
+          </Link>
+        </div>
+      )}
     </div>
   );
 
@@ -192,17 +222,22 @@ export default async function AgendaPage({
   to.setUTCDate(monday.getUTCDate() + 8);
   to.setUTCHours(0, 0, 0, 0);
 
-  const result = await listAgenda(creds, { timeMin: from.toISOString(), timeMax: to.toISOString() });
+  const [brut, seances] = await Promise.all([
+    listAgenda(creds, { timeMin: from.toISOString(), timeMax: to.toISOString() }),
+    me ? seancesPourAgenda(sb, me.organizationId, from.toISOString(), to.toISOString()) : Promise.resolve([]),
+  ]);
+  // Chaque séance dit son formateur, et celles sans évènement Google y figurent aussi.
+  const result = brut.ok ? { ok: true as const, value: agendaAvecFormateurs(brut.value, seances) } : brut;
 
   const monthLabel = `${MONTHS[monday.getUTCMonth()]} ${monday.getUTCFullYear()}`;
   const nav = (
     <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/70 dark:border-zinc-800">
       <div className="flex items-center gap-3">
-        <Link href={`/agenda?week=${weekOffset - 1}`} aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+        <Link href={`/agenda?week=${weekOffset - 1}${suffixe}`} aria-label="Semaine précédente" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
           <ChevronLeft className="w-4 h-4" />
         </Link>
         <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 capitalize tabular-nums">{monthLabel}</p>
-        <Link href={`/agenda?week=${weekOffset + 1}`} aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
+        <Link href={`/agenda?week=${weekOffset + 1}${suffixe}`} aria-label="Semaine suivante" className="w-8 h-8 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition flex items-center justify-center">
           <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
@@ -430,8 +465,7 @@ export default async function AgendaPage({
                     <a
                       key={e.id}
                       href={e.htmlLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      {...(e.htmlLink.startsWith('/') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
                       className="absolute rounded-md px-1.5 py-0.5 overflow-hidden pointer-events-auto hover:shadow-md hover:brightness-95 transition block"
                       style={style}
                       title={`${e.timeLabel} · ${e.title}`}

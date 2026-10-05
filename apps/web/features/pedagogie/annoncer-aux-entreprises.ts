@@ -1,5 +1,5 @@
 import 'server-only';
-import { envoyerDepuisLaBoiteDesCours } from '@/features/sessions/visio';
+import { envoyerDepuisLOrganisme } from '@/features/sessions/visio';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { liensStagiairesReferentEmail } from '@/shared/lib/email/templates';
@@ -67,8 +67,7 @@ export async function annoncerCoursAuxEntreprises(exerciseId: string): Promise<v
       organisme: expediteur.nom,
       libelleLien: 'son exercice',
     });
-    // Un cours : il part de la boîte générique des cours.
-    const r = await envoyerDepuisLaBoiteDesCours(admin as never, ex.organization_id, {
+    const r = await envoyerDepuisLOrganisme(admin as never, ex.organization_id, {
       to: email,
       subject: tpl.subject,
       html: tpl.html,

@@ -1,7 +1,7 @@
 import 'server-only';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { env } from '@/env.mjs';
-import { envoyerDepuisLaBoiteDesCours } from '@/features/sessions/visio';
+import { envoyerDepuisLOrganisme } from '@/features/sessions/visio';
 import { contenuAValiderEmail } from '@/shared/lib/email/templates';
 import { loadDestinatairesValidation } from './validation-recipients';
 import { heure, jourLong } from './dates';
@@ -98,8 +98,7 @@ export async function notifySupportDepose(input: {
     ...(await contexteSeance(admin, input.sessionId)),
     validationUrl: `${(env.PUBLIC_APP_URL ?? '').replace(/\/$/, '')}${input.sessionId ? `/sessions/${input.sessionId}/cours` : '/supports'}`,
   });
-  // Un contenu de cours : il part de la boîte générique des cours.
-  const envoi = await envoyerDepuisLaBoiteDesCours(admin as never, input.organizationId, {
+  const envoi = await envoyerDepuisLOrganisme(admin as never, input.organizationId, {
     to: a,
     cc,
     subject,
