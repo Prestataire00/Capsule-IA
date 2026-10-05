@@ -4,12 +4,10 @@
 // convoquer les entreprises par un chemin et pas par l'autre.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { sessionConvocationEmail } from '@/shared/lib/email/templates';
 import { destinatairesConvocation, mentionEntreprise } from '@/features/documents/convocation-destinataires';
 import { archiverDocument } from '@/features/documents/archiver-automatiquement';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 
 export type SeanceAConvoquer = {
   id: string;
@@ -31,18 +29,6 @@ const heureParis = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', 
 
 /** Heure locale de Paris : le serveur tourne en UTC, `getHours()` décalait d'une à deux heures. */
 export const heureLocale = (iso: string): string => heureParis.format(new Date(iso));
-
-async function espaceUrlFor(learnerId: string, dossierId: string, organizationId: string): Promise<string | null> {
-  const base = env.PUBLIC_APP_URL?.trim().replace(/\/$/, '');
-  if (!base || !learnerId || !dossierId) return null;
-  try {
-    const { url } = await generateApprenantUrl({ learnerId, organizationId, dossierId }, base);
-    return url;
-  } catch (e) {
-    console.error('[espace apprenant] lien non généré', learnerId, e);
-    return null;
-  }
-}
 
 /** Stagiaires qui ont déjà reçu la convocation J-7 de cette séance. */
 export async function stagiairesDejaConvoques(sb: SupabaseClient, sessionId: string): Promise<Set<string>> {
@@ -144,7 +130,6 @@ export async function convoquerSeance(
         location: session.location,
         remoteUrl: session.remote_url,
         trainerName,
-        espaceUrl: await espaceUrlFor(learner.id, dossierDuLearner?.id ?? '', session.organization_id),
         modification: opts.modification,
       });
       const cible = destinatairesConvocation({

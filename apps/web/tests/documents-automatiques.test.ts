@@ -34,8 +34,11 @@ describe('les liens envoyés au stagiaire', () => {
     expect(CRON).toContain('generateApprenantUrl');
     expect(CRON).not.toContain('// En prod : JWT signé apprenant');
     expect(CRON.match(/await espaceUrlFor\(/g)?.length).toBe(2);
-    expect(CONVOCATION).toContain('await espaceUrlFor(');
-    expect(CONVOCATION).toContain('generateApprenantUrl');
+  });
+
+  it('la convocation ne renvoie plus vers l’espace apprenant (remplacé par l’espace entreprise, 2026-10-05)', () => {
+    expect(CONVOCATION).not.toContain('generateApprenantUrl');
+    expect(CONVOCATION).not.toContain('espaceUrl');
   });
 
   it('aucun repli sur localhost pour un lien envoyé au dehors', () => {

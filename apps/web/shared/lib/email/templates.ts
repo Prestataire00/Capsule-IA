@@ -443,7 +443,6 @@ export type SessionConvocationData = {
   location: string | null;
   remoteUrl: string | null;
   trainerName: string | null;
-  espaceUrl: string | null;
   /** Convocation renvoyée parce que la date ou les horaires ont changé. */
   modification?: boolean;
 };
@@ -480,7 +479,6 @@ export function sessionConvocationEmail(data: SessionConvocationData): { subject
           <a href="${data.remoteUrl}" style="font-family:ui-monospace,monospace; font-size:12px; color:#7c3aed; word-break:break-all;">${data.remoteUrl}</a>
         </div>
       ` : ''}
-      ${data.espaceUrl ? `<div style="margin-top:24px;">${button(data.espaceUrl, 'Voir le détail dans mon espace')}</div>` : ''}
     `)}
 
     <p style="font-size:12px; color:#a1a1aa; margin:20px 0 8px;">
