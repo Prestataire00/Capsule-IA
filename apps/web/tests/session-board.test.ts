@@ -31,7 +31,7 @@ describe('tableau de bord de session', () => {
     expect(buildBoard(VIDE, '/sessions/s1').map((c) => c.title)).toEqual([
       'Configuration',
       'Gestion',
-      'Espace apprenant',
+      'Positionnement et acquis',
       'Suivi',
     ]);
   });
@@ -51,7 +51,6 @@ describe('tableau de bord de session', () => {
   it('compte par apprenant et plafonne au nombre d’inscrits', () => {
     const f = { ...VIDE, learners: 4, convocations: 4, access: 2, satisfaction: 6 };
     expect(etape(f, 'convocations').state).toBe('fait');
-    expect(etape(f, 'acces')).toMatchObject({ done: 2, total: 4, state: 'en_cours' });
     expect(etape(f, 'satisfaction')).toMatchObject({ done: 4, total: 4 });
   });
 
@@ -60,7 +59,7 @@ describe('tableau de bord de session', () => {
   });
 
   it('renvoie vers l’onglet où agir', () => {
-    expect(etape(VIDE, 'acces').href).toBe('/sessions/s1/acces');
+    expect(etape(VIDE, 'positionnement').href).toBe('/sessions/s1/questionnaires');
     expect(etape({ ...VIDE, formationId: 'f1' }, 'formation').href).toBe('/formations/f1');
     expect(etape(VIDE, 'formation').href).toBeUndefined();
   });

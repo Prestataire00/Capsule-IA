@@ -3,7 +3,6 @@ import { ArrowUpRight, Clock, AlertTriangle } from 'lucide-react';
 import { StatusPill, dossierStatusLabel, dossierStatusTone } from '@/shared/ui/status-pill';
 import { AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import type { LearnerDossier } from './summary';
-import { VoirEspaceButton } from './voir-espace-button';
 
 const fmtDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '—');
 const modalityLabel = (m: string) =>
@@ -48,9 +47,6 @@ export function DossierCard({ dossier }: { dossier: LearnerDossier }) {
       {h && <AccentBar value={Number(h.attendance_rate)} max={100} accent={h.at_risk ? 'amber' : 'emerald'} className="mt-2" />}
       </Link>
 
-      <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-        <VoirEspaceButton dossierId={dossier.id} />
-      </div>
     </div>
   );
 }

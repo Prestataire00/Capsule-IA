@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Activity,
+  Building2,
   CircleCheck,
   ClipboardList,
   Clock,
   FileText,
   GraduationCap,
   Info,
-  KeyRound,
   Landmark,
   MessagesSquare,
   Receipt,
@@ -43,7 +43,7 @@ const tabs = [
   { slug: 'financeurs', label: 'Financeurs', icon: Landmark },
   { slug: 'depenses', label: 'Dépenses', icon: Wallet },
   { slug: 'activite', label: 'Activité', icon: Activity },
-  { slug: 'acces', label: 'Accès', icon: KeyRound },
+  { slug: 'acces', label: 'Espace entreprise', icon: Building2 },
 ];
 
 export function SessionTabsNav({ baseHref }: { baseHref: string }) {

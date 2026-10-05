@@ -79,9 +79,8 @@ export function buildBoard(f: BoardFacts, base: string): BoardColumn[] {
       ],
     },
     {
-      title: 'Espace apprenant',
+      title: 'Positionnement et acquis',
       steps: [
-        etape('acces', 'Accès envoyés', f.access, n, `${base}/acces`),
         etape('positionnement', 'Positionnement complété', f.positionnement, n, `${base}/questionnaires`),
         etape('evaluation', 'Évaluation des acquis complétée', f.evaluation, n, `${base}/questionnaires`),
       ],

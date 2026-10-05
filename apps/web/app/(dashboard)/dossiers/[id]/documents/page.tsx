@@ -49,7 +49,7 @@ const EXEMPLAIRE: Record<string, { label: string; tone: string }> = {
 const exemplaireDe = (m: { audience?: string | null; grouped?: boolean | null } | null) =>
   EXEMPLAIRE[m?.audience ?? (m?.grouped ? 'entreprise' : '')] ?? null;
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_140px_minmax(0,1.2fr)] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,2.2fr)_minmax(0,0.9fr)_200px_minmax(0,1.1fr)] gap-4 px-5';
 const ICON_BTN =
   'w-8 h-8 rounded-md grid place-items-center text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition';
 
@@ -346,7 +346,7 @@ export default async function DocumentsPage({
             {[
               { cle: null as string | null, label: 'Tous' },
               ...groupesDuDossier.map((g) => ({ cle: g.id as string | null, label: g.nom })),
-              { cle: 'commun' as string | null, label: 'Communs à tous' },
+              { cle: 'commun' as string | null, label: 'Sans groupe' },
             ].map((c) => (
               <Link
                 key={c.cle ?? 'tous'}
