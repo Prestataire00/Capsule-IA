@@ -15,11 +15,13 @@ import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme'
 import { generateQuestionnaireToken } from '@/shared/lib/questionnaire-token';
 import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { TRAINER_SAT_TEMPLATE_CODE } from './satisfaction-formateur';
 import { RATTRAPAGE_JOURS, aRelancer, cleRelance, estSatisfaction } from './relance-satisfaction';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { REGLABLES, reglageEffectif } from '@/features/emails/programmation-envois';
+import { lienStagiaire } from './lien-stagiaire';
+import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
+import { liensStagiairesReferentEmail } from '@/shared/lib/email/templates';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Client = SupabaseClient<any, any, any>;
@@ -69,7 +71,51 @@ export async function relancerAssignation(
   const base = env.PUBLIC_APP_URL?.trim().replace(/\/$/, '') ?? '';
   if (!base) return { ok: false, raison: 'Adresse publique de l’application non configurée.' };
 
-  // L'adresse du stagiaire a pu être ajoutée après l'envoi : on la relit.
+  // Un stagiaire est relancé par son entreprise : un e-mail au référent, avec
+  // le lien personnel du stagiaire à lui transmettre.
+  if (a.recipient_kind === 'learner' && a.recipient_learner_id) {
+    const [referents, { data: l }, expediteur] = await Promise.all([
+      referentsDesDossiers(sb, [a.dossier_id]),
+      sb.schema('app').from('learners').select('first_name, last_name').eq('id', a.recipient_learner_id).maybeSingle(),
+      expediteurDeLOrganisme(sb, a.organization_id),
+    ]);
+    const ref = referents.get(a.dossier_id);
+    if (!ref) return { ok: false, raison: 'Ce dossier n’a ni référent ni contact d’entreprise à qui écrire.' };
+    const lien =
+      modele?.code === SATISFACTION_STAGIAIRE_CODE
+        ? (await generateSatisfactionUrl({ assignmentId: a.id, dossierId: a.dossier_id, organizationId: a.organization_id, learnerId: a.recipient_learner_id }, base)).url
+        : await lienStagiaire(base, 'questionnaire', {
+            learnerId: a.recipient_learner_id,
+            organizationId: a.organization_id,
+            dossierId: a.dossier_id,
+            cibleId: a.id,
+          });
+    const stagiaire = l as { first_name: string | null; last_name: string | null } | null;
+    const nom = `${stagiaire?.first_name ?? ''} ${stagiaire?.last_name ?? ''}`.trim() || a.recipient_name || 'Votre stagiaire';
+    const tpl = liensStagiairesReferentEmail({
+      prenom: ref.prenom,
+      objet: `Rappel — « ${modele?.title ?? 'Questionnaire'} » pour ${nom}`,
+      intro: `${nom} n’a pas encore répondu à « ${modele?.title ?? 'son questionnaire'} ». Pourriez-vous lui transmettre son lien ?`,
+      stagiaires: [{ nom, lien }],
+      organisme: expediteur.nom,
+      libelleLien: 'son questionnaire',
+    });
+    const r = await sendEmail({
+      to: ref.email,
+      from: expediteur.from,
+      ...(expediteur.email ? { replyTo: expediteur.email } : {}),
+      subject: tpl.subject,
+      html: tpl.html,
+      organizationId: a.organization_id,
+      dossierId: a.dossier_id,
+      kind: opts.automatique ? 'relance_satisfaction' : 'relance_questionnaire',
+      metadata: { assignment_id: a.id, via: 'referent' },
+      ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}),
+    });
+    if (!r.ok) return { ok: false, raison: r.reason === 'duplicate' ? 'Déjà relancé.' : 'L’e-mail n’est pas parti.' };
+    return { ok: true, email: ref.email };
+  }
+
   let email = a.recipient_email;
   if (!email && a.recipient_kind === 'learner' && a.recipient_learner_id) {
     const { data: l } = await sb.schema('app').from('learners').select('email').eq('id', a.recipient_learner_id).maybeSingle();
@@ -80,12 +126,7 @@ export async function relancerAssignation(
   // Le lien, par le chemin qui convient au destinataire et au modèle.
   const ctx = { assignmentId: a.id, dossierId: a.dossier_id, organizationId: a.organization_id };
   let url: string;
-  if (a.recipient_kind === 'learner' && a.recipient_learner_id) {
-    url =
-      modele?.code === SATISFACTION_STAGIAIRE_CODE
-        ? (await generateSatisfactionUrl({ ...ctx, learnerId: a.recipient_learner_id }, base)).url
-        : `${(await generateApprenantUrl({ learnerId: a.recipient_learner_id, organizationId: a.organization_id, dossierId: a.dossier_id }, base)).url}/questionnaires/${a.id}`;
-  } else if (a.recipient_kind === 'trainer' && a.recipient_trainer_id && modele?.code === TRAINER_SAT_TEMPLATE_CODE) {
+  if (a.recipient_kind === 'trainer' && a.recipient_trainer_id && modele?.code === TRAINER_SAT_TEMPLATE_CODE) {
     url = (await generateTrainerSatisfactionUrl({ ...ctx, trainerId: a.recipient_trainer_id }, base)).url;
   } else if (a.recipient_kind !== 'learner') {
     const signed = await generateQuestionnaireToken(ctx);

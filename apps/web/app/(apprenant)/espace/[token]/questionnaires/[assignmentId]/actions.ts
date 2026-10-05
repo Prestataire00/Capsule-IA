@@ -6,11 +6,16 @@ import { verifyApprenantToken } from '@/shared/lib/apprenant-token';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { validateAnswers, type Answers, type QuestionnaireSchema } from '@/features/questionnaire/schema';
 
-/** Soumission d'un questionnaire assigné depuis l'espace apprenant. */
+/**
+ * Soumission d'un questionnaire assigné à un stagiaire : depuis la page simple
+ * dont le lien passe par son entreprise (`retour=stagiaire`), ou depuis
+ * l'ancien espace apprenant. Seuls les chemins de retour diffèrent.
+ */
 export async function submitApprenantQuestionnaire(formData: FormData): Promise<void> {
   const token = (formData.get('token') as string | null) ?? '';
   const assignmentId = (formData.get('assignmentId') as string | null) ?? '';
-  const base = `/espace/${token}/questionnaires`;
+  const pageSimple = formData.get('retour') === 'stagiaire';
+  const base = pageSimple ? `/questionnaire/stagiaire/${token}` : `/espace/${token}/questionnaires`;
 
   const verified = await verifyApprenantToken(token);
   if (!verified.ok || !assignmentId) redirect(`${base}?error=invalid`);
@@ -35,7 +40,7 @@ export async function submitApprenantQuestionnaire(formData: FormData): Promise<
     .select('id')
     .eq('assignment_id', assignmentId)
     .maybeSingle();
-  if (existing) redirect(`${base}?done=already`);
+  if (existing) redirect(pageSimple ? `${base}/${assignmentId}` : `${base}?done=already`);
 
   const { data: t } = await admin
     .schema('app')
@@ -100,5 +105,10 @@ export async function submitApprenantQuestionnaire(formData: FormData): Promise<
     console.error('[espace-apprenant] bascule du statut en « completed » échouée', statutErr);
   }
 
-  redirect(`${base}?done=1`);
+  // L'indicateur Qualiopi du dossier se lit dans la checklist stockée.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: qualiopiErr } = await (admin as any).rpc('recompute_qualiopi_checklist', { p_dossier_id: dossierId });
+  if (qualiopiErr) console.error('[questionnaire stagiaire] checklist Qualiopi non recalculée', dossierId, qualiopiErr.message);
+
+  redirect(pageSimple ? `${base}/${assignmentId}?merci=1` : `${base}?done=1`);
 }

@@ -282,6 +282,32 @@ export function relanceSatisfactionReferentEmail(d: {
   return { subject, html };
 }
 
+/**
+ * Un seul e-mail à l'entreprise pour tous ses stagiaires : le lien personnel
+ * de chacun, à lui transmettre (questionnaire, quiz…).
+ */
+export function liensStagiairesReferentEmail(d: {
+  prenom: string;
+  objet: string;
+  intro: string;
+  stagiaires: ReadonlyArray<{ nom: string; lien: string }>;
+  organisme: string;
+  libelleLien: string;
+}): { subject: string; html: string } {
+  const lignes = d.stagiaires
+    .map((s) => `<li style="margin:0 0 8px;">${escapeHtml(s.nom)} — <a href="${s.lien}" style="color:#c2410c;">${escapeHtml(d.libelleLien)}</a></li>`)
+    .join('');
+  const html = wrapper(`
+    ${card(`
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bonjour ${escapeHtml(d.prenom)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">${escapeHtml(d.intro)}</p>
+      <ul style="font-size:14px; color:#18181b; padding-left:18px; margin:0 0 16px;">${lignes}</ul>
+      <p style="font-size:12px; color:#71717a; margin:0;">Chaque lien est personnel : transmettez-le au stagiaire concerné. — ${escapeHtml(d.organisme)}</p>
+    `)}
+  `);
+  return { subject: d.objet, html };
+}
+
 export type ProspectEmailData = {
   firstName: string;
   lastName: string;

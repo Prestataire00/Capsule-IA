@@ -18,8 +18,10 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { questionnaireEmail, type DestinataireQuestionnaire } from '@/shared/lib/email/questionnaire-email';
 import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme';
 import { generateQuestionnaireToken } from '@/shared/lib/questionnaire-token';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
+import { liensStagiairesReferentEmail } from '@/shared/lib/email/templates';
 import { interlocuteurDuModele } from './cartographie';
+import { lienStagiaire } from './lien-stagiaire';
+import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Client = SupabaseClient<any, any, any>;
@@ -214,6 +216,10 @@ export async function envoyerQuestionnaireSeance(sb: Client, args: { sessionId: 
     : { data: null };
   const formationTitle = (fRow as { title?: string } | null)?.title ?? null;
 
+  // Les stagiaires ne reçoivent rien eux-mêmes : leurs liens partent groupés
+  // à leur entreprise, qui les transmet (on n'a pas toujours leur adresse).
+  const liensStagiaires = new Map<string, Array<{ nom: string; lien: string }>>();
+
   for (const c of cibles) {
     try {
       // Une assignation par (modèle, dossier, destinataire) : deux liens en
@@ -257,13 +263,20 @@ export async function envoyerQuestionnaireSeance(sb: Client, args: { sessionId: 
       }
       const assignmentId = (creee as { id: string }).id;
 
-      // Le stagiaire répond dans son espace ; les autres par un lien signé.
+      // Le stagiaire répond sur une page seule, par un lien que son entreprise
+      // lui transmet ; les autres reçoivent un lien signé.
       let lien: string | null = null;
       if (c.kind === 'learner') {
         if (base && c.learnerId) {
-          const { url } = await generateApprenantUrl({ learnerId: c.learnerId, organizationId: session.organization_id, dossierId: c.dossierId }, base);
-          lien = `${url}/questionnaires/${assignmentId}`;
+          const lienSeul = await lienStagiaire(base, 'questionnaire', {
+            learnerId: c.learnerId,
+            organizationId: session.organization_id,
+            dossierId: c.dossierId,
+            cibleId: assignmentId,
+          });
+          liensStagiaires.set(c.dossierId, [...(liensStagiaires.get(c.dossierId) ?? []), { nom: `${c.prenom} ${c.nom}`.trim() || c.nom, lien: lienSeul }]);
         }
+        continue;
       } else {
         const signed = await generateQuestionnaireToken({ assignmentId, dossierId: c.dossierId, organizationId: session.organization_id });
         await sb
@@ -303,6 +316,45 @@ export async function envoyerQuestionnaireSeance(sb: Client, args: { sessionId: 
       else if (r.reason !== 'duplicate') bilan.erreurs.push(`${c.nom} : envoi échoué`);
     } catch (e) {
       bilan.erreurs.push(`${c.nom} : ${e instanceof Error ? e.message : 'échec'}`);
+    }
+  }
+
+  // Un e-mail par référent, pour tous ses stagiaires.
+  if (liensStagiaires.size > 0) {
+    const referents = await referentsDesDossiers(sb, [...liensStagiaires.keys()]);
+    const parReferent = new Map<string, { prenom: string; stagiaires: Array<{ nom: string; lien: string }> }>();
+    for (const [dossierId, liste] of liensStagiaires) {
+      const ref = referents.get(dossierId);
+      if (!ref) {
+        bilan.sansAdresse.push(...liste.map((x) => `${x.nom} (pas de référent)`));
+        continue;
+      }
+      const entree = parReferent.get(ref.email) ?? { prenom: ref.prenom, stagiaires: [] };
+      entree.stagiaires.push(...liste);
+      parReferent.set(ref.email, entree);
+    }
+    for (const [email, { prenom, stagiaires }] of parReferent) {
+      const tpl = liensStagiairesReferentEmail({
+        prenom,
+        objet: `« ${modele.title} » — les liens de vos stagiaires`,
+        intro: `Merci de transmettre à chacun de vos stagiaires son lien vers « ${modele.title} »${formationTitle ? `, pour la formation « ${formationTitle} »` : ''}. Quelques minutes suffisent.`,
+        stagiaires,
+        organisme: expediteur.nom,
+        libelleLien: 'son questionnaire',
+      });
+      const r = await sendEmail({
+        to: email,
+        from: expediteur.from,
+        ...(expediteur.email ? { replyTo: expediteur.email } : {}),
+        subject: tpl.subject,
+        html: tpl.html,
+        organizationId: session.organization_id,
+        kind: `questionnaire_${modele.kind}`,
+        metadata: { session_id: session.id, template_id: modele.id, groupe: true, stagiaires: stagiaires.length },
+        idempotencyKey: `questionnaire_seance_groupe:${session.id}:${modele.id}:${email}`,
+      });
+      if (r.ok) bilan.envoyes += stagiaires.length;
+      else if (r.reason !== 'duplicate') bilan.erreurs.push(`${email} : envoi échoué`);
     }
   }
   return bilan;

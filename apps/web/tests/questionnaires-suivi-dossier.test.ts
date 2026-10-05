@@ -80,11 +80,12 @@ describe('la relance', () => {
     expect(EMAIL).toContain('ce rappel n’est adressé qu’aux personnes dont nous n’avons pas reçu la réponse');
   });
 
-  it('relance aussi le stagiaire, vers l’endroit où il répond', () => {
-    // Elle ne savait pas le faire, et le disait. Il répond soit sur la page de
-    // satisfaction, soit dans son espace : le lien suit le modèle.
+  it('relance le stagiaire par son entreprise, vers l’endroit où il répond', () => {
+    // Plus d'espace apprenant (05/10/2026) : le référent reçoit le lien du
+    // stagiaire — page de satisfaction, ou page seule du questionnaire.
     expect(RELANCE).toContain('generateSatisfactionUrl');
-    expect(RELANCE).toContain('/questionnaires/${a.id}');
+    expect(RELANCE).toContain("lienStagiaire(base, 'questionnaire'");
+    expect(RELANCE).toContain('referentsDesDossiers(');
   });
 
   it('le dossier et l’organisation sont vérifiés', () => {
