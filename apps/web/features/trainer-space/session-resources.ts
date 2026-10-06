@@ -1,6 +1,7 @@
 import 'server-only';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { type SupportStatus, isSupportStatus } from './support-status';
+import { dossiersDesSeances, type DossierConcerne } from '@/features/pedagogie/dossiers-concernes';
 
 /**
  * Supports de cours d'une séance (0164).
@@ -222,6 +223,7 @@ export type SupportAValider = SessionResource & {
   readonly sessionId: string;
   readonly sessionTitle: string | null;
   readonly sessionStartsAt: string | null;
+  readonly dossiers: readonly DossierConcerne[];
   readonly authorName: string;
   readonly authorUserId: string | null;
   readonly submittedAt: string;
@@ -249,7 +251,7 @@ export async function loadSupportsAValider(organizationId: string): Promise<Supp
   const rows = (data ?? []) as unknown as Array<Row & { session_id: string; created_by: string | null; submitted_at: string }>;
   if (rows.length === 0) return [];
 
-  const [sessions, auteurs, liens] = await Promise.all([
+  const [sessions, auteurs, liens, dossiers] = await Promise.all([
     admin
       .schema('app')
       .from('sessions')
@@ -267,6 +269,7 @@ export async function loadSupportsAValider(organizationId: string): Promise<Supp
         return s?.signedUrl ?? null;
       }),
     ),
+    dossiersDesSeances(admin, organizationId, rows.map((r) => r.session_id)),
   ]);
 
   const seances = new Map(
@@ -295,6 +298,7 @@ export async function loadSupportsAValider(organizationId: string): Promise<Supp
       sessionId: r.session_id,
       sessionTitle: seance?.title ?? null,
       sessionStartsAt: seance?.starts_at ?? null,
+      dossiers: dossiers.get(r.session_id) ?? [],
       authorName: (r.created_by ? noms.get(r.created_by) : null) ?? 'Formateur',
       authorUserId: r.created_by,
       submittedAt: r.submitted_at,

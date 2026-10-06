@@ -4,6 +4,7 @@ import { estForme, FORME_LABELS, type ContenuExercice, type Forme } from './kind
 import { lireQuestions } from './store';
 import { parseTexteATrou } from './cloze';
 import type { QuestionQuiz } from './quiz';
+import { etiquettesDossiers, type DossierConcerne } from './dossiers-concernes';
 
 /**
  * File de validation des contenus pédagogiques (0172).
@@ -27,8 +28,9 @@ export type CoursAValider = {
   readonly submittedAt: string;
   readonly authorName: string;
   readonly authorUserId: string | null;
-  readonly dossierId: string;
-  readonly dossierReference: string | null;
+  readonly dossier: DossierConcerne | null;
+  /** La séance que le quiz prépare, quand il en prépare une. */
+  readonly seance: { readonly id: string; readonly titre: string | null; readonly debut: string | null } | null;
 };
 
 export async function loadCoursAValider(organizationId: string): Promise<CoursAValider[]> {
@@ -37,7 +39,7 @@ export async function loadCoursAValider(organizationId: string): Promise<CoursAV
     .schema('app')
     .from('exercises' as never)
     .select(
-      'id, kind, title, instructions, questions, content, ai_assisted, submitted_at, created_by, dossier_id',
+      'id, kind, title, instructions, questions, content, ai_assisted, submitted_at, created_by, dossier_id, session_id',
     )
     .eq('organization_id', organizationId)
     .eq('validation_status', 'en_attente')
@@ -61,26 +63,27 @@ export async function loadCoursAValider(organizationId: string): Promise<CoursAV
     submitted_at: string;
     created_by: string | null;
     dossier_id: string;
+    session_id: string | null;
   }>;
   if (rows.length === 0) return [];
 
-  const [{ data: auteurs }, { data: dossiers }] = await Promise.all([
+  const idsSeances = [...new Set(rows.map((r) => r.session_id).filter((x): x is string => Boolean(x)))];
+  const [{ data: auteurs }, dossiers, { data: seancesData }] = await Promise.all([
     admin
       .schema('app')
       .from('profiles')
       .select('user_id, full_name')
       .in('user_id', [...new Set(rows.map((r) => r.created_by).filter((x): x is string => Boolean(x)))]),
-    admin
-      .schema('app')
-      .from('dossiers')
-      .select('id, reference')
-      .in('id', [...new Set(rows.map((r) => r.dossier_id))]),
+    etiquettesDossiers(admin, organizationId, rows.map((r) => r.dossier_id)),
+    idsSeances.length
+      ? admin.schema('app').from('sessions').select('id, title, starts_at').eq('organization_id', organizationId).in('id', idsSeances)
+      : Promise.resolve({ data: [] }),
   ]);
   const noms = new Map(
     ((auteurs ?? []) as Array<{ user_id: string; full_name: string | null }>).map((p) => [p.user_id, p.full_name]),
   );
-  const references = new Map(
-    ((dossiers ?? []) as Array<{ id: string; reference: string }>).map((d) => [d.id, d.reference]),
+  const seances = new Map(
+    ((seancesData ?? []) as Array<{ id: string; title: string | null; starts_at: string | null }>).map((x) => [x.id, x]),
   );
 
   return rows.map((r) => {
@@ -99,8 +102,11 @@ export async function loadCoursAValider(organizationId: string): Promise<CoursAV
       submittedAt: r.submitted_at,
       authorName: (r.created_by ? noms.get(r.created_by) : null) ?? 'Formateur',
       authorUserId: r.created_by,
-      dossierId: r.dossier_id,
-      dossierReference: references.get(r.dossier_id) ?? null,
+      dossier: dossiers.get(r.dossier_id) ?? null,
+      seance: (() => {
+        const x = r.session_id ? seances.get(r.session_id) : undefined;
+        return x ? { id: x.id, titre: x.title, debut: x.starts_at } : null;
+      })(),
     };
   });
 }

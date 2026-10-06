@@ -12,6 +12,7 @@ import { peutValiderPourMembre } from '@/features/trainer-space/validation-recip
 import { loadCoursAValider } from '@/features/pedagogie/validation';
 import { DecisionButtons } from './decision-buttons.client';
 import { CoursDecision } from './cours-decision.client';
+import type { DossierConcerne } from '@/features/pedagogie/dossiers-concernes';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,15 +81,11 @@ export default async function SupportsAValiderPage() {
                       Préparé par <span className="font-medium text-zinc-700 dark:text-zinc-300">{c.authorName}</span>
                       {' · '}
                       <span className="tabular-nums">{dateFmt.format(new Date(c.submittedAt))}</span>
-                      {c.dossierReference && (
-                        <>
-                          {' · '}
-                          <Link href={`/dossiers/${c.dossierId}`} className="text-orange-600 dark:text-orange-400 hover:underline">
-                            {c.dossierReference}
-                          </Link>
-                        </>
-                      )}
                     </p>
+                    <Concerne
+                      dossiers={c.dossier ? [c.dossier] : []}
+                      seance={c.seance ? { id: c.seance.id, titre: c.seance.titre, debut: c.seance.debut } : null}
+                    />
                     {c.instructions && (
                       <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1.5 whitespace-pre-wrap">{c.instructions}</p>
                     )}
@@ -216,17 +213,10 @@ export default async function SupportsAValiderPage() {
                         </>
                       )}
                     </p>
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                      <Link href={`/sessions/${s.sessionId}`} className="text-orange-600 dark:text-orange-400 hover:underline">
-                        {s.sessionTitle ?? 'Séance'}
-                      </Link>
-                      {s.sessionStartsAt && (
-                        <>
-                          {' · '}
-                          <span className="tabular-nums">{jourFmt.format(new Date(s.sessionStartsAt))}</span>
-                        </>
-                      )}
-                    </p>
+                    <Concerne
+                      dossiers={s.dossiers}
+                      seance={{ id: s.sessionId, titre: s.sessionTitle, debut: s.sessionStartsAt }}
+                    />
                   </div>
                 </div>
 
@@ -251,6 +241,46 @@ export default async function SupportsAValiderPage() {
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+/** Le dossier (et la séance) que concerne un contenu : on valide pour un client précis. */
+function Concerne({
+  dossiers,
+  seance,
+}: {
+  dossiers: readonly DossierConcerne[];
+  seance: { id: string; titre: string | null; debut: string | null } | null;
+}) {
+  return (
+    <div className="mt-1.5 space-y-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+      <p className="flex items-center gap-1.5 flex-wrap">
+        <span>Dossier :</span>
+        {dossiers.length === 0 ? (
+          <span className="text-zinc-400">aucun dossier rattaché</span>
+        ) : (
+          dossiers.map((d) => (
+            <Link
+              key={d.id}
+              href={`/dossiers/${d.id}`}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950/50 dark:text-orange-300 dark:hover:bg-orange-950/70"
+            >
+              <span className="font-mono text-[11px]">{d.reference}</span>
+              {d.client && <span>· {d.client}</span>}
+            </Link>
+          ))
+        )}
+      </p>
+      {seance && (
+        <p>
+          Séance :{' '}
+          <Link href={`/sessions/${seance.id}`} className="text-[color:var(--sess)] hover:underline">
+            {seance.titre ?? 'Séance'}
+          </Link>
+          {seance.debut && <span className="tabular-nums"> · {jourFmt.format(new Date(seance.debut))}</span>}
+        </p>
       )}
     </div>
   );
