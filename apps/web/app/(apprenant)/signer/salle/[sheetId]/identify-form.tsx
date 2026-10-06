@@ -6,8 +6,8 @@ import { forgetRoomIdentity, identifyInRoom } from './actions';
 
 const MESSAGES: Record<string, string> = {
   room_name_invalid: 'Indiquez votre prénom et votre nom.',
-  room_name_unknown:
-    'Aucun apprenant de cette séance ne porte ce nom. Vérifiez l’orthographe, ou demandez au formateur de vous faire signer.',
+  room_name_unknown: 'Ce nom n’est pas sur la liste de la séance. Vérifiez l’orthographe — ou, si vous n’y êtes pas encore, ajoutez-vous.',
+  room_self_add_failed: 'L’ajout n’a pas pu se faire. Demandez au formateur de vous ajouter.',
   room_name_ambiguous:
     'Plusieurs apprenants portent ce nom sur cette séance : demandez au formateur de vous faire signer sur sa tablette.',
   room_pass_expired: 'Le délai est dépassé. Scannez à nouveau le QR code affiché à l’écran.',
@@ -38,7 +38,17 @@ export function RoomIdentifyForm({
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
+  const [inconnu, setInconnu] = useState(false);
   const [pending, start] = useTransition();
+
+  const identifier = (ajouter: boolean) =>
+    start(async () => {
+      setErreur(null);
+      const r = await identifyInRoom({ sheetId, pass, prenom, nom, ajouter });
+      if (r.ok) return window.location.assign(r.path);
+      setInconnu(r.error === 'room_name_unknown');
+      setErreur(MESSAGES[r.error] ?? 'L’identification a échoué. Réessayez ou demandez au formateur.');
+    });
 
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-10">
@@ -46,12 +56,8 @@ export function RoomIdentifyForm({
         className="w-full max-w-[400px] space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
-          setErreur(null);
-          start(async () => {
-            const r = await identifyInRoom({ sheetId, pass, prenom, nom });
-            if (r.ok) window.location.assign(r.path);
-            else setErreur(MESSAGES[r.error] ?? 'L’identification a échoué. Réessayez ou demandez au formateur.');
-          });
+          setInconnu(false);
+          identifier(false);
         }}
       >
         <div className="text-center space-y-2">
@@ -114,6 +120,17 @@ export function RoomIdentifyForm({
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
           Continuer vers la signature
         </button>
+
+        {inconnu && (
+          <button
+            type="button"
+            onClick={() => identifier(true)}
+            disabled={pending}
+            className="w-full h-11 rounded-lg border border-zinc-300 dark:border-zinc-700 text-[14px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+          >
+            Je ne suis pas sur la liste : m’ajouter ({prenom.trim()} {nom.trim()})
+          </button>
+        )}
 
         {warning && (
           <button
