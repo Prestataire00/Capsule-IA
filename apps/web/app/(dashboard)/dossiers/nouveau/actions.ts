@@ -1,5 +1,6 @@
 'use server';
 
+import { alerterDirectionNouveauDossier } from '@/features/dossier/alerte-nouveau-dossier';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
@@ -252,6 +253,13 @@ export const createDossierAction = authActionClient
       } catch (e) {
         console.error('[createDossierAction] envoi fiche besoin échoué', e);
       }
+    }
+
+    // La direction est prévenue du nouveau dossier (cloche + e-mail).
+    try {
+      await alerterDirectionNouveauDossier(supabaseAdmin() as never, dossierId, ctx.userId as unknown as string);
+    } catch (e) {
+      console.error('[createDossierAction] alerte de la direction échouée', e);
     }
 
     revalidatePath('/dossiers');

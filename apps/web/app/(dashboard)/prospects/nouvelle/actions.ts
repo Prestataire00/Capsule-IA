@@ -110,7 +110,7 @@ export async function createDemande(input: NouvelleDemandeValues): Promise<Creat
 
   let dossierId: string | null = null;
   if (v.convertNow) {
-    const conv = await convertProspectToDossier(sb, orgId, prospectId);
+    const conv = await convertProspectToDossier(sb, orgId, prospectId, guard.member.userId);
     if (!conv.ok) {
       revalidatePath('/prospects');
       return {

@@ -1,4 +1,6 @@
 import 'server-only';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { alerterDirectionNouveauDossier } from '@/features/dossier/alerte-nouveau-dossier';
 import { prixParDefaut } from '@/features/billing/grille-tarifaire';
 import { chargerGrille } from '@/features/billing/grille-store';
 import { randomUUID } from 'node:crypto';
@@ -32,6 +34,8 @@ export async function convertProspectToDossier(
   sb: Sb,
   orgId: string,
   prospectId: string,
+  /** Le membre qui convertit, s'il y en a un (pas lors d'une acceptation par le client). */
+  auteurId: string | null = null,
 ): Promise<ConvertResult> {
   const { data: pRow, error: pErr } = await sb
     .schema('app')
@@ -441,6 +445,13 @@ export async function convertProspectToDossier(
 
   // Le devis de la proposition en cours suit la demande dans son dossier.
   await rattacherDevisDeProposition(sb, prospectId, dossierId);
+
+  // La direction est prévenue du nouveau dossier (cloche + e-mail).
+  try {
+    await alerterDirectionNouveauDossier(supabaseAdmin() as never, dossierId, auteurId);
+  } catch (e) {
+    console.error('[conversion] alerte de la direction échouée', dossierId, e);
+  }
 
   return { ok: true, dossierId, report: { learner: learnerOutcome, company: companyOutcome, signals } };
 }

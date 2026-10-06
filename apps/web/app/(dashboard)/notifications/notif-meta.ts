@@ -11,7 +11,7 @@ import {
   ListChecks,
   BookOpen,
   BookCheck,
-  BookX, Highlighter, AtSign } from 'lucide-react';
+  BookX, Highlighter, AtSign, FolderPlus } from 'lucide-react';
 
 export type Notif = {
   id: string;
@@ -41,6 +41,7 @@ export const NOTIF_META: Record<string, Meta> = {
   'support.validated': { label: 'Support validé', icon: BookCheck, tone: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50' },
   'support.annotated': { label: 'Retour sur votre cours', icon: Highlighter, tone: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50' },
   'emargement.ajout_jour_j': { label: 'Stagiaire ajouté le jour J', icon: UserPlus, tone: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50' },
+  'dossier.created': { label: 'Nouveau dossier', icon: FolderPlus, tone: 'text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50' },
   'discussion.mention': { label: 'Mention dans une discussion', icon: AtSign, tone: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50' },
   'support.rejected': { label: 'Support refusé', icon: BookX, tone: 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50' },
 };
@@ -61,6 +62,9 @@ export function notifHref(n: Notif): string | null {
   }
   if (n.template_code === 'emargement.ajout_jour_j' && typeof p.session_id === 'string') {
     return `/sessions/${p.session_id}/apprenants`;
+  }
+  if (n.template_code === 'dossier.created' && typeof p.dossier_id === 'string') {
+    return `/dossiers/${p.dossier_id}`;
   }
   if (n.template_code === 'discussion.mention' && typeof p.dossier_id === 'string') {
     return `/messagerie?dossier=${p.dossier_id}`;

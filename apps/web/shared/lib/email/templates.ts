@@ -710,3 +710,28 @@ export function emargementLinkEmail(data: EmargementLinkData): { subject: string
   `);
   return { subject, html };
 }
+
+/** Alerte à la direction : un dossier vient d'être créé (point Capsule IA du 05/10/2026). */
+export function nouveauDossierEmail(d: {
+  reference: string;
+  client: string | null;
+  formation: string | null;
+  creePar: string | null;
+  debut: string | null;
+  lien: string;
+}): { subject: string; html: string } {
+  const subject = `Nouveau dossier ${d.reference}${d.client ? ` · ${d.client}` : ''}`;
+  const html = wrapper(
+    card(`
+      <h1 style="font-size:20px; color:#18181b; margin:0 0 8px;">Nouveau dossier</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">${d.creePar ? `${escapeHtml(d.creePar)} vient de créer` : 'Un dossier vient d’être créé :'} le dossier <strong style="color:#18181b;">${escapeHtml(d.reference)}</strong>.</p>
+      <table style="width:100%; border-collapse:collapse; margin:0 0 20px;">
+        ${dataRow('Client', escapeHtml(d.client ?? '—'))}
+        ${dataRow('Formation', escapeHtml(d.formation ?? '—'))}
+        ${d.debut ? dataRow('Début', escapeHtml(d.debut)) : ''}
+      </table>
+      <div>${button(d.lien, 'Ouvrir le dossier')}</div>
+    `),
+  );
+  return { subject, html };
+}

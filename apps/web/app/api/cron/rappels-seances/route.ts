@@ -5,12 +5,14 @@ import { reponseCron } from '@/shared/lib/http/cron-response';
 import { envoyerRappelsSeances } from '@/features/sessions/rappels-seances';
 import { envoyerFichesAvantSeance } from '@/features/questionnaire/positionnement-avant-seance';
 import { relancerReferentsSatisfaction } from '@/features/questionnaire/relance-satisfaction-referent';
+import { alerterDirectionDossiersRecents } from '@/features/dossier/alerte-nouveau-dossier';
 
 /**
  * Rappels de séance 48 h et 2 h avant le début, à l'entreprise et au
  * formateur ; fiche de positionnement 24 h avant aux stagiaires qui ne l'ont
  * pas remplie ; 24 h après la dernière séance, relance de satisfaction au
- * référent pour ses stagiaires sans réponse. Appelée toutes les 15 minutes par la base (0203) : le rappel
+ * référent pour ses stagiaires sans réponse ; alerte de la direction pour
+ * chaque nouveau dossier (filet de sécurité). Appelée toutes les 15 minutes par la base (0203) : le rappel
  * « 2 h » ne tient pas dans le passage quotidien des autres envois.
  */
 export const dynamic = 'force-dynamic';
@@ -18,12 +20,13 @@ export const maxDuration = 120;
 
 async function tick() {
   const sb = supabaseAdmin() as never;
-  const [rappels, fiches, satisfaction] = await Promise.all([
+  const [rappels, fiches, satisfaction, nouveauxDossiers] = await Promise.all([
     envoyerRappelsSeances(sb),
     envoyerFichesAvantSeance(sb),
     relancerReferentsSatisfaction(sb),
+    alerterDirectionDossiersRecents(sb),
   ]);
-  return { rappels, fiches, satisfaction };
+  return { rappels, fiches, satisfaction, nouveauxDossiers };
 }
 
 export async function POST(req: Request) {

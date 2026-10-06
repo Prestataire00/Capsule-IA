@@ -55,7 +55,7 @@ export const convertProspect = authActionClient
     const orgId = await resolveAdminOrgId(ctx.userId as unknown as string);
     if (!orgId) return { ok: false as const, error: 'forbidden_not_admin' };
 
-    const result = await convertProspectToDossier(sb, orgId, parsedInput.prospectId);
+    const result = await convertProspectToDossier(sb, orgId, parsedInput.prospectId, ctx.userId as unknown as string);
     revalidatePath('/prospects');
     return result;
   });

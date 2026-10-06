@@ -1,4 +1,6 @@
 import 'server-only';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { alerterDirectionNouveauDossier } from '@/features/dossier/alerte-nouveau-dossier';
 import { normaliserEmail, porteurCorrespondant } from '@/features/crm/adresse-partagee';
 import { porteursDesAdresses } from '@/features/crm/porteurs-adresses';
 import { randomUUID } from 'node:crypto';
@@ -550,6 +552,12 @@ export async function applyConventionImport(
       else {
         resume.dossierId = dossierId;
         resume.dossierReference = reference;
+        // La direction est prévenue du nouveau dossier (cloche + e-mail).
+        try {
+          await alerterDirectionNouveauDossier(supabaseAdmin() as never, dossierId, userId);
+        } catch (e) {
+          console.error('[import convention] alerte de la direction échouée', dossierId, e);
+        }
       }
     }
   }
