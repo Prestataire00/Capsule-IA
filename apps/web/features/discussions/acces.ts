@@ -62,3 +62,27 @@ export async function mesDossiersFormateur(): Promise<string[]> {
   exigerLecture('dossiers du formateur', error);
   return ((data ?? []) as string[]).filter(Boolean);
 }
+
+export type MoiFormateur = { ok: true; userId: string; nom: string; organizationIds: string[] } | { ok: false };
+
+/** Le formateur connecté, hors dossier : les organismes dont il a une fiche liée à son compte. */
+export async function moiFormateur(): Promise<MoiFormateur> {
+  const { data: auth } = await supabaseServer().auth.getUser();
+  if (!auth.user) return { ok: false };
+  const { data, error } = await supabaseAdmin()
+    .schema('app')
+    .from('trainers')
+    .select('organization_id, first_name, last_name')
+    .eq('user_id', auth.user.id)
+    .is('deleted_at', null);
+  if (error) throw new Error(`[discussion] fiche formateur illisible : ${error.message}`);
+  const fiches = (data ?? []) as Array<{ organization_id: string; first_name: string | null; last_name: string | null }>;
+  if (fiches.length === 0) return { ok: false };
+  const f = fiches[0]!;
+  return {
+    ok: true,
+    userId: auth.user.id,
+    nom: `${f.first_name ?? ''} ${f.last_name ?? ''}`.trim() || 'Formateur',
+    organizationIds: [...new Set(fiches.map((x) => x.organization_id))],
+  };
+}

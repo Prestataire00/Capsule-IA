@@ -64,8 +64,11 @@ export default async function MesNotificationsPage() {
             const Icone = meta.icon;
             const sessionId = typeof n.payload?.session_id === 'string' ? n.payload.session_id : null;
             const dossierId = typeof n.payload?.dossier_id === 'string' ? n.payload.dossier_id : null;
+            const conversationId = typeof n.payload?.conversation_id === 'string' ? n.payload.conversation_id : null;
             const href =
-              n.template_code === 'discussion.mention' && dossierId
+              n.template_code === 'discussion.direct' && conversationId
+                ? `/mes-discussions?direct=${conversationId}`
+                : n.template_code === 'discussion.mention' && dossierId
                 ? `/mes-discussions?dossier=${dossierId}`
                 : sessionId
                   ? n.related_aggregate_type === 'session_resource'

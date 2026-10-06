@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ModaliteModifiable } from './modalite.client';
 import { MODALITIES, type Modality } from '@/features/dossier/modality-set';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Calendar, ClipboardList, Clock, FileText, Users as UsersIcon, Banknote } from 'lucide-react';
+import { ArrowLeft, Calendar, ClipboardList, Clock, FileText, MessagesSquare, Users as UsersIcon, Banknote } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { nomDuDossier } from '@/features/dossier/referent';
@@ -298,6 +298,14 @@ export default async function DossierLayout({
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {gererDossiers && (
+              <Link
+                href={`/messagerie?dossier=${params.id}`}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                <MessagesSquare className="w-4 h-4" aria-hidden /> Ouvrir la messagerie
+              </Link>
+            )}
             <DossierStatusControl dossierId={params.id} status={d.status as DossierStatus} />
             <ManageOnly section="dossiers">
               <SupprimerOuArchiver

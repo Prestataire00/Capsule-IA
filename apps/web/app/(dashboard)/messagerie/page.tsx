@@ -9,11 +9,12 @@ import { dossiersEnCours, equipeDuFil, libellesFils } from '@/features/discussio
 import { loadFils, loadMessagesEquipe, marquerFilLu } from '@/features/discussions/store';
 import { Messagerie } from '@/features/discussions/ui/messagerie';
 import { infosDuFil } from '@/features/discussions/infos-fil';
-import { envoyerMessageEquipe } from './actions';
+import { accesConversation, interlocuteursDe, loadConversations, loadMessagesDirects, marquerConversationLue } from '@/features/discussions/directs-store';
+import { envoyerMessageDirectEquipe, envoyerMessageEquipe, ouvrirConversationEquipe } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function MessageriePage({ searchParams }: { searchParams: { dossier?: string; q?: string; vue?: string } }) {
+export default async function MessageriePage({ searchParams }: { searchParams: { dossier?: string; direct?: string; q?: string; vue?: string } }) {
   const moi = await accesEquipe(null);
   if (!moi.ok) redirect('/');
   const choisi = searchParams.dossier && (await accesEquipe(searchParams.dossier)).ok ? searchParams.dossier : null;
@@ -24,6 +25,21 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
   const libelles = await libellesFils(
     [...recents, ...(choisi ? [choisi] : [])].filter((id) => !avecFil.has(id) || id === choisi),
   );
+
+  const [directs, joignables] = await Promise.all([
+    loadConversations(moi.userId, [moi.organizationId]),
+    interlocuteursDe(moi.organizationId, { avecFormateurs: true }),
+  ]);
+  let direct = null;
+  if (searchParams.direct && !choisi) {
+    const acces = await accesConversation(searchParams.direct, moi.userId);
+    const conversation = directs.find((c) => c.id === searchParams.direct);
+    if (acces.ok && acces.organizationId === moi.organizationId && conversation) {
+      const messagesDirects = await loadMessagesDirects(conversation.id);
+      await marquerConversationLue(conversation.id, moi.userId);
+      direct = { conversation, messages: messagesDirects };
+    }
+  }
 
   let ouvert = null;
   if (choisi) {
@@ -43,7 +59,8 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
           <h1 className="text-[24px] leading-none font-semibold text-zinc-900 dark:text-zinc-100">Messagerie</h1>
         </div>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 max-w-md">
-          Une discussion par dossier, avec ses formateurs et l&apos;équipe. La personne mentionnée avec @ est prévenue dans sa cloche et par e-mail.
+          Une discussion par dossier, avec ses formateurs et l&apos;équipe, et des messages directs avec qui vous voulez. La
+          personne mentionnée avec @, ou destinataire d&apos;un message direct, est prévenue dans sa cloche et par e-mail.
         </p>
       </header>
       <Messagerie
@@ -55,6 +72,11 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
         meId={moi.userId}
         recherche={searchParams.q ?? ''}
         pourMoi={searchParams.vue === 'moi'}
+        directs={directs}
+        joignables={joignables.filter((j) => j.userId !== moi.userId)}
+        direct={direct}
+        envoyerDirect={envoyerMessageDirectEquipe}
+        ouvrirDirect={ouvrirConversationEquipe}
       />
     </div>
   );

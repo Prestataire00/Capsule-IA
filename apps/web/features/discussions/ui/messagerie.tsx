@@ -1,10 +1,14 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowUpRight, AtSign, MessagesSquare, Plus, Search } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, AtSign, MessagesSquare, Search } from 'lucide-react';
 import type { Fil, MessageEquipe } from '../store';
 import type { LibelleDossier, MembreDiscussion } from '../equipe';
 import type { InfosFil } from '../infos-fil';
 import { FilMessages } from './fil-messages';
 import { ComposerEquipe } from './composer.client';
+import { ComposerDirect } from './composer-direct.client';
+import { NouvelleConversation } from './nouvelle.client';
+import { titreConversation, type Interlocuteur } from '../directs';
+import type { ConversationDirecte } from '../directs-store';
 
 const dateCourte = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' });
 
@@ -29,6 +33,10 @@ type Ouvert = {
   lien: string | null;
 };
 
+type DirectOuvert = { conversation: ConversationDirecte; messages: readonly MessageEquipe[] };
+
+type Envoi<T> = (input: T) => Promise<{ ok: true } | { ok: false; error: string }>;
+
 /**
  * La messagerie d'équipe en trois volets : les fils, regroupés par client, à
  * gauche ; la discussion au centre ; les infos rapides et l'équipe à droite.
@@ -44,6 +52,11 @@ export function Messagerie({
   meId,
   recherche = '',
   pourMoi = false,
+  directs,
+  joignables,
+  direct,
+  envoyerDirect,
+  ouvrirDirect,
 }: {
   chemin: string;
   fils: readonly Fil[];
@@ -54,6 +67,13 @@ export function Messagerie({
   meId: string;
   recherche?: string;
   pourMoi?: boolean;
+  /** Conversations directes, hors dossier. */
+  directs: readonly ConversationDirecte[];
+  /** Les personnes à qui l'on peut écrire. */
+  joignables: readonly Interlocuteur[];
+  direct: DirectOuvert | null;
+  envoyerDirect: Envoi<{ conversationId: string; body: string }>;
+  ouvrirDirect: (input: { avec: string[] }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
 }) {
   const q = normaliser(recherche.trim());
   const visibles = q
@@ -66,48 +86,27 @@ export function Messagerie({
   const groupes = new Map<string, Fil[]>();
   for (const f of visibles) groupes.set(f.dossier.titre, [...(groupes.get(f.dossier.titre) ?? []), f]);
   const lienFil = (id: string, extra = '') => `${chemin}?dossier=${id}${q ? `&q=${encodeURIComponent(recherche)}` : ''}${extra}`;
+  const directsVisibles = q
+    ? directs.filter((c) =>
+        normaliser([titreConversation(c.autres), c.dernierMessage?.body ?? ''].join(' ')).includes(q),
+      )
+    : directs;
+  const lienDirect = (id: string) => `${chemin}?direct=${id}${q ? `&q=${encodeURIComponent(recherche)}` : ''}`;
+  const unOuvert = Boolean(ouvert || direct);
   const messages = ouvert && pourMoi ? ouvert.messages.filter((m) => m.mentions.includes(meId) || m.authorUserId === meId) : (ouvert?.messages ?? []);
 
   return (
     <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)_280px] rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden lg:h-[calc(100vh-12rem)] lg:min-h-[560px]">
       {/* ── Les fils ─────────────────────────────────────────────── */}
-      <aside className={`${ouvert ? 'hidden lg:flex' : 'flex'} flex-col min-h-0 border-r border-zinc-200/70 dark:border-zinc-800`}>
-        <div className="p-4 space-y-3 border-b border-zinc-100 dark:border-zinc-800">
+      <aside className={`${unOuvert ? 'hidden lg:flex' : 'flex'} flex-col min-h-0 border-r border-zinc-200/70 dark:border-zinc-800`}>
+        <div className="relative p-4 space-y-3 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">Conversations</h2>
-            {aOuvrir.length > 0 && (
-              <details className="relative">
-                <summary className="list-none cursor-pointer inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                  <Plus className="w-3.5 h-3.5" /> Nouvelle
-                </summary>
-                <form action={chemin} className="absolute right-0 z-20 mt-1.5 w-72 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 shadow-md space-y-2">
-                  <label htmlFor="ouvrir-dossier" className="block text-[12px] text-zinc-500 dark:text-zinc-400">
-                    Ouvrir la discussion d&apos;un dossier
-                  </label>
-                  <select
-                    id="ouvrir-dossier"
-                    name="dossier"
-                    defaultValue=""
-                    className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 text-[12px]"
-                  >
-                    <option value="" disabled>
-                      Choisir…
-                    </option>
-                    {aOuvrir.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.titre} · {d.reference}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="submit" className="w-full h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium">
-                    Ouvrir
-                  </button>
-                </form>
-              </details>
-            )}
+            <NouvelleConversation chemin={chemin} joignables={joignables} dossiers={aOuvrir} ouvrir={ouvrirDirect} />
           </div>
           <form action={chemin} role="search" className="relative">
             {ouvert && <input type="hidden" name="dossier" value={ouvert.dossier.id} />}
+            {direct && <input type="hidden" name="direct" value={direct.conversation.id} />}
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
             <label htmlFor="recherche-fils" className="sr-only">
               Rechercher une conversation
@@ -116,14 +115,63 @@ export function Messagerie({
               id="recherche-fils"
               name="q"
               defaultValue={recherche}
-              placeholder="Client, dossier, message…"
+              placeholder="Personne, client, dossier, message…"
               className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-9 pr-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-orange-500/30"
             />
           </form>
         </div>
 
         <nav aria-label="Conversations" className="flex-1 min-h-0 overflow-y-auto p-2">
-          {visibles.length === 0 && (
+          {directsVisibles.length > 0 && (
+            <div className="mb-2">
+              <p className="flex items-center justify-between px-2.5 pt-2 pb-1 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                <span>Messages directs</span>
+                <span className="tabular-nums">{directsVisibles.length}</span>
+              </p>
+              <ul className="space-y-0.5">
+                {directsVisibles.map((c) => {
+                  const actif = direct?.conversation.id === c.id;
+                  const titre = titreConversation(c.autres);
+                  return (
+                    <li key={c.id}>
+                      <Link
+                        href={lienDirect(c.id)}
+                        aria-current={actif ? 'page' : undefined}
+                        className={`flex items-start gap-2.5 rounded-lg px-2.5 py-2 transition ${
+                          actif ? 'bg-orange-50 dark:bg-orange-950/30' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                        }`}
+                      >
+                        <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                          {c.autres.length > 1 ? `${c.autres.length}` : initiales(c.autres[0]?.nom ?? '?')}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{titre}</span>
+                            {c.dernierMessage && (
+                              <span className="ml-auto text-[11px] text-zinc-400 tabular-nums shrink-0">
+                                {dateCourte.format(new Date(c.dernierMessage.createdAt))}
+                              </span>
+                            )}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
+                              {c.dernierMessage ? `${c.dernierMessage.authorName} : ${c.dernierMessage.body}` : 'Nouvelle conversation'}
+                            </span>
+                            {c.nonLus > 0 && (
+                              <span className="ml-auto h-5 min-w-5 px-1.5 rounded-full text-[11px] font-medium bg-orange-500 text-white grid place-items-center tabular-nums shrink-0">
+                                {c.nonLus}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {visibles.length === 0 && directsVisibles.length === 0 && (
             <p className="px-3 py-8 text-[13px] text-zinc-500 dark:text-zinc-400 text-center">
               {q ? 'Aucune conversation ne correspond.' : 'Aucune discussion pour l’instant.'}
             </p>
@@ -185,7 +233,27 @@ export function Messagerie({
       </aside>
 
       {/* ── La discussion ────────────────────────────────────────── */}
-      {ouvert ? (
+      {direct ? (
+        <section className="flex flex-col min-h-0 min-w-0" aria-label={`Conversation avec ${titreConversation(direct.conversation.autres)}`}>
+          <header className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+            <Link href={chemin} className="lg:hidden mb-1 inline-flex items-center gap-1 text-[12px] text-zinc-500">
+              <ArrowLeft className="w-3.5 h-3.5" /> Conversations
+            </Link>
+            <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+              {titreConversation(direct.conversation.autres)}
+            </h2>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
+              Message direct · {direct.conversation.autres.map((a) => a.fonction).filter((f, i, t) => t.indexOf(f) === i).join(', ')}
+            </p>
+          </header>
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+            <FilMessages messages={direct.messages} noms={[]} meId={meId} vide="Écrivez le premier message." />
+          </div>
+          <div className="border-t border-zinc-100 dark:border-zinc-800 p-4">
+            <ComposerDirect conversationId={direct.conversation.id} envoyer={envoyerDirect} />
+          </div>
+        </section>
+      ) : ouvert ? (
         <section className="flex flex-col min-h-0 min-w-0" aria-label={`Discussion ${ouvert.dossier.titre}`}>
           <header className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
@@ -253,10 +321,42 @@ export function Messagerie({
             </span>
             <p className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Choisissez une conversation</p>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-              Une discussion par dossier, avec ses formateurs et l&apos;équipe. Mentionnez la personne concernée avec @ : elle est prévenue.
+              Une discussion par dossier, avec ses formateurs et l&apos;équipe, ou un message direct à une ou plusieurs personnes
+              avec « Nouvelle ».
             </p>
           </div>
         </section>
+      )}
+
+      {/* ── Participants d'une conversation directe ──────────────── */}
+      {direct && (
+        <aside className="hidden xl:block min-h-0 overflow-y-auto border-l border-zinc-200/70 dark:border-zinc-800 p-5">
+          <section className="space-y-2.5">
+            <h3 className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+              Participants · <span className="tabular-nums">{direct.conversation.autres.length + 1}</span>
+            </h3>
+            <ul className="space-y-2.5">
+              {direct.conversation.autres.map((m) => (
+                <li key={m.userId} className="flex items-center gap-2.5">
+                  <span
+                    className={`w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold ${
+                      m.role === 'formateur'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                        : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                    }`}
+                  >
+                    {initiales(m.nom)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{m.nom}</span>
+                    <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">{m.fonction}</span>
+                  </span>
+                </li>
+              ))}
+              <li className="text-[12px] text-zinc-500 dark:text-zinc-400">et vous</li>
+            </ul>
+          </section>
+        </aside>
       )}
 
       {/* ── Infos rapides et équipe ──────────────────────────────── */}

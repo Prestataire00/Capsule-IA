@@ -12,3 +12,21 @@ export const messageEquipeSchema = z.object({
 });
 
 export type MessageEquipeInput = z.infer<typeof messageEquipeSchema>;
+
+/** Message d'une conversation directe : on parle à des personnes, sans mention à poser. */
+export const messageDirectSchema = z.object({
+  conversationId: z.string().uuid(),
+  body: z.string().trim().min(1, 'Écrivez votre message.').max(4000, 'Message trop long (4 000 caractères au plus).'),
+});
+
+export type MessageDirectInput = z.infer<typeof messageDirectSchema>;
+
+/** Les personnes avec qui ouvrir une conversation directe. */
+export const nouvelleConversationSchema = z.object({
+  avec: z
+    .array(z.string().uuid())
+    .min(1, 'Choisissez au moins une personne.')
+    .max(12, 'Douze personnes au plus dans une conversation.'),
+});
+
+export type NouvelleConversationInput = z.infer<typeof nouvelleConversationSchema>;

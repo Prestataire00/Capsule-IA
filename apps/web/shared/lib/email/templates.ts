@@ -232,6 +232,21 @@ export function mentionEquipeEmail(d: { auteur: string; dossier: string; message
   return { subject, html };
 }
 
+/** Un message direct, hors dossier. Envoyé au premier message non lu seulement. */
+export function messageDirectEmail(d: { auteur: string; message: string; lien: string }): { subject: string; html: string } {
+  const subject = `${d.auteur} vous a écrit`;
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Message direct</p>
+      <h1 style="font-size:18px; font-weight:600; margin:0 0 12px;">${escapeHtml(d.auteur)} vous a écrit</h1>
+      <blockquote style="margin:0 0 20px; padding:12px 14px; background:#fafafa; border-left:3px solid #f97316; font-size:14px; color:#3f3f46; white-space:pre-wrap;">${escapeHtml(d.message)}</blockquote>
+      <div>${button(d.lien, 'Répondre')}</div>
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">Vous ne recevrez pas d'autre e-mail pour cette conversation tant que vous ne l'aurez pas ouverte.</p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 /** Le lien de l'espace entreprise, envoyé au référent du client. */
 export function espaceEntrepriseEmail(d: { prenom: string; organisme: string; lien: string }): { subject: string; html: string } {
   const subject = `Vos documents de formation — ${d.organisme}`;
