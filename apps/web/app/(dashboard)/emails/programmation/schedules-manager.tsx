@@ -35,7 +35,7 @@ export type ScheduleRow = {
 // Documents pouvant être joints (documents.kind persistés). '' = aucune pièce jointe.
 const ATTACHMENT_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Aucune pièce jointe' },
-  { value: 'convention', label: 'Convention de formation' },
+  { value: 'convention', label: 'Contrat de formation (particuliers seulement)' },
   { value: 'attestation', label: 'Attestation de fin de formation' },
   { value: 'certificat', label: 'Certificat de réalisation' },
 ];

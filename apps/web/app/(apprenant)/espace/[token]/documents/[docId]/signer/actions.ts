@@ -8,6 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { apresSignature } from '@/features/documents/apres-signature';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { SIGNABLE_DOCUMENT_KINDS } from './signable';
+import { documentVisiblePourLeStagiaire } from '@/features/documents/convention-destinataire';
 
 export type SignDocumentResult =
   | { ok: true; signedAt: string }
@@ -36,12 +37,22 @@ export async function signDocument(input: {
   const { data: doc } = await admin
     .schema('app')
     .from('documents')
-    .select('id, dossier_id, kind, file_hash')
+    .select('id, dossier_id, kind, file_hash, visible_entreprise, dossier:dossiers(company_id)')
     .eq('id', input.docId)
     .is('deleted_at', null)
     .maybeSingle();
-  const document = doc as { dossier_id: string; kind: string; file_hash: string | null } | null;
+  const document = doc as {
+    dossier_id: string;
+    kind: string;
+    file_hash: string | null;
+    visible_entreprise: boolean;
+    dossier: { company_id: string | null } | Array<{ company_id: string | null }> | null;
+  } | null;
   if (!document || document.dossier_id !== dossierId) return { ok: false, error: 'not_found' };
+  const dossierDoc = Array.isArray(document.dossier) ? document.dossier[0] : document.dossier;
+  if (!documentVisiblePourLeStagiaire({ visibleEntreprise: document.visible_entreprise, kind: document.kind }, { companyId: dossierDoc?.company_id ?? null })) {
+    return { ok: false, error: 'not_found' };
+  }
   if (!SIGNABLE_DOCUMENT_KINDS.has(document.kind)) return { ok: false, error: 'not_signable' };
 
   // Idempotence : déjà signé par cet apprenant ?

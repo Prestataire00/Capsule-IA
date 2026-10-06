@@ -2,6 +2,7 @@
 // Justification: tick quotidien qui envoie convocations J-7, satisfaction et fin de formation.
 // Protégé par CRON_SECRET — invoqué par Railway cron / cron-job.org / pg_cron.
 
+import { conventionAuReferent } from '@/features/documents/convention-destinataire';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes, createHash } from 'crypto';
@@ -1089,11 +1090,15 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
       const { data: dRow } = await sb
         .schema('app')
         .from('dossiers')
-        .select('id, organization_id, formation_id, learner_id')
+        .select('id, organization_id, formation_id, learner_id, company_id')
         .eq('id', dossierId)
         .maybeSingle();
-      const d = dRow as { organization_id: string; formation_id: string; learner_id: string } | null;
+      const d = dRow as { organization_id: string; formation_id: string; learner_id: string; company_id: string | null } | null;
       if (!d || d.organization_id !== rule.organization_id) continue;
+      // La convention ne part ni au formateur, ni aux stagiaires d'une entreprise
+      // (elle va à son référent) : seul un particulier reçoit son contrat.
+      const conventionInterdite =
+        rule.attachment_kind === 'convention' && (rule.recipient_kind !== 'learner' || conventionAuReferent({ companyId: d.company_id }));
 
       // Anti-doublon : déjà envoyé pour ce dossier + cette règle ?
       const { data: already } = await sb
@@ -1117,7 +1122,7 @@ async function runCustomSchedules(): Promise<{ candidates: number; sent: number;
       // Pièce jointe optionnelle : dernier document du type demandé pour ce dossier.
       // Calculée une fois par dossier (réutilisée pour tous les destinataires).
       let attachments: { filename: string; content: string }[] | undefined;
-      if (rule.attachment_kind) {
+      if (rule.attachment_kind && !conventionInterdite) {
         try {
           const { data: docRow } = await sb
             .schema('app')

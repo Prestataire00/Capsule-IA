@@ -1,9 +1,7 @@
 'use server';
 
-import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
 import { recordAttendanceStep } from '@/features/attendance/record-step';
 import { ficheDePositionnement } from '@/features/questionnaire/needs-analysis';
 
@@ -14,8 +12,6 @@ export type SignStepResult =
       status: string;
       lateArrival: string | null;
       earlyDeparture: string | null;
-      /** Après la sortie, pour un lien reçu par l'apprenant : son espace de formation. */
-      espaceUrl: string | null;
       /** Fiche de positionnement pas encore remplie : il la remplit sur place. */
       ficheUrl: string | null;
     }
@@ -54,9 +50,7 @@ export async function signStep(input: { token: string; moment: 'entry' | 'exit';
   });
   if (!r.ok) return r;
 
-  let espaceUrl: string | null = null;
   let ficheUrl: string | null = null;
-  const lienPersonnel = r.channel === 'email' || r.channel === 'espace';
   const ctx =
     signerKind === 'learner'
       ? ((
@@ -84,13 +78,5 @@ export async function signStep(input: { token: string; moment: 'entry' | 'exit';
     if (fiche.statut === 'a_remplir') ficheUrl = fiche.url;
   }
 
-  if (input.moment === 'exit' && signerKind === 'learner' && lienPersonnel && env.PUBLIC_APP_URL) {
-    if (ctx?.learner_dossier_id) {
-      espaceUrl = (
-        await generateApprenantUrl({ learnerId: signerId, organizationId: ctx.organization_id, dossierId: ctx.learner_dossier_id }, env.PUBLIC_APP_URL)
-      ).url;
-    }
-  }
-
-  return { ok: true, signedAt: r.signedAt, status: r.status, lateArrival: r.lateArrival, earlyDeparture: r.earlyDeparture, espaceUrl, ficheUrl };
+  return { ok: true, signedAt: r.signedAt, status: r.status, lateArrival: r.lateArrival, earlyDeparture: r.earlyDeparture, ficheUrl };
 }

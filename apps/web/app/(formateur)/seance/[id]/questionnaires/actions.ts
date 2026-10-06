@@ -6,7 +6,9 @@ import { z } from 'zod';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
+import { lienStagiaire } from '@/features/questionnaire/lien-stagiaire';
+import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
+import { liensStagiairesReferentEmail } from '@/shared/lib/email/templates';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
 import { loadSessionsByIds } from '@/features/trainer-space/my-sessions';
 import { questionnaireInvitationEmail } from '@/features/trainer-space/questionnaire-email';
@@ -20,8 +22,10 @@ export type SendQuestionnaireResult =
 
 /**
  * Le formateur envoie un questionnaire à tous les apprenants attendus de SA
- * séance : une affectation par apprenant (dossier de la séance), puis un
- * e-mail avec le lien vers son espace. Déjà envoyé à un apprenant : sauté.
+ * séance : une affectation par apprenant (dossier de la séance), puis les
+ * liens personnels des stagiaires partent groupés au référent de leur
+ * entreprise, qui les transmet (plus d'espace apprenant : point Capsule IA du
+ * 05/10/2026). Un particulier reçoit le sien. Déjà envoyé : sauté.
  */
 export async function sendSessionQuestionnaire(input: { sessionId: string; templateId: string }): Promise<SendQuestionnaireResult> {
   const p = sendSchema.safeParse(input);
@@ -72,6 +76,7 @@ export async function sendSessionQuestionnaire(input: { sessionId: string; templ
   let skipped = 0;
   let sent = 0;
   const withoutEmail: string[] = [];
+  const aEnvoyer: Array<{ dossierId: string; nom: string; prenom: string; email: string | null; lien: string }> = [];
   for (const l of (learners ?? []) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[]) {
     const dossierId = dossierDe.get(l.id);
     const nom = `${l.first_name ?? ''} ${l.last_name ?? ''}`.trim() || 'Apprenant';
@@ -92,7 +97,7 @@ export async function sendSessionQuestionnaire(input: { sessionId: string; templ
       skipped++;
       continue;
     }
-    const { error } = await admin
+    const { data: creee, error } = await admin
       .schema('app')
       .from('questionnaire_assignments')
       .insert({
@@ -107,37 +112,84 @@ export async function sendSessionQuestionnaire(input: { sessionId: string; templ
         status: 'pending',
         session_id: s.id,
         sent_by_trainer_id: acces.trainerId,
-      } as never);
-    if (error) {
-      console.error('[espace formateur] affectation refusée', error.message);
+      } as never)
+      .select('id')
+      .single();
+    if (error || !creee) {
+      console.error('[espace formateur] affectation refusée', error?.message);
       continue;
     }
     assigned++;
 
-    if (!l.email || !base) {
+    if (!base) {
       withoutEmail.push(nom);
       continue;
     }
-    const lien = await generateApprenantUrl({ learnerId: l.id, organizationId: s.organization_id, dossierId }, base);
+    const lien = await lienStagiaire(base, 'questionnaire', {
+      learnerId: l.id,
+      organizationId: s.organization_id,
+      dossierId,
+      cibleId: (creee as { id: string }).id,
+    });
+    aEnvoyer.push({ dossierId, nom, prenom: l.first_name ?? '', email: l.email, lien });
+  }
+
+  // Les liens des salariés d'une entreprise partent ensemble à son référent ;
+  // un particulier (sans référent) reçoit le sien.
+  const referents = await referentsDesDossiers(admin as never, [...new Set(aEnvoyer.map((x) => x.dossierId))]);
+  const groupes = new Map<string, { prenom: string; stagiaires: Array<{ nom: string; lien: string }> }>();
+  for (const x of aEnvoyer) {
+    const ref = referents.get(x.dossierId);
+    if (ref) {
+      const g = groupes.get(ref.email) ?? { prenom: ref.prenom, stagiaires: [] };
+      g.stagiaires.push({ nom: x.nom, lien: x.lien });
+      groupes.set(ref.email, g);
+      continue;
+    }
+    if (!x.email) {
+      withoutEmail.push(x.nom);
+      continue;
+    }
     const mail = questionnaireInvitationEmail({
-      firstName: l.first_name ?? '',
+      firstName: x.prenom,
       trainerName: acces.trainerName,
       questionnaireTitle: modele.title,
       formationTitle: seance?.title ?? 'votre formation',
-      url: `${lien.url}/questionnaires`,
+      url: x.lien,
       anonymous: isSatisfactionKind(modele.kind),
     });
     const r = await sendEmail({
-      to: l.email,
+      to: x.email,
       subject: mail.subject,
       html: mail.html,
       organizationId: s.organization_id,
-      dossierId,
+      dossierId: x.dossierId,
       kind: 'questionnaire_invitation',
       metadata: { session_id: s.id, template_id: modele.id, sent_by_trainer_id: acces.trainerId },
     });
     if (r.ok) sent++;
-    else withoutEmail.push(nom);
+    else withoutEmail.push(x.nom);
+  }
+  const { data: org } = await admin.schema('app').from('organizations').select('name').eq('id', s.organization_id).maybeSingle();
+  for (const [email, g] of groupes) {
+    const tpl = liensStagiairesReferentEmail({
+      prenom: g.prenom,
+      objet: `« ${modele.title} » — à transmettre à vos stagiaires`,
+      intro: `${acces.trainerName} vous adresse le questionnaire « ${modele.title} » pour ${seance?.title ?? 'la formation'}. Merci de transmettre à chacun de vos stagiaires son lien personnel.`,
+      stagiaires: g.stagiaires,
+      organisme: (org as { name: string | null } | null)?.name ?? 'Votre organisme de formation',
+      libelleLien: 'son questionnaire',
+    });
+    const r = await sendEmail({
+      to: email,
+      subject: tpl.subject,
+      html: tpl.html,
+      organizationId: s.organization_id,
+      kind: 'questionnaire_invitation',
+      metadata: { session_id: s.id, template_id: modele.id, sent_by_trainer_id: acces.trainerId, groupe: true, stagiaires: g.stagiaires.length },
+    });
+    if (r.ok) sent += g.stagiaires.length;
+    else withoutEmail.push(...g.stagiaires.map((x) => x.nom));
   }
 
   revalidatePath(`/seance/${s.id}/questionnaires`);

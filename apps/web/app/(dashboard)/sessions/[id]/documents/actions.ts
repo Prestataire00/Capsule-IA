@@ -12,6 +12,8 @@ import { destinatairesConvocation, mentionEntreprise } from '@/features/document
 import { env } from '@/env.mjs';
 import { generateDocumentSignatureToken } from '@/shared/lib/document-signature-token';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
+import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
+import { conventionAuReferent } from '@/features/documents/convention-destinataire';
 import {
   buildLearnerDocument,
   isLearnerDocumentType,
@@ -119,6 +121,27 @@ async function destinataire(
   };
 }
 
+type Destinataire = Awaited<ReturnType<typeof destinataire>>;
+
+/**
+ * La convention d'un dossier d'entreprise se traite avec l'entreprise : elle
+ * part à son référent, qui la signe — jamais au stagiaire (point Capsule IA du
+ * 05/10/2026). Un particulier reste le signataire de son propre contrat.
+ */
+async function destinataireDuDocument(type: LearnerDocumentType, dossierId: string): Promise<Destinataire | 'no_referent'> {
+  if (type !== 'convention') return destinataire(dossierId);
+  const { data } = await supabaseAdmin().schema('app').from('dossiers').select('company_id').eq('id', dossierId).maybeSingle();
+  if (!conventionAuReferent({ companyId: (data as { company_id: string | null } | null)?.company_id ?? null })) return destinataire(dossierId);
+  const referent = (await referentsDesDossiers(supabaseAdmin() as never, [dossierId])).get(dossierId);
+  if (!referent) return 'no_referent';
+  return { emails: [referent.email], signataire: referent.email, name: referent.prenom || 'Madame, Monsieur', viaEntreprise: false, sansAdresse: false };
+}
+
+async function signeParLEntreprise(dossierId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin().schema('app').from('dossiers').select('company_id').eq('id', dossierId).maybeSingle();
+  return conventionAuReferent({ companyId: (data as { company_id: string | null } | null)?.company_id ?? null });
+}
+
 const corps = (prenom: string, intro: string) =>
   `<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fafafa;padding:32px;">
 <div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px;">
@@ -139,7 +162,8 @@ export const sendLearnerDocument = authActionClient.schema(schema).action(async 
   });
   if (!built) return { ok: false as const, error: 'build_failed' };
 
-  const qui = await destinataire(parsedInput.dossierId);
+  const qui = await destinataireDuDocument(g.type, parsedInput.dossierId);
+  if (qui === 'no_referent') return { ok: false as const, error: 'no_referent' };
   if (qui.emails.length === 0) return { ok: false as const, error: 'no_email' };
 
   const res = await sendEmail({
@@ -191,8 +215,11 @@ export const requestLearnerDocumentSignature = authActionClient.schema(schema).a
   });
   if (!built) return { ok: false as const, error: 'build_failed' };
 
-  const qui = await destinataire(parsedInput.dossierId);
+  const qui = await destinataireDuDocument(g.type, parsedInput.dossierId);
+  if (qui === 'no_referent') return { ok: false as const, error: 'no_referent' };
   if (!qui.signataire) return { ok: false as const, error: 'no_email' };
+  // Convention d'entreprise : c'est le référent qui signe, pour l'entreprise.
+  const parLeReferent = g.type === 'convention' && (await signeParLEntreprise(parsedInput.dossierId));
 
   const { data: learnerRow } = await admin
     .schema('app')
@@ -218,8 +245,8 @@ export const requestLearnerDocumentSignature = authActionClient.schema(schema).a
     .insert({
       organization_id: built.organizationId,
       document_id: documentId,
-      signer_kind: 'learner',
-      signer_learner_id: learnerId,
+      signer_kind: parLeReferent ? 'company_rep' : 'learner',
+      signer_learner_id: parLeReferent ? null : learnerId,
       signer_email: qui.signataire,
       signer_name: qui.name,
       status: 'pending',

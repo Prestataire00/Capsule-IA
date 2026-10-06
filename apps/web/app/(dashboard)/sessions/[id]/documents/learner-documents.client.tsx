@@ -39,6 +39,7 @@ const ERREURS: Record<string, string> = {
   dossier_not_in_session: 'Ce dossier n’est pas rattaché à la séance.',
   build_failed: 'Le document n’a pas pu être généré.',
   no_email: 'Cet apprenant n’a pas d’adresse e-mail.',
+  no_referent: 'La convention part au référent de l’entreprise : renseignez-le sur le dossier.',
   send_failed: 'L’envoi a échoué.',
   not_signable: 'Ce document ne se signe pas.',
   unknown_type: 'Type de document inconnu.',

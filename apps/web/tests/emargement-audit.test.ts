@@ -9,11 +9,11 @@ const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf
 const SQL = lire('../../../supabase/migrations/0147_emargement_audit.sql');
 
 describe('sécurité', () => {
-  it('ne remet l’espace apprenant qu’à la sortie, et pour un lien reçu par l’apprenant', () => {
-    const action = lire('../app/(apprenant)/signer/[token]/actions.ts');
-    expect(action).toContain("r.channel === 'email' || r.channel === 'espace'");
-    expect(action).toContain("input.moment === 'exit'");
+  it('ne renvoie plus vers l’espace apprenant après l’émargement (remplacé par l’espace entreprise)', () => {
+    // Point Capsule IA du 05/10/2026 : plus d'espace apprenant, ni à la sortie ni ailleurs.
+    expect(lire('../app/(apprenant)/signer/[token]/actions.ts')).not.toContain('generateApprenantUrl');
     expect(lire('../app/(apprenant)/signer/[token]/page.tsx')).not.toContain('generateApprenantUrl');
+    expect(lire('../app/(apprenant)/signer/[token]/signer-form.tsx')).not.toContain('espaceUrl');
   });
 
   it('trace le canal et l’émetteur de chaque lien', () => {

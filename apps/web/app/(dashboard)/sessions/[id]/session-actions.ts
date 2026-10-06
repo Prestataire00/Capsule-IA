@@ -6,8 +6,6 @@ import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { loadSession } from '@/features/sessions/load-session';
-import { generateApprenantUrl } from '@/shared/lib/apprenant-token';
-import { env } from '@/env.mjs';
 import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
 import { buildGroupConventions } from '@/features/documents/build-group-convention';
 import { buildConventionInput } from '@/features/documents/build-convention-input';
@@ -21,6 +19,8 @@ import { persistGeneratedDocument } from '@/features/documents/persist-document'
 export const sendDocumentToSession = authActionClient
   .schema(z.object({ sessionId: z.string().uuid(), kind: z.string().trim().min(1).max(60) }))
   .action(async ({ parsedInput, ctx }) => {
+    // La convention ne s'envoie pas aux stagiaires : elle part au référent de l'entreprise.
+    if (parsedInput.kind === 'convention') return { ok: false as const, error: 'convention_referent' };
     const loaded = await loadSession(ctx.supabase, parsedInput.sessionId);
     if (!loaded) return { ok: false as const, error: 'session_not_found' };
     const orgId = loaded.session.organization_id;
@@ -70,48 +70,6 @@ export const sendDocumentToSession = authActionClient
     }
 
     revalidatePath(`/sessions/${parsedInput.sessionId}/documents`);
-    return { ok: true as const, sent, skipped };
-  });
-
-// Génère et envoie par email l'accès à l'espace de formation à TOUS les apprenants
-// de la session (URL signée, valable 90 j). Saute les apprenants sans email.
-export const sendSessionAccess = authActionClient
-  .schema(z.object({ sessionId: z.string().uuid() }))
-  .action(async ({ parsedInput, ctx }) => {
-    const loaded = await loadSession(ctx.supabase, parsedInput.sessionId);
-    if (!loaded) return { ok: false as const, error: 'session_not_found' };
-    if (!env.PUBLIC_APP_URL) return { ok: false as const, error: 'public_app_url_missing' };
-    const orgId = loaded.session.organization_id;
-
-    let sent = 0;
-    let skipped = 0;
-    for (const l of loaded.learners) {
-      if (!l.email) {
-        skipped++;
-        continue;
-      }
-      const signed = await generateApprenantUrl(
-        { learnerId: l.id, organizationId: orgId, dossierId: l.dossierId },
-        env.PUBLIC_APP_URL,
-      );
-      const res = await sendEmail({
-        to: l.email,
-        subject: 'Votre espace de formation est prêt',
-        html: `<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fafafa;padding:32px;">
-<div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px;">
-<p style="color:#3f3f46;font-size:14px;line-height:1.6;">Bonjour ${l.first_name},</p>
-<p style="color:#3f3f46;font-size:14px;line-height:1.6;">Votre espace de formation est accessible via le lien ci-dessous (valable 90 jours) :</p>
-<p style="margin:20px 0;"><a href="${signed.url}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;">Accéder à mon espace</a></p>
-<p style="color:#a1a1aa;font-size:11px;word-break:break-all;">${signed.url}</p></div></body></html>`,
-        organizationId: orgId,
-        dossierId: l.dossierId,
-        kind: 'acces_apprenant',
-      });
-      if (res.ok) sent++;
-      else skipped++;
-    }
-
-    revalidatePath(`/sessions/${parsedInput.sessionId}/acces`);
     return { ok: true as const, sent, skipped };
   });
 
@@ -203,15 +161,13 @@ export const sendCompanyAttendanceSheets = authActionClient
   });
 
 /**
- * Documents contractuels de la séance, en DEUX jeux quand le client est une
- * entreprise :
+ * Documents contractuels de la séance :
  *
- *  • l'exemplaire de l'**entreprise** — un seul document listant l'intégralité
+ *  • pour une **entreprise**, son exemplaire — un seul document listant l'intégralité
  *    de ses stagiaires, le montant et les heures cumulés, signé par son
  *    responsable. C'est la pièce contractuelle, celle qu'on lui transmet ;
- *  • l'exemplaire de **chaque stagiaire** — nominatif, aux mêmes conditions,
- *    déposé dans son dossier et donc dans son espace. Il ne nomme que lui :
- *    un salarié n'a pas à connaître la liste ni les tarifs de ses collègues.
+ *  • (plus d'exemplaire par stagiaire : la convention d'une entreprise ne va
+ *    qu'à son référent, jamais à ses salariés).
  *
  * Un particulier, lui, n'a qu'un document : son contrat de formation
  * professionnelle (art. L.6353-3 à L.6353-7, délai de rétractation).
@@ -267,29 +223,9 @@ export const generateGroupConventions = authActionClient
       entreprises.push(c.companyName);
     }
 
-    // Exemplaire nominatif de chaque salarié : mêmes conditions, son seul nom.
-    let stagiaires = 0;
-    for (const l of loaded.learners.filter((x) => x.companyId)) {
-      const built = await buildConventionInput(admin as never, l.dossierId, null);
-      if (!built) continue;
-      const input = { ...built.input, audience: 'stagiaire' as const };
-      const bytes = await generateConventionPDF(input);
-      await persistGeneratedDocument(admin as never, {
-        organizationId: built.organizationId,
-        dossierId: l.dossierId,
-        kind: 'convention',
-        title: `Convention de formation — ${l.first_name} ${l.last_name}`,
-        bytes,
-        generationInput: input,
-        sourceKey: `convention-stagiaire:${parsedInput.sessionId}:${l.dossierId}`,
-        metadata: {
-          audience: 'stagiaire',
-          session_id: parsedInput.sessionId,
-          company_id: l.companyId,
-        },
-      });
-      stagiaires += 1;
-    }
+    // Plus d'exemplaire nominatif par salarié : la convention d'une entreprise
+    // se traite avec elle seule, via son référent (point Capsule IA du 05/10/2026).
+    const stagiaires = 0;
 
     revalidatePath(`/sessions/${parsedInput.sessionId}/documents`);
     return {

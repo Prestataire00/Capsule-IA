@@ -7,19 +7,20 @@ import { FormField, inputClass } from '@/shared/ui/form-field';
 import { Button } from '@/shared/ui/button';
 import { sendDocumentToSession } from '../session-actions';
 
+// Pas de convention : celle d'une entreprise ne part qu'à son référent.
 const KINDS: { value: string; label: string }[] = [
-  { value: 'convention', label: 'Convention de formation' },
   { value: 'attestation', label: 'Attestation de fin de formation' },
   { value: 'certificat', label: 'Certificat de réalisation' },
   { value: 'programme', label: 'Programme' },
 ];
 
 const ERROR_LABELS: Record<string, string> = {
+  convention_referent: 'La convention part au référent de l’entreprise, pas aux stagiaires.',
   session_not_found: 'Session introuvable.',
 };
 
 export function DocumentSessionForm({ sessionId, learnerCount }: { sessionId: string; learnerCount: number }) {
-  const [kind, setKind] = useState('convention');
+  const [kind, setKind] = useState('attestation');
   const send = useAction(sendDocumentToSession);
 
   const res = send.result?.data;

@@ -34,10 +34,12 @@ describe('envoi par le formateur', () => {
     expect(TRAINER_SENDABLE_KINDS).not.toContain('opco');
   });
 
-  it('trace la séance et le formateur, et renvoie vers les questionnaires de l’espace apprenant', () => {
+  it('trace la séance et le formateur, et envoie les liens groupés au référent (plus d’espace apprenant)', () => {
     expect(actions).toContain('session_id: s.id');
     expect(actions).toContain('sent_by_trainer_id: acces.trainerId');
-    expect(actions).toContain('`${lien.url}/questionnaires`');
+    expect(actions).toContain("lienStagiaire(base, 'questionnaire'");
+    expect(actions).toContain('liensStagiairesReferentEmail(');
+    expect(actions).not.toContain('generateApprenantUrl');
   });
 
   it('l’e-mail échappe le texte et annonce l’anonymat', () => {

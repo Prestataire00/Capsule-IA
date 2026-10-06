@@ -98,7 +98,8 @@ export default async function SessionDocumentsTab({ params }: { params: { id: st
       const sig = signature.get(cle);
       return {
         type: d.type,
-        label: d.label,
+        // La convention d'un salarié se traite avec son entreprise : envoi et signature vont au référent.
+        label: d.type === 'convention' && l.companyId ? 'Convention — au référent' : d.label,
         signable: d.signable,
         url: learnerDocumentUrl(d.type, l.dossierId, params.id),
         envoyeLe: dernierEnvoi.get(cle) ?? null,

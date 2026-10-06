@@ -24,7 +24,7 @@ type Etat =
   | { nom: 'consentement' }
   | { nom: 'signature'; moment: Moment }
   | { nom: 'entree_faite'; heure: string; retard: string | null; ficheUrl: string | null }
-  | { nom: 'termine'; espaceUrl: string | null; depart: string | null; ficheUrl: string | null };
+  | { nom: 'termine'; depart: string | null; ficheUrl: string | null };
 
 const PARIS = 'Europe/Paris';
 const heure = (iso: string) => new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: PARIS }).format(new Date(iso));
@@ -82,7 +82,7 @@ export function SignerForm({
       return;
     }
     if (moment === 'entry' && !unSeulTemps) setEtat({ nom: 'entree_faite', heure: heure(r.signedAt), retard: r.lateArrival, ficheUrl: r.ficheUrl });
-    else setEtat({ nom: 'termine', espaceUrl: r.espaceUrl, depart: r.earlyDeparture, ficheUrl: r.ficheUrl });
+    else setEtat({ nom: 'termine', depart: r.earlyDeparture, ficheUrl: r.ficheUrl });
   };
 
   const entete = (
@@ -137,11 +137,6 @@ export function SignerForm({
           </p>
           {etat.depart && <p className="text-[12px] text-amber-600 mt-2">Départ anticipé noté à {etat.depart}.</p>}
           {etat.ficheUrl && <FicheAPresenter url={etat.ficheUrl} />}
-          {etat.espaceUrl && (
-            <a href={etat.espaceUrl} className="mt-6 inline-flex items-center h-10 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[13px] font-semibold px-4 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition">
-              Accéder à mon espace de formation
-            </a>
-          )}
         </div>
       </div>
     );

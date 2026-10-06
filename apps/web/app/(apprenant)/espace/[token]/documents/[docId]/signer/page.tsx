@@ -10,6 +10,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { DocumentSignerForm } from './document-signer-form';
 import { SIGNABLE_DOCUMENT_KINDS } from './signable';
+import { documentVisiblePourLeStagiaire } from '@/features/documents/convention-destinataire';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,19 +30,27 @@ export default async function SignDocumentPage({ params }: { params: { token: st
   const { data: doc, error: erreurDocument } = await admin
     .schema('app')
     .from('documents')
-    .select('id, dossier_id, kind, title')
+    .select('id, dossier_id, kind, title, visible_entreprise, dossier:dossiers(company_id)')
     .eq('id', params.docId)
     .is('deleted_at', null)
     .maybeSingle();
   // Une panne rendait la page introuvable : l'apprenant croyait le document
   // retiré et ne signait pas.
   exigerLecture('document à signer', erreurDocument);
-  const document = doc as { dossier_id: string; kind: string; title: string | null } | null;
+  const document = doc as {
+    dossier_id: string;
+    kind: string;
+    title: string | null;
+    visible_entreprise: boolean;
+    dossier: { company_id: string | null } | Array<{ company_id: string | null }> | null;
+  } | null;
+  const dossierDoc = Array.isArray(document?.dossier) ? document?.dossier[0] : document?.dossier;
 
   if (
     !document ||
     document.dossier_id !== verified.value.dossierId ||
-    !SIGNABLE_DOCUMENT_KINDS.has(document.kind)
+    !SIGNABLE_DOCUMENT_KINDS.has(document.kind) ||
+    !documentVisiblePourLeStagiaire({ visibleEntreprise: document.visible_entreprise, kind: document.kind }, { companyId: dossierDoc?.company_id ?? null })
   ) {
     return notFound();
   }

@@ -462,68 +462,6 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
-
-// ────────────────────────────────────────────────────────────────
-// Email 2 — Dossier d'entrée (envoyé à la confirmation du dossier)
-// ────────────────────────────────────────────────────────────────
-
-export type WelcomePacketData = {
-  firstName: string;
-  formationTitle: string;
-  startDate: string; // ISO YYYY-MM-DD
-  endDate: string;
-  totalHours: number;
-  modality: string;
-  trainerName: string | null;
-  trainerEmail: string | null;
-  espaceUrl: string | null; // URL signée vers /espace/[token]
-  conventionUrl: string | null; // PDF convention de formation
-};
-
-const MODALITY_LABEL: Record<string, string> = {
-  presentiel: 'Présentiel',
-  distanciel: 'Distanciel',
-  hybride: 'Hybride',
-};
-
-export function welcomePacketEmail(data: WelcomePacketData): { subject: string; html: string } {
-  const subject = `Bienvenue dans « ${data.formationTitle} » — préparons votre entrée en formation`;
-  const startFR = new Date(data.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  const endFR = new Date(data.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  const html = wrapper(`
-    ${card(`
-      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bienvenue ${escapeHtml(data.firstName)} 🎓</h1>
-      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
-        Votre inscription à <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> est confirmée. Vous trouverez ci-dessous l'essentiel pour démarrer sereinement.
-      </p>
-      <table style="width:100%; border-collapse:collapse; border-top:1px solid #f4f4f5;">
-        ${dataRow('Dates', `${startFR} → ${endFR}`)}
-        ${dataRow('Durée', `${data.totalHours} h`)}
-        ${dataRow('Modalité', MODALITY_LABEL[data.modality] ?? data.modality)}
-        ${data.trainerName ? dataRow('Formateur', escapeHtml(data.trainerName)) : ''}
-      </table>
-      ${data.espaceUrl ? `<div style="margin-top:24px;">${button(data.espaceUrl, 'Accéder à mon espace apprenant')}</div>` : ''}
-    `)}
-
-    ${data.conventionUrl ? `
-      <p style="font-size:13px; color:#52525b; margin:24px 0 12px;">
-        📎 Votre <a href="${data.conventionUrl}" style="color:#7c3aed; text-decoration:underline;">convention de formation</a> est jointe en pièce jointe et accessible depuis votre espace.
-      </p>
-    ` : ''}
-
-    <p style="font-size:13px; color:#71717a; margin:24px 0 8px;">
-      Une question avant le démarrage ? Répondez simplement à cet email${data.trainerEmail ? ` ou contactez directement votre formateur (<a href="mailto:${data.trainerEmail}" style="color:#7c3aed;">${escapeHtml(data.trainerEmail)}</a>)` : ''}.
-    </p>
-  `);
-
-  return { subject, html };
-}
-
-// ────────────────────────────────────────────────────────────────
-// Email 3 — Convocation J-7 (envoyée 7 jours avant une session)
-// ────────────────────────────────────────────────────────────────
-
 export type SessionConvocationData = {
   firstName: string;
   formationTitle: string;
@@ -642,100 +580,12 @@ export function needsAnalysisEmail(data: NeedsAnalysisEmailData): { subject: str
   return { subject, html };
 }
 
-// ────────────────────────────────────────────────────────────────
-// Email 5 — Fin de formation (attestation + certificat)
-// ────────────────────────────────────────────────────────────────
-
-export type EndOfTrainingData = {
-  firstName: string;
-  formationTitle: string;
-  endDate: string; // ISO
-  totalHours: number;
-  attendanceRate: number; // 0-100
-  attestationUrl: string | null; // PDF attestation de fin de formation (apprenant)
-  certificateUrl: string | null; // PDF certificat de réalisation (administratif)
-  espaceUrl: string | null;
+const MODALITY_LABEL: Record<string, string> = {
+  presentiel: 'Présentiel',
+  distanciel: 'Distanciel',
+  hybride: 'Hybride',
 };
 
-export function endOfTrainingEmail(data: EndOfTrainingData): { subject: string; html: string } {
-  const subject = `Félicitations ${data.firstName}, votre formation est terminée 🎉`;
-  const endFR = new Date(data.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  const html = wrapper(`
-    ${card(`
-      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Félicitations ${escapeHtml(data.firstName)} 🎉</h1>
-      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
-        Vous avez terminé <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> le <strong>${endFR}</strong>. Voici votre récapitulatif.
-      </p>
-      <table style="width:100%; border-collapse:collapse; border-top:1px solid #f4f4f5;">
-        ${dataRow('Volume horaire', `${data.totalHours} h`)}
-        ${dataRow("Taux d'assiduité", `${Math.round(data.attendanceRate)} %`)}
-      </table>
-      ${data.attestationUrl ? `
-        <div style="margin-top:24px;">${button(data.attestationUrl, 'Télécharger mon attestation de fin')}</div>
-      ` : ''}
-      ${data.certificateUrl ? `
-        <div style="margin-top:12px;">${button(data.certificateUrl, 'Télécharger le certificat de réalisation')}</div>
-      ` : ''}
-      ${data.attestationUrl || data.certificateUrl ? `
-        <p style="font-size:12px; color:#71717a; margin:8px 0 0;">
-          Documents légaux conservés dans votre espace personnel.
-        </p>
-      ` : `<p style="font-size:13px; color:#71717a; margin:20px 0 0;">Vos documents de fin de formation sont en cours de préparation et vous parviendront sous 48 h.</p>`}
-    `)}
-
-    ${data.espaceUrl ? `
-      <p style="font-size:13px; color:#52525b; margin:24px 0 12px;">
-        📁 Retrouvez tous vos documents et supports dans votre <a href="${data.espaceUrl}" style="color:#7c3aed;">espace apprenant</a> (accès 5 ans).
-      </p>
-    ` : ''}
-  `);
-
-  return { subject, html };
-}
-
-// ────────────────────────────────────────────────────────────────
-// Email — Attestation de démarrage (entrée en formation, aux présents)
-// ────────────────────────────────────────────────────────────────
-
-export type StartOfTrainingData = {
-  firstName: string;
-  formationTitle: string;
-  startDate: string; // ISO
-  attestationUrl: string | null; // PDF attestation d'entrée
-  espaceUrl: string | null;
-};
-
-export function startOfTrainingEmail(data: StartOfTrainingData): { subject: string; html: string } {
-  const subject = `Votre entrée en formation « ${data.formationTitle} » est confirmée`;
-  const startFR = new Date(data.startDate).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  const html = wrapper(`
-    ${card(`
-      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bienvenue ${escapeHtml(data.firstName)} 👋</h1>
-      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
-        Votre entrée en formation <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> (démarrée le <strong>${startFR}</strong>) est confirmée. Vous trouverez ci-dessous votre <strong>attestation d'entrée en formation</strong>.
-      </p>
-      ${data.attestationUrl ? `<div>${button(data.attestationUrl, "Télécharger mon attestation d'entrée")}</div>` : ''}
-    `)}
-    ${data.espaceUrl ? `
-      <p style="font-size:13px; color:#52525b; margin:24px 0 12px;">
-        📁 Retrouvez vos documents dans votre <a href="${data.espaceUrl}" style="color:#7c3aed;">espace apprenant</a>.
-      </p>
-    ` : ''}
-  `);
-
-  return { subject, html };
-}
-
-// Email financeur : rend le contenu (sujet + corps) depuis le template d'une
-// étape de playbook, puis l'enveloppe dans la mise en page commune. La logique
-// de rendu vit dans funder-render.ts (module pur, testé) ; ici on n'ajoute que
-// l'habillage serveur (logo, footer).
 export function funderEmail(
   tpl: FunderEmailTemplate,
   vars: Record<string, string>,
