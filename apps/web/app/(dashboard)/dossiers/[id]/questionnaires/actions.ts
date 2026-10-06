@@ -316,7 +316,18 @@ async function envoyerLienQuestionnaire(args: {
     url: `${base}${args.lien}`,
     relance: args.relance,
   });
-  const r = await sendEmail({ to: args.email, subject: tpl.subject, html: tpl.html });
+  const r = await sendEmail({
+    to: args.email,
+    subject: tpl.subject,
+    html: tpl.html,
+    organizationId: args.organizationId,
+    dossierId: args.dossierId,
+    kind: args.relance
+      ? 'relance_questionnaire'
+      : args.destinataire === 'entreprise'
+        ? 'questionnaire_entreprise'
+        : 'questionnaire_financeur',
+  });
   return r.ok;
 }
 

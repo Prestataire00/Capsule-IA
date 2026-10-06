@@ -15,6 +15,8 @@ const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf
 const ACTIONS = lire('../app/(dashboard)/dossiers/[id]/questionnaires/actions.ts');
 const PAGE = lire('../app/(dashboard)/dossiers/[id]/questionnaires/page.tsx');
 const EMAIL = lire('../shared/lib/email/questionnaire-email.ts');
+const SUIVI = lire('../app/(dashboard)/dossiers/[id]/questionnaires/suivi-envois.tsx');
+const ETATS = lire('../features/questionnaire/suivi-envois.ts');
 const RELANCER = lire('../app/(dashboard)/dossiers/[id]/questionnaires/relancer.client.tsx');
 // La relance est commune au bouton du dossier et à la relance automatique J+3.
 const RELANCE = lire('../features/questionnaire/relancer-assignation.ts');
@@ -51,7 +53,8 @@ describe('l’envoi part maintenant par e-mail', () => {
 
 describe('la relance', () => {
   it('se fait sur la ligne de celui qui n’a pas répondu', () => {
-    expect(PAGE).toContain('<Relancer assignmentId={r.id}');
+    expect(PAGE).toContain('<SuiviEnvois');
+    expect(SUIVI).toContain('<Relancer assignmentId={e.id}');
     expect(RELANCER).toContain('relancerQuestionnaire');
   });
 
@@ -96,16 +99,19 @@ describe('la relance', () => {
 
 describe('le suivi', () => {
   it('montre la date d’envoi et l’état', () => {
-    expect(PAGE).toContain('Envoyé le {new Date(r.created_at).toLocaleDateString(\'fr-FR\')}');
-    expect(PAGE).toContain("r.status === 'completed' ? 'répondu' : 'en attente'");
+    // Tous destinataires dans un seul tableau (06/10/2026), sans statut brut.
+    expect(SUIVI).toContain('Envoyé le');
+    expect(SUIVI).toContain('{jour(e.envoyeLe)}');
+    expect(ETATS).toContain("libelle: 'Répondu'");
+    expect(ETATS).toContain("libelle: 'En attente'");
   });
 
   it('mène au questionnaire lui-même', () => {
-    expect(PAGE).toContain('/questionnaires/${r.template_id}/apercu');
-    expect(PAGE).toContain('Lire le questionnaire');
+    expect(SUIVI).toContain('/questionnaires/${e.modeleId}/apercu');
+    expect(SUIVI).toContain('Lire le questionnaire');
   });
 
   it('et à la réponse quand il y en a une', () => {
-    expect(PAGE).toContain('Voir la réponse');
+    expect(SUIVI).toContain('Voir la réponse');
   });
 });

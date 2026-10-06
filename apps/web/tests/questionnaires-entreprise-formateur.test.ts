@@ -52,7 +52,7 @@ describe('l’entreprise', () => {
   it('a désormais son questionnaire', () => {
     expect(ACTIONS).toContain('export const sendCompanyQuestionnaire');
     expect(PAGE).toContain('<SendCompany');
-    expect(PAGE).toContain('Questionnaires entreprise');
+    expect(PAGE).toContain('titre="Entreprise"');
   });
 
   it('répond par une personne nommée, pas par une société', () => {
