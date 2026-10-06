@@ -17,9 +17,9 @@ export type SheetRow = { id: string; label: string };
 
 /**
  * Documents par client de la séance : une convention par entreprise (tous ses
- * stagiaires) DOUBLÉE d'une convention nominative par stagiaire, un contrat par
- * particulier, le récap des convocations au responsable de chaque entreprise et
- * une feuille d'émargement par entreprise.
+ * stagiaires), qui ne va qu'à son référent, un contrat par particulier, le
+ * récap des convocations au responsable de chaque entreprise et une feuille
+ * d'émargement par entreprise.
  */
 export function ClientDocuments({
   sessionId,
@@ -47,7 +47,6 @@ export function ClientDocuments({
       }
       const parts = [
         out.entreprises.length ? `${out.entreprises.length} convention(s) entreprise` : null,
-        out.stagiaires ? `${out.stagiaires} convention(s) stagiaire` : null,
         out.particuliers.length ? `${out.particuliers.length} contrat(s) particulier` : null,
       ].filter(Boolean);
       setMessage({
@@ -119,8 +118,8 @@ export function ClientDocuments({
         </p>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
           Entreprise : une convention listant tous ses salariés, signée par son responsable, qui reçoit aussi le récap
-          des convocations et sa feuille d’émargement — et une convention nominative déposée dans l’espace de chaque
-          stagiaire. Particulier : un contrat de formation professionnelle à son nom.
+          des convocations et sa feuille d’émargement. La convention ne part jamais aux stagiaires. Particulier : un
+          contrat de formation professionnelle à son nom.
         </p>
         </div>
       </div>
