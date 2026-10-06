@@ -33,16 +33,16 @@ export function wrapGeneratedHtml(bodyHtml: string, variables: Record<string, st
     certifications: variables['organisme_agrements'] ?? null,
   });
 
-  const header = `<header ${MARKER} class="doc-brand-header" style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #ececef;padding-bottom:14px;margin-bottom:22px;">
+  const header = `<header ${MARKER} class="doc-brand-header" style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #4c1d95;padding-bottom:14px;margin-bottom:22px;">
     ${logo ? `<div class="doc-brand-logo" style="flex:0 0 auto;">${logo}</div>` : ''}
     <div class="doc-brand-id" style="flex:1 1 auto;line-height:1.4;">
-      ${name ? `<div style="font-weight:700;font-size:15px;color:#18181b;">${name}</div>` : ''}
+      ${name ? `<div style="font-weight:700;font-size:15px;color:#4c1d95;">${name}</div>` : ''}
       ${metaParts.map((l) => `<div style="font-size:11px;color:#71717a;">${l}</div>`).join('')}
     </div>
   </header>`;
 
   const contact = variables['organisme_email']?.trim() ?? '';
-  const footer = `<footer class="doc-brand-footer" style="margin-top:32px;border-top:1px solid #ececef;padding-top:10px;font-size:10px;color:#a1a1aa;line-height:1.5;">
+  const footer = `<footer class="doc-brand-footer" style="margin-top:32px;border-top:1px solid #e9e1f6;padding-top:10px;font-size:10px;color:#a1a1aa;line-height:1.5;">
     ${nda ? `<div>${NDA_DISCLAIMER}</div>` : ''}
     <div>${ACCESSIBILITY_MENTION}</div>
     <div style="margin-top:4px;">${rgpdMention(contact)}</div>

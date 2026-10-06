@@ -23,14 +23,16 @@ export type PaperSheetInput = {
 
 const styles = StyleSheet.create({
   page: { padding: 28, fontSize: 9, fontFamily: 'Helvetica', color: '#18181b' },
-  title: { fontSize: 14, marginBottom: 2 },
-  meta: { color: '#52525b', marginBottom: 12 },
-  head: { flexDirection: 'row', backgroundColor: '#f4f4f5', borderWidth: 1, borderColor: '#a1a1aa', paddingVertical: 4, fontSize: 8 },
+  // Charte Capsule IA : bandeau violet profond, en-têtes de tableau violets.
+  bandeau: { backgroundColor: '#4c1d95', padding: 12, marginBottom: 12 },
+  title: { fontSize: 14, marginBottom: 2, color: '#ffffff' },
+  meta: { color: '#e9e1f6' },
+  head: { flexDirection: 'row', backgroundColor: '#4c1d95', color: '#ffffff', borderWidth: 1, borderColor: '#4c1d95', paddingVertical: 4, fontSize: 8 },
   row: { flexDirection: 'row', borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: '#a1a1aa', height: 38 },
   name: { flex: 1.4, paddingHorizontal: 5, justifyContent: 'center' },
   cell: { flex: 1, borderLeftWidth: 1, borderColor: '#a1a1aa', paddingHorizontal: 4, paddingTop: 3 },
   small: { fontSize: 6.5, color: '#71717a' },
-  section: { marginTop: 16, marginBottom: 4, fontSize: 10 },
+  section: { marginTop: 16, marginBottom: 4, fontSize: 10, color: '#4c1d95' },
   footer: { marginTop: 14, fontSize: 7, color: '#71717a' },
 });
 
@@ -59,11 +61,13 @@ export async function renderPaperSheet(input: PaperSheetInput): Promise<Buffer> 
   const doc = (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.title}>Feuille d’émargement</Text>
-        <Text style={styles.meta}>
-          {input.organizationName} · {input.formationTitle} · {input.slotLabel}
-          {input.companyName ? ` · Société : ${input.companyName}` : ''}
-        </Text>
+        <View style={styles.bandeau}>
+          <Text style={styles.title}>Feuille d’émargement</Text>
+          <Text style={styles.meta}>
+            {input.organizationName} · {input.formationTitle} · {input.slotLabel}
+            {input.companyName ? ` · Société : ${input.companyName}` : ''}
+          </Text>
+        </View>
         {(input.organizationLines ?? []).map((l, i) => (
           <Text key={i} style={styles.small}>
             {l}

@@ -1,4 +1,5 @@
 import 'server-only';
+import { LAVANDE, VIOLET } from './charte-pdf';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { drawOrgLogo } from './pdf-logo';
 import { drawRgpdMention } from './pdf-rgpd';
@@ -44,8 +45,8 @@ const COL = A4.width - MARGIN * 2;
 const COLOR_BODY = rgb(0.094, 0.094, 0.106);
 const COLOR_MUTED = rgb(0.42, 0.42, 0.45);
 const COLOR_RULE = rgb(0.82, 0.82, 0.85);
-const COLOR_ACCENT = rgb(0.486, 0.227, 0.929);
-const COLOR_CADRE_BG = rgb(0.93, 0.91, 0.99);
+const COLOR_ACCENT = VIOLET;
+const COLOR_CADRE_BG = LAVANDE;
 
 type Cursor = { page: PDFPage; y: number };
 

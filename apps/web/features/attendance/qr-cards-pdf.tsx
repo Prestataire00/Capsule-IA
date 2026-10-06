@@ -16,7 +16,7 @@ export type QrCard = {
 
 const styles = StyleSheet.create({
   page: { padding: 24, fontSize: 9, fontFamily: 'Helvetica', color: '#18181b' },
-  title: { fontSize: 12, marginBottom: 12 },
+  title: { fontSize: 12, marginBottom: 12, color: '#4c1d95' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   card: {
     width: '48.5%',
@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#d4d4d8',
+    borderColor: '#c4b5fd',
     borderStyle: 'dashed',
     borderRadius: 6,
     flexDirection: 'row',
@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
   },
   qr: { width: 130, height: 130 },
   text: { flex: 1, paddingLeft: 10 },
-  name: { fontSize: 12, marginBottom: 4 },
+  name: { fontSize: 12, marginBottom: 4, color: '#4c1d95' },
   meta: { color: '#52525b', marginBottom: 2 },
   hint: { color: '#71717a', fontSize: 8, marginTop: 8 },
 });

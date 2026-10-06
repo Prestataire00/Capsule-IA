@@ -45,26 +45,24 @@ export type AttendancePdfInput = {
 
 const styles = StyleSheet.create({
   page: { padding: 28, fontSize: 8.5, fontFamily: 'Helvetica', color: '#18181b' },
+  // Charte Capsule IA (celle des propositions) : bandeau violet profond, en-têtes de tableau violets.
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 14,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#a1a1aa',
+    padding: 12,
+    backgroundColor: '#4c1d95',
   },
+  logoFond: { backgroundColor: '#ffffff', padding: 4 },
   logo: { width: 80, height: 32, objectFit: 'contain' },
-  title: { fontSize: 13 },
-  meta: { color: '#52525b', marginTop: 2 },
+  title: { fontSize: 13, color: '#ffffff' },
+  meta: { color: '#e9e1f6', marginTop: 2 },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f4f4f5',
-    borderTopWidth: 1,
-    borderTopColor: '#a1a1aa',
-    borderBottomWidth: 1,
-    borderBottomColor: '#a1a1aa',
-    paddingVertical: 4,
+    backgroundColor: '#4c1d95',
+    color: '#ffffff',
+    paddingVertical: 5,
     fontSize: 7.5,
   },
   row: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e4e4e7', paddingVertical: 5, minHeight: 40, alignItems: 'center' },
@@ -138,12 +136,14 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
             </Text>
           </View>
           {input.organizationLogoUrl ? (
-            <Image src={input.organizationLogoUrl} style={styles.logo} />
+            <View style={styles.logoFond}>
+              <Image src={input.organizationLogoUrl} style={styles.logo} />
+            </View>
           ) : (
             <View>
-              <Text style={{ fontSize: 10 }}>{input.organizationName}</Text>
+              <Text style={{ fontSize: 10, color: '#ffffff' }}>{input.organizationName}</Text>
               {(input.organizationLines ?? []).map((l, i) => (
-                <Text key={i} style={{ fontSize: 6.5, color: '#71717a', textAlign: 'right' }}>
+                <Text key={i} style={{ fontSize: 6.5, color: '#e9e1f6', textAlign: 'right' }}>
                   {l}
                 </Text>
               ))}
@@ -156,7 +156,7 @@ export const renderAttendancePdf = async (input: AttendancePdfInput): Promise<Bu
           <Text style={styles.cStatus}>Statut</Text>
           <Text style={styles.cSig}>Entrée</Text>
           <Text style={styles.cSig}>Sortie</Text>
-          <Text style={styles.cNotes}>Remarques</Text>
+          <Text style={[styles.cNotes, { color: '#ffffff' }]}>Remarques</Text>
         </View>
 
         {input.lines.map((l, i) => {
