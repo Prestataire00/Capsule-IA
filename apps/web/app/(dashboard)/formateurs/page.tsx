@@ -11,12 +11,19 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { KpiCard, AccentBar, ACCENTS } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
+import { doublonsDeFormateurs } from '@/features/trainers/doublons';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { DoublonsFormateurs } from './doublons.client';
 
 type TrainerRow = {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
+  phone: string | null;
+  siret: string | null;
+  user_id: string | null;
+  created_at: string;
   is_internal: boolean;
   specialties: string[] | null;
   contract_path: string | null;
@@ -49,7 +56,7 @@ export default async function FormateursPage() {
   const { data, error } = await sb
     .schema('app')
     .from('trainers')
-    .select('id, first_name, last_name, email, is_internal, specialties, contract_path, photo_path')
+    .select('id, first_name, last_name, email, phone, siret, user_id, created_at, is_internal, specialties, contract_path, photo_path')
     .is('deleted_at', null)
     .order('last_name', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,6 +66,24 @@ export default async function FormateursPage() {
   const internal = trainers.filter((t) => t.is_internal).length;
   const external = trainers.length - internal;
   const withContract = trainers.filter((t) => t.contract_path).length;
+  // Une même personne saisie deux fois (deux adresses, deux comptes) : à réunir.
+  const [doublons, gerer] = await Promise.all([
+    Promise.resolve(
+      doublonsDeFormateurs(
+        trainers.map((t) => ({
+          id: t.id,
+          firstName: t.first_name,
+          lastName: t.last_name,
+          email: t.email,
+          phone: t.phone,
+          siret: t.siret,
+          aUnCompte: Boolean(t.user_id),
+          creeLe: t.created_at,
+        })),
+      ),
+    ),
+    canManageSection('dossiers'),
+  ]);
 
   return (
     <div className="max-w-7xl w-full mx-auto px-8 py-9">
@@ -98,6 +123,8 @@ export default async function FormateursPage() {
           {error.code ? " (code " + error.code + ")" : ""}. Vos données ne sont pas perdues — réessayez dans un instant.
         </div>
       )}
+
+      {gerer && doublons.length > 0 && <DoublonsFormateurs groupes={doublons} />}
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Total formateurs" value={trainers.length} icon={UserCog} accent="teal" />
