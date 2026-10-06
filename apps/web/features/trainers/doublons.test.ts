@@ -34,3 +34,15 @@ describe('doublons de formateurs', () => {
     expect(doublonsDeFormateurs([f('a', { firstName: 'Léa', lastName: 'Martin' }), f('b', { firstName: 'Paul', lastName: 'Durand' })])).toEqual([]);
   });
 });
+
+describe('même e-mail', () => {
+  it('rapproche deux fiches de même adresse, pas les adresses factices', () => {
+    const g = doublonsDeFormateurs([
+      f('a', { firstName: 'Léa', lastName: 'Martin', email: 'LEA@x.fr' }),
+      f('b', { firstName: 'L.', lastName: 'Martin-Dupont', email: 'lea@x.fr' }),
+      f('c', { firstName: 'P', lastName: 'Q', email: 'sans@import.invalid' }),
+      f('d', { firstName: 'R', lastName: 'S', email: 'sans@import.invalid' }),
+    ]);
+    expect(g.map((x) => x.raison)).toEqual(['Même e-mail']);
+  });
+});

@@ -7,25 +7,24 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import type { FusionResult } from '@/shared/ui/doublons.client';
 
 /**
- * Réunir deux fiches d'un même formateur (0214). Réservé à qui gère les
- * dossiers ; les deux fiches doivent être de l'organisme du membre — les
- * identifiants viennent de l'écran. La fusion elle-même se fait en base, tout
- * ou rien.
+ * Réunir deux fiches d'un même apprenant (0216), depuis un dossier où les deux
+ * figurent. Réservé à qui gère les dossiers ; les fiches doivent être de son
+ * organisme. La fusion se fait en base, tout ou rien : signatures, fiche de
+ * positionnement, questionnaires et dossiers passent sur la fiche gardée.
  */
 
-const Schema = z.object({ gardeId: z.string().uuid(), doublonId: z.string().uuid() }).refine((v) => v.gardeId !== v.doublonId);
+const Schema = z.object({ dossierId: z.string().uuid(), gardeId: z.string().uuid(), doublonId: z.string().uuid() }).refine((v) => v.gardeId !== v.doublonId);
 
-
-export async function fusionnerFormateurs(brut: z.input<typeof Schema>): Promise<FusionResult> {
+export async function fusionnerApprenants(brut: z.input<typeof Schema>): Promise<FusionResult> {
   const garde = await guardAction('dossiers');
-  if (!garde.ok) return { ok: false, error: 'Votre rôle ne permet pas de fusionner des formateurs.' };
+  if (!garde.ok) return { ok: false, error: 'Votre rôle ne permet pas de fusionner des apprenants.' };
   const p = Schema.safeParse(brut);
   if (!p.success) return { ok: false, error: 'Choisissez deux fiches différentes.' };
 
   const admin = supabaseAdmin();
   const { data } = await admin
     .schema('app')
-    .from('trainers')
+    .from('learners')
     .select('id')
     .in('id', [p.data.gardeId, p.data.doublonId])
     .eq('organization_id', garde.member.organizationId)
@@ -34,13 +33,13 @@ export async function fusionnerFormateurs(brut: z.input<typeof Schema>): Promise
 
   const { data: bilan, error } = await admin
     .schema('app')
-    .rpc('fusionner_formateurs' as never, { p_garde: p.data.gardeId, p_doublon: p.data.doublonId } as never);
+    .rpc('fusionner_apprenants' as never, { p_garde: p.data.gardeId, p_doublon: p.data.doublonId } as never);
   if (error) {
-    console.error('[formateurs] fusion impossible', p.data, error.message);
+    console.error('[apprenants] fusion impossible', p.data, error.message);
     return { ok: false, error: 'La fusion n’a pas pu se faire. Rien n’a été modifié.' };
   }
   const b = bilan as unknown as { liens_deplaces?: number } | null;
-  revalidatePath('/formateurs');
-  revalidatePath(`/formateurs/${p.data.gardeId}`);
+  revalidatePath(`/dossiers/${p.data.dossierId}`, 'layout');
+  revalidatePath('/apprenants');
   return { ok: true, message: `Fiches réunies : ${b?.liens_deplaces ?? 0} élément(s) rattaché(s) à la fiche gardée.` };
 }

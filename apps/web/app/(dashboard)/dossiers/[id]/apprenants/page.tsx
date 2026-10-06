@@ -14,6 +14,9 @@ import { estTitulaireProvisoire } from '@/features/dossier/referent';
 import { AjoutApprenants } from './ajout-apprenants.client';
 import { Groupes, type GroupeAffiche } from './groupes.client';
 import { RetirerBouton } from './retirer-bouton.client';
+import { doublonsDeFormateurs } from '@/features/trainers/doublons';
+import { DoublonsAFusionner } from '@/shared/ui/doublons.client';
+import { fusionnerApprenants } from './fusion-actions';
 import { cleStagiaire, scoresPositionnement } from '@/features/questionnaire/scores-positionnement';
 
 export const dynamic = 'force-dynamic';
@@ -121,10 +124,27 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
   // Le titulaire provisoire de l'import ne désigne personne : il n'a pas sa
   // place dans une liste de stagiaires.
   const apprenants = tous.filter((l) => !estTitulaireProvisoire(l.email));
+  // Une même personne inscrite deux fois (deux adresses, une faute de frappe) : à réunir.
+  const doublons = doublonsDeFormateurs(
+    apprenants.map((l) => ({
+      id: l.id,
+      firstName: l.first_name,
+      lastName: l.last_name,
+      email: l.email,
+      phone: l.phone,
+      siret: null,
+      aUnCompte: l.id === dossier.learner_id,
+      creeLe: '',
+    })),
+  );
   // Le score du test de positionnement de chacun, une fois sa fiche remplie.
   const scores = await scoresPositionnement(admin as never, apprenants.map((l) => ({ learnerId: l.id, dossierId: params.id })));
   const enAttenteDeListe = tous.some((l) => estTitulaireProvisoire(l.email));
   const peutModifier = await canManageSection('dossiers');
+  async function fusionnerDansLeDossier(args: { gardeId: string; doublonId: string }) {
+    'use server';
+    return fusionnerApprenants({ dossierId: params.id, ...args });
+  }
 
   // Les groupes du dossier et leur composition (0194). Deux lectures : une
   // jointure imbriquée sur ces tables toutes neuves n'apporterait rien et
@@ -197,6 +217,14 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
             id: l.id,
             nom: `${l.first_name ?? ''} ${l.last_name ?? ''}`.trim() || 'Stagiaire',
           }))}
+        />
+      )}
+
+      {peutModifier && doublons.length > 0 && (
+        <DoublonsAFusionner
+          groupes={doublons}
+          fusionner={fusionnerDansLeDossier}
+          ceQuiSuit="Signatures, fiche de positionnement, questionnaires et dossiers"
         />
       )}
 

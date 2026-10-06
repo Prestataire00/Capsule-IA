@@ -13,7 +13,8 @@ import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { doublonsDeFormateurs } from '@/features/trainers/doublons';
 import { canManageSection } from '@/shared/lib/auth/require-access';
-import { DoublonsFormateurs } from './doublons.client';
+import { DoublonsAFusionner } from '@/shared/ui/doublons.client';
+import { fusionnerFormateurs } from './fusion-actions';
 
 type TrainerRow = {
   id: string;
@@ -124,7 +125,9 @@ export default async function FormateursPage() {
         </div>
       )}
 
-      {gerer && doublons.length > 0 && <DoublonsFormateurs groupes={doublons} />}
+      {gerer && doublons.length > 0 && (
+        <DoublonsAFusionner groupes={doublons} fusionner={fusionnerFormateurs} ceQuiSuit="Séances, dossiers, signatures, supports et factures" />
+      )}
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Total formateurs" value={trainers.length} icon={UserCog} accent="teal" />

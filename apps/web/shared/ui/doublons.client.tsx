@@ -4,25 +4,36 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Merge, UsersRound } from 'lucide-react';
 import type { GroupeDoublons } from '@/features/trainers/doublons';
-import { fusionnerFormateurs } from './fusion-actions';
 
 const nom = (f: { firstName: string | null; lastName: string | null }) => `${f.firstName ?? ''} ${f.lastName ?? ''}`.trim() || 'Sans nom';
+
+export type FusionResult = { ok: true; message: string } | { ok: false; error: string };
 
 /**
  * Les fiches qui désignent sans doute la même personne, et le geste pour les
  * réunir : on choisit celle qu'on garde, l'autre lui est rattachée puis part
  * à la corbeille. Confirmation dans la page — une fusion ne se défait pas.
+ * Sert aux formateurs comme aux apprenants.
  */
-export function DoublonsFormateurs({ groupes }: { groupes: readonly GroupeDoublons[] }) {
+export function DoublonsAFusionner({
+  groupes,
+  fusionner,
+  ceQuiSuit,
+}: {
+  groupes: readonly GroupeDoublons[];
+  fusionner: (args: { gardeId: string; doublonId: string }) => Promise<FusionResult>;
+  /** Ce qui passe sur la fiche gardée, dit à la confirmation. */
+  ceQuiSuit: string;
+}) {
   const router = useRouter();
   const [aConfirmer, setAConfirmer] = useState<{ garde: string; doublon: string; libelle: string } | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
   const [pending, start] = useTransition();
 
-  const fusionner = () => {
+  const confirmer = () => {
     if (!aConfirmer) return;
     start(async () => {
-      const r = await fusionnerFormateurs({ gardeId: aConfirmer.garde, doublonId: aConfirmer.doublon });
+      const r = await fusionner({ gardeId: aConfirmer.garde, doublonId: aConfirmer.doublon });
       setMessage(r.ok ? { ok: true, texte: r.message } : { ok: false, texte: r.error });
       setAConfirmer(null);
       if (r.ok) router.refresh();
@@ -30,12 +41,12 @@ export function DoublonsFormateurs({ groupes }: { groupes: readonly GroupeDoublo
   };
 
   return (
-    <section className="mb-6 rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-4 space-y-3" aria-labelledby="doublons-formateurs">
+    <section className="mb-6 rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-4 space-y-3" aria-labelledby="doublons-fiches">
       <div className="flex items-center gap-2.5">
         <span className="w-8 h-8 rounded-lg grid place-items-center bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
           <UsersRound className="w-4 h-4" />
         </span>
-        <h2 id="doublons-formateurs" className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+        <h2 id="doublons-fiches" className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
           Doublons possibles · <span className="tabular-nums">{groupes.length}</span>
         </h2>
       </div>
@@ -74,9 +85,9 @@ export function DoublonsFormateurs({ groupes }: { groupes: readonly GroupeDoublo
       {aConfirmer && (
         <div role="alertdialog" aria-label="Confirmer la fusion" className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 space-y-2">
           <p className="text-[13px] text-zinc-800 dark:text-zinc-200">{aConfirmer.libelle}</p>
-          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Séances, dossiers, signatures, supports et factures passent sur la fiche gardée ; l’autre part à la corbeille. Cela ne se défait pas.</p>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{ceQuiSuit} passent sur la fiche gardée ; l’autre part à la corbeille. Cela ne se défait pas.</p>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={fusionner} disabled={pending} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium disabled:opacity-50">
+            <button type="button" onClick={confirmer} disabled={pending} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[12px] font-medium disabled:opacity-50">
               {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Réunir les deux fiches
             </button>
             <button type="button" onClick={() => setAConfirmer(null)} className="h-8 px-3 rounded-lg text-[12px] text-zinc-600 dark:text-zinc-300">

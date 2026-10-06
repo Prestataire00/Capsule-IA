@@ -1,7 +1,7 @@
 /**
- * Les fiches formateur qui désignent probablement la même personne (audit du
- * point Capsule IA, 06/10/2026) : même nom (accents, casse et ordre
- * prénom/nom ignorés), même téléphone ou même SIRET. Pur.
+ * Les fiches (formateurs, apprenants) qui désignent probablement la même
+ * personne (audit du point Capsule IA, 06/10/2026) : même nom (accents, casse
+ * et ordre prénom/nom ignorés), même e-mail, même téléphone ou même SIRET. Pur.
  */
 
 export type FicheFormateur = {
@@ -24,6 +24,12 @@ export const cleDeNom = (f: Pick<FicheFormateur, 'firstName' | 'lastName'>): str
   return mots.length >= 2 ? mots.join(' ') : null;
 };
 
+// Une adresse factice (import sans e-mail) ne rapproche personne.
+const cleDEmail = (e: string | null) => {
+  const t = (e ?? '').trim().toLowerCase();
+  return t.includes('@') && !t.endsWith('.invalid') ? t : null;
+};
+
 const chiffres = (t: string | null) => (t ?? '').replace(/\D/g, '');
 const cleDeTelephone = (t: string | null) => {
   const c = chiffres(t);
@@ -41,6 +47,7 @@ export function doublonsDeFormateurs(fiches: readonly FicheFormateur[]): GroupeD
   };
   for (const f of fiches) {
     ajouter(cleDeNom(f), 'Même nom', f);
+    ajouter(cleDEmail(f.email), 'Même e-mail', f);
     ajouter(cleDeTelephone(f.phone), 'Même téléphone', f);
     ajouter(chiffres(f.siret).length === 14 ? chiffres(f.siret) : null, 'Même SIRET', f);
   }
