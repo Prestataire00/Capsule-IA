@@ -3,6 +3,9 @@
 // coût formateur, notes, devis associés — puis l'avancement en quatre temps.
 
 import Link from 'next/link';
+import { ReplaysSeance } from '@/features/sessions/ui/replays-seance.client';
+import { replaysDesSeances } from '@/features/sessions/replays-store';
+import { ajouterReplaySeance, retirerReplaySeance } from './replay-actions';
 import { notFound } from 'next/navigation';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { AlertTriangle, ArrowUpRight, Check, Circle, Clock } from 'lucide-react';
@@ -169,9 +172,11 @@ export default async function SessionOverview({ params }: { params: { id: string
     : null;
 
   const board = buildBoard(facts, `/sessions/${params.id}`);
+  const replays = (await replaysDesSeances([params.id])).get(params.id) ?? [];
 
   return (
     <div className="space-y-5">
+      <ReplaysSeance sessionId={params.id} replays={replays} ajouter={ajouterReplaySeance} retirer={retirerReplaySeance} peutModifier={gerer} />
       <section className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
           <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">Informations</h2>

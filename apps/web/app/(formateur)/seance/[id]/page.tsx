@@ -2,6 +2,9 @@
 // Justification: le poste de travail du formateur sur une séance — qui il a en face,
 // comment les joindre, où se retrouver en visio, et par où passer pour le reste.
 
+import { ReplaysSeance } from '@/features/sessions/ui/replays-seance.client';
+import { replaysDesSeances } from '@/features/sessions/replays-store';
+import { ajouterReplayFormateur, retirerReplayFormateur } from './replay-actions';
 import { notFound } from 'next/navigation';
 import { Mail, Phone, Users, Building2, Home, Video, QrCode, Star } from 'lucide-react';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
@@ -90,6 +93,7 @@ export default async function SeancePage({ params }: { params: { id: string } })
   if (!loaded) notFound();
   const { session, formation } = loaded;
 
+  const replays = (await replaysDesSeances([session.id])).get(session.id) ?? [];
   const contacts = await loadSessionContacts({
     id: session.id,
     organization_id: session.organization_id,
@@ -207,6 +211,7 @@ export default async function SeancePage({ params }: { params: { id: string } })
         vide="Coordonnées de l'organisme non renseignées."
       />
 
+      <ReplaysSeance sessionId={session.id} replays={replays} ajouter={ajouterReplayFormateur} retirer={retirerReplayFormateur} peutModifier />
     </div>
   );
 }

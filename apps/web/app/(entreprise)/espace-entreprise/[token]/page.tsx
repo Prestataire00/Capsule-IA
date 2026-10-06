@@ -5,7 +5,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Building2, CalendarDays, Download, Eye, FileText, FolderOpen, MessageSquareWarning, Receipt } from 'lucide-react';
+import { Building2, CalendarDays, Download, Eye, FileText, FolderOpen, MessageSquareWarning, PlayCircle, Receipt } from 'lucide-react';
 import { verifyEntrepriseToken } from '@/shared/lib/entreprise-token';
 import { chargerEspaceEntreprise, facturesDuReferent, type FactureEntreprise } from '@/features/espace-entreprise/load';
 import { TEMPLATE_KIND_LABELS } from '@/app/(dashboard)/documents/modeles/schema';
@@ -120,6 +120,20 @@ export default async function EspaceEntreprisePage({ params }: { params: { token
                     </li>
                   ))}
                 </ul>
+              )}
+              {d.replays.length > 0 && (
+                <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800">
+                  <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Replays</p>
+                  <ul className="space-y-1">
+                    {d.replays.map((r) => (
+                      <li key={r.id}>
+                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[13px] text-blue-700 dark:text-blue-300 hover:underline">
+                          <PlayCircle className="w-3.5 h-3.5" /> {r.titre} <span className="text-zinc-500 dark:text-zinc-400">· {r.source}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </section>
           ))

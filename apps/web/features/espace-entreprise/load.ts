@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
 import { etatFacture, type StatutFacture } from './statut-facture';
+import { replaysDesSeances } from '@/features/sessions/replays-store';
+import { LIBELLE_SOURCE } from '@/features/sessions/replays';
 
 /**
  * Ce que voit le référent d'un client dans son espace (0207) : ses dossiers
@@ -26,6 +28,8 @@ export type DossierEntreprise = {
   readonly debut: string | null;
   readonly fin: string | null;
   readonly documents: readonly DocumentEntreprise[];
+  /** Les replays (tl;dv, Lexi…) des séances du dossier. */
+  readonly replays: ReadonlyArray<{ id: string; titre: string; url: string; source: string }>;
 };
 
 export type EspaceEntreprise = {
@@ -99,6 +103,37 @@ export async function chargerEspaceEntreprise(contactId: string, organizationId:
     ]);
   }
 
+  // Les replays des séances de ces dossiers, par leurs deux chemins.
+  const [{ data: directes }, { data: liees }] = ids.length
+    ? await Promise.all([
+        admin.schema('app').from('sessions').select('id, dossier_id, starts_at').in('dossier_id', ids).neq('status', 'cancelled'),
+        admin.schema('app').from('session_dossiers').select('dossier_id, session:sessions!inner(id, starts_at, status)').in('dossier_id', ids),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const seancesDe = new Map<string, Array<{ id: string; debut: string }>>();
+  for (const s of (directes ?? []) as Array<{ id: string; dossier_id: string; starts_at: string }>) {
+    seancesDe.set(s.dossier_id, [...(seancesDe.get(s.dossier_id) ?? []), { id: s.id, debut: s.starts_at }]);
+  }
+  for (const l of (liees ?? []) as unknown as Array<{ dossier_id: string; session: { id: string; starts_at: string; status: string } | Array<{ id: string; starts_at: string; status: string }> | null }>) {
+    const se = Array.isArray(l.session) ? l.session[0] : l.session;
+    if (!se || se.status === 'cancelled') continue;
+    const liste = seancesDe.get(l.dossier_id) ?? [];
+    if (!liste.some((x) => x.id === se.id)) seancesDe.set(l.dossier_id, [...liste, { id: se.id, debut: se.starts_at }]);
+  }
+  const replays = await replaysDesSeances([...new Set([...seancesDe.values()].flat().map((x) => x.id))]);
+  const jourSeance = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' });
+  const replaysDe = (dossierId: string) =>
+    (seancesDe.get(dossierId) ?? [])
+      .sort((a, b) => a.debut.localeCompare(b.debut))
+      .flatMap((se) =>
+        (replays.get(se.id) ?? []).map((r) => ({
+          id: r.id,
+          titre: r.titre || `Séance du ${jourSeance.format(new Date(se.debut))}`,
+          url: r.url,
+          source: LIBELLE_SOURCE[r.source],
+        })),
+      );
+
   return {
     referent: `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || 'Référent',
     entreprise,
@@ -111,6 +146,7 @@ export async function chargerEspaceEntreprise(contactId: string, organizationId:
       debut: d.start_date,
       fin: d.end_date,
       documents: parDossier.get(d.id) ?? [],
+      replays: replaysDe(d.id),
     })),
   };
 }
