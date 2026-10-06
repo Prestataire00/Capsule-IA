@@ -31,6 +31,9 @@ const LU_DANS: Record<string, { fichier: string; appel: string }> = {
   rappel_seance_2h: { fichier: 'features/sessions/rappels-seances.ts', appel: "loadReglesParOrganisme(sb, 'rappel_seance_2h')" },
   relance_satisfaction_referent: { fichier: 'features/questionnaire/relance-satisfaction-referent.ts', appel: "loadReglesParOrganisme(sb, 'relance_satisfaction_referent')" },
   relance_satisfaction: { fichier: 'features/questionnaire/relancer-assignation.ts', appel: "loadReglesParOrganisme(sb, 'relance_satisfaction')" },
+  evaluations_fin: { fichier: 'features/questionnaire/evaluations-de-fin.ts', appel: "loadReglesParOrganisme(sb, 'evaluations_fin')" },
+  satisfaction_entreprise: { fichier: 'features/questionnaire/evaluations-de-fin.ts', appel: "loadReglesParOrganisme(sb, 'satisfaction_entreprise')" },
+  dossier_cree: { fichier: 'features/dossier/alerte-nouveau-dossier.ts', appel: "envoiActif(d.organization_id, 'dossier_cree')" },
 };
 
 describe('chaque réglage proposé est respecté à l’envoi', () => {

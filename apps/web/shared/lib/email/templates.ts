@@ -735,3 +735,53 @@ export function nouveauDossierEmail(d: {
   );
   return { subject, html };
 }
+
+/**
+ * 30 minutes avant la fin de la dernière séance : le lien de satisfaction et
+ * des quiz de fin de chaque stagiaire, en un seul e-mail à son entreprise.
+ */
+export function evaluationsFinReferentEmail(d: {
+  prenom: string;
+  formation: string;
+  organisme: string;
+  stagiaires: ReadonlyArray<{ nom: string; satisfaction: string | null; quiz: ReadonlyArray<{ titre: string; lien: string }> }>;
+}): { subject: string; html: string } {
+  const subject = `Fin de formation — les évaluations de vos stagiaires (${d.formation})`;
+  const lignes = d.stagiaires
+    .map(
+      (s) => `<tr><td style="padding:10px 0; border-bottom:1px solid #f1f1f4; vertical-align:top;">
+        <strong style="color:#18181b; font-size:14px;">${escapeHtml(s.nom)}</strong><br>
+        ${s.satisfaction ? `<a href="${s.satisfaction}" style="color:#4c1d95; font-size:13px;">Questionnaire de satisfaction</a>` : ''}
+        ${s.quiz.map((q) => `${s.satisfaction ? ' · ' : ''}<a href="${q.lien}" style="color:#4c1d95; font-size:13px;">${escapeHtml(q.titre)}</a>`).join('')}
+      </td></tr>`,
+    )
+    .join('');
+  const html = wrapper(
+    card(`
+      <h1 style="font-size:20px; color:#18181b; margin:0 0 8px;">La formation se termine</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">Bonjour${d.prenom ? ` ${escapeHtml(d.prenom)}` : ''}, la dernière séance de <strong style="color:#18181b;">${escapeHtml(d.formation)}</strong> s’achève dans une demi-heure. Merci de transmettre à chacun de vos stagiaires ses liens : quelques minutes sur leur téléphone, avant de partir.</p>
+      <table style="width:100%; border-collapse:collapse; margin:0 0 12px;">${lignes}</table>
+      <p style="font-size:12px; color:#71717a; margin:0;">Chaque lien est personnel. ${escapeHtml(d.organisme)}</p>
+    `),
+  );
+  return { subject, html };
+}
+
+/** Au formateur, 30 minutes avant la fin : projeter le QR de satisfaction et lancer le quiz. */
+export function evaluationsFinFormateurEmail(d: {
+  prenom: string;
+  formation: string;
+  projection: string;
+  quiz: ReadonlyArray<string>;
+}): { subject: string; html: string } {
+  const subject = `Dans 30 minutes : les évaluations de fin — ${d.formation}`;
+  const html = wrapper(
+    card(`
+      <h1 style="font-size:20px; color:#18181b; margin:0 0 8px;">C’est le moment des évaluations</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">Bonjour${d.prenom ? ` ${escapeHtml(d.prenom)}` : ''}, la séance se termine dans une demi-heure. Projetez le QR code du questionnaire de satisfaction : chaque stagiaire répond sur son téléphone.${d.quiz.length ? ` Le quiz de fin (${d.quiz.map(escapeHtml).join(', ')}) est aussi à faire.` : ''}</p>
+      <div>${button(d.projection, 'Projeter le QR de satisfaction')}</div>
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">Les liens personnels sont aussi partis aux entreprises, pour les stagiaires qui n’auraient pas le temps.</p>
+    `),
+  );
+  return { subject, html };
+}

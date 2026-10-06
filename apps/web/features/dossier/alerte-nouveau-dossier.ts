@@ -5,6 +5,7 @@ import { nomDuDossier } from '@/features/dossier/referent';
 import { membresParRole } from '@/features/trainer-space/validation-recipients';
 import { envoyerDepuisLOrganisme } from '@/features/sessions/visio';
 import { nouveauDossierEmail } from '@/shared/lib/email/templates';
+import { envoiActif } from '@/features/emails/programmation-store';
 
 /**
  * La direction est prévenue de chaque nouveau dossier, dans sa cloche et par
@@ -51,6 +52,8 @@ export async function alerterDirectionNouveauDossier(
     formation: { title: string | null } | Array<{ title: string | null }> | null;
   } | null;
   if (!d) return { prevenus: 0 };
+  // L'organisme peut couper cette alerte (Envois automatiques).
+  if (!(await envoiActif(d.organization_id, 'dossier_cree'))) return { prevenus: 0 };
   const auteur = auteurId ?? d.created_by;
 
   const direction = (await membresParRole(sb as never, d.organization_id, ['owner', 'admin']))

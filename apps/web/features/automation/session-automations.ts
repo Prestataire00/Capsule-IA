@@ -29,6 +29,12 @@ export const AUTOMATION_KEYS = [
     quand: 'Au début de chaque demi-journée, si l’envoi automatique est activé dans les paramètres',
   },
   { key: 'satisfaction', label: 'Questionnaire de satisfaction à chaud', quand: 'À la fin de la formation, aux apprenants' },
+  {
+    key: 'evaluations_fin',
+    label: 'Évaluations de fin (satisfaction et quiz)',
+    quand: '30 minutes avant la fin de la dernière séance : liens aux entreprises, QR à projeter pour le formateur',
+  },
+  { key: 'satisfaction_entreprise', label: 'Satisfaction de l’entreprise', quand: '24 h après la dernière séance, au référent de l’entreprise' },
   { key: 'fin_formation', label: 'E-mail de fin (attestation et certificat)', quand: 'À la fin de la formation, aux apprenants' },
   { key: 'retour_formateur', label: 'Retour du formateur', quand: 'À la fin de la formation, au formateur' },
   { key: 'attestation_entree', label: 'Attestation d’entrée', quand: 'Après la première signature d’émargement, à l’apprenant' },
