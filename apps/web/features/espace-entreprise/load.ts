@@ -2,6 +2,7 @@ import 'server-only';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { loadOrgLogoDataUri } from '@/features/documents/load-org-branding';
+import { etatFacture, type StatutFacture } from './statut-facture';
 
 /**
  * Ce que voit le référent d'un client dans son espace (0207) : ses dossiers
@@ -151,4 +152,90 @@ export async function documentDuReferent(
     .maybeSingle();
   if ((dossier as { contact_id: string | null } | null)?.contact_id !== contactId) return null;
   return { title: d.title, storagePath: d.storage_path, contentHtml: d.content_html };
+}
+
+export type FactureEntreprise = {
+  readonly id: string;
+  readonly reference: string;
+  readonly nature: 'facture' | 'acompte' | 'solde' | 'avoir';
+  readonly statut: StatutFacture;
+  readonly emiseLe: string | null;
+  readonly echeance: string | null;
+  readonly totalCents: number;
+  readonly resteCents: number;
+  readonly dossierReference: string;
+};
+
+const NATURE: Record<string, FactureEntreprise['nature']> = { invoice: 'facture', deposit: 'acompte', balance: 'solde', credit_note: 'avoir' };
+
+/**
+ * Les factures adressées à l'entreprise sur les dossiers dont il est le
+ * référent (point Capsule IA du 05/10/2026) : ni brouillon, ni facture
+ * annulée, ni celles adressées à un financeur. Ce qui reste à payer se lit
+ * d'après les règlements enregistrés.
+ */
+export async function facturesDuReferent(contactId: string, organizationId: string): Promise<FactureEntreprise[]> {
+  const admin = supabaseAdmin();
+  const { data: dossiers, error: e1 } = await admin
+    .schema('app')
+    .from('dossiers')
+    .select('id, reference')
+    .eq('organization_id', organizationId)
+    .eq('contact_id' as never, contactId as never)
+    .is('deleted_at', null);
+  exigerLecture('dossiers du référent', e1);
+  const refs = new Map(((dossiers ?? []) as Array<{ id: string; reference: string }>).map((d) => [d.id, d.reference]));
+  if (refs.size === 0) return [];
+
+  const { data: inv, error: e2 } = await admin
+    .schema('app')
+    .from('invoices')
+    .select('id, reference, kind, status, issued_at, due_at, total_cents, dossier_id')
+    .eq('organization_id', organizationId)
+    .in('dossier_id', [...refs.keys()])
+    .is('funder_id', null)
+    .is('deleted_at', null)
+    .not('status', 'in', '(draft,cancelled)')
+    .order('issued_at', { ascending: false, nullsFirst: false });
+  exigerLecture('factures du référent', e2);
+  const factures = (inv ?? []) as unknown as Array<{
+    id: string;
+    reference: string;
+    kind: string | null;
+    status: string;
+    issued_at: string | null;
+    due_at: string | null;
+    total_cents: number;
+    dossier_id: string;
+  }>;
+  if (factures.length === 0) return [];
+
+  const { data: pay, error: e3 } = await admin.schema('app').from('payments').select('invoice_id, amount_cents').in('invoice_id', factures.map((f) => f.id));
+  exigerLecture('règlements du référent', e3);
+  const regle = new Map<string, number>();
+  for (const p of (pay ?? []) as Array<{ invoice_id: string; amount_cents: number }>) regle.set(p.invoice_id, (regle.get(p.invoice_id) ?? 0) + Number(p.amount_cents));
+
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  return factures.map((f) => {
+    const { statut, resteCents } = etatFacture(
+      { kind: f.kind, status: f.status, totalCents: Number(f.total_cents), regleCents: regle.get(f.id) ?? 0, echeance: f.due_at },
+      aujourdHui,
+    );
+    return {
+      id: f.id,
+      reference: f.reference,
+      nature: NATURE[f.kind ?? 'invoice'] ?? 'facture',
+      statut,
+      emiseLe: f.issued_at,
+      echeance: f.due_at,
+      totalCents: Number(f.total_cents),
+      resteCents,
+      dossierReference: refs.get(f.dossier_id) ?? '',
+    };
+  });
+}
+
+/** Une facture que ce référent a le droit d'ouvrir : la même règle que la liste. */
+export async function factureDuReferent(contactId: string, organizationId: string, invoiceId: string): Promise<boolean> {
+  return (await facturesDuReferent(contactId, organizationId)).some((f) => f.id === invoiceId);
 }
