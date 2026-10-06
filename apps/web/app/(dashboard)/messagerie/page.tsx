@@ -31,7 +31,7 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
     if (dossier) {
       const [messages, equipe, infos] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(moi.organizationId, choisi), infosDuFil(choisi)]);
       await marquerFilLu(moi.userId, choisi);
-      ouvert = { dossier, messages, equipe, infos, lien: infos?.kind === 'seance' ? `/sessions/${choisi}` : `/dossiers/${choisi}` };
+      ouvert = { dossier, messages, equipe, infos, lien: `/dossiers/${choisi}` };
     }
   }
 

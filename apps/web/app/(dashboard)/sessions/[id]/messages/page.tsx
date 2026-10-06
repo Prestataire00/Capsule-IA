@@ -3,12 +3,12 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { loadSession } from '@/features/sessions/load-session';
 
 /**
- * La discussion d'une séance vit dans la messagerie (celle de son dossier, ou
- * son propre fil sans dossier) : plus de second fil ici, qui faisait doublon.
+ * La discussion se tient par dossier, dans la messagerie : une séance ouvre
+ * celle de son dossier. Sans dossier, retour à la séance.
  */
 export default async function SessionMessagesPage({ params }: { params: { id: string } }) {
   const loaded = await loadSession(supabaseServer(), params.id);
   if (!loaded) notFound();
-  const fil = loaded.session.dossier_id ?? (loaded.dossierIds.length === 1 ? loaded.dossierIds[0]! : params.id);
-  redirect(`/messagerie?dossier=${fil}`);
+  const dossier = loaded.session.dossier_id ?? loaded.dossierIds[0] ?? null;
+  redirect(dossier ? `/messagerie?dossier=${dossier}` : `/sessions/${params.id}`);
 }

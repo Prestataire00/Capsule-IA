@@ -25,7 +25,7 @@ type Ouvert = {
   messages: readonly MessageEquipe[];
   equipe: readonly MembreDiscussion[];
   infos: InfosFil | null;
-  /** Page du dossier ou de la séance ; absente pour qui n'y a pas accès. */
+  /** Page du dossier ; absente pour qui n'y a pas accès. */
   lien: string | null;
 };
 
@@ -62,12 +62,9 @@ export function Messagerie({
       )
     : fils;
 
-  // Les fils d'un même client ensemble ; les séances sans dossier à part.
+  // Les dossiers d'un même client ensemble.
   const groupes = new Map<string, Fil[]>();
-  for (const f of visibles) {
-    const cle = f.dossier.reference.startsWith('Séance du') ? 'Séances sans dossier' : f.dossier.titre;
-    groupes.set(cle, [...(groupes.get(cle) ?? []), f]);
-  }
+  for (const f of visibles) groupes.set(f.dossier.titre, [...(groupes.get(f.dossier.titre) ?? []), f]);
   const lienFil = (id: string, extra = '') => `${chemin}?dossier=${id}${q ? `&q=${encodeURIComponent(recherche)}` : ''}${extra}`;
   const messages = ouvert && pourMoi ? ouvert.messages.filter((m) => m.mentions.includes(meId) || m.authorUserId === meId) : (ouvert?.messages ?? []);
 
@@ -205,7 +202,7 @@ export function Messagerie({
                 href={ouvert.lien}
                 className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
-                {ouvert.infos?.kind === 'seance' ? 'Page de la séance' : 'Page du dossier'} <ArrowUpRight className="w-3.5 h-3.5" />
+                Page du dossier <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             )}
           </header>

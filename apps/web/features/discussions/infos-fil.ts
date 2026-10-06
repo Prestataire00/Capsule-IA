@@ -3,19 +3,16 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { filDe } from './equipe';
 
 /**
- * Les infos rapides d'un fil, à côté de la discussion : ce qu'on vérifie
- * avant de répondre (dates, client, formation, montant). Un dossier ou une
- * séance sans dossier (0210).
+ * Les infos rapides du dossier, à côté de sa discussion : ce qu'on vérifie
+ * avant de répondre (dates, client, formation, montant).
  */
 
 export type InfosFil = {
-  readonly kind: 'dossier' | 'seance';
   readonly lignes: ReadonlyArray<{ libelle: string; valeur: string }>;
 };
 
 const un = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
 const jour = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' });
-const heure = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
 const euros = (c: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(c / 100);
 const MODALITE: Record<string, string> = { presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' };
 const STATUT: Record<string, string> = {
@@ -37,7 +34,6 @@ export async function infosDuFil(filId: string): Promise<InfosFil | null> {
   if (!fil) return null;
   const admin = supabaseAdmin();
 
-  if (fil.kind === 'dossier') {
     const { data } = await admin
       .schema('app')
       .from('dossiers')
@@ -72,35 +68,5 @@ export async function infosDuFil(filId: string): Promise<InfosFil | null> {
       { libelle: 'Durée', valeur: d.total_hours ? `${d.total_hours} h` : null },
       { libelle: 'Montant', valeur: d.total_amount_cents ? `${euros(d.total_amount_cents)} HT` : null },
     ];
-    return { kind: 'dossier', lignes: lignes.filter((l): l is { libelle: string; valeur: string } => Boolean(l.valeur)) };
-  }
-
-  const { data } = await admin
-    .schema('app')
-    .from('sessions')
-    .select('title, status, starts_at, ends_at, modality, location, company:companies(name), formation:formations(title)' as never)
-    .eq('id', filId)
-    .maybeSingle();
-  const s = data as unknown as {
-    title: string | null;
-    status: string;
-    starts_at: string;
-    ends_at: string;
-    modality: string | null;
-    location: string | null;
-    company: { name: string | null } | Array<{ name: string | null }> | null;
-    formation: { title: string | null } | Array<{ title: string | null }> | null;
-  } | null;
-  if (!s) return null;
-  const lignes = [
-    { libelle: 'Séance', valeur: s.title },
-    { libelle: 'Statut', valeur: STATUT[s.status] ?? s.status },
-    { libelle: 'Client', valeur: un(s.company)?.name ?? null },
-    { libelle: 'Formation', valeur: un(s.formation)?.title ?? null },
-    { libelle: 'Date', valeur: date(s.starts_at) },
-    { libelle: 'Horaires', valeur: `${heure.format(new Date(s.starts_at))} – ${heure.format(new Date(s.ends_at))}` },
-    { libelle: 'Modalité', valeur: s.modality ? (MODALITE[s.modality] ?? s.modality) : null },
-    { libelle: 'Lieu', valeur: s.location },
-  ];
-  return { kind: 'seance', lignes: lignes.filter((l): l is { libelle: string; valeur: string } => Boolean(l.valeur)) };
+    return { lignes: lignes.filter((l): l is { libelle: string; valeur: string } => Boolean(l.valeur)) };
 }

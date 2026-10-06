@@ -41,8 +41,8 @@ export default async function MesDiscussionsPage({ searchParams }: { searchParam
     if (dossier) {
       const [messages, equipe, infos] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(acces.organizationId, choisi), infosDuFil(choisi)]);
       await marquerFilLu(acces.userId, choisi);
-      // Le formateur ouvre sa séance ; un dossier n'a pas de page dans son espace.
-      ouvert = { dossier, messages, equipe, infos, lien: infos?.kind === 'seance' ? `/seance/${choisi}` : null };
+      // Un dossier n'a pas de page dans l'espace formateur.
+      ouvert = { dossier, messages, equipe, infos, lien: null };
     }
   }
 

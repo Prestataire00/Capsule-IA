@@ -51,9 +51,8 @@ export default async function SessionLayout({
   const groupeBrut = (g as unknown as { groupe: { nom: string } | Array<{ nom: string }> | null } | null)?.groupe;
   const nomGroupe = Array.isArray(groupeBrut) ? groupeBrut[0]?.nom : groupeBrut?.nom;
 
-  // La discussion de la séance vit dans la messagerie : celle de son dossier,
-  // ou un fil de séance quand elle n'en a pas (ou en réunit plusieurs).
-  const filDiscussion = session.dossier_id ?? (loaded.dossierIds.length === 1 ? loaded.dossierIds[0]! : session.id);
+  // La discussion se tient par dossier : la séance ouvre celle de son dossier.
+  const filDiscussion = session.dossier_id ?? loaded.dossierIds[0] ?? null;
 
   const st = STATUS[session.status] ?? { label: session.status, tone: 'neutral' as const };
   const etape = ETAPES.findIndex((e) => e.key === session.status);
@@ -112,7 +111,7 @@ export default async function SessionLayout({
               </p>
             </div>
             <div className="flex items-start gap-2 flex-wrap">
-              {gerer && (
+              {gerer && filDiscussion && (
                 <Link
                   href={`/messagerie?dossier=${filDiscussion}`}
                   className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"

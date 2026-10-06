@@ -145,77 +145,22 @@ export async function dossiersEnCours(organizationId: string, limite = 300): Pro
 }
 
 /**
- * Un fil de discussion appartient à un dossier, ou à une séance qui n'en a pas
- * (0210). Son identifiant est celui de l'un ou de l'autre.
+ * Un fil de discussion = un dossier (demande d'Ismael, 06/10/2026 : « la
+ * messagerie par dossier, pas par session »). Une séance ouvre la discussion
+ * de son dossier. Les colonnes de séance posées par 0210 restent inutilisées.
  */
-export type FilDiscussion = { readonly kind: 'dossier' | 'seance'; readonly id: string; readonly organizationId: string };
+export type FilDiscussion = { readonly kind: 'dossier'; readonly id: string; readonly organizationId: string };
 
 export async function filDe(id: string): Promise<FilDiscussion | null> {
-  const admin = supabaseAdmin();
-  const { data: d } = await admin.schema('app').from('dossiers').select('organization_id').eq('id', id).is('deleted_at', null).maybeSingle();
-  if (d) return { kind: 'dossier', id, organizationId: (d as { organization_id: string }).organization_id };
-  const { data: s } = await admin.schema('app').from('sessions').select('organization_id').eq('id', id).maybeSingle();
-  if (s) return { kind: 'seance', id, organizationId: (s as { organization_id: string }).organization_id };
-  return null;
+  const { data: d } = await supabaseAdmin().schema('app').from('dossiers').select('organization_id').eq('id', id).is('deleted_at', null).maybeSingle();
+  return d ? { kind: 'dossier', id, organizationId: (d as { organization_id: string }).organization_id } : null;
 }
 
 /** La colonne qui porte le fil, pour écrire un message ou une lecture. */
-export const colonneDuFil = (fil: FilDiscussion): { dossier_id: string } | { session_id: string } =>
-  fil.kind === 'dossier' ? { dossier_id: fil.id } : { session_id: fil.id };
+export const colonneDuFil = (fil: FilDiscussion): { dossier_id: string } => ({ dossier_id: fil.id });
 
-async function formateursDeLaSeance(admin: Admin, sessionId: string): Promise<MembreDiscussion[]> {
-  const { data: st } = await admin.schema('app').from('session_trainers' as never).select('trainer_id').eq('session_id', sessionId).is('deleted_at', null);
-  const ids = [...new Set(((st ?? []) as Array<{ trainer_id: string }>).map((t) => t.trainer_id))];
-  if (ids.length === 0) return [];
-  const { data: t } = await admin.schema('app').from('trainers').select('id, user_id, first_name, last_name, email').in('id', ids).is('deleted_at', null);
-  return ((t ?? []) as Array<{ id: string; user_id: string | null; first_name: string | null; last_name: string | null; email: string | null }>).map((f) => ({
-    userId: f.user_id ?? f.id,
-    nom: `${f.first_name ?? ''} ${f.last_name ?? ''}`.trim() || f.email || 'Formateur',
-    email: f.email,
-    role: 'formateur' as const,
-    fonction: f.user_id === null ? 'Formateur · sans compte' : 'Formateur',
-    sansCompte: f.user_id === null,
-    trainerId: f.id,
-    prenom: f.first_name,
-  }));
-}
+/** L'équipe d'un fil : celle de son dossier. */
+export const equipeDuFil = equipeDuDossier;
 
-/** L'équipe d'un fil : celle du dossier, ou les formateurs de la séance et l'équipe de l'organisme. */
-export async function equipeDuFil(organizationId: string, filId: string): Promise<MembreDiscussion[]> {
-  const fil = await filDe(filId);
-  if (!fil || fil.kind === 'dossier') return equipeDuDossier(organizationId, filId);
-  const admin = supabaseAdmin();
-  const [formateurs, equipe] = await Promise.all([formateursDeLaSeance(admin, filId), equipeOrganisme(admin, organizationId)]);
-  const vus = new Set<string>();
-  return [...equipe, ...formateurs].filter((m) => !vus.has(m.userId) && vus.add(m.userId));
-}
-
-const jourFil = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' });
-
-/** Libellés des fils : les dossiers, puis les séances sans dossier. */
-export async function libellesFils(ids: readonly string[]): Promise<Map<string, LibelleDossier>> {
-  const out = await libellesDossiers(ids);
-  const restants = ids.filter((id) => !out.has(id));
-  if (restants.length === 0) return out;
-  const { data } = await supabaseAdmin()
-    .schema('app')
-    .from('sessions')
-    .select('id, title, starts_at, company:companies(name), formation:formations(title)' as never)
-    .in('id', restants);
-  const un = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
-  for (const s of (data ?? []) as unknown as Array<{
-    id: string;
-    title: string | null;
-    starts_at: string;
-    company: { name: string | null } | null;
-    formation: { title: string | null } | null;
-  }>) {
-    out.set(s.id, {
-      id: s.id,
-      reference: `Séance du ${jourFil.format(new Date(s.starts_at))}`,
-      titre: un(s.company)?.name ?? s.title ?? 'Séance',
-      formation: un(s.formation)?.title ?? s.title ?? null,
-    });
-  }
-  return out;
-}
+/** Les libellés des fils : ceux de leurs dossiers. */
+export const libellesFils = libellesDossiers;
