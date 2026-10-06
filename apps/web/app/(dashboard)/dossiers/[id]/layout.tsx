@@ -2,6 +2,8 @@
 // Justification: hero + tabs d'un dossier, en données réelles (RLS-scopé).
 
 import Link from 'next/link';
+import { ModaliteModifiable } from './modalite.client';
+import { MODALITIES, type Modality } from '@/features/dossier/modality-set';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Calendar, ClipboardList, Clock, FileText, Users as UsersIcon, Banknote } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -14,7 +16,7 @@ import { FormateurChip } from './formateur-chip.client';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { IdPill } from '@/shared/ui/id-pill';
-import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
+import { KpiCard } from '@/shared/ui/kpi-card';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { SupprimerOuArchiver } from './supprimer-ou-archiver.client';
 import { MontantModifiable } from './montant.client';
@@ -26,8 +28,13 @@ import type { DossierStatus } from '@/features/dossier/domain/value-objects/doss
 const fmtDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '—');
 const fmtEuros = (cents: number | null) =>
   cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
-const modalityLabel = (m: string) =>
-  (({ presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' }) as Record<string, string>)[m] ?? m;
+/** Les modalités du dossier, la principale en tête ; à défaut, sa seule modalité. */
+const modalitesDuDossier = (liste: readonly string[] | null | undefined, principale: string | null): Modality[] => {
+  const valides = (liste ?? []).filter((m): m is Modality => (MODALITIES as readonly string[]).includes(m));
+  const tete = principale && (MODALITIES as readonly string[]).includes(principale) ? [principale as Modality] : [];
+  const toutes = [...new Set([...tete, ...valides])];
+  return toutes.length ? toutes : ['presentiel'];
+};
 
 export default async function DossierLayout({
   children,
@@ -41,7 +48,7 @@ export default async function DossierLayout({
     .schema('app')
     .from('dossiers')
     .select(
-      'reference, status, modality, start_date, end_date, total_hours, total_amount_cents, ' +
+      'reference, status, modality, modalities, start_date, end_date, total_hours, total_amount_cents, ' +
         'learner:learners!dossiers_learner_id_fkey(first_name, last_name, email), company:companies(name), formation:formations(id, title, metadata)',
     )
     .eq('id', params.id)
@@ -325,9 +332,11 @@ export default async function DossierLayout({
             }
           />
           <KpiCard icon={UsersIcon} label="Modalité" accent="purple">
-            <span className={`inline-flex items-center h-6 px-2.5 rounded-full text-[12px] font-bold ${ACCENTS.purple.soft}`}>
-              {modalityLabel(d.modality)}
-            </span>
+            <ModaliteModifiable
+              dossierId={params.id}
+              modalites={modalitesDuDossier((d as { modalities?: string[] | null }).modalities, d.modality)}
+              peutModifier={gererDossiers}
+            />
           </KpiCard>
           {/* Le montant se corrige là où il se lit : on le reprend au moment
               où on le voit faux. Réservé à la facturation — le formateur gère
