@@ -141,3 +141,12 @@ export function sectionForPath(path: string): Section | null {
   const hit = ROUTE_SECTION.find(([prefix]) => path === prefix || path.startsWith(prefix + '/'));
   return hit ? hit[1] : null;
 }
+
+/**
+ * Régler les envois automatiques de l'organisme : la direction, et la
+ * gestionnaire qui suit les dossiers au quotidien (point Capsule IA du
+ * 05/10/2026 : « débloquer l'accès aux automatisations pour Laurie »). Ce
+ * réglage touche ce qui part aux clients, pas la configuration du compte :
+ * il suit la gestion des dossiers, pas les paramètres.
+ */
+export const peutReglerLesEnvois = (role: string | null | undefined): boolean => can(role, 'dossiers') === 'manage';

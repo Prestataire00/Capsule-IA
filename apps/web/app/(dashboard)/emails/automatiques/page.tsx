@@ -9,7 +9,7 @@ import { fr } from 'date-fns/locale';
 import { Zap, AlertTriangle, CheckCheck, Clock, Settings2, CalendarCog, Info } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
-import { can } from '@/shared/lib/auth/permissions';
+import { peutReglerLesEnvois } from '@/shared/lib/auth/permissions';
 import { KpiCard } from '@/shared/ui/kpi-card';
 import { SectionLabel } from '@/shared/ui/section-label';
 import {
@@ -80,7 +80,7 @@ export default async function EnvoisAutomatiquesPage({
   searchParams?: { erreur?: string; regle?: string };
 }) {
   const me = await getCurrentMember();
-  const peutRegler = can(me?.role, 'settings') === 'manage';
+  const peutRegler = peutReglerLesEnvois(me?.role);
   const [traces, regles] = await Promise.all([
     loadTraces(),
     me ? loadReglesOrganisme(me.organizationId) : Promise.resolve(new Map()),

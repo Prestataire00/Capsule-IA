@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
-import { can } from '@/shared/lib/auth/permissions';
+import { peutReglerLesEnvois } from '@/shared/lib/auth/permissions';
 import { enregistrerReglage, retablirDefaut } from '@/features/emails/programmation-store';
 import { estReglable } from '@/features/emails/programmation-envois';
 
@@ -23,8 +23,8 @@ type Garde = { organizationId: string; userId: string } | { erreur: string };
 async function garde(): Promise<Garde> {
   const me = await getCurrentMember();
   if (!me) return { erreur: 'Session expirée. Reconnectez-vous.' };
-  if (can(me.role, 'settings') !== 'manage') {
-    return { erreur: 'Seuls un propriétaire ou un administrateur peuvent régler les envois automatiques.' };
+  if (!peutReglerLesEnvois(me.role)) {
+    return { erreur: 'Votre rôle ne permet pas de régler les envois automatiques.' };
   }
   return { organizationId: me.organizationId, userId: me.userId };
 }

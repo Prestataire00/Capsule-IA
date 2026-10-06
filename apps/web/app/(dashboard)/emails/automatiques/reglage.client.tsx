@@ -45,7 +45,7 @@ export function Reglage({
     return (
       <p className="text-[11px] text-zinc-400 mt-2.5 flex items-center gap-1.5">
         <Lock className="w-3 h-3 shrink-0" />
-        {phrase ?? 'Réglé par votre organisme'} — seuls un propriétaire ou un administrateur peuvent le changer.
+        {phrase ?? 'Réglé par votre organisme'} — la direction et la gestion des dossiers peuvent le changer.
       </p>
     );
   }
