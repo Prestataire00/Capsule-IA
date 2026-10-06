@@ -28,3 +28,14 @@ describe('documents visibles par le stagiaire', () => {
     expect(documentVisiblePourLeStagiaire({ visibleEntreprise: true, kind: 'convention' }, { companyId: null })).toBe(true);
   });
 });
+
+import { cleConvention } from './convention-destinataire';
+
+describe('une seule convention par dossier, payeur et groupe', () => {
+  it('même clé quel que soit le chemin', () => {
+    expect(cleConvention('d1')).toBe('convention:d1:reste');
+    expect(cleConvention('d1', null)).toBe(cleConvention('d1', 'reste'));
+    expect(cleConvention('d1', 'f9')).toBe('convention:d1:f9');
+    expect(cleConvention('d1', 'reste', 'g2')).toBe('convention:d1:reste:g2');
+  });
+});

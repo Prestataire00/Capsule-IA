@@ -13,6 +13,7 @@ import { env } from '@/env.mjs';
 import { generateDocumentSignatureToken } from '@/shared/lib/document-signature-token';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
 import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
+import { cleConvention } from '@/features/documents/convention-destinataire';
 import { conventionAuReferent } from '@/features/documents/convention-destinataire';
 import {
   buildLearnerDocument,
@@ -191,6 +192,7 @@ export const sendLearnerDocument = authActionClient.schema(schema).action(async 
       title: built.title,
       bytes: built.bytes,
       generationInput: built.generationInput,
+      ...(g.type === 'convention' ? { sourceKey: cleConvention(parsedInput.dossierId) } : {}),
       metadata: { session_id: parsedInput.sessionId, document_type: g.type },
     });
   } catch (e) {
@@ -236,6 +238,7 @@ export const requestLearnerDocumentSignature = authActionClient.schema(schema).a
     title: built.title,
     bytes: built.bytes,
     generationInput: built.generationInput,
+    ...(g.type === 'convention' ? { sourceKey: cleConvention(parsedInput.dossierId) } : {}),
     metadata: { session_id: parsedInput.sessionId, document_type: g.type },
   });
 

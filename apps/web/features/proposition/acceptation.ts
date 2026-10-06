@@ -1,4 +1,5 @@
 import 'server-only';
+import { cleConvention } from '@/features/documents/convention-destinataire';
 // Devis signé = proposition acceptée = la demande devient un client.
 //
 // Appelé par `markQuoteSigned`, que la signature soit électronique ou saisie à
@@ -86,7 +87,8 @@ export async function accepterPropositionDuDevis(sb: SupabaseClient, quoteId: st
         title: entreprise ? `Convention de formation — ${prop.contenu.titre}` : `Contrat de formation professionnelle — ${prop.contenu.titre}`,
         bytes,
         generationInput: input,
-        sourceKey: `convention:proposition:${prop.id}`,
+        // Même clé que la convention générée depuis le dossier : pas de doublon.
+        sourceKey: cleConvention(dossierId),
         metadata: { proposition_id: prop.id, quote_id: quoteId },
       });
       documents.push(entreprise ? 'Convention de formation' : 'Contrat de formation');

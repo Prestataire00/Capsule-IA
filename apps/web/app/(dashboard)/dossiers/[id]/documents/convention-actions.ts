@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { cleConvention } from '@/features/documents/convention-destinataire';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
@@ -92,7 +93,7 @@ export const generateConventions = authActionClient
         generationInput: input,
         // Une entrée par convention (dossier + payeur) : régénérer remplace la
         // version affichée, l'ancienne reste en historique. Pièce signée : figée.
-        sourceKey: `convention:${parsedInput.dossierId}:${payer?.payer ?? 'reste'}`,
+        sourceKey: cleConvention(parsedInput.dossierId, payer?.payer ?? null),
         metadata: payer
           ? { payer: payer.payer, funder_name: payer.funderName, mode_label: payer.modeLabel }
           : { payer: null },

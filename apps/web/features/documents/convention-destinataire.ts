@@ -19,3 +19,13 @@ export const documentVisiblePourLeStagiaire = (
   doc: { visibleEntreprise: boolean; kind: string },
   dossier: { companyId: string | null },
 ): boolean => doc.visibleEntreprise && !(doc.kind === 'convention' && conventionAuReferent(dossier));
+
+/**
+ * La clé de rangement d'une convention, la même quel que soit le chemin qui la
+ * produit (dossier, séance, acceptation d'une proposition, envoi depuis la
+ * séance) : une seule convention courante par dossier, payeur et groupe —
+ * régénérer en crée une nouvelle version, jamais un doublon (audit du point
+ * Capsule IA, 06/10/2026).
+ */
+export const cleConvention = (dossierId: string, payeur: string | null = null, groupeId: string | null = null): string =>
+  `convention:${dossierId}:${payeur ?? 'reste'}${groupeId ? `:${groupeId}` : ''}`;

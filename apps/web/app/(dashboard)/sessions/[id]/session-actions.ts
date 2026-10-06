@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { cleConvention } from '@/features/documents/convention-destinataire';
 import { revalidatePath } from 'next/cache';
 import { authActionClient } from '@/shared/lib/safe-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
@@ -195,7 +196,7 @@ export const generateGroupConventions = authActionClient
         title: `Contrat de formation professionnelle — ${l.first_name} ${l.last_name}`,
         bytes,
         generationInput: input,
-        sourceKey: `contrat:${parsedInput.sessionId}:${l.dossierId}`,
+        sourceKey: cleConvention(l.dossierId),
         metadata: { contract: true, session_id: parsedInput.sessionId },
       });
       particuliers.push(`${l.first_name} ${l.last_name}`);
@@ -211,7 +212,7 @@ export const generateGroupConventions = authActionClient
         title: `Convention de formation — ${c.companyName} (${c.dossierIds.length} participant${c.dossierIds.length > 1 ? 's' : ''})`,
         bytes,
         generationInput: input,
-        sourceKey: `convention:${parsedInput.sessionId}:${c.companyId}`,
+        sourceKey: cleConvention(c.anchorDossierId),
         metadata: {
           grouped: true,
           audience: 'entreprise',

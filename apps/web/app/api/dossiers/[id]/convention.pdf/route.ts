@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { cleConvention } from '@/features/documents/convention-destinataire';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateConventionPDF } from '@/features/documents/generate-convention-pdf';
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       // chaque régénération. Le groupe DOIT figurer dans la clé : sans lui, la
       // convention du Groupe B écraserait celle du Groupe A — même dossier,
       // même payeur — et l'écrasement ne se verrait qu'à l'ouverture du PDF.
-      sourceKey: `convention:${params.id}:${selected?.payer ?? 'reste'}${groupeParam ? `:${groupeParam}` : ''}`,
+      sourceKey: cleConvention(params.id, selected?.payer ?? null, groupeParam || null),
       metadata: {
         ...(selected
           ? { payer: selected.payer, funder_name: selected.funderName, mode_label: selected.modeLabel }
