@@ -4,6 +4,7 @@
 //
 // Une seule convention pour seize personnes réparties en deux groupes annonce
 // des dates et un volume horaire qu'aucun des deux ne suit réellement.
+import { cleConvention } from '../features/documents/convention-destinataire';
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -55,7 +56,8 @@ describe('l’archivage ne confond pas deux groupes', () => {
     // Sans lui, la convention du Groupe B écraserait celle du Groupe A — même
     // dossier, même payeur — et l'écrasement ne se verrait qu'à l'ouverture du
     // PDF.
-    expect(ROUTE).toContain("sourceKey: `convention:${params.id}:${selected?.payer ?? 'reste'}${groupeParam ? `:${groupeParam}` : ''}`");
+    expect(ROUTE).toContain('sourceKey: cleConvention(params.id, selected?.payer ?? null, groupeParam || null)');
+    expect(cleConvention('d', 'reste', 'gA')).not.toBe(cleConvention('d', 'reste', 'gB'));
   });
 
   it('et le document porte le nom du groupe', () => {
