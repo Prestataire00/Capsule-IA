@@ -14,6 +14,7 @@ import { estTitulaireProvisoire } from '@/features/dossier/referent';
 import { AjoutApprenants } from './ajout-apprenants.client';
 import { Groupes, type GroupeAffiche } from './groupes.client';
 import { RetirerBouton } from './retirer-bouton.client';
+import { cleStagiaire, scoresPositionnement } from '@/features/questionnaire/scores-positionnement';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,6 +121,8 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
   // Le titulaire provisoire de l'import ne désigne personne : il n'a pas sa
   // place dans une liste de stagiaires.
   const apprenants = tous.filter((l) => !estTitulaireProvisoire(l.email));
+  // Le score du test de positionnement de chacun, une fois sa fiche remplie.
+  const scores = await scoresPositionnement(admin as never, apprenants.map((l) => ({ learnerId: l.id, dossierId: params.id })));
   const enAttenteDeListe = tous.some((l) => estTitulaireProvisoire(l.email));
   const peutModifier = await canManageSection('dossiers');
 
@@ -226,6 +229,16 @@ export default async function DossierApprenantsPage({ params }: { params: { id: 
                         <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
                           <Crown className="w-3 h-3" /> Titulaire
                         </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                      Positionnement :{' '}
+                      {scores.get(cleStagiaire(l.id, params.id)) ? (
+                        <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-semibold tabular-nums bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                          {scores.get(cleStagiaire(l.id, params.id))!.libelle}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400">pas encore rempli</span>
                       )}
                     </p>
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">

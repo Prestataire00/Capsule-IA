@@ -37,6 +37,12 @@ export function SuiviPastilles({ suivi, avecAcquis }: { suivi: SuiviStagiaire; a
           >
             <Icone className="w-3 h-3" />
             {QUESTIONNAIRE_LABELS[k]}
+            {k === 'positionnement' && suivi.positionnement && (
+              <span className="tabular-nums font-semibold" title="Score du test de positionnement">
+                {' · '}
+                {suivi.positionnement.libelle}
+              </span>
+            )}
           </span>
         );
       })}

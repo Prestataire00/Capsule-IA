@@ -10,10 +10,14 @@ import {
   type EtatQuestionnaire,
   type QuestionnaireSuivi,
 } from './suivi-stagiaire';
+import { cleStagiaire, scoresPositionnement } from '@/features/questionnaire/scores-positionnement';
+import type { ScorePositionnement } from '@/features/questionnaire/score-positionnement';
 
 export type SuiviStagiaire = {
   readonly emargement: EtatEmargement;
   readonly questionnaires: Record<QuestionnaireSuivi, EtatQuestionnaire>;
+  /** Score du test de positionnement, une fois rempli. */
+  readonly positionnement: ScorePositionnement | null;
 };
 
 /**
@@ -27,22 +31,24 @@ export async function loadSuiviStagiaires(
 ): Promise<{ parStagiaire: Map<string, SuiviStagiaire>; avecAcquis: boolean }> {
   const ids = stagiaires.map((s) => s.id);
   const dossierIds = [...new Set(stagiaires.map((s) => s.dossierId).filter((d): d is string => Boolean(d)))];
-  const [vue, { data, error }] = await Promise.all([
+  const sansDossier = stagiaires.filter((s) => !s.dossierId).map((s) => s.id);
+  const colonnes = 'dossier_id, recipient_learner_id, status, template:questionnaire_templates(kind)';
+  const [vue, { data, error }, { data: dataSans, error: errSans }, scores] = await Promise.all([
     loadSessionEmargement(supabaseServer(), sessionId),
     ids.length && dossierIds.length
-      ? supabaseAdmin()
-          .schema('app')
-          .from('questionnaire_assignments')
-          .select('dossier_id, recipient_learner_id, status, template:questionnaire_templates(kind)')
-          .in('dossier_id', dossierIds)
-          .in('recipient_learner_id', ids)
+      ? supabaseAdmin().schema('app').from('questionnaire_assignments').select(colonnes).in('dossier_id', dossierIds).in('recipient_learner_id', ids)
       : Promise.resolve({ data: [], error: null }),
+    // Inscrits directement à la séance : leurs fiches n'ont pas de dossier.
+    sansDossier.length
+      ? supabaseAdmin().schema('app').from('questionnaire_assignments').select(colonnes).is('dossier_id', null).in('recipient_learner_id', sansDossier)
+      : Promise.resolve({ data: [], error: null }),
+    scoresPositionnement(supabaseAdmin() as never, stagiaires.map((s) => ({ learnerId: s.id, dossierId: s.dossierId }))),
   ]);
-  if (error) throw new Error(`[suivi] questionnaires illisibles : ${error.message}`);
+  if (error || errSans) throw new Error(`[suivi] questionnaires illisibles : ${(error ?? errSans)?.message}`);
 
   const un = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
-  const assignations = ((data ?? []) as unknown as Array<{
-    dossier_id: string;
+  const assignations = ([...(data ?? []), ...(dataSans ?? [])] as unknown as Array<{
+    dossier_id: string | null;
     recipient_learner_id: string;
     status: string;
     template: { kind: string } | Array<{ kind: string }> | null;
@@ -58,6 +64,7 @@ export async function loadSuiviStagiaires(
         QuestionnaireSuivi,
         EtatQuestionnaire
       >,
+      positionnement: scores.get(cleStagiaire(s.id, s.dossierId)) ?? null,
     });
   }
   return { parStagiaire, avecAcquis: assignations.some((a) => a.kind === 'evaluation_acquis') };
