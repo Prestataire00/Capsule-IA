@@ -14,6 +14,8 @@ import {
   DeleteSupportButton,
 } from './supports-uploader';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { loadCoursDeLaFormation } from '@/features/pedagogie/cours-de-la-formation';
+import { CoursPrepares } from './cours-prepares';
 
 type ResourceRow = {
   id: string;
@@ -127,6 +129,8 @@ export default async function FormationSupportsPage({
     resources: resourcesByModule[row.module_id] ?? [],
   }));
 
+  const coursPrepares = await loadCoursDeLaFormation(sb, params.id);
+
   const totalResources = modulesWithResources.reduce((n, m) => n + m.resources.length, 0);
   const publishedResources = modulesWithResources.reduce((n, m) => n + m.resources.filter((r) => r.is_published).length, 0);
 
@@ -157,13 +161,16 @@ export default async function FormationSupportsPage({
         <KpiCard icon={Eye} label="Publiés" value={publishedResources} accent="emerald" hint="visibles dans l'espace apprenant" />
       </section>
 
+      <CoursPrepares cours={coursPrepares} />
+
       {modulesWithResources.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl p-8 text-center shadow-sm">
           <span className={`w-12 h-12 rounded-xl grid place-items-center mx-auto mb-3 ${ACCENTS.blue.soft}`}>
             <BookOpen className="w-6 h-6" />
           </span>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-            Cette formation n&apos;a aucun module rattaché.
+            Cette formation n&apos;a aucun module de catalogue rattaché. Les supports déposés par les formateurs
+            apparaissent ci-dessus, séance par séance.
           </p>
         </div>
       ) : (
