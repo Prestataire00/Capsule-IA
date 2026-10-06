@@ -11,6 +11,9 @@ import { IdPill } from '@/shared/ui/id-pill';
 import { KpiCard, ACCENTS } from '@/shared/ui/kpi-card';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { ManageOnly } from '@/shared/components/auth/manage-only';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { canManageSection } from '@/shared/lib/auth/require-access';
+import { Groupes, type GroupeAffiche } from '@/app/(dashboard)/dossiers/[id]/apprenants/groupes.client';
 import { updateCompany } from './actions';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { ClientFormationsSection } from '@/features/formations/ui/client-formations-section';
@@ -111,6 +114,18 @@ export default async function EntrepriseDetailPage({
   const learners = ((learnerRows as any[]) ?? []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dossiers = ((dossierRows as any[]) ?? []);
+
+  // Les groupes de l'entreprise, créés avant toute séance (0212), et leurs membres.
+  const [{ data: groupesRows }, gererGroupes] = await Promise.all([
+    supabaseAdmin().schema('app').from('dossier_groupes' as never).select('id, nom').eq('company_id', params.id).order('ordre', { ascending: true }),
+    canManageSection('dossiers'),
+  ]);
+  const groupesBruts = (groupesRows ?? []) as unknown as Array<{ id: string; nom: string }>;
+  const { data: membresRows } = groupesBruts.length
+    ? await supabaseAdmin().schema('app').from('dossier_groupe_membres' as never).select('groupe_id, learner_id').in('groupe_id', groupesBruts.map((g) => g.id))
+    : { data: [] };
+  const membres = (membresRows ?? []) as unknown as Array<{ groupe_id: string; learner_id: string }>;
+  const groupes: GroupeAffiche[] = groupesBruts.map((g) => ({ id: g.id, nom: g.nom, membres: membres.filter((m) => m.groupe_id === g.id).map((m) => m.learner_id) }));
 
   const addr = c.address ?? {};
   const addrLine = [addr.line1, addr.postal_code, addr.city].filter(Boolean).join(', ');
@@ -244,6 +259,23 @@ export default async function EntrepriseDetailPage({
           {!c.siret && !c.naf_code && !c.vat_number && <p className="text-[12px] text-zinc-400">Non renseignée.</p>}
         </div>
       </section>
+
+      {gererGroupes && learners.length > 0 && (
+        <section className="space-y-3" aria-labelledby="groupes-entreprise">
+          <h2 id="groupes-entreprise" className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+            Groupes de stagiaires
+          </h2>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 max-w-2xl">
+            Répartissez les salariés avant les séances. Chaque séance se rattache ensuite à son groupe (séance › Informations ›
+            Modifier) : seuls ses membres y sont attendus.
+          </p>
+          <Groupes
+            companyId={params.id}
+            groupes={groupes}
+            apprenants={learners.map((l: { id: string; first_name: string | null; last_name: string | null }) => ({ id: l.id, nom: `${l.first_name ?? ''} ${l.last_name ?? ''}`.trim() || 'Stagiaire' }))}
+          />
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Trash2, Users } from 'lucide-react';
 import { affecterAuGroupe, creerGroupe, renommerGroupe, supprimerGroupe } from './groupes-actions';
+import { affecterAuGroupeClient, creerGroupeClient, renommerGroupeClient, supprimerGroupeClient } from '@/app/(dashboard)/entreprises/[id]/groupes-actions';
 
 /**
  * Répartir les stagiaires d'un dossier en groupes.
@@ -28,13 +29,31 @@ export type ApprenantAffiche = { id: string; nom: string };
 
 export function Groupes({
   dossierId,
+  companyId,
   groupes,
   apprenants,
 }: {
-  dossierId: string;
+  /** Groupes d'un dossier… */
+  dossierId?: string;
+  /** … ou d'une entreprise cliente, créés avant toute séance (0212). */
+  companyId?: string;
   groupes: GroupeAffiche[];
   apprenants: ApprenantAffiche[];
 }) {
+  // Les mêmes gestes, portés par le dossier ou par l'entreprise.
+  const actions = companyId
+    ? {
+        creer: (nom: string) => creerGroupeClient({ companyId, nom }),
+        renommer: renommerGroupeClient,
+        supprimer: supprimerGroupeClient,
+        affecter: affecterAuGroupeClient,
+      }
+    : {
+        creer: (nom: string) => creerGroupe({ dossierId: dossierId ?? '', nom }),
+        renommer: renommerGroupe,
+        supprimer: supprimerGroupe,
+        affecter: affecterAuGroupe,
+      };
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -56,7 +75,7 @@ export function Groupes({
     const nom = nouveau.trim();
     if (nom === '') return;
     agir('nouveau', async () => {
-      const r = await creerGroupe({ dossierId, nom });
+      const r = await actions.creer(nom);
       if (r.ok) setNouveau('');
       return r;
     });
@@ -124,7 +143,7 @@ export function Groupes({
                       aria-label={`Nom du groupe ${g.nom}`}
                       onBlur={(e) => {
                         const nom = e.target.value.trim();
-                        if (nom !== '' && nom !== g.nom) agir(g.id, () => renommerGroupe({ groupeId: g.id, nom }));
+                        if (nom !== '' && nom !== g.nom) agir(g.id, () => actions.renommer({ groupeId: g.id, nom }));
                       }}
                       className="w-full h-7 px-2 rounded-md bg-transparent text-[12px] font-bold text-zinc-800 dark:text-zinc-200 text-center hover:bg-white dark:hover:bg-zinc-900 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none focus:ring-1 focus:ring-orange-300"
                     />
@@ -132,7 +151,7 @@ export function Groupes({
                       type="button"
                       onClick={() => {
                         if (!window.confirm(`Supprimer le groupe « ${g.nom} » ?\n\nLes séances qui le visaient redeviennent celles de tout le dossier. Aucune séance n’est supprimée.`)) return;
-                        agir(g.id, () => supprimerGroupe(g.id));
+                        agir(g.id, () => actions.supprimer(g.id));
                       }}
                       disabled={enCours}
                       title={`Supprimer le groupe ${g.nom}`}
@@ -159,7 +178,7 @@ export function Groupes({
                           aria-label={`${a.nom} dans ${g.nom}`}
                           onChange={() =>
                             agir(`${g.id}:${a.id}`, () =>
-                              affecterAuGroupe({ groupeId: g.id, learnerId: a.id, dedans: !dedans }),
+                              actions.affecter({ groupeId: g.id, learnerId: a.id, dedans: !dedans }),
                             )
                           }
                           className="w-4 h-4 accent-orange-500"
