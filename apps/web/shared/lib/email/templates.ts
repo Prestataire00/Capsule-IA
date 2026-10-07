@@ -247,6 +247,24 @@ export function messageDirectEmail(d: { auteur: string; message: string; lien: s
   return { subject, html };
 }
 
+/** L'organisme répond au référent, dans son espace entreprise. */
+export function reponseEspaceEntrepriseEmail(d: { prenom: string; organisme: string; auteur: string; message: string; lien: string }): {
+  subject: string;
+  html: string;
+} {
+  const subject = `${d.organisme} vous a répondu`;
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Espace entreprise</p>
+      <h1 style="font-size:18px; font-weight:600; margin:0 0 12px;">Bonjour${d.prenom ? ` ${escapeHtml(d.prenom)}` : ''}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 12px;">${escapeHtml(d.auteur)}, de ${escapeHtml(d.organisme)}, vous a écrit :</p>
+      <blockquote style="margin:0 0 20px; padding:12px 14px; background:#fafafa; border-left:3px solid #4c1d95; font-size:14px; color:#3f3f46; white-space:pre-wrap;">${escapeHtml(d.message)}</blockquote>
+      <div>${button(d.lien, 'Répondre depuis mon espace')}</div>
+    `)}
+  `);
+  return { subject, html };
+}
+
 /** Le lien de l'espace entreprise, envoyé au référent du client. */
 export function espaceEntrepriseEmail(d: { prenom: string; organisme: string; lien: string }): { subject: string; html: string } {
   const subject = `Vos documents de formation — ${d.organisme}`;

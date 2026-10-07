@@ -10,6 +10,8 @@ import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { referentPropose } from '@/features/espace-entreprise/referent-dossier';
 import { EspaceEntrepriseClient } from './client';
+import { EchangesReferent } from './echanges.client';
+import { marquerLusParLOrganisme, messagesDuContact } from '@/features/espace-entreprise/messages-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +28,7 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
   const dossier = data as unknown as {
     company: { name: string | null } | Array<{ name: string | null }> | null;
   };
-  const entreprise = Array.isArray(dossier.company) ? dossier.company[0]?.name : dossier.company?.name;
+  const entrepriseNom = Array.isArray(dossier.company) ? dossier.company[0]?.name : dossier.company?.name;
 
   const [referent, { count: visibles }, { count: internes }] = await Promise.all([
     referentPropose(sb as never, params.id),
@@ -45,6 +47,14 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
       .eq('visible_entreprise' as never, false as never)
       .is('deleted_at', null),
   ]);
+
+  // Les échanges avec ce référent ; les ouvrir les marque lus.
+  const { data: org } = await sb.schema('app').from('dossiers').select('organization_id').eq('id', params.id).maybeSingle();
+  const organizationId = (org as { organization_id: string } | null)?.organization_id ?? null;
+  const messages = referent?.contactId && organizationId ? await messagesDuContact(organizationId, referent.contactId) : [];
+  if (referent?.contactId && organizationId && messages.some((m) => m.auteur === 'entreprise' && !m.luLe)) {
+    await marquerLusParLOrganisme(organizationId, referent.contactId);
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
@@ -65,7 +75,7 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
             <UserRound className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Référent{entreprise ? ` · ${entreprise}` : ''}</p>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Référent{entrepriseNom ? ` · ${entrepriseNom}` : ''}</p>
             {referent ? (
               <>
                 <p className="text-[14px] text-zinc-900 dark:text-zinc-100 truncate">{referent.nom}</p>
@@ -101,7 +111,10 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
       </div>
 
       {referent ? (
-        <EspaceEntrepriseClient dossierId={params.id} aUnEmail={Boolean(referent.email)} />
+        <>
+          <EspaceEntrepriseClient dossierId={params.id} aUnEmail={Boolean(referent.email)} />
+          {referent.contactId && <EchangesReferent dossierId={params.id} messages={messages} referent={referent.nom} />}
+        </>
       ) : (
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-2">
           <Building2 className="w-4 h-4" /> L’espace s’ouvre au référent du client : désignez-le d’abord.

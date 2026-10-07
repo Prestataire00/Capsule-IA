@@ -14,6 +14,6 @@ describe('replays tl;dv / Lexi sur la séance', () => {
   });
   it('l’entreprise retrouve les replays de ses dossiers', () => {
     expect(lire('../features/espace-entreprise/load.ts')).toContain('replays: replaysDe(d.id)');
-    expect(lire('../app/(entreprise)/espace-entreprise/[token]/page.tsx')).toContain('d.replays.map');
+    expect(lire('../app/(entreprise)/espace-entreprise/[token]/_vues/documents.tsx')).toContain('d.replays.map');
   });
 });

@@ -4,7 +4,11 @@ import { env } from '@/env.mjs';
 import { guardRowAction } from '@/shared/lib/auth/guard-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateEntrepriseUrl } from '@/shared/lib/entreprise-token';
-import { espaceEntrepriseEmail } from '@/shared/lib/email/templates';
+import { espaceEntrepriseEmail, reponseEspaceEntrepriseEmail } from '@/shared/lib/email/templates';
+import { revalidatePath } from 'next/cache';
+import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { messageEntrepriseSchema } from '@/features/espace-entreprise/message.schema';
+import { ecrireMessage, marquerLusParLOrganisme } from '@/features/espace-entreprise/messages-store';
 import { envoyerSousOrganisme } from '@/features/espace-entreprise/envoi';
 import { attacherReferent } from '@/features/espace-entreprise/referent-dossier';
 
@@ -87,4 +91,39 @@ export async function couperLiensEntreprise(dossierId: string): Promise<EspaceRe
     .update({ espace_revoked_at: new Date().toISOString() } as never)
     .eq('id', r.contactId);
   return error ? { ok: false, error: 'Les liens n’ont pas été coupés.' } : { ok: true };
+}
+
+/** L'équipe répond au référent : le message rejoint son espace, et un e-mail l'en prévient. */
+export async function repondreAuReferent(dossierId: string, input: { body: string }): Promise<EspaceResult> {
+  const p = messageEntrepriseSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'Message invalide.' };
+  const r = await referentDuDossier(dossierId);
+  if (!r.ok) return r;
+  const me = await getCurrentMember();
+  if (!me) return { ok: false, error: 'Votre session a expiré.' };
+  const ok = await ecrireMessage({
+    organizationId: r.organizationId,
+    contactId: r.contactId,
+    dossierId,
+    auteur: 'organisme',
+    auteurNom: me.fullName,
+    auteurUserId: me.userId,
+    body: p.data.body,
+  });
+  if (!ok) return { ok: false, error: 'Le message n’a pas été enregistré.' };
+  await marquerLusParLOrganisme(r.organizationId, r.contactId);
+  if (r.email && env.PUBLIC_APP_URL) {
+    const { url } = await generateEntrepriseUrl({ contactId: r.contactId, organizationId: r.organizationId }, env.PUBLIC_APP_URL);
+    const { data: o } = await supabaseAdmin().schema('app').from('organizations').select('name').eq('id', r.organizationId).maybeSingle();
+    const { subject, html } = reponseEspaceEntrepriseEmail({
+      prenom: r.prenom,
+      organisme: (o as { name: string | null } | null)?.name ?? 'Votre organisme de formation',
+      auteur: me.fullName,
+      message: p.data.body,
+      lien: `${url}?onglet=echanges`,
+    });
+    await envoyerSousOrganisme({ organizationId: r.organizationId, dossierId, to: r.email, subject, html, kind: 'reponse_espace_entreprise' });
+  }
+  revalidatePath(`/dossiers/${dossierId}/espace-entreprise`);
+  return { ok: true };
 }

@@ -20,6 +20,8 @@ describe('factures dans l’espace entreprise', () => {
   });
 
   it('la page les affiche', () => {
-    expect(lire('../app/(entreprise)/espace-entreprise/[token]/page.tsx')).toContain('facturesDuReferent(');
+    // L'espace complet (07/10/2026) les charge, l'onglet Facturation les affiche.
+    expect(lire('../features/espace-entreprise/espace-complet.ts')).toContain('facturesDuReferent(');
+    expect(lire('../app/(entreprise)/espace-entreprise/[token]/page.tsx')).toContain('<VueFacturation factures={espace.factures}');
   });
 });
