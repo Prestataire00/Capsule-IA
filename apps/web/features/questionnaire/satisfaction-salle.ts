@@ -31,7 +31,10 @@ export async function etatSalleSatisfaction(sessionId: string): Promise<EtatSall
   const loaded = await loadSession(sb, sessionId);
   if (!loaded) return null;
   // Titulaires et apprenants des dossiers de groupe.
-  const stagiaires = (await stagiairesDeLaSeance(sb as never, sessionId)).map((l) => ({ id: l.id, first_name: l.prenom, last_name: l.nom, dossierId: l.dossierId }));
+  // La satisfaction à chaud vit sur le dossier : les inscrits sans dossier ont le questionnaire projeté de la séance.
+  const stagiaires = (await stagiairesDeLaSeance(sb as never, sessionId)).flatMap((l) =>
+    l.dossierId ? [{ id: l.id, first_name: l.prenom, last_name: l.nom, dossierId: l.dossierId }] : [],
+  );
   const templateId = await ensureSatisfactionTemplate(sb as never);
   const { data } = stagiaires.length
     ? await sb
@@ -56,7 +59,7 @@ export async function etatSalleSatisfaction(sessionId: string): Promise<EtatSall
 export async function lienSatisfactionEnSalle(sessionId: string, learnerId: string): Promise<string | null> {
   const loaded = await loadSession(supabaseAdmin(), sessionId);
   const stagiaire = (await stagiairesDeLaSeance(supabaseAdmin() as never, sessionId)).find((l) => l.id === learnerId);
-  if (!loaded || !stagiaire) return null;
+  if (!loaded || !stagiaire?.dossierId) return null;
   return lienSatisfaction(supabaseAdmin() as never, {
     organizationId: loaded.session.organization_id,
     dossierId: stagiaire.dossierId,

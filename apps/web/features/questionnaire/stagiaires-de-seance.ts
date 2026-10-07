@@ -8,8 +8,8 @@ export type StagiaireDeSeance = {
   readonly id: string;
   readonly prenom: string;
   readonly nom: string;
-  /** Le dossier de la séance qui le compte parmi ses apprenants. */
-  readonly dossierId: string;
+  /** Le dossier de la séance qui le compte parmi ses apprenants ; null : inscrit sur la séance seule. */
+  readonly dossierId: string | null;
 };
 
 /**
@@ -30,7 +30,7 @@ export async function stagiairesDeLaSeance(sb: Sb, sessionId: string): Promise<S
   const dossiers = [
     ...new Set([(s as { dossier_id: string | null } | null)?.dossier_id, ...((liens ?? []) as Array<{ dossier_id: string }>).map((l) => l.dossier_id)].filter(Boolean)),
   ] as string[];
-  if (ids.length === 0 || dossiers.length === 0) return [];
+  if (ids.length === 0) return [];
 
   const dossierDe = new Map<string, string>();
   for (const d of dossiers) {
@@ -39,9 +39,6 @@ export async function stagiairesDeLaSeance(sb: Sb, sessionId: string): Promise<S
   }
   const { data: l } = await sb.schema('app').from('learners').select('id, first_name, last_name').in('id', ids);
   return ((l ?? []) as Array<{ id: string; first_name: string | null; last_name: string | null }>)
-    .flatMap((x) => {
-      const dossierId = dossierDe.get(x.id);
-      return dossierId ? [{ id: x.id, prenom: x.first_name ?? '', nom: x.last_name ?? '', dossierId }] : [];
-    })
+    .map((x) => ({ id: x.id, prenom: x.first_name ?? '', nom: x.last_name ?? '', dossierId: dossierDe.get(x.id) ?? null }))
     .sort((a, b) => `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`, 'fr'));
 }

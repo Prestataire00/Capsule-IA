@@ -51,7 +51,7 @@ async function loadContext(token: string) {
     sb
       .schema('app')
       .from('questionnaire_assignments')
-      .select('template:questionnaire_templates(schema), session:sessions(formation:formations(title))')
+      .select('template:questionnaire_templates(schema, title, kind), session:sessions(formation:formations(title))')
       .eq('id', verified.value.assignmentId)
       .maybeSingle(),
   ]);
@@ -59,23 +59,27 @@ async function loadContext(token: string) {
   // l'organisme l'a adaptée, sinon les questions habituelles.
   const un = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
   const assignation = a as unknown as {
-    template: { schema: unknown } | Array<{ schema: unknown }> | null;
+    template: { schema: unknown; title: string | null; kind: string | null } | Array<{ schema: unknown; title: string | null; kind: string | null }> | null;
     session: { formation: { title: string } | Array<{ title: string }> | null } | null;
   } | null;
-  const questions = questionsDuSchema(un(assignation?.template)?.schema);
+  const modele = un(assignation?.template);
+  const questions = questionsDuSchema(modele?.schema);
+  // Le même lien sert aux autres questionnaires d'un stagiaire sans dossier (projetés en salle).
+  const fiche = !modele?.kind || modele.kind === 'positionnement';
+  const titreModele = modele?.title ?? null;
   formationTitle ??= un(un(assignation?.session)?.formation)?.title ?? null;
 
-  return { kind: 'ok' as const, answered: Boolean(existing), firstName, formationTitle, questions };
+  return { kind: 'ok' as const, answered: Boolean(existing), firstName, formationTitle, questions, fiche, titreModele };
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, libelle = 'Fiche besoin' }: { children: React.ReactNode; libelle?: string }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-violet-50/40 to-zinc-50 dark:from-zinc-950 dark:via-violet-950/20 dark:to-zinc-950">
       <header className="px-6 py-5 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto flex items-center gap-2.5">
           <Logo size="md" />
           <span className="text-zinc-300 dark:text-zinc-700">·</span>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Fiche besoin</p>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{libelle}</p>
         </div>
       </header>
       <main className="max-w-2xl mx-auto px-6 py-10">{children}</main>
@@ -135,8 +139,8 @@ export default async function FicheBesoinPage({
     return (
       <InfoScreen
         tone="success"
-        title="Fiche besoin déjà complétée"
-        message="Merci, vos réponses ont bien été enregistrées. Votre formateur les consultera avant le démarrage."
+        title={ctx.fiche ? 'Fiche besoin déjà complétée' : 'Questionnaire déjà complété'}
+        message={ctx.fiche ? 'Merci, vos réponses ont bien été enregistrées. Votre formateur les consultera avant le démarrage.' : 'Merci, vos réponses ont bien été enregistrées.'}
       />
     );
   }
@@ -145,18 +149,25 @@ export default async function FicheBesoinPage({
   const formationTitle = ctx.formationTitle;
 
   return (
-    <Shell>
+    <Shell libelle={ctx.fiche ? 'Fiche besoin' : 'Questionnaire'}>
       <div className="mb-8">
         <span className="inline-flex w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-950/60 dark:to-violet-950/30 text-violet-700 dark:text-violet-300 items-center justify-center shadow-sm mb-4">
           <ClipboardList className="w-5 h-5" />
         </span>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-          {learnerName ? `Bonjour ${learnerName},` : 'Votre fiche besoin'}
+          {learnerName ? `Bonjour ${learnerName},` : ctx.fiche ? 'Votre fiche besoin' : (ctx.titreModele ?? 'Votre questionnaire')}
         </h1>
-        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
-          Avant de démarrer{formationTitle ? ` « ${formationTitle} »` : ' votre formation'}, aidez-nous à
-          analyser vos besoins. Cela prend environ 10 minutes et nous permet d&apos;adapter le parcours.
-        </p>
+        {ctx.fiche ? (
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
+            Avant de démarrer{formationTitle ? ` « ${formationTitle} »` : ' votre formation'}, aidez-nous à
+            analyser vos besoins. Cela prend environ 10 minutes et nous permet d&apos;adapter le parcours.
+          </p>
+        ) : (
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
+            {ctx.titreModele ?? 'Questionnaire'}
+            {formationTitle ? ` · ${formationTitle}` : ''} — quelques minutes, merci pour vos réponses.
+          </p>
+        )}
       </div>
 
       {searchParams.error && (
@@ -174,8 +185,8 @@ export default async function FicheBesoinPage({
         <FormulaireFicheBesoin
           questions={ctx.questions}
           enregistrer={enregistrerFicheBesoinParLien.bind(null, params.token)}
-          libelleBouton="Envoyer ma fiche besoin"
-          messageSucces="Merci, vos réponses sont enregistrées. Votre formateur les consultera avant le démarrage."
+          libelleBouton={ctx.fiche ? 'Envoyer ma fiche besoin' : 'Envoyer mes réponses'}
+          messageSucces={ctx.fiche ? 'Merci, vos réponses sont enregistrées. Votre formateur les consultera avant le démarrage.' : 'Merci, vos réponses sont enregistrées.'}
         />
         <p className="text-[11px] text-zinc-400 dark:text-zinc-500 inline-flex items-center gap-1.5">
           <ShieldCheck className="w-3 h-3" /> Données traitées dans le respect du RGPD.

@@ -10,6 +10,7 @@ import { Mail, Phone, Users, Building2, Home, Video, QrCode, Star } from 'lucide
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { requireMyTrainerSession } from '@/features/trainer-space/guard';
 import { loadSession } from '@/features/sessions/load-session';
+import { questionnairesProjetables } from '@/features/questionnaire/questionnaire-salle';
 import { heure, jourLong } from '@/features/trainer-space/dates';
 import { loadSessionContacts, type Contact } from '@/features/trainer-space/session-contacts';
 import { VisioForm } from './visio-form.client';
@@ -94,6 +95,7 @@ export default async function SeancePage({ params }: { params: { id: string } })
   const { session, formation } = loaded;
 
   const replays = (await replaysDesSeances([session.id])).get(session.id) ?? [];
+  const aProjeter = await questionnairesProjetables(session.id);
   const contacts = await loadSessionContacts({
     id: session.id,
     organization_id: session.organization_id,
@@ -185,6 +187,24 @@ export default async function SeancePage({ params }: { params: { id: string } })
         >
           <QrCode className="w-4 h-4" /> Projeter le questionnaire de satisfaction
         </a>
+        {aProjeter.length > 0 && (
+          <div className="pt-2 space-y-1.5">
+            <p className="text-[12px] text-zinc-600 dark:text-zinc-400">Les autres questionnaires prévus pour cette séance :</p>
+            <div className="flex flex-wrap gap-2">
+              {aProjeter.map((q) => (
+                <a
+                  key={q.id}
+                  href={`/projection/questionnaire/${params.id}/${q.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  <QrCode className="w-4 h-4" /> {q.titre}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <ContactList
