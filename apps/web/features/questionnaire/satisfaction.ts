@@ -3,6 +3,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
+import { interlocuteurDuModele } from './cartographie';
+import { lienStagiaire } from './lien-stagiaire';
 
 /**
  * Le questionnaire de satisfaction à chaud d'UN stagiaire pour UN dossier :
@@ -53,24 +55,53 @@ export async function ensureSatisfactionTemplate(sb: Sb): Promise<string> {
   return (created as { id: string }).id;
 }
 
+/**
+ * Le questionnaire de satisfaction à chaud de l'organisme : le sien quand il
+ * en a créé un (destiné aux stagiaires, valable pour toutes les formations),
+ * sinon le questionnaire intégré. Demande d'Ismael, 2026-10-07 : un seul
+ * questionnaire de satisfaction, le sien, partout — e-mail de fin, QR projeté,
+ * liens transmis à l'entreprise.
+ */
+export async function modeleSatisfaction(sb: Sb, organizationId: string): Promise<{ id: string; generique: boolean }> {
+  const { data } = await sb
+    .schema('app')
+    .from('questionnaire_templates')
+    .select('id, kind, code, audience')
+    .eq('organization_id', organizationId)
+    .eq('kind', 'satisfaction_chaud')
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .is('formation_id', null)
+    .order('updated_at', { ascending: false });
+  const propre = ((data ?? []) as Array<{ id: string; kind: string; code: string | null; audience: string | null }>).find(
+    (m) => interlocuteurDuModele(m) === 'apprenant',
+  );
+  if (propre) return { id: propre.id, generique: false };
+  return { id: await ensureSatisfactionTemplate(sb), generique: true };
+}
+
 export async function assignationSatisfaction(
   sb: Sb,
   args: { organizationId: string; dossierId: string; learnerId: string },
-): Promise<{ assignmentId: string; complete: boolean }> {
-  const templateId = await ensureSatisfactionTemplate(sb);
+): Promise<{ assignmentId: string; complete: boolean; generique: boolean }> {
+  const modele = await modeleSatisfaction(sb, args.organizationId);
+  const templateId = modele.id;
+  const generiqueId = modele.generique ? templateId : await ensureSatisfactionTemplate(sb);
+  // Déjà répondu à l'un ou l'autre (avant le changement de questionnaire) : on ne redemande pas.
   const { data: existantes } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .select('id, status')
-    .eq('template_id', templateId)
+    .select('id, status, template_id')
+    .in('template_id', [...new Set([templateId, generiqueId])])
     .eq('dossier_id', args.dossierId)
     .eq('recipient_kind', 'learner')
     .eq('recipient_learner_id', args.learnerId)
     .neq('status', 'expired');
-  const lignes = (existantes ?? []) as Array<{ id: string; status: string }>;
+  const lignes = (existantes ?? []) as Array<{ id: string; status: string; template_id: string }>;
   const remplie = lignes.find((l) => l.status === 'completed');
-  if (remplie) return { assignmentId: remplie.id, complete: true };
-  if (lignes[0]) return { assignmentId: lignes[0].id, complete: false };
+  if (remplie) return { assignmentId: remplie.id, complete: true, generique: remplie.template_id === generiqueId };
+  const ouverte = lignes.find((l) => l.template_id === templateId);
+  if (ouverte) return { assignmentId: ouverte.id, complete: false, generique: modele.generique };
 
   const { data: created, error } = await sb
     .schema('app')
@@ -87,7 +118,7 @@ export async function assignationSatisfaction(
     .select('id')
     .single();
   if (error || !created) throw new Error(`[satisfaction] assignation non créée : ${error?.message ?? 'inconnu'}`);
-  return { assignmentId: (created as { id: string }).id, complete: false };
+  return { assignmentId: (created as { id: string }).id, complete: false, generique: modele.generique };
 }
 
 /** Le lien de réponse du stagiaire (la page dit « déjà répondu » s'il l'a fait). */
@@ -97,6 +128,8 @@ export async function lienSatisfaction(
 ): Promise<string | null> {
   const base = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   if (!base) return null;
-  const { assignmentId } = await assignationSatisfaction(sb, args);
+  const { assignmentId, generique } = await assignationSatisfaction(sb, args);
+  // Le questionnaire de l'organisme se remplit sur la page commune à tous les questionnaires.
+  if (!generique) return lienStagiaire(base, 'questionnaire', { ...args, cibleId: assignmentId });
   return (await generateSatisfactionUrl({ assignmentId, ...args }, base)).url;
 }

@@ -3,7 +3,7 @@ import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { roomCode, roomSlot } from '@/features/attendance/room-code';
 import { loadSession } from '@/features/sessions/load-session';
-import { ensureSatisfactionTemplate, lienSatisfaction } from './satisfaction';
+import { ensureSatisfactionTemplate, lienSatisfaction, modeleSatisfaction } from './satisfaction';
 import { stagiairesDeLaSeance } from './stagiaires-de-seance';
 
 /**
@@ -35,13 +35,15 @@ export async function etatSalleSatisfaction(sessionId: string): Promise<EtatSall
   const stagiaires = (await stagiairesDeLaSeance(sb as never, sessionId)).flatMap((l) =>
     l.dossierId ? [{ id: l.id, first_name: l.prenom, last_name: l.nom, dossierId: l.dossierId }] : [],
   );
-  const templateId = await ensureSatisfactionTemplate(sb as never);
+  // Le questionnaire de l'organisme, et l'intégré pour les réponses données avant le changement.
+  const modele = await modeleSatisfaction(sb as never, loaded.session.organization_id);
+  const templateIds = [...new Set([modele.id, await ensureSatisfactionTemplate(sb as never)])];
   const { data } = stagiaires.length
     ? await sb
         .schema('app')
         .from('questionnaire_assignments')
         .select('dossier_id, recipient_learner_id')
-        .eq('template_id', templateId)
+        .in('template_id', templateIds)
         .eq('status', 'completed')
         .in('dossier_id', [...new Set(stagiaires.map((l) => l.dossierId))])
     : { data: [] };

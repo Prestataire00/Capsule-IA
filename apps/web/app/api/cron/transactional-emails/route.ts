@@ -11,7 +11,6 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import {
   satisfactionSurveyEmail,
 } from '@/shared/lib/email/templates';
-import { generateSatisfactionUrl } from '@/shared/lib/satisfaction-token';
 import { attendanceSignatureMissingEmail, halfDayLabel } from '@/shared/lib/email/attendance-reminder';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
 import { ensureTrainerSatisfactionTemplate } from '@/features/questionnaire/satisfaction-formateur';
@@ -35,7 +34,7 @@ import { automatisationApplicable } from '@/features/dossier/saisie-retroactive'
 import { dossiersAuFinancementArrete } from '@/features/funders/arret-automatisations';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 import { reponseCron } from '@/shared/lib/http/cron-response';
-import { assignationSatisfaction } from '@/features/questionnaire/satisfaction';
+import { assignationSatisfaction, lienSatisfaction } from '@/features/questionnaire/satisfaction';
 import { annoncerAttestations, dejaAnnoncee, deposerAttestation, type AttestationAAnnoncer } from '@/features/espace-entreprise/attestations';
 
 export const dynamic = 'force-dynamic';
@@ -271,10 +270,8 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
     if (!learner) continue;
     const formationTitle = (formationRow as { title: string } | null)?.title ?? 'Votre formation';
 
-    // Satisfaction — JWT signed URL
+    // Satisfaction : le questionnaire de l'organisme, à défaut l'intégré.
     if (jourSatisfaction && !satisfactionOff.has(d.id)) try {
-      const baseUrl = env.PUBLIC_APP_URL ?? 'http://localhost:3000';
-
       // Récup org_id du dossier
       const { data: dossierRow } = await sb
         .schema('app')
@@ -286,20 +283,15 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
       if (!orgId) throw new Error('dossier org_id missing');
 
       // Une par stagiaire : celui qui a déjà répondu en salle n'est pas relancé.
-      const { assignmentId, complete } = await assignationSatisfaction(sb as never, {
-        organizationId: orgId,
-        dossierId: d.id,
-        learnerId: d.learner_id,
-      });
-      const signed = await generateSatisfactionUrl(
-        { assignmentId, dossierId: d.id, organizationId: orgId, learnerId: d.learner_id },
-        baseUrl,
-      );
+      const args = { organizationId: orgId, dossierId: d.id, learnerId: d.learner_id };
+      const { complete } = await assignationSatisfaction(sb as never, args);
+      // Le questionnaire de satisfaction de l'organisme, à défaut l'intégré.
+      const lien = complete ? null : await lienSatisfaction(sb as never, args);
 
       const sat = satisfactionSurveyEmail({
         firstName: learner.first_name,
         formationTitle,
-        surveyUrl: signed.url,
+        surveyUrl: lien ?? '',
         durationMinutes: 5,
       });
       // Déjà répondu (en salle, projeté par le formateur) : rien à renvoyer.
@@ -309,6 +301,8 @@ async function runDossierEnd(): Promise<{ candidates: number; satisfactionSent: 
         // Rien : la réponse est déjà là.
       } else if (!learner.email) {
         errors.push(`satisfaction ${d.id}: stagiaire sans adresse`);
+      } else if (!lien) {
+        errors.push(`satisfaction ${d.id}: adresse publique de l'application manquante`);
       } else {
         const r = await sendEmail({
           to: learner.email,
