@@ -53,11 +53,13 @@ export async function stagiairesDejaConvoques(sb: SupabaseClient, sessionId: str
  * `modification` : la séance a changé de date ou d'horaires ; l'e-mail le dit, et
  * la clé d'unicité porte le nouveau début pour qu'un second changement reparte.
  * `seulement` restreint l'envoi à ces stagiaires — ceux qui avaient l'ancienne version.
+ * `copieEntreprise` : `si_sans_adresse` quand l'entreprise reçoit la convocation
+ * de groupe — elle n'est alors en copie que des stagiaires sans adresse.
  */
 export async function convoquerSeance(
   sb: SupabaseClient,
   session: SeanceAConvoquer,
-  opts: { modification?: boolean; seulement?: ReadonlySet<string> } = {},
+  opts: { modification?: boolean; seulement?: ReadonlySet<string>; copieEntreprise?: 'toujours' | 'si_sans_adresse' } = {},
 ): Promise<ConvocationResultat> {
   const errors: string[] = [];
   let sent = 0;
@@ -135,6 +137,7 @@ export async function convoquerSeance(
       const cible = destinatairesConvocation({
         learnerEmail: learner.email,
         companyEmail: dossierDuLearner?.company_id ? (emailEntreprise.get(dossierDuLearner.company_id) ?? null) : null,
+        copieEntreprise: opts.copieEntreprise,
       });
       // Ni le stagiaire ni son entreprise n'ont d'adresse : rien à envoyer,
       // mais il faut le dire — une convocation muette n'est pas une preuve.

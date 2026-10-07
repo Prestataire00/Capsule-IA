@@ -8,6 +8,9 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { eurosEnCentimes } from '@/features/trainer-space/billing-rules';
 import { parisIso } from '@/features/import/paris-time';
+import { sendConvocationsRecap } from '@/features/sessions/send-convocations-recap';
+import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
+import { organisationsQuiOntCoupe } from '@/features/emails/programmation-envois';
 import { convoquerSeance, stagiairesDejaConvoques, type SeanceAConvoquer } from '@/features/sessions/convoquer-seance';
 import { moveEvent } from '@/shared/lib/integrations/google-calendar-client';
 import { agendaDeLEvenement, type ZoomMetadataMeet } from '@/features/sessions/visio';
@@ -238,13 +241,27 @@ async function repercuterHoraires(sessionId: string, userId: string): Promise<st
     // les autres la recevront à la date prévue, déjà à jour.
     const deja = await stagiairesDejaConvoques(sb as never, sessionId);
     if (deja.size > 0) {
-      const r = await convoquerSeance(sb as never, s, { modification: true, seulement: deja });
+      const groupeCoupe = organisationsQuiOntCoupe(
+        'convocation_recap_entreprise',
+        await loadReglesParOrganisme(sb as never, 'convocation_recap_entreprise'),
+      ).has(s.organization_id);
+      const r = await convoquerSeance(sb as never, s, {
+        modification: true,
+        seulement: deja,
+        copieEntreprise: groupeCoupe ? 'toujours' : 'si_sans_adresse',
+      });
       if (r.errors.length) console.error('[séance] convocations mises à jour', sessionId, r.errors);
       bilan.push(
         r.sent > 0
           ? `Convocation mise à jour renvoyée à ${r.sent} stagiaire${r.sent > 1 ? 's' : ''}.`
           : 'La convocation mise à jour n’a pas pu partir : vérifiez le journal des e-mails.',
       );
+      // L'entreprise reçoit la convocation de groupe à jour, déposée aussi dans son espace.
+      if (!groupeCoupe) {
+        const g = await sendConvocationsRecap(sessionId);
+        if (g.erreurs.length) console.error('[séance] convocation de groupe mise à jour', sessionId, g.erreurs);
+        if (g.envoyes > 0) bilan.push(`Convocation de groupe mise à jour envoyée à ${g.envoyes} entreprise${g.envoyes > 1 ? 's' : ''}.`);
+      }
     }
   }
   return bilan.join(' ');

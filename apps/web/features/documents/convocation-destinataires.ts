@@ -34,11 +34,18 @@ export function destinatairesConvocation(input: {
   referentEmail?: string | null;
   /** Adresse de contact de l'entreprise cliente. */
   companyEmail?: string | null;
+  /**
+   * `si_sans_adresse` : l'entreprise n'est en copie que du stagiaire qu'on ne
+   * peut pas joindre — elle reçoit déjà la convocation de groupe, avec la
+   * liste de ses salariés (demande d'Ismael, 07/10/2026).
+   */
+  copieEntreprise?: 'toujours' | 'si_sans_adresse';
 }): DestinatairesConvocation {
   const stagiaire = propre(input.learnerEmail);
   // Le référent du dossier prime sur le contact générique de l'entreprise :
   // c'est lui qui suit cette formation-là.
-  const cote = propre(input.referentEmail) ?? propre(input.companyEmail);
+  const entreprise = propre(input.referentEmail) ?? propre(input.companyEmail);
+  const cote = input.copieEntreprise === 'si_sans_adresse' && stagiaire !== null ? null : entreprise;
 
   const destinataires = [...new Set([stagiaire, cote].filter((e): e is string => e !== null))];
 

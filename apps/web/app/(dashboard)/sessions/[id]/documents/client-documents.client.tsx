@@ -71,7 +71,7 @@ export function ClientDocuments({
       setMessage({
         tone: out.erreurs.length ? 'err' : 'ok',
         text:
-          `${out.envoyes}/${out.entreprises} entreprise(s) prévenue(s).` +
+          `${out.envoyes}/${out.entreprises} entreprise(s) prévenue(s), ${out.deposees} convocation(s) déposée(s) dans l’espace entreprise.` +
           (out.erreurs.length ? ` ${out.erreurs.join(' · ')}` : ''),
       });
     });

@@ -17,11 +17,10 @@ describe('convocation de groupe', () => {
       'Zola',
     ]);
   });
-  it('numérote, et dit quand l’adresse manque', () => {
-    expect(lignesParticipants([p('Léa', 'Zola', 'lea@client.fr'), p('Ana', 'Durand', 'x@provisoire.invalid')])).toEqual([
-      '1. DURAND Ana : adresse non renseignée',
-      '2. ZOLA Léa : lea@client.fr',
-    ]);
+  it('numérote, dit qui l’entreprise doit prévenir, sans publier d’adresse', () => {
+    const lignes = lignesParticipants([p('Léa', 'Zola', 'lea@client.fr'), p('Ana', 'Durand', 'x@provisoire.invalid')]);
+    expect(lignes).toEqual(['1. DURAND Ana : à prévenir par l’entreprise', '2. ZOLA Léa : convoqué(e) par e-mail']);
+    expect(lignes.join(' ')).not.toContain('@');
   });
   it('nomme le fichier d’après le groupe et le jour', () => {
     expect(nomFichierConvocation('Groupe A (matin)', '2026-10-08T07:00:00Z', '2026-10-08')).toBe('convocation-groupe-a-matin-2026-10-08.pdf');

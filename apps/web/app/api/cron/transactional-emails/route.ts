@@ -147,20 +147,23 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
   let sent = 0;
   const errors: string[] = [];
 
-  for (const session of sessionRows) {
-    const r = await convoquerSeance(sb as unknown as SupabaseClient, session as unknown as SeanceAConvoquer);
-    sent += r.sent;
-    errors.push(...r.errors);
-  }
-
-  // Récap aux entreprises clientes : une fois les convocations individuelles
-  // parties, le responsable de chaque société reçoit celles de ses salariés en
-  // un seul envoi. Il ne recevait rien jusqu'ici.
-  // Coupé pour tout l'organisme dans Envois automatiques : pas de récapitulatif.
+  // Convocation de groupe aux entreprises : coupée pour tout l'organisme dans
+  // Envois automatiques, l'entreprise reste en copie de chaque convocation.
   const recapCoupe = organisationsQuiOntCoupe(
     'convocation_recap_entreprise',
     await loadReglesParOrganisme(sb, 'convocation_recap_entreprise'),
   );
+
+  for (const session of sessionRows) {
+    const r = await convoquerSeance(sb as unknown as SupabaseClient, session as unknown as SeanceAConvoquer, {
+      copieEntreprise: recapCoupe.has(session.organization_id) ? 'toujours' : 'si_sans_adresse',
+    });
+    sent += r.sent;
+    errors.push(...r.errors);
+  }
+
+  // Puis la convocation de groupe : au référent de chaque entreprise, avec la
+  // liste de ses salariés, et déposée dans son espace entreprise.
   for (const s of sessionRows as unknown as { id: string; organization_id: string }[]) {
     if (recapCoupe.has(s.organization_id)) continue;
     try {

@@ -786,6 +786,34 @@ export function evaluationsFinReferentEmail(d: {
   return { subject, html };
 }
 
+/** À l'apprenant, à la fin de la formation : son avis, et le quiz s'il y en a un. */
+export function evaluationsFinStagiaireEmail(d: {
+  prenom: string;
+  formation: string;
+  organisme: string;
+  satisfaction: string | null;
+  quiz: ReadonlyArray<{ titre: string; lien: string }>;
+}): { subject: string; html: string } {
+  const subject = `Votre avis sur la formation ${d.formation}`;
+  const html = wrapper(
+    card(`
+      <h1 style="font-size:20px; color:#18181b; margin:0 0 8px;">Merci d’avoir suivi la formation</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 16px;">Bonjour${d.prenom ? ` ${escapeHtml(d.prenom)}` : ''}, la formation <strong style="color:#18181b;">${escapeHtml(d.formation)}</strong> est terminée. Votre avis nous aide à l’améliorer : quelques minutes suffisent.</p>
+      ${d.satisfaction ? `<div style="margin:0 0 16px;">${button(d.satisfaction, 'Donner mon avis')}</div>` : ''}
+      ${
+        d.quiz.length
+          ? `<p style="font-size:14px; color:#52525b; margin:0 0 8px;">Et pour vérifier vos acquis :</p>
+             <ul style="margin:0 0 16px; padding-left:18px;">${d.quiz
+               .map((q) => `<li style="margin:0 0 4px;"><a href="${q.lien}" style="color:#4c1d95; font-size:14px;">${escapeHtml(q.titre)}</a></li>`)
+               .join('')}</ul>`
+          : ''
+      }
+      <p style="font-size:12px; color:#71717a; margin:0;">Ce lien vous est personnel. Si vous avez déjà répondu en salle, vous pouvez ignorer cet e-mail. ${escapeHtml(d.organisme)}</p>
+    `),
+  );
+  return { subject, html };
+}
+
 /** Au formateur, 30 minutes avant la fin : projeter le QR de satisfaction et lancer le quiz. */
 export function evaluationsFinFormateurEmail(d: {
   prenom: string;

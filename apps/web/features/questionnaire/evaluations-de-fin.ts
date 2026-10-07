@@ -8,10 +8,10 @@ import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
 import { sessionsAutomationOff } from '@/features/automation/session-automations';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
 import { organisationsQuiOntCoupe } from '@/features/emails/programmation-envois';
-import { evaluationsFinFormateurEmail, evaluationsFinReferentEmail } from '@/shared/lib/email/templates';
+import { evaluationsFinFormateurEmail, evaluationsFinReferentEmail, evaluationsFinStagiaireEmail } from '@/shared/lib/email/templates';
 import { questionnaireEmail } from '@/shared/lib/email/questionnaire-email';
 import { generateQuestionnaireToken } from '@/shared/lib/questionnaire-token';
-import { lienSatisfaction } from './satisfaction';
+import { assignationSatisfaction, lienSatisfaction } from './satisfaction';
 import { lienStagiaire } from './lien-stagiaire';
 import { ensureCompanySatisfactionTemplate } from './satisfaction-entreprise';
 
@@ -21,7 +21,9 @@ import { ensureCompanySatisfactionTemplate } from './satisfaction-entreprise';
  *  • 30 minutes avant la fin de la DERNIÈRE séance d'un dossier, le
  *    questionnaire de satisfaction à chaud et le quiz de fin : le formateur
  *    est prévenu de projeter le QR, et chaque entreprise reçoit en un e-mail
- *    les liens de ses stagiaires (un particulier, les siens) ;
+ *    les liens de ses stagiaires SANS adresse, pour les leur transmettre ;
+ *  • à la fin de cette séance, chaque stagiaire qui a une adresse reçoit ses
+ *    propres liens — sauf s'il a déjà répondu en salle (07/10/2026) ;
  *  • 24 h après cette dernière séance, le questionnaire de satisfaction de
  *    l'entreprise part à son référent.
  *
@@ -64,6 +66,22 @@ async function derniereSeanceDuClient(sb: Sb, seance: Seance): Promise<boolean> 
 
 const COLONNES = 'id, organization_id, ends_at, dossier_id, company_id, formation_id';
 
+const adresseValide = (email: string | null | undefined): email is string =>
+  Boolean(email && email.includes('@') && !email.trim().toLowerCase().endsWith('.invalid'));
+
+/** Les quiz validés de la séance ou de ses dossiers : le quiz de fin. */
+async function quizDeFin(sb: Sb, s: Seance, dossierIds: readonly string[]): Promise<Array<{ id: string; title: string }>> {
+  const { data } = await sb
+    .schema('app')
+    .from('exercises' as never)
+    .select('id, title')
+    .eq('organization_id', s.organization_id)
+    .eq('validation_status', 'valide')
+    .eq('kind', 'quiz')
+    .or(`session_id.eq.${s.id}${dossierIds.length ? `,dossier_id.in.(${dossierIds.join(',')})` : ''}`);
+  return (data ?? []) as unknown as Array<{ id: string; title: string }>;
+}
+
 export async function lancerEvaluationsDeFin(sb: Sb, maintenant = new Date()): Promise<{ seances: number; sent: number; errors: string[] }> {
   const base = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   if (!base) return { seances: 0, sent: 0, errors: ['PUBLIC_APP_URL absente'] };
@@ -96,23 +114,15 @@ export async function lancerEvaluationsDeFin(sb: Sb, maintenant = new Date()): P
     if (dossiersFinis.length === 0 && !sansDossierFini) continue;
     traitees += 1;
 
-    // Les quiz validés de la séance ou de ses dossiers : le quiz de fin.
-    const { data: ex } = await sb
-      .schema('app')
-      .from('exercises' as never)
-      .select('id, title')
-      .eq('organization_id', s.organization_id)
-      .eq('validation_status', 'valide')
-      .eq('kind', 'quiz')
-      .or(`session_id.eq.${s.id}${loaded.dossierIds.length ? `,dossier_id.in.(${loaded.dossierIds.join(',')})` : ''}`);
-    const quiz = (ex ?? []) as unknown as Array<{ id: string; title: string }>;
+    const quiz = await quizDeFin(sb, s, loaded.dossierIds);
     const formation = loaded.formation?.title ?? loaded.session.title ?? 'votre formation';
 
     // Chaque stagiaire de dossier terminé : son lien de satisfaction et ses quiz.
-    const stagiaires = loaded.learners.filter((l) => dossiersFinis.includes(l.dossierId));
+    // Ceux qui ont une adresse reçoivent leurs liens eux-mêmes à la fin
+    // (`envoyerEvaluationsAuxStagiaires`) : l'entreprise ne relaie que les autres.
+    const stagiaires = loaded.learners.filter((l) => dossiersFinis.includes(l.dossierId) && !adresseValide(l.email));
     const referents = await referentsDesDossiers(sb, stagiaires.map((l) => l.dossierId));
     const parReferent = new Map<string, { prenom: string; liste: Array<{ nom: string; satisfaction: string | null; quiz: Array<{ titre: string; lien: string }> }> }>();
-    const seuls: Array<{ email: string; prenom: string; dossierId: string; nom: string; satisfaction: string | null; quiz: Array<{ titre: string; lien: string }> }> = [];
     for (const l of stagiaires) {
       const args = { organizationId: s.organization_id, dossierId: l.dossierId, learnerId: l.id };
       const satisfaction = await lienSatisfaction(sb, args);
@@ -120,13 +130,12 @@ export async function lancerEvaluationsDeFin(sb: Sb, maintenant = new Date()): P
         quiz.map(async (q) => ({ titre: q.title, lien: await lienStagiaire(base, 'quiz', { ...args, cibleId: q.id }) })),
       );
       const ligne = { nom: `${l.first_name} ${l.last_name}`.trim(), satisfaction, quiz: liensQuiz };
+      // Sans référent ni adresse : le QR projeté par le formateur reste le seul chemin.
       const ref = referents.get(l.dossierId);
       if (ref) {
         const g = parReferent.get(ref.email) ?? { prenom: ref.prenom, liste: [] };
         g.liste.push(ligne);
         parReferent.set(ref.email, g);
-      } else if (l.email && !l.email.toLowerCase().endsWith('.invalid')) {
-        seuls.push({ email: l.email, prenom: l.first_name, dossierId: l.dossierId, ...ligne });
       }
     }
 
@@ -145,22 +154,6 @@ export async function lancerEvaluationsDeFin(sb: Sb, maintenant = new Date()): P
       if (r.ok) sent += 1;
       else if (r.reason !== 'duplicate' && r.reason !== 'no_api_key') errors.push(`${s.id} → ${email} : ${r.reason}`);
     }
-    // Un particulier, sans entreprise : ses propres liens.
-    for (const p of seuls) {
-      const tpl = evaluationsFinReferentEmail({ prenom: p.prenom, formation, organisme, stagiaires: [p] });
-      const r = await envoyerDepuisLOrganisme(sb, s.organization_id, {
-        to: p.email,
-        subject: tpl.subject,
-        html: tpl.html,
-        kind: 'evaluations_fin',
-        dossierId: p.dossierId,
-        idempotencyKey: `evaluations_fin:${s.id}:${p.email}`,
-        metadata: { session_id: s.id },
-      });
-      if (r.ok) sent += 1;
-      else if (r.reason !== 'duplicate' && r.reason !== 'no_api_key') errors.push(`${s.id} → ${p.email} : ${r.reason}`);
-    }
-
     // Le formateur : projeter le QR de satisfaction, faire le quiz.
     const { data: st } = await sb.schema('app').from('session_trainers').select('trainer:trainers(first_name, email)').eq('session_id', s.id).is('deleted_at', null);
     for (const row of (st ?? []) as unknown as Array<{ trainer: { first_name: string | null; email: string | null } | Array<{ first_name: string | null; email: string | null }> | null }>) {
@@ -177,6 +170,78 @@ export async function lancerEvaluationsDeFin(sb: Sb, maintenant = new Date()): P
       });
       if (r.ok) sent += 1;
       else if (r.reason !== 'duplicate' && r.reason !== 'no_api_key') errors.push(`${s.id} → formateur : ${r.reason}`);
+    }
+  }
+  return { seances: traitees, sent, errors };
+}
+
+/**
+ * À la fin de la dernière séance d'un dossier, chaque stagiaire qui a une
+ * adresse reçoit lui-même son questionnaire de satisfaction à chaud (et le
+ * quiz de fin). Celui qui a déjà répondu en salle, sur le QR projeté, ne
+ * reçoit rien. Fenêtre de 24 h : un passage manqué se rattrape ; la clé
+ * garantit un seul envoi par stagiaire et par séance.
+ */
+export async function envoyerEvaluationsAuxStagiaires(
+  sb: Sb,
+  maintenant = new Date(),
+): Promise<{ seances: number; sent: number; errors: string[] }> {
+  const base = (env.PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  if (!base) return { seances: 0, sent: 0, errors: ['PUBLIC_APP_URL absente'] };
+  const { data, error } = await sb
+    .schema('app')
+    .from('sessions')
+    .select(COLONNES)
+    .neq('status', 'cancelled')
+    .lte('ends_at', maintenant.toISOString())
+    .gt('ends_at', new Date(maintenant.getTime() - 24 * 3600_000).toISOString());
+  if (error) return { seances: 0, sent: 0, errors: [`lecture des séances : ${error.message}`] };
+  const seances = (data ?? []) as unknown as Seance[];
+  if (seances.length === 0) return { seances: 0, sent: 0, errors: [] };
+
+  const [coupees, coupes] = await Promise.all([
+    sessionsAutomationOff(sb, seances.map((s) => s.id), 'evaluations_fin'),
+    loadReglesParOrganisme(sb, 'evaluations_fin').then((r) => organisationsQuiOntCoupe('evaluations_fin', r)),
+  ]);
+
+  let sent = 0;
+  let traitees = 0;
+  const errors: string[] = [];
+  for (const s of seances) {
+    if (coupees.has(s.id) || coupes.has(s.organization_id)) continue;
+    const loaded = await loadSession(sb, s.id);
+    if (!loaded) continue;
+    const dossiersFinis = await dossiersDontCestLaDerniere(sb, s, loaded.dossierIds);
+    const stagiaires = loaded.learners.filter((l) => dossiersFinis.includes(l.dossierId) && adresseValide(l.email));
+    if (stagiaires.length === 0) continue;
+    traitees += 1;
+
+    const quiz = await quizDeFin(sb, s, loaded.dossierIds);
+    const formation = loaded.formation?.title ?? loaded.session.title ?? 'votre formation';
+    const { data: org } = await sb.schema('app').from('organizations').select('name').eq('id', s.organization_id).maybeSingle();
+    const organisme = (org as { name: string | null } | null)?.name ?? 'Votre organisme de formation';
+
+    for (const l of stagiaires) {
+      const args = { organizationId: s.organization_id, dossierId: l.dossierId, learnerId: l.id };
+      const { complete } = await assignationSatisfaction(sb, args);
+      const satisfaction = complete ? null : await lienSatisfaction(sb, args);
+      const liensQuiz = await Promise.all(
+        quiz.map(async (q) => ({ titre: q.title, lien: await lienStagiaire(base, 'quiz', { ...args, cibleId: q.id }) })),
+      );
+      // Déjà répondu en salle et aucun quiz : rien à lui demander.
+      if (!satisfaction && liensQuiz.length === 0) continue;
+      const tpl = evaluationsFinStagiaireEmail({ prenom: l.first_name, formation, organisme, satisfaction, quiz: liensQuiz });
+      const r = await envoyerDepuisLOrganisme(sb, s.organization_id, {
+        to: l.email,
+        subject: tpl.subject,
+        html: tpl.html,
+        kind: 'evaluations_fin',
+        dossierId: l.dossierId,
+        idempotencyKey: `evaluations_fin_stagiaire:${s.id}:${l.id}`,
+        metadata: { session_id: s.id, learner_id: l.id },
+      });
+      if (r.ok) sent += 1;
+      else if (r.reason !== 'duplicate' && r.reason !== 'no_api_key') errors.push(`${s.id} → stagiaire ${l.id} : ${r.reason}`);
     }
   }
   return { seances: traitees, sent, errors };

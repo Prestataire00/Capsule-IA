@@ -18,11 +18,16 @@ export function trierParticipants(liste: readonly ParticipantConvoque[]): Partic
   );
 }
 
-/** « 1. ZOLA Léa : lea@client.fr » — une ligne « Libellé : valeur » du PDF à la charte. */
+/**
+ * « 1. ZOLA Léa : convoqué(e) par e-mail » — une ligne « Libellé : valeur » du
+ * PDF à la charte. Le document est déposé dans l'espace entreprise, que les
+ * stagiaires du dossier voient aussi : il nomme les participants, sans
+ * publier leurs adresses.
+ */
 export function lignesParticipants(liste: readonly ParticipantConvoque[]): string[] {
   return trierParticipants(liste).map((p, i) => {
-    const email = p.email && !ADRESSE_FACTICE.test(p.email.trim()) ? p.email.trim() : 'adresse non renseignée';
-    return `${i + 1}. ${p.nom.toUpperCase()} ${p.prenom} : ${email}`;
+    const joignable = Boolean(p.email && !ADRESSE_FACTICE.test(p.email.trim()));
+    return `${i + 1}. ${p.nom.toUpperCase()} ${p.prenom} : ${joignable ? 'convoqué(e) par e-mail' : 'à prévenir par l’entreprise'}`;
   });
 }
 

@@ -78,3 +78,16 @@ describe('mention ajoutée pour l’entreprise', () => {
     expect(mentionEntreprise('Alice Dupont', false)).toMatch(/en copie/i);
   });
 });
+
+describe('copie de l’entreprise quand elle reçoit la convocation de groupe', () => {
+  it('le stagiaire joignable reçoit seul sa convocation', () => {
+    const r = destinatairesConvocation({ learnerEmail: 'salarie@client.fr', companyEmail: 'rh@client.fr', copieEntreprise: 'si_sans_adresse' });
+    expect(r.destinataires).toEqual(['salarie@client.fr']);
+    expect(r.viaEntreprise).toBe(false);
+  });
+  it('sans adresse, l’entreprise reste destinataire pour la transmettre', () => {
+    const r = destinatairesConvocation({ learnerEmail: null, referentEmail: 'rita@client.fr', copieEntreprise: 'si_sans_adresse' });
+    expect(r.destinataires).toEqual(['rita@client.fr']);
+    expect(r.viaEntreprise).toBe(true);
+  });
+});

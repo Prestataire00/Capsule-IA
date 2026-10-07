@@ -87,7 +87,7 @@ export const sendSessionConvocationsRecap = authActionClient
 
     const r = await sendConvocationsRecap(parsedInput.sessionId);
     revalidatePath(`/sessions/${parsedInput.sessionId}`);
-    return { ok: true as const, entreprises: r.entreprises, envoyes: r.envoyes, erreurs: r.erreurs };
+    return { ok: true as const, entreprises: r.entreprises, envoyes: r.envoyes, deposees: r.deposees, erreurs: r.erreurs };
   });
 
 /**

@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { convocationsRecapEmail } from '@/shared/lib/email/templates';
 import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
+import { persistGeneratedDocument } from '@/features/documents/persist-document';
 import { chargerSeance, construireConvocationGroupe, participantsConvoques } from './convocation-groupe';
 import type { ParticipantConvoque } from './convocation-groupe-contenu';
 
@@ -20,6 +21,8 @@ import type { ParticipantConvoque } from './convocation-groupe-contenu';
 export type RecapResult = {
   readonly entreprises: number;
   readonly envoyes: number;
+  /** Convocations déposées dans l'espace entreprise. */
+  readonly deposees: number;
   readonly erreurs: string[];
 };
 
@@ -31,7 +34,7 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
   const erreurs: string[] = [];
 
   const seance = await chargerSeance(sb, sessionId);
-  if (!seance) return { entreprises: 0, envoyes: 0, erreurs: ['séance introuvable'] };
+  if (!seance) return { entreprises: 0, envoyes: 0, deposees: 0, erreurs: ['séance introuvable'] };
   const participants = await participantsConvoques(sb, seance);
 
   const parEntreprise = new Map<string, ParticipantConvoque[]>();
@@ -39,7 +42,7 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
     if (!p.companyId) continue;
     parEntreprise.set(p.companyId, [...(parEntreprise.get(p.companyId) ?? []), p]);
   }
-  if (parEntreprise.size === 0) return { entreprises: 0, envoyes: 0, erreurs };
+  if (parEntreprise.size === 0) return { entreprises: 0, envoyes: 0, deposees: 0, erreurs };
 
   const [{ data: entreprisesRows }, { data: dossiersRows }, referents] = await Promise.all([
     sb.schema('app').from('companies').select('id, name, contact_name, contact_email').in('id', [...parEntreprise.keys()]),
@@ -57,12 +60,39 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
   }
 
   let envoyes = 0;
+  let deposees = 0;
   for (const [companyId, salaries] of parEntreprise) {
     const entreprise = entreprises.get(companyId);
     if (!entreprise) {
       erreurs.push('entreprise introuvable');
       continue;
     }
+    const pdf = await construireConvocationGroupe(sb, seance, salaries, entreprise.name);
+
+    // Déposée dans l'espace entreprise, que l'e-mail parte ou non : une
+    // version par séance et par entreprise, remplacée si les horaires changent.
+    const dossierId = dossiersDe.get(companyId)?.[0];
+    if (dossierId) {
+      try {
+        const doc = await persistGeneratedDocument(sb, {
+          organizationId: seance.organizationId,
+          dossierId,
+          kind: 'convocation',
+          title: pdf.titre,
+          bytes: pdf.bytes,
+          generationInput: { session_id: seance.id, company_id: companyId },
+          sourceKey: `convocation_groupe:${seance.id}:${companyId}`,
+          sourceUrl: `/api/sessions/${seance.id}/convocation-groupe.pdf?entreprise=${companyId}`,
+          metadata: { session_id: seance.id, company_id: companyId, groupe: seance.groupe },
+        });
+        const { error } = await sb.schema('app').from('documents').update({ visible_entreprise: true } as never).eq('id', doc.documentId);
+        if (error) erreurs.push(`${entreprise.name} : dépôt dans l’espace entreprise — ${error.message}`);
+        else deposees += 1;
+      } catch (e) {
+        erreurs.push(`${entreprise.name} : dépôt dans l’espace entreprise — ${e instanceof Error ? e.message : 'échec'}`);
+      }
+    }
+
     // Le référent du dossier d'abord : c'est lui qui suit cette formation.
     const referent = (dossiersDe.get(companyId) ?? []).map((id) => referents.get(id)).find(Boolean);
     let destinataire = referent?.email ?? entreprise.contact_email?.trim() ?? null;
@@ -86,7 +116,6 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
       continue;
     }
 
-    const pdf = await construireConvocationGroupe(sb, seance, salaries, entreprise.name);
     const tpl = convocationsRecapEmail({
       companyName: entreprise.name,
       contactName: prenom ?? null,
@@ -107,7 +136,7 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
       html: tpl.html,
       attachments: [{ filename: pdf.filename, content: Buffer.from(pdf.bytes).toString('base64') }],
       organizationId: seance.organizationId,
-      dossierId: dossiersDe.get(companyId)?.[0],
+      dossierId,
       kind: 'convocation_recap_entreprise',
       metadata: { session_id: seance.id, company_id: companyId, participants: salaries.length },
     });
@@ -115,5 +144,5 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
     else erreurs.push(`${entreprise.name} : ${envoi.reason}`);
   }
 
-  return { entreprises: parEntreprise.size, envoyes, erreurs };
+  return { entreprises: parEntreprise.size, envoyes, deposees, erreurs };
 }
