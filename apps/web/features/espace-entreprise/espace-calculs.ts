@@ -99,3 +99,39 @@ export function trierActions(actions: readonly Action[]): Action[] {
 const ADRESSE_FACTICE = /\.invalid$/i;
 export const aUneAdresse = (email: string | null | undefined): boolean =>
   Boolean(email && email.includes('@') && !ADRESSE_FACTICE.test(email.trim()));
+
+export type SeanceHeures = { readonly dureeHeures: number; readonly passee: boolean; readonly formation: string; readonly groupe: string | null };
+
+export type BilanHeures = {
+  readonly realisees: number;
+  readonly prevues: number;
+  readonly seancesFaites: number;
+  readonly seances: number;
+};
+
+const bilan = (liste: readonly SeanceHeures[]): BilanHeures => ({
+  realisees: arrondi(liste.filter((s) => s.passee).reduce((t, s) => t + Math.max(0, s.dureeHeures), 0)),
+  prevues: arrondi(liste.reduce((t, s) => t + Math.max(0, s.dureeHeures), 0)),
+  seancesFaites: liste.filter((s) => s.passee).length,
+  seances: liste.length,
+});
+
+/**
+ * Les heures de formation, séance par séance (demande d'Ismael, 2026-10-07) :
+ * une séance terminée compte sa durée, une seule fois — pas une fois par
+ * apprenant. Au total, puis par formation et groupe.
+ */
+export function heuresDesSeances(seances: readonly SeanceHeures[]): {
+  total: BilanHeures;
+  parFormation: Array<{ formation: string; groupe: string | null } & BilanHeures>;
+} {
+  const groupes = new Map<string, SeanceHeures[]>();
+  for (const s of seances) {
+    const cle = `${s.formation}\u0000${s.groupe ?? ''}`;
+    groupes.set(cle, [...(groupes.get(cle) ?? []), s]);
+  }
+  const parFormation = [...groupes.values()]
+    .map((liste) => ({ formation: liste[0]?.formation ?? '', groupe: liste[0]?.groupe ?? null, ...bilan(liste) }))
+    .sort((a, b) => a.formation.localeCompare(b.formation, 'fr') || (a.groupe ?? '').localeCompare(b.groupe ?? '', 'fr'));
+  return { total: bilan(seances), parFormation };
+}

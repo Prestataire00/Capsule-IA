@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { CalendarDays, Clock, Download, GraduationCap, LayoutList, MapPin, Table2, Users, Video } from 'lucide-react';
-import { planning } from '@/features/espace-entreprise/espace-calculs';
+import { heuresDesSeances, planning } from '@/features/espace-entreprise/espace-calculs';
 import type { SeanceEspace } from '@/features/espace-entreprise/espace-complet';
 import { CARTE, MODALITE, heure, heures, jourLong } from './format';
 
@@ -45,6 +45,7 @@ export function VuePlanning({ seances, token, vue }: { seances: readonly SeanceE
           ))}
         </div>
       </div>
+      <SuiviHeures seances={seances} />
       {vue === 'tableau' ? (
         <>
           <Tableau titre="À venir" seances={p.aVenir.flatMap((g) => g.seances)} vide="Aucune séance à venir." />
@@ -88,7 +89,11 @@ function Tableau({ titre, seances, vide }: { titre: string; seances: readonly Se
                   <td className="px-4 py-3 whitespace-nowrap tabular-nums text-zinc-800 dark:text-zinc-200 first-letter:uppercase">{jourTableau.format(new Date(s.debut))}</td>
                   <td className="px-4 py-3 whitespace-nowrap tabular-nums text-zinc-700 dark:text-zinc-300">
                     {heure.format(new Date(s.debut))} – {heure.format(new Date(s.fin))}
-                    {s.dureeHeures > 0 && <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">{heures(s.dureeHeures)}</span>}
+                    {s.dureeHeures > 0 && (
+                      <span className="block">
+                        <EtatSeance seance={s} />
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-[color:var(--sess)]">{s.formation}</span>
@@ -154,8 +159,12 @@ function Bloc({ titre, groupes, vide, passees = false }: { titre: string; groupe
                       </span>
                       <span className="inline-flex items-center gap-1 tabular-nums">
                         <Clock className="w-3.5 h-3.5" aria-hidden /> {heure.format(new Date(s.debut))} – {heure.format(new Date(s.fin))}
-                        {s.dureeHeures > 0 && ` · ${heures(s.dureeHeures)}`}
                       </span>
+                      {s.dureeHeures > 0 && (
+                      <span className="block">
+                        <EtatSeance seance={s} />
+                      </span>
+                    )}
                       <span className="inline-flex items-center gap-1">
                         {s.visio ? <Video className="w-3.5 h-3.5" aria-hidden /> : <MapPin className="w-3.5 h-3.5" aria-hidden />}
                         {MODALITE[s.modalite] ?? s.modalite}
@@ -183,6 +192,65 @@ function Bloc({ titre, groupes, vide, passees = false }: { titre: string; groupe
             </ul>
           </div>
         ))
+      )}
+    </section>
+  );
+}
+
+/** « 4 h réalisées » une fois la séance terminée, « 4 h prévues » avant. */
+function EtatSeance({ seance }: { seance: SeanceEspace }) {
+  return seance.passee ? (
+    <span className="mt-1 inline-flex items-center h-5 px-1.5 rounded-full text-[11px] tabular-nums bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+      {heures(seance.dureeHeures)} réalisées
+    </span>
+  ) : (
+    <span className="mt-1 inline-flex items-center h-5 px-1.5 rounded-full text-[11px] tabular-nums bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+      {heures(seance.dureeHeures)} prévues
+    </span>
+  );
+}
+
+/** Heures réalisées sur heures prévues, au total puis par formation et groupe. */
+function SuiviHeures({ seances }: { seances: readonly SeanceEspace[] }) {
+  const { total, parFormation } = heuresDesSeances(seances);
+  if (total.prevues <= 0) return null;
+  const pct = (r: number, p: number) => (p > 0 ? Math.min(100, Math.round((r / p) * 100)) : 0);
+  return (
+    <section aria-label="Heures réalisées" className={`${CARTE} p-5 space-y-4`}>
+      <div className="flex items-start gap-3">
+        <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <Clock className="w-4 h-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Heures réalisées</p>
+          <p className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+            {heures(total.realisees)} <span className="text-zinc-400 font-normal">/ {heures(total.prevues)}</span>
+          </p>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+            {total.seancesFaites} séance{total.seancesFaites > 1 ? 's' : ''} réalisée{total.seancesFaites > 1 ? 's' : ''} sur {total.seances}
+          </p>
+        </div>
+      </div>
+      <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden" role="progressbar" aria-valuenow={pct(total.realisees, total.prevues)} aria-valuemin={0} aria-valuemax={100} aria-label="Avancement des heures">
+        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct(total.realisees, total.prevues)}%` }} />
+      </div>
+      {parFormation.length > 1 && (
+        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 -mx-5 border-t border-zinc-100 dark:border-zinc-800">
+          {parFormation.map((f) => (
+            <li key={`${f.formation}-${f.groupe ?? ''}`} className="px-5 py-2.5 flex items-center gap-3">
+              <span className="min-w-0 flex-1 text-[13px] text-[color:var(--sess)] truncate">
+                {f.formation}
+                {f.groupe && <span className="ml-2 inline-flex items-center h-5 px-1.5 rounded-full text-[11px] bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">{f.groupe}</span>}
+              </span>
+              <span className="w-24 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden shrink-0" aria-hidden>
+                <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct(f.realisees, f.prevues)}%` }} />
+              </span>
+              <span className="shrink-0 text-[13px] tabular-nums text-zinc-900 dark:text-zinc-100 w-28 text-right">
+                {heures(f.realisees)} <span className="text-zinc-400">/ {heures(f.prevues)}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

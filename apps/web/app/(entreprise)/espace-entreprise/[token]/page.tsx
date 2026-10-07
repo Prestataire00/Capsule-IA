@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation';
 import { Building2, CalendarDays, Clock, ListChecks, MessageSquareWarning, Receipt, Users } from 'lucide-react';
 import { verifyEntrepriseToken } from '@/shared/lib/entreprise-token';
 import { chargerEspaceComplet } from '@/features/espace-entreprise/espace-complet';
+import { heuresDesSeances } from '@/features/espace-entreprise/espace-calculs';
 import { VueActions } from './_vues/actions';
 import { VuePlanning } from './_vues/planning';
 import { VueApprenants } from './_vues/apprenants';
@@ -52,8 +53,8 @@ export default async function EspaceEntreprisePage({ params, searchParams }: { p
       ? 'actions'
       : 'planning';
   const prochaine = espace.seances.find((s) => !s.passee) ?? null;
-  const realisees = espace.apprenants.reduce((t, a) => t + a.heures.realisees, 0);
-  const prevues = espace.apprenants.reduce((t, a) => t + a.heures.prevues, 0);
+  // Par séance, pas par apprenant : 4 h de cours comptent 4 h, quel que soit le nombre de présents.
+  const { total: bilanHeures } = heuresDesSeances(espace.seances);
   const reste = espace.factures.reduce((t, f) => t + f.resteCents, 0);
   const compte: Partial<Record<Onglet, number>> = {
     actions: espace.actions.length,
@@ -80,7 +81,7 @@ export default async function EspaceEntreprisePage({ params, searchParams }: { p
               {espace.entreprise && <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1">{espace.entreprise}</p>}
             </div>
           </div>
-          <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+          <dl className={`grid grid-cols-2 gap-3 mt-5 ${reste > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <Chiffre icone={ListChecks} teinte="bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300" libelle="À faire" valeur={String(espace.actions.length)} />
             <Chiffre icone={Users} teinte="bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" libelle="Apprenants" valeur={String(espace.apprenants.length)} />
             <Chiffre
@@ -90,16 +91,15 @@ export default async function EspaceEntreprisePage({ params, searchParams }: { p
               valeur={prochaine ? `${jourLong.format(new Date(prochaine.debut))}` : '—'}
               detail={prochaine ? `${heure.format(new Date(prochaine.debut))} – ${heure.format(new Date(prochaine.fin))}` : undefined}
             />
-            {reste > 0 ? (
+            <Chiffre
+              icone={Clock}
+              teinte="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+              libelle="Heures réalisées"
+              valeur={bilanHeures.prevues > 0 ? `${heures(bilanHeures.realisees)} / ${heures(bilanHeures.prevues)}` : '—'}
+              detail={bilanHeures.seances > 0 ? `${bilanHeures.seancesFaites} séance${bilanHeures.seancesFaites > 1 ? 's' : ''} sur ${bilanHeures.seances}` : undefined}
+            />
+            {reste > 0 && (
               <Chiffre icone={Receipt} teinte="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" libelle="Reste à payer" valeur={euros(reste)} />
-            ) : (
-              <Chiffre
-                icone={Clock}
-                teinte="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                libelle="Heures réalisées"
-                valeur={heures(realisees)}
-                detail={prevues > 0 ? `sur ${heures(prevues)} prévues` : undefined}
-              />
             )}
           </dl>
         </header>
