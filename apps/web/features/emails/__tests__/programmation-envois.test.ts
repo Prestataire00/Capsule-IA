@@ -4,6 +4,7 @@ import {
   REGLABLES,
   delaisAConsiderer,
   doitPartirAujourdhui,
+  doitPartirDansLeDelai,
   estReglable,
   organisationsQuiOntCoupe,
   phraseDuDelai,
@@ -191,5 +192,20 @@ describe('faut-il envoyer aujourd’hui ?', () => {
   it('chaque envoi se coupe, sauf ceux réglés sur la page Factures', () => {
     const nonCoupables = Object.entries(REGLABLES).filter(([, r]) => !r.coupable).map(([k]) => k).sort();
     expect(nonCoupables).toEqual(['invoice_reminder_auto', 'quote_sent']);
+  });
+});
+
+
+describe('convocation dans le délai', () => {
+  const regles = new Map();
+  it('part de J-7 à J0, plus seulement à J-7', () => {
+    expect([8, 7, 5, 1, 0, -1].map((ecartJours) => doitPartirDansLeDelai({ kind: 'convocation_j7', organizationId: 'o', regles, ecartJours }))).toEqual([
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+    ]);
   });
 });

@@ -30,7 +30,7 @@ import { runAutomaticReminders } from '@/features/billing/invoices/reminders';
 import { sendCertificatToCompany } from '@/features/documents/send-certificat-to-company';
 import { dossiersAutomationOff, sessionsAutomationOff } from '@/features/automation/session-automations';
 import { loadReglesParOrganisme } from '@/features/emails/programmation-store';
-import { delaisAConsiderer, doitPartirAujourdhui, organisationsQuiOntCoupe } from '@/features/emails/programmation-envois';
+import { delaisAConsiderer, doitPartirAujourdhui, doitPartirDansLeDelai, organisationsQuiOntCoupe } from '@/features/emails/programmation-envois';
 import { automatisationApplicable } from '@/features/dossier/saisie-retroactive';
 import { dossiersAuFinancementArrete } from '@/features/funders/arret-automatisations';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
@@ -115,7 +115,9 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
     .schema('app')
     .from('sessions')
     .select('id, starts_at, ends_at, modality, location, remote_url, dossier_id, organization_id, formation_id')
-    .gte('starts_at', borne(delais[0]!, false))
+    // Toute séance à venir dans le délai, pas seulement celle du jour exact :
+    // une séance créée tard doit être convoquée aussi (clé : une seule fois).
+    .gt('starts_at', aujourdhui.toISOString())
     .lte('starts_at', borne(delais[delais.length - 1]!, true))
     .eq('status', 'planned');
 
@@ -125,7 +127,7 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
   }
 
   const toutes = ((sessions ?? []) as unknown as SessionRow[]).filter((s) =>
-    doitPartirAujourdhui({
+    doitPartirDansLeDelai({
       kind: 'convocation_j7',
       organizationId: s.organization_id,
       regles,
@@ -167,7 +169,7 @@ async function runConvocations(): Promise<{ candidates: number; sent: number; er
   for (const s of sessionRows as unknown as { id: string; organization_id: string }[]) {
     if (recapCoupe.has(s.organization_id)) continue;
     try {
-      const recap = await sendConvocationsRecap(s.id);
+      const recap = await sendConvocationsRecap(s.id, { uneFois: true });
       sent += recap.envoyes;
       errors.push(...recap.erreurs);
     } catch (e) {

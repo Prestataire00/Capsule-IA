@@ -29,7 +29,12 @@ export type RecapResult = {
 const heure = (iso: string): string =>
   new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
 
-export async function sendConvocationsRecap(sessionId: string): Promise<RecapResult> {
+/**
+ * `uneFois` : envoi de l'automate, qui repasse chaque jour tant que la séance
+ * est dans le délai — une clé par séance, entreprise et horaire. Le bouton de
+ * l'équipe, lui, renvoie quand on le lui demande.
+ */
+export async function sendConvocationsRecap(sessionId: string, opts: { uneFois?: boolean } = {}): Promise<RecapResult> {
   const sb = supabaseAdmin() as unknown as SupabaseClient;
   const erreurs: string[] = [];
 
@@ -139,9 +144,10 @@ export async function sendConvocationsRecap(sessionId: string): Promise<RecapRes
       dossierId,
       kind: 'convocation_recap_entreprise',
       metadata: { session_id: seance.id, company_id: companyId, participants: salaries.length },
+      ...(opts.uneFois ? { idempotencyKey: `convocation_groupe:${seance.id}:${companyId}:${seance.debut}` } : {}),
     });
     if (envoi.ok) envoyes += 1;
-    else erreurs.push(`${entreprise.name} : ${envoi.reason}`);
+    else if (envoi.reason !== 'duplicate') erreurs.push(`${entreprise.name} : ${envoi.reason}`);
   }
 
   return { entreprises: parEntreprise.size, envoyes, deposees, erreurs };

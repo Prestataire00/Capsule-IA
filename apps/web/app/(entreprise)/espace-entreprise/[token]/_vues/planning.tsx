@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CalendarDays, Clock, GraduationCap, LayoutList, MapPin, Table2, Users, Video } from 'lucide-react';
+import { CalendarDays, Clock, Download, GraduationCap, LayoutList, MapPin, Table2, Users, Video } from 'lucide-react';
 import { planning } from '@/features/espace-entreprise/espace-calculs';
 import type { SeanceEspace } from '@/features/espace-entreprise/espace-complet';
 import { CARTE, MODALITE, heure, heures, jourLong } from './format';
@@ -12,7 +12,17 @@ export function VuePlanning({ seances, token, vue }: { seances: readonly SeanceE
   }
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-2 flex-wrap">
+        {p.aVenir.length > 0 && (
+          <a
+            href={`/api/espace-entreprise/${token}/convocation`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <Download className="w-3.5 h-3.5" aria-hidden /> Convocation générale (PDF)
+          </a>
+        )}
         <div className="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden" role="group" aria-label="Affichage du planning">
           {(
             [

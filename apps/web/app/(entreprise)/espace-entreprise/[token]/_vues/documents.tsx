@@ -1,15 +1,36 @@
-import { CalendarDays, Download, Eye, FileText, FolderOpen, PlayCircle } from 'lucide-react';
+import { CalendarDays, Download, Eye, FileText, FolderOpen, PlayCircle, Users } from 'lucide-react';
 import type { DossierEntreprise } from '@/features/espace-entreprise/load';
 import { TEMPLATE_KIND_LABELS } from '@/app/(dashboard)/documents/modeles/schema';
 import { CARTE, date } from './format';
 
 /** Les documents rendus visibles, formation par formation, et les replays. */
-export function VueDocuments({ dossiers, token }: { dossiers: readonly DossierEntreprise[]; token: string }) {
+export function VueDocuments({ dossiers, token, seancesAVenir }: { dossiers: readonly DossierEntreprise[]; token: string; seancesAVenir: number }) {
   if (dossiers.length === 0) {
     return <p className={`${CARTE} px-5 py-10 text-center text-[13px] text-zinc-500 dark:text-zinc-400`}>Aucune formation en cours pour l’instant.</p>;
   }
   return (
     <div className="space-y-4">
+      {seancesAVenir > 0 && (
+        <section className={`${CARTE} px-5 py-4 flex items-center gap-3 flex-wrap`} aria-label="Convocation générale">
+          <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+            <Users className="w-4 h-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Convocation générale</span>
+            <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+              Vos {seancesAVenir} séance{seancesAVenir > 1 ? 's' : ''} à venir et tous vos participants, à jour, à transmettre à vos équipes.
+            </span>
+          </span>
+          <a
+            href={`/api/espace-entreprise/${token}/convocation`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <Download className="w-3.5 h-3.5" /> Télécharger
+          </a>
+        </section>
+      )}
       {dossiers.map((d) => (
         <section key={d.id} className={`${CARTE} overflow-hidden`}>
           <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-start gap-3">

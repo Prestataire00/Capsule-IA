@@ -204,6 +204,22 @@ export function doitPartirAujourdhui(input: {
   return reglage.actif && reglage.delaiJours === input.ecartJours;
 }
 
+/**
+ * Un envoi d'AVANT la séance (convocation) : il part dès que la séance entre
+ * dans le délai réglé, et non seulement le jour exact. Une séance créée cinq
+ * jours avant son début n'était sinon jamais convoquée (audit du 07/10/2026).
+ * L'envoi lui-même porte sa clé : il ne part qu'une fois.
+ */
+export function doitPartirDansLeDelai(input: {
+  kind: string;
+  organizationId: string;
+  regles: ReadonlyMap<string, RegleEnregistree>;
+  ecartJours: number;
+}): boolean {
+  const reglage = reglageEffectif(input.kind, input.regles.get(input.organizationId));
+  return reglage.actif && input.ecartJours >= 0 && input.ecartJours <= reglage.delaiJours;
+}
+
 /** Les organismes qui ont coupé ce type d'envoi — rien d'autre à leur envoyer. */
 export function organisationsQuiOntCoupe(
   kind: string,
