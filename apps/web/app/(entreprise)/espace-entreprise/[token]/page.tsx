@@ -28,7 +28,7 @@ const ONGLETS = [
 ] as const;
 type Onglet = (typeof ONGLETS)[number]['cle'];
 
-export default async function EspaceEntreprisePage({ params, searchParams }: { params: { token: string }; searchParams: { onglet?: string } }) {
+export default async function EspaceEntreprisePage({ params, searchParams }: { params: { token: string }; searchParams: { onglet?: string; vue?: string } }) {
   const lien = await verifyEntrepriseToken(params.token);
   if (!lien.ok) {
     return (
@@ -131,7 +131,7 @@ export default async function EspaceEntreprisePage({ params, searchParams }: { p
         </nav>
 
         {onglet === 'actions' && <VueActions actions={espace.actions} />}
-        {onglet === 'planning' && <VuePlanning seances={espace.seances} />}
+        {onglet === 'planning' && <VuePlanning seances={espace.seances} token={params.token} vue={searchParams.vue === 'tableau' ? 'tableau' : 'liste'} />}
         {onglet === 'apprenants' && <VueApprenants apprenants={espace.apprenants} token={params.token} />}
         {onglet === 'documents' && <VueDocuments dossiers={espace.dossiers} token={params.token} />}
         {onglet === 'facturation' && <VueFacturation factures={espace.factures} devis={espace.devis} token={params.token} />}
