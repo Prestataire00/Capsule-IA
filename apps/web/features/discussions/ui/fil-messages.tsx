@@ -1,10 +1,30 @@
+import { FileText } from 'lucide-react';
 import type { MessageEquipe } from '../store';
 import { morceauxDuMessage } from '../mentions';
 
 const TZ = 'Europe/Paris';
-const jourFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
-const cleJour = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
-const heureFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+const jourFmt = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: TZ,
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+const cleJour = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const heureFmt = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: TZ,
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+const taille = (o: number) =>
+  o < 1024 * 1024
+    ? `${Math.max(1, Math.round(o / 1024))} Ko`
+    : `${(o / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`;
 
 const initiales = (nom: string) =>
   nom
@@ -77,20 +97,52 @@ export function FilMessages({
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13px]">
-                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">{moi ? 'Vous' : m.authorName}</span>{' '}
-                      <span className="text-[12px] text-zinc-400 tabular-nums">{heureFmt.format(new Date(m.createdAt))}</span>
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                        {moi ? 'Vous' : m.authorName}
+                      </span>{' '}
+                      <span className="text-[12px] text-zinc-400 tabular-nums">
+                        {heureFmt.format(new Date(m.createdAt))}
+                      </span>
                     </p>
-                    <p className="text-[14px] leading-relaxed text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words">
-                      {morceauxDuMessage(m.body, noms).map((x, i) =>
-                        x.mention ? (
-                          <span key={i} className="font-medium text-rose-700 dark:text-rose-300">
-                            {x.texte}
-                          </span>
-                        ) : (
-                          <span key={i}>{x.texte}</span>
-                        ),
-                      )}
-                    </p>
+                    {m.body.trim() && (
+                      <p className="text-[14px] leading-relaxed text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words">
+                        {morceauxDuMessage(m.body, noms).map((x, i) =>
+                          x.mention ? (
+                            <span key={i} className="font-medium text-rose-700 dark:text-rose-300">
+                              {x.texte}
+                            </span>
+                          ) : (
+                            <span key={i}>{x.texte}</span>
+                          ),
+                        )}
+                      </p>
+                    )}
+                    {m.pieces && m.pieces.length > 0 && (
+                      <ul className="mt-1.5 flex flex-wrap gap-2">
+                        {m.pieces.map((p) => (
+                          <li key={p.lien}>
+                            <a
+                              href={p.lien}
+                              target="_blank"
+                              rel="noopener"
+                              className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 shadow-sm hover:shadow-md max-w-[280px]"
+                            >
+                              <span className="w-7 h-7 rounded-md grid place-items-center shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                                <FileText className="w-3.5 h-3.5" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                  {p.nom}
+                                </span>
+                                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                  {taille(p.taille)}
+                                </span>
+                              </span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </li>
               );

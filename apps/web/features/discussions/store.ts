@@ -20,6 +20,8 @@ export type MessageEquipe = {
   readonly body: string;
   readonly mentions: readonly string[];
   readonly createdAt: string;
+  /** Documents joints (échanges client) : nom, taille et lien de téléchargement gardé. */
+  readonly pieces?: ReadonlyArray<{ readonly nom: string; readonly taille: number; readonly lien: string }>;
 };
 
 export async function loadMessagesEquipe(filId: string): Promise<MessageEquipe[]> {

@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { membresParRole } from '@/features/trainer-space/validation-recipients';
+import type { PieceJointe } from './pieces-jointes';
 
 /**
  * Les échanges de l'espace entreprise (0218, 0221). Un fil = un client et un
@@ -41,6 +42,7 @@ export type MessageEntreprise = {
   readonly luLe: string | null;
   readonly auteurUserId: string | null;
   readonly interlocuteurUserId: string | null;
+  readonly pieces: readonly PieceJointe[];
 };
 
 type Ligne = {
@@ -52,8 +54,9 @@ type Ligne = {
   body: string;
   created_at: string;
   lu_le: string | null;
+  pieces: PieceJointe[] | null;
 };
-const COLONNES = 'id, auteur, auteur_nom, auteur_user_id, interlocuteur_user_id, body, created_at, lu_le';
+const COLONNES = 'id, auteur, auteur_nom, auteur_user_id, interlocuteur_user_id, body, created_at, lu_le, pieces';
 const versMessage = (m: Ligne): MessageEntreprise => ({
   id: m.id,
   auteur: m.auteur,
@@ -63,6 +66,7 @@ const versMessage = (m: Ligne): MessageEntreprise => ({
   body: m.body,
   createdAt: m.created_at,
   luLe: m.lu_le,
+  pieces: m.pieces ?? [],
 });
 
 /** Tous les messages d'un client, tous fils confondus — pour SON espace, qui les voit tous. */
@@ -102,6 +106,7 @@ export async function ecrireMessage(input: {
   auteurUserId?: string | null;
   interlocuteurUserId?: string | null;
   body: string;
+  pieces?: readonly PieceJointe[];
 }): Promise<boolean> {
   const { error } = await admin()
     .schema('app')
@@ -115,6 +120,7 @@ export async function ecrireMessage(input: {
       auteur_user_id: input.auteurUserId ?? null,
       interlocuteur_user_id: input.interlocuteurUserId ?? null,
       body: input.body,
+      pieces: input.pieces ?? [],
     });
   if (error) console.error('[espace entreprise] message non enregistré', error.message);
   return !error;
@@ -193,12 +199,18 @@ export async function prevenirLEquipe(input: {
   if (error) console.error('[espace entreprise] équipe non prévenue', error.message);
 }
 
+/** Un message réduit à une ligne : son texte, ou le document qu'il porte. */
+export const resume = (body: string, pieces: readonly PieceJointe[]): string =>
+  body.trim() || (pieces[0] ? `Document : ${pieces[0].nom}` : '');
+
 export type FilClient = {
   readonly contactId: string;
   /** `null` : fil général ; sinon le membre du fil direct (toujours « moi » ici). */
   readonly interlocuteurUserId: string | null;
   readonly nom: string;
   readonly entreprise: string | null;
+  /** Le dossier dont parle le fil : le plus récent cité par ses messages. */
+  readonly dossierId: string | null;
   readonly dernier: { auteurNom: string; body: string; createdAt: string };
   readonly nonLus: number;
 };
@@ -211,7 +223,7 @@ export async function filsClients(organizationId: string, moiUserId: string): Pr
   const { data, error } = await admin()
     .schema('app')
     .from('espace_entreprise_messages')
-    .select('contact_id, interlocuteur_user_id, auteur, auteur_nom, body, created_at, lu_le')
+    .select('contact_id, interlocuteur_user_id, dossier_id, auteur, auteur_nom, body, pieces, created_at, lu_le')
     .eq('organization_id', organizationId)
     .or(`interlocuteur_user_id.is.null,interlocuteur_user_id.eq.${moiUserId}`)
     .order('created_at', { ascending: false })
@@ -220,9 +232,11 @@ export async function filsClients(organizationId: string, moiUserId: string): Pr
   const lignes = (data ?? []) as Array<{
     contact_id: string;
     interlocuteur_user_id: string | null;
+    dossier_id: string | null;
     auteur: string;
     auteur_nom: string;
     body: string;
+    pieces: PieceJointe[] | null;
     created_at: string;
     lu_le: string | null;
   }>;
@@ -253,7 +267,8 @@ export async function filsClients(organizationId: string, moiUserId: string): Pr
         interlocuteurUserId: d.interlocuteur_user_id,
         nom: c.nom,
         entreprise: c.entreprise,
-        dernier: { auteurNom: d.auteur_nom, body: d.body, createdAt: d.created_at },
+        dossierId: duFil.find((l) => l.dossier_id)?.dossier_id ?? null,
+        dernier: { auteurNom: d.auteur_nom, body: resume(d.body, d.pieces ?? []), createdAt: d.created_at },
         nonLus: duFil.filter((l) => l.auteur === 'entreprise' && !l.lu_le).length,
       },
     ];

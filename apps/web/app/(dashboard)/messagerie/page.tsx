@@ -11,7 +11,8 @@ import { Messagerie } from '@/features/discussions/ui/messagerie';
 import { infosDuFil } from '@/features/discussions/infos-fil';
 import { accesConversation, interlocuteursDe, loadConversations, loadMessagesDirects, marquerConversationLue } from '@/features/discussions/directs-store';
 import { envoyerMessageDirectEquipe, envoyerMessageEquipe, ouvrirConversationEquipe, repondreAuClient } from './actions';
-import { filsClients, marquerLusParLOrganisme, messagesDuFil } from '@/features/espace-entreprise/messages-store';
+import { piecesAffichees } from '@/features/espace-entreprise/pieces-jointes';
+import { equipeJoignable, filsClients, marquerLusParLOrganisme, messagesDuFil } from '@/features/espace-entreprise/messages-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,14 +39,22 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
   const filClient = searchParams.client
     ? tousLesFils.find((c) => c.contactId === searchParams.client && c.interlocuteurUserId === avec)
     : undefined;
+  const dossiersClients = await libellesFils([...new Set(tousLesFils.flatMap((c) => (c.dossierId ? [c.dossierId] : [])))]);
   if (filClient && !choisi) {
-    const messagesClient = await messagesDuFil(moi.organizationId, filClient.contactId, filClient.interlocuteurUserId);
+    const [messagesClient, infos, equipe] = await Promise.all([
+      messagesDuFil(moi.organizationId, filClient.contactId, filClient.interlocuteurUserId),
+      filClient.dossierId ? infosDuFil(filClient.dossierId) : Promise.resolve(null),
+      equipeJoignable(moi.organizationId),
+    ]);
     if (filClient.nonLus > 0) await marquerLusParLOrganisme(moi.organizationId, filClient.contactId, filClient.interlocuteurUserId);
     client = {
       contactId: filClient.contactId,
       interlocuteurUserId: filClient.interlocuteurUserId,
       nom: filClient.nom,
       entreprise: filClient.entreprise,
+      dossier: filClient.dossierId ? (dossiersClients.get(filClient.dossierId) ?? null) : null,
+      infos,
+      lecteurs: filClient.interlocuteurUserId ? equipe.filter((m) => m.userId === filClient.interlocuteurUserId) : equipe,
       messages: messagesClient.map((m) => ({
         id: m.id,
         authorUserId: m.auteurUserId,
@@ -53,6 +62,7 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
         body: m.body,
         mentions: [],
         createdAt: m.createdAt,
+        pieces: piecesAffichees(m.id, m.pieces, '/api/messagerie/piece'),
       })),
     };
   }
@@ -105,6 +115,7 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
         envoyerDirect={envoyerMessageDirectEquipe}
         ouvrirDirect={ouvrirConversationEquipe}
         clients={filClient ? tousLesFils.map((c) => (c === filClient ? { ...c, nonLus: 0 } : c)) : tousLesFils}
+        dossiersClients={dossiersClients}
         client={client}
         repondreClient={client ? repondreAuClient.bind(null, client.interlocuteurUserId) : undefined}
       />

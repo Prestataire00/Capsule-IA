@@ -4,7 +4,8 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateEntrepriseUrl } from '@/shared/lib/entreprise-token';
 import { reponseEspaceEntrepriseEmail } from '@/shared/lib/email/templates';
 import { envoyerSousOrganisme } from './envoi';
-import { ecrireMessage, marquerLusParLOrganisme } from './messages-store';
+import { ecrireMessage, marquerLusParLOrganisme, resume } from './messages-store';
+import type { PieceJointe } from './pieces-jointes';
 
 /**
  * L'équipe répond au référent d'un client : le message rejoint son espace,
@@ -21,6 +22,7 @@ export async function repondreAuContact(input: {
   /** Le fil direct où l'on répond ; null : le fil général. */
   interlocuteurUserId?: string | null;
   body: string;
+  pieces?: readonly PieceJointe[];
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const interlocuteur = input.interlocuteurUserId ?? null;
   const ok = await ecrireMessage({
@@ -32,6 +34,7 @@ export async function repondreAuContact(input: {
     auteurUserId: input.auteurUserId,
     interlocuteurUserId: interlocuteur,
     body: input.body,
+    pieces: input.pieces ?? [],
   });
   if (!ok) return { ok: false, error: 'Le message n’a pas été enregistré.' };
   await marquerLusParLOrganisme(input.organizationId, input.contactId, interlocuteur);
@@ -48,7 +51,7 @@ export async function repondreAuContact(input: {
       prenom: contact.first_name ?? contact.last_name ?? '',
       organisme: (o as { name: string | null } | null)?.name ?? 'Votre organisme de formation',
       auteur: input.auteurNom,
-      message: input.body,
+      message: resume(input.body, input.pieces ?? []),
       lien: `${url}?onglet=echanges${interlocuteur ? `&fil=${interlocuteur}` : ''}`,
     });
     await envoyerSousOrganisme({

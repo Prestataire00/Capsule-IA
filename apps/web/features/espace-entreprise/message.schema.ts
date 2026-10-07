@@ -8,3 +8,9 @@ export const messageEntrepriseSchema = z.object({
 });
 
 export type MessageEntrepriseInput = z.infer<typeof messageEntrepriseSchema>;
+
+/** Un message qui porte un document : le texte devient facultatif. */
+export const messageAvecPieceSchema = z.object({
+  body: z.string().trim().max(4000, 'Message trop long (4 000 caractères au plus).'),
+  interlocuteur: z.string().uuid().nullable().optional(),
+});

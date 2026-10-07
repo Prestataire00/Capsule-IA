@@ -12,6 +12,7 @@ import { referentPropose } from '@/features/espace-entreprise/referent-dossier';
 import { EspaceEntrepriseClient } from './client';
 import { EchangesReferent } from './echanges.client';
 import { marquerLusParLOrganisme, messagesDuFil } from '@/features/espace-entreprise/messages-store';
+import { piecesAffichees } from '@/features/espace-entreprise/pieces-jointes';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,7 +115,18 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
       {referent ? (
         <>
           <EspaceEntrepriseClient dossierId={params.id} aUnEmail={Boolean(referent.email)} />
-          {referent.contactId && <EchangesReferent dossierId={params.id} messages={messages} referent={referent.nom} />}
+          {referent.contactId && <EchangesReferent
+              dossierId={params.id}
+              messages={messages.map((m) => ({
+                id: m.id,
+                auteur: m.auteur,
+                auteurNom: m.auteurNom,
+                body: m.body,
+                createdAt: m.createdAt,
+                pieces: piecesAffichees(m.id, m.pieces, '/api/messagerie/piece'),
+              }))}
+              referent={referent.nom}
+            />}
         </>
       ) : (
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-2">

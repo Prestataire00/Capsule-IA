@@ -9,7 +9,7 @@ import { ComposerDirect } from './composer-direct.client';
 import { NouvelleConversation } from './nouvelle.client';
 import { titreConversation, type Interlocuteur } from '../directs';
 import type { ConversationDirecte } from '../directs-store';
-import type { FilClient } from '@/features/espace-entreprise/messages-store';
+import type { FilClient, MembreJoignable } from '@/features/espace-entreprise/messages-store';
 
 const dateCourte = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' });
 
@@ -37,7 +37,17 @@ type Ouvert = {
 type DirectOuvert = { conversation: ConversationDirecte; messages: readonly MessageEquipe[] };
 
 /** Le fil d'un client : les messages de son espace entreprise. */
-type ClientOuvert = { contactId: string; interlocuteurUserId: string | null; nom: string; entreprise: string | null; messages: readonly MessageEquipe[] };
+type ClientOuvert = {
+  contactId: string;
+  interlocuteurUserId: string | null;
+  nom: string;
+  entreprise: string | null;
+  messages: readonly MessageEquipe[];
+  dossier: LibelleDossier | null;
+  infos: InfosFil | null;
+  /** Le référent et l'équipe qui lit ce fil. */
+  lecteurs: readonly MembreJoignable[];
+};
 
 const lienClient = (chemin: string, c: { contactId: string; interlocuteurUserId: string | null }) =>
   `${chemin}?client=${c.contactId}${c.interlocuteurUserId ? `&avec=${c.interlocuteurUserId}` : ''}`;
@@ -65,6 +75,7 @@ export function Messagerie({
   envoyerDirect,
   ouvrirDirect,
   clients = [],
+  dossiersClients = new Map(),
   client = null,
   repondreClient,
 }: {
@@ -86,6 +97,8 @@ export function Messagerie({
   ouvrirDirect: (input: { avec: string[] }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
   /** Les clients qui ont écrit depuis leur espace entreprise (équipe seulement). */
   clients?: readonly FilClient[];
+  /** Le dossier rappelé sous chaque fil client. */
+  dossiersClients?: ReadonlyMap<string, LibelleDossier>;
   client?: ClientOuvert | null;
   repondreClient?: Envoi<{ conversationId: string; body: string }>;
 }) {
@@ -169,6 +182,12 @@ export function Messagerie({
                             )}
                             <span className="ml-auto text-[11px] text-zinc-400 tabular-nums shrink-0">{dateCourte.format(new Date(c.dernier.createdAt))}</span>
                           </span>
+                          {c.dossierId && dossiersClients.get(c.dossierId) && (
+                            <span className="block text-[12px] text-blue-700 dark:text-blue-300 truncate">
+                              {dossiersClients.get(c.dossierId)?.formation ?? 'Dossier'} ·{' '}
+                              <span className="font-mono text-[11px]">{dossiersClients.get(c.dossierId)?.reference}</span>
+                            </span>
+                          )}
                           <span className="flex items-center gap-1.5">
                             <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
                               {c.dernier.auteurNom} : {c.dernier.body}
@@ -300,20 +319,42 @@ export function Messagerie({
       {/* ── La discussion ────────────────────────────────────────── */}
       {client && repondreClient ? (
         <section className="flex flex-col min-h-0 min-w-0" aria-label={`Échanges avec ${client.entreprise ?? client.nom}`}>
-          <header className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
-            <Link href={chemin} className="lg:hidden mb-1 inline-flex items-center gap-1 text-[12px] text-zinc-500">
-              <ArrowLeft className="w-3.5 h-3.5" /> Conversations
-            </Link>
-            <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{client.entreprise ?? client.nom}</h2>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
-              {client.nom} · espace entreprise — {client.interlocuteurUserId ? 'message personnel, visible par vous seul' : 'visible par toute l’équipe'}
-            </p>
+          <header className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <Link href={chemin} className="lg:hidden mb-1 inline-flex items-center gap-1 text-[12px] text-zinc-500">
+                <ArrowLeft className="w-3.5 h-3.5" /> Conversations
+              </Link>
+              <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                {client.dossier?.formation ?? client.entreprise ?? client.nom}
+              </h2>
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
+                {client.entreprise ?? client.nom}
+                {client.dossier && (
+                  <>
+                    {' '}
+                    · <span className="font-mono">{client.dossier.reference}</span>
+                  </>
+                )}{' '}
+                · {client.nom} — {client.interlocuteurUserId ? 'message personnel, visible par vous seul' : 'visible par toute l’équipe'}
+              </p>
+            </div>
+            {client.dossier && (
+              <Link
+                href={`/dossiers/${client.dossier.id}`}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[13px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                Page du dossier <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </header>
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-            <FilMessages messages={client.messages} noms={[]} meId={meId} vide="Aucun message pour l’instant." />
+            <FilMessages messages={client.messages} noms={[client.nom]} meId={meId} vide="Aucun message pour l’instant." />
           </div>
           <div className="border-t border-zinc-100 dark:border-zinc-800 p-4">
-            <ComposerDirect conversationId={client.contactId} envoyer={repondreClient} />
+            <ComposerDirect key={`${client.contactId}-${client.interlocuteurUserId ?? ''}`} conversationId={client.contactId} envoyer={repondreClient}
+              initial={`@${client.nom} `}
+              fichierVers={{ url: `/api/messagerie/client/${client.contactId}`, champs: client.interlocuteurUserId ? { interlocuteur: client.interlocuteurUserId } : {} }}
+            />
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5">La réponse rejoint son espace entreprise ; un e-mail l’en prévient.</p>
           </div>
         </section>
@@ -438,6 +479,55 @@ export function Messagerie({
                 </li>
               ))}
               <li className="text-[12px] text-zinc-500 dark:text-zinc-400">et vous</li>
+            </ul>
+          </section>
+        </aside>
+      )}
+
+      {/* ── Infos du fil client ──────────────────────────────────── */}
+      {client && (
+        <aside className="hidden xl:block min-h-0 overflow-y-auto border-l border-zinc-200/70 dark:border-zinc-800 p-5 space-y-6">
+          {client.infos && client.infos.lignes.length > 0 && (
+            <section className="space-y-2.5">
+              <h3 className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Infos rapides</h3>
+              <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px]">
+                {client.infos.lignes.map((l) => (
+                  <div key={l.libelle} className="contents">
+                    <dt className="text-zinc-500 dark:text-zinc-400">{l.libelle}</dt>
+                    <dd className="text-zinc-900 dark:text-zinc-100 tabular-nums break-words">{l.valeur}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+          <section className={`space-y-2.5 ${client.infos?.lignes.length ? 'pt-5 border-t border-zinc-100 dark:border-zinc-800' : ''}`}>
+            <h3 className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+              Participants · <span className="tabular-nums">{client.lecteurs.length + 1}</span>
+            </h3>
+            <ul className="space-y-2.5">
+              <li className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                  {initiales(client.nom)}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{client.nom}</span>
+                  <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">Référent client</span>
+                </span>
+              </li>
+              {client.lecteurs.map((m) => (
+                <li key={m.userId} className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                    {initiales(m.nom)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                      {m.nom}
+                      {m.userId === meId && <span className="text-zinc-400 font-normal"> · vous</span>}
+                    </span>
+                    <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">{m.fonction}</span>
+                  </span>
+                </li>
+              ))}
             </ul>
           </section>
         </aside>

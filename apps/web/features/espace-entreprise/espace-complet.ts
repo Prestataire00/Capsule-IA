@@ -5,6 +5,7 @@ import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { libelleEnvoi } from '@/features/emails/journal';
 import { chargerEspaceEntreprise, facturesDuReferent, type DocumentEntreprise, type EspaceEntreprise, type FactureEntreprise } from './load';
 import { equipeJoignable, type MembreJoignable } from './messages-store';
+import { piecesAffichees, type PieceAffichee, type PieceJointe } from './pieces-jointes';
 import { aUneAdresse, heuresApprenant, trierActions, type Action, type Feuille } from './espace-calculs';
 
 /**
@@ -76,6 +77,7 @@ export type EchangeEspace = {
   readonly auteur: string;
   /** Messages écrits : `null` pour le fil général, sinon le membre du fil direct. E-mails : absent. */
   readonly interlocuteur?: string | null;
+  readonly pieces?: readonly PieceAffichee[];
 };
 
 export type PrixConvenu = { readonly dossierId: string; readonly reference: string; readonly formation: string | null; readonly montantHtCents: number };
@@ -372,7 +374,7 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     admin
       .schema('app')
       .from('espace_entreprise_messages' as never)
-      .select('id, auteur, auteur_nom, interlocuteur_user_id, body, created_at')
+      .select('id, auteur, auteur_nom, interlocuteur_user_id, body, pieces, created_at')
       .eq('organization_id', organizationId)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false })
@@ -388,7 +390,7 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
       texte: null,
       auteur: base.organisme,
     })),
-    ...((messages ?? []) as unknown as Array<{ id: string; auteur: string; auteur_nom: string; interlocuteur_user_id: string | null; body: string; created_at: string }>).map((m) => ({
+    ...((messages ?? []) as unknown as Array<{ id: string; auteur: string; auteur_nom: string; interlocuteur_user_id: string | null; body: string; pieces: PieceJointe[] | null; created_at: string }>).map((m) => ({
       id: `msg-${m.id}`,
       date: m.created_at,
       sens: m.auteur === 'entreprise' ? ('envoye' as const) : ('recu' as const),
@@ -396,6 +398,7 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
       texte: m.body,
       auteur: m.auteur_nom,
       interlocuteur: m.interlocuteur_user_id,
+      pieces: piecesAffichees(m.id, m.pieces ?? [], `/api/espace-entreprise/${token}/piece`),
     })),
   ].sort((a, b) => b.date.localeCompare(a.date));
 

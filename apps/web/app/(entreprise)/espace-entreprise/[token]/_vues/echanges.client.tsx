@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Mail, Send, Users } from 'lucide-react';
+import { FileText, Loader2, Mail, Paperclip, Send, Users, X } from 'lucide-react';
 import { messageEntrepriseSchema } from '@/features/espace-entreprise/message.schema';
 import type { EchangeEspace } from '@/features/espace-entreprise/espace-complet';
 import type { MembreJoignable } from '@/features/espace-entreprise/messages-store';
@@ -12,6 +12,8 @@ import { envoyerMessageEntreprise } from '../echanges-actions';
 const quand = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 const heureSeule = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
 const jour = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long' });
+
+const poids = (o: number) => (o < 1024 * 1024 ? `${Math.max(1, Math.round(o / 1024))} Ko` : `${(o / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`);
 
 const initiales = (nom: string) =>
   nom
@@ -80,7 +82,7 @@ export function VueEchanges({
                       {f.dernier && <span className="shrink-0 text-[11px] text-zinc-400 tabular-nums">{quand.format(new Date(f.dernier.date))}</span>}
                     </span>
                     <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
-                      {f.dernier ? (f.cle === 'emails' ? f.dernier.titre : `${f.dernier.sens === 'envoye' ? 'Vous : ' : ''}${f.dernier.texte ?? ''}`) : f.sousTitre}
+                      {f.dernier ? (f.cle === 'emails' ? f.dernier.titre : `${f.dernier.sens === 'envoye' ? 'Vous : ' : ''}${f.dernier.texte?.trim() || (f.dernier.pieces?.[0] ? `Document : ${f.dernier.pieces[0].nom}` : '')}`) : f.sousTitre}
                     </span>
                   </span>
                 </Link>
@@ -146,6 +148,8 @@ function Fil({
   const [body, setBody] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [fichier, setFichier] = useState<File | null>(null);
+  const choix = useRef<HTMLInputElement>(null);
   const bas = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -155,6 +159,20 @@ function Fil({
   const envoyer = () =>
     start(async () => {
       setErreur(null);
+      if (fichier) {
+        const fd = new FormData();
+        fd.set('file', fichier);
+        fd.set('body', body);
+        if (interlocuteur) fd.set('interlocuteur', interlocuteur);
+        const res = await fetch(`/api/espace-entreprise/${token}/echanges`, { method: 'POST', body: fd });
+        const r = (await res.json().catch(() => ({ ok: false, error: 'Le document n’est pas parti.' }))) as { ok: boolean; error?: string };
+        if (!r.ok) return setErreur(r.error ?? 'Le document n’est pas parti.');
+        setFichier(null);
+        if (choix.current) choix.current.value = '';
+        setBody('');
+        router.refresh();
+        return;
+      }
       const p = messageEntrepriseSchema.safeParse({ body, interlocuteur });
       if (!p.success) return setErreur(p.error.issues[0]?.message ?? 'Message invalide.');
       const r = await envoyerMessageEntreprise(token, p.data);
@@ -197,7 +215,22 @@ function Fil({
                     }`}
                   >
                     {!moi && <p className="text-[11px] font-medium text-rose-700 dark:text-rose-300">{m.auteur}</p>}
-                    <p className="text-[13px] whitespace-pre-wrap break-words">{m.texte}</p>
+                    {m.texte?.trim() && <p className="text-[13px] whitespace-pre-wrap break-words">{m.texte}</p>}
+                    {m.pieces?.map((p) => (
+                      <a
+                        key={p.lien}
+                        href={p.lien}
+                        target="_blank"
+                        rel="noopener"
+                        className={`mt-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${moi ? 'bg-white/15 hover:bg-white/25' : 'bg-white dark:bg-zinc-900 hover:shadow-sm'}`}
+                      >
+                        <FileText className="w-4 h-4 shrink-0" />
+                        <span className="min-w-0">
+                          <span className="block text-[13px] font-medium truncate">{p.nom}</span>
+                          <span className={`block text-[11px] tabular-nums ${moi ? 'text-orange-100' : 'text-zinc-500 dark:text-zinc-400'}`}>{poids(p.taille)}</span>
+                        </span>
+                      </a>
+                    ))}
                     <p className={`text-[11px] tabular-nums text-right ${moi ? 'text-orange-100' : 'text-zinc-500 dark:text-zinc-400'}`}>
                       {heureSeule.format(new Date(m.date))}
                     </p>
@@ -217,7 +250,40 @@ function Fil({
         }}
         className="border-t border-zinc-100 dark:border-zinc-800 p-3 space-y-1.5"
       >
+        {fichier && (
+          <span className="inline-flex items-center gap-1.5 h-8 pl-2 pr-1 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 text-[12px] max-w-full">
+            <FileText className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{fichier.name}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setFichier(null);
+                if (choix.current) choix.current.value = '';
+              }}
+              aria-label="Retirer le document"
+              className="w-6 h-6 grid place-items-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/50"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </span>
+        )}
         <div className="flex items-end gap-2">
+          <input
+            ref={choix}
+            type="file"
+            className="hidden"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.pptx,.txt"
+            onChange={(e) => setFichier(e.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            onClick={() => choix.current?.click()}
+            aria-label="Joindre un document"
+            title="Joindre un document (PDF, image, Word, Excel… 20 Mo max.)"
+            className="h-10 w-10 shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-700 grid place-items-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            <Paperclip className="w-4 h-4" />
+          </button>
           <label htmlFor="message-fil" className="sr-only">
             Écrire à {titre}
           </label>
@@ -228,7 +294,7 @@ function Fil({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                if (body.trim()) envoyer();
+                if (body.trim() || fichier) envoyer();
               }
             }}
             rows={2}
@@ -238,7 +304,7 @@ function Fil({
           />
           <button
             type="submit"
-            disabled={pending || body.trim() === ''}
+            disabled={pending || (body.trim() === '' && !fichier)}
             className="h-10 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium inline-flex items-center gap-1.5 shadow-sm disabled:opacity-50"
           >
             {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Envoyer

@@ -2,11 +2,18 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Send } from 'lucide-react';
+import { FileText, Loader2, Send } from 'lucide-react';
 import { messageEntrepriseSchema } from '@/features/espace-entreprise/message.schema';
 import { repondreAuReferent } from './actions';
 
-type Message = { id: string; auteur: 'entreprise' | 'organisme'; auteurNom: string; body: string; createdAt: string };
+type Message = {
+  id: string;
+  auteur: 'entreprise' | 'organisme';
+  auteurNom: string;
+  body: string;
+  createdAt: string;
+  pieces: ReadonlyArray<{ nom: string; lien: string }>;
+};
 
 const quand = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -47,7 +54,13 @@ export function EchangesReferent({ dossierId, messages, referent }: { dossierId:
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-1 tabular-nums">
                   {m.auteurNom} · {quand.format(new Date(m.createdAt))}
                 </p>
-                <p className="whitespace-pre-wrap">{m.body}</p>
+                {m.body.trim() && <p className="whitespace-pre-wrap">{m.body}</p>}
+                {m.pieces.map((p) => (
+                  <a key={p.lien} href={p.lien} target="_blank" rel="noopener" className="mt-1 flex items-center gap-1.5 text-blue-700 dark:text-blue-300 hover:underline">
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{p.nom}</span>
+                  </a>
+                ))}
               </div>
             </li>
           ))}
