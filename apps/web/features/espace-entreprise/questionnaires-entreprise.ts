@@ -133,7 +133,8 @@ export async function questionnairesDeLEntreprise(admin: Admin, e: Entree): Prom
       if (!titre || !seance) continue;
       // Le jour programmé, dès minuit (heure de Paris) : comme son envoi.
       const jour = jourEnvoi({ startsAt: seance.debut, endsAt: seance.fin }, { ancre: x.ancre, decalage: x.decalage_jours });
-      const ouverture = minuitParis(jour);
+      // « Le jour de la fin » : pas avant que la séance soit terminée.
+      const ouverture = x.ancre === 'fin' && x.decalage_jours === 0 ? new Date(seance.fin) : minuitParis(jour);
       for (const d of seance.dossierIds) prevoir(x.template_id, titre, d, ouverture);
     }
   }
