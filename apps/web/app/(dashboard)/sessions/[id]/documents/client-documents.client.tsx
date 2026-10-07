@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, FileCheck2, FileSignature, Loader2, Mail, Printer, User } from 'lucide-react';
+import { Building2, FileCheck2, FileSignature, FileText, Loader2, Mail, Printer, User } from 'lucide-react';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { generateGroupConventions, sendCompanyAttendanceSheets, sendSessionConvocationsRecap } from '../session-actions';
 
@@ -117,8 +117,8 @@ export function ClientDocuments({
           <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${ACCENTS.orange.soft}`}>{clients.length}</span>
         </p>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-          Entreprise : une convention listant tous ses salariés, signée par son responsable, qui reçoit aussi le récap
-          des convocations et sa feuille d’émargement. La convention ne part jamais aux stagiaires. Particulier : un
+          Entreprise : une convention listant tous ses salariés, signée par son responsable, qui reçoit aussi la
+          convocation de ses participants (PDF avec leur liste) et sa feuille d’émargement. La convention ne part jamais aux stagiaires. Particulier : un
           contrat de formation professionnelle à son nom.
         </p>
         </div>
@@ -136,6 +136,17 @@ export function ClientDocuments({
             <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
               {c.companyId ? `${c.learners.length} salarié(s) : ${c.learners.join(', ')}` : 'particulier — contrat individuel'}
             </span>
+            {c.companyId && (
+              <a
+                href={`/api/sessions/${sessionId}/convocation-groupe.pdf?entreprise=${c.companyId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${sheetLink} text-[11px] ${ACCENTS.purple.soft}`}
+                title="Convocation de ses participants à cette séance, avec leur liste"
+              >
+                <FileText className="w-3 h-3" /> convocation
+              </a>
+            )}
             {c.companyId && sheets.length > 0 && (
               <span className="ml-auto flex flex-wrap items-center gap-x-2.5 gap-y-1">
                 {sheets.map((s) => (
@@ -181,9 +192,18 @@ export function ClientDocuments({
           {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSignature className="w-3.5 h-3.5" />}
           Générer conventions et contrats
         </button>
+        <a
+          href={`/api/sessions/${sessionId}/convocation-groupe.pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={btn}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          Convocation du groupe (PDF)
+        </a>
         <button type="button" onClick={recap} disabled={pending || companies.length === 0} className={btn}>
           <Mail className="w-3.5 h-3.5" />
-          Envoyer le récap des convocations aux entreprises
+          Envoyer la convocation aux entreprises
         </button>
       </div>
       {message && (

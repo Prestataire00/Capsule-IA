@@ -625,6 +625,8 @@ export type ConvocationsRecapData = {
   location: string | null;
   remoteUrl: string | null;
   learners: ReadonlyArray<{ fullName: string; email: string | null }>;
+  /** Groupe convoqué, quand la séance n'en vise qu'un. */
+  groupe?: string | null;
 };
 
 /**
@@ -642,11 +644,12 @@ export function convocationsRecapEmail(data: ConvocationsRecapData): { subject: 
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Europe/Paris',
   });
   const modalityLabel = MODALITY_LABEL[data.modality] ?? data.modality;
   const lieu = data.remoteUrl ? 'À distance' : (data.location ?? 'Lieu à préciser');
 
-  const subject = `Convocations ${data.companyName} — ${data.formationTitle} le ${dateFR}`;
+  const subject = `Convocation${data.groupe ? ` ${data.groupe}` : 's'} ${data.companyName} — ${data.formationTitle} le ${dateFR}`;
 
   const lignes = data.learners
     .map(
@@ -663,9 +666,10 @@ export function convocationsRecapEmail(data: ConvocationsRecapData): { subject: 
       <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Convocations — ${escapeHtml(data.companyName)}</p>
       <h1 style="font-size:20px; font-weight:600; margin:0 0 12px; text-transform:capitalize;">${dateFR}</h1>
       <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
-        ${data.contactName ? `Bonjour ${escapeHtml(data.contactName)}, ` : 'Bonjour, '}voici les convocations de vos
+        ${data.contactName ? `Bonjour ${escapeHtml(data.contactName)}, ` : 'Bonjour, '}voici la convocation de vos
         ${data.learners.length > 1 ? `${data.learners.length} collaborateurs` : 'collaborateurs'} inscrits à
-        <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong>. Chacun a également reçu la sienne.
+        <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong>${data.groupe ? ` (${escapeHtml(data.groupe)})` : ''}.
+        Vous la trouverez jointe en PDF, avec la liste des participants, pour la leur transmettre.
       </p>
 
       <table style="width:100%; border-collapse:collapse; margin:0 0 20px;">
