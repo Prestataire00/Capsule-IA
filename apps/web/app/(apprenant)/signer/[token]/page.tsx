@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifySignatureToken } from '@/shared/lib/signature-token';
 import { JustificationUpload } from '@/features/attendance/justification-upload';
 import { SignerForm, type SignerContext } from './signer-form';
+import { OuvertureAuto } from './ouverture-auto.client';
 import { ficheDePositionnement } from '@/features/questionnaire/needs-analysis';
 
 export const dynamic = 'force-dynamic';
@@ -201,8 +202,10 @@ export default async function SignerPage({ params }: { params: { token: string }
         tone="warning"
         icon={<Clock className="w-8 h-8" />}
         title="L’émargement n’est pas encore ouvert"
-        description={`Revenez à partir de ${heure(new Date(ouverture).toISOString())} (${HALF_DAY[row.half_day ?? 'full'] ?? 'journée'} du ${date(row.window_start).split(' à ')[0]}).`}
-      />
+        description={`Il s’ouvre à ${heure(new Date(ouverture).toISOString())} (${HALF_DAY[row.half_day ?? 'full'] ?? 'journée'} du ${date(row.window_start).split(' à ')[0]}). Gardez cette page ouverte : le formulaire s’affichera tout seul.`}
+      >
+        <OuvertureAuto ouverture={ouverture} />
+      </FullScreenMessage>
     );
   }
   if ((etape === 'entry' && maintenant > fermetureEntree) || (etape === 'exit' && maintenant > fermetureSortie)) {

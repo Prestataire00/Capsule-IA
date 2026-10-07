@@ -8,10 +8,10 @@ import { sessionsAutomationOff } from '@/features/automation/session-automations
 import { sendSheetLinks } from '@/features/attendance/send-links';
 
 /**
- * Envoi automatique des liens d'émargement, à l'heure de début de chaque
- * demi-journée, quand l'émargement s'ouvre (0209), dans le quart d'heure — pour les seuls organismes qui l'ont
- * activé (réglage désactivé par défaut). Idempotent : un apprenant ne reçoit
- * qu'un lien par feuille. Appelée toutes les 10 minutes par la base (0147).
+ * Envoi automatique des liens d'émargement, 10 minutes avant le début de
+ * chaque demi-journée — pour les seuls organismes qui l'ont activé (réglage
+ * désactivé par défaut). Idempotent : un apprenant ne reçoit qu'un lien par
+ * feuille. Appelée toutes les 5 minutes par la base (0224).
  *
  * Secret CRON_SECRET dans l'en-tête Authorization uniquement : dans l'URL, il
  * finirait dans les journaux d'accès.
