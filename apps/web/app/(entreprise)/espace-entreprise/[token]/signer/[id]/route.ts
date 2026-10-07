@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { publicOrigin } from '@/shared/lib/http/public-origin';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifyEntrepriseToken } from '@/shared/lib/entreprise-token';
 import { generateDocumentSignatureToken } from '@/shared/lib/document-signature-token';
@@ -16,7 +17,7 @@ export async function GET(req: Request, { params }: { params: { token: string; i
   const lien = await verifyEntrepriseToken(params.token);
   if (!lien.ok) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const s = await signatureDuReferent(lien.value.contactId, lien.value.organizationId, params.id);
-  if (!s) return NextResponse.redirect(new URL(`/espace-entreprise/${params.token}?onglet=actions`, req.url));
+  if (!s) return NextResponse.redirect(new URL(`/espace-entreprise/${params.token}?onglet=actions`, publicOrigin(req)));
 
   const { token } = await generateDocumentSignatureToken({ signatureId: params.id, documentId: s.documentId, organizationId: lien.value.organizationId });
   const { error } = await supabaseAdmin()
@@ -25,5 +26,5 @@ export async function GET(req: Request, { params }: { params: { token: string; i
     .update({ request_token_hash: createHash('sha256').update(token).digest('hex') } as never)
     .eq('id', params.id);
   if (error) return NextResponse.json({ error: 'unavailable' }, { status: 500 });
-  return NextResponse.redirect(new URL(`/signer/document/${token}`, req.url));
+  return NextResponse.redirect(new URL(`/signer/document/${token}`, publicOrigin(req)));
 }

@@ -6,6 +6,7 @@
 // signée du stockage : Safari refuse d'afficher un PDF d'un autre domaine dans un
 // cadre intégré, et l'aperçu restait blanc. `?dl=1` force le téléchargement.
 import { NextResponse, type NextRequest } from 'next/server';
+import { publicOrigin } from '@/shared/lib/http/public-origin';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // changement de montant. `?fige=1` force la copie telle qu'elle a été
   // archivée (utile pour une preuve). Les pièces figées n'ont pas de source_url.
   if (row.source_url && req.nextUrl.searchParams.get('fige') !== '1') {
-    return NextResponse.redirect(new URL(row.source_url, req.nextUrl.origin));
+    return NextResponse.redirect(new URL(row.source_url, publicOrigin(req)));
   }
   if (!row.storage_path) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
