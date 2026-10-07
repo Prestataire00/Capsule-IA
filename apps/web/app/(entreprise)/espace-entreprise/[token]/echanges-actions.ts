@@ -4,10 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifyEntrepriseToken } from '@/shared/lib/entreprise-token';
 import { messageEntrepriseSchema } from '@/features/espace-entreprise/message.schema';
-import { ecrireMessage, prevenirLEquipe } from '@/features/espace-entreprise/messages-store';
+import { ecrireMessage, equipeJoignable, prevenirLEquipe } from '@/features/espace-entreprise/messages-store';
 
 /** Le référent écrit à l'organisme depuis son espace. Son lien est sa seule preuve. */
-export async function envoyerMessageEntreprise(token: string, input: { body: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function envoyerMessageEntreprise(
+  token: string,
+  input: { body: string; interlocuteur?: string | null },
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const p = messageEntrepriseSchema.safeParse(input);
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'Message invalide.' };
   const lien = await verifyEntrepriseToken(token);
@@ -33,9 +36,14 @@ export async function envoyerMessageEntreprise(token: string, input: { body: str
   const entreprise = Array.isArray(contact.company) ? (contact.company[0]?.name ?? null) : (contact.company?.name ?? null);
   const dossierId = ((d ?? []) as Array<{ id: string }>)[0]?.id ?? null;
 
-  const ok = await ecrireMessage({ organizationId, contactId, dossierId, auteur: 'entreprise', auteurNom, body: p.data.body });
+  // Un fil direct : seulement avec un membre joignable de CET organisme.
+  const interlocuteurUserId = p.data.interlocuteur ?? null;
+  if (interlocuteurUserId && !(await equipeJoignable(organizationId)).some((m) => m.userId === interlocuteurUserId)) {
+    return { ok: false, error: 'Cette personne ne fait pas partie de l’équipe.' };
+  }
+  const ok = await ecrireMessage({ organizationId, contactId, dossierId, auteur: 'entreprise', auteurNom, interlocuteurUserId, body: p.data.body });
   if (!ok) return { ok: false, error: 'Le message n’est pas parti. Réessayez.' };
-  await prevenirLEquipe({ organizationId, dossierId, auteurNom, entreprise, body: p.data.body });
+  await prevenirLEquipe({ organizationId, contactId, interlocuteurUserId, dossierId, auteurNom, entreprise, body: p.data.body });
   revalidatePath(`/espace-entreprise/${token}`);
   return { ok: true };
 }

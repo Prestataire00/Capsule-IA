@@ -1,6 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { contactDeLOrganisme } from '@/features/espace-entreprise/messages-store';
+import { repondreAuContact } from '@/features/espace-entreprise/repondre-au-client';
 import { accesEquipe } from '@/features/discussions/acces';
 import {
   messageDirectSchema,
@@ -73,5 +75,27 @@ export async function envoyerMessageDirectEquipe(input: MessageDirectInput): Pro
     revalidatePath('/messagerie');
     revalidatePath('/mes-discussions');
   }
+  return r;
+}
+
+/** Répondre au référent d'un client depuis la messagerie : le fil de son espace entreprise. */
+export async function repondreAuClient(interlocuteur: string | null, input: MessageDirectInput): Promise<ResultatEnvoi> {
+  const p = messageDirectSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'Message invalide.' };
+  const moi = await accesEquipe(null);
+  if (!moi.ok) return { ok: false, error: 'La messagerie ne vous est pas accessible.' };
+  if (!(await contactDeLOrganisme(moi.organizationId, p.data.conversationId))) return { ok: false, error: 'Ce client ne vous est pas accessible.' };
+  // Un fil direct ne se répond que par son destinataire.
+  if (interlocuteur && interlocuteur !== moi.userId) return { ok: false, error: 'Ce fil est adressé à un collègue.' };
+  const r = await repondreAuContact({
+    organizationId: moi.organizationId,
+    contactId: p.data.conversationId,
+    dossierId: null,
+    auteurNom: moi.nom,
+    auteurUserId: moi.userId,
+    interlocuteurUserId: interlocuteur,
+    body: p.data.body,
+  });
+  if (r.ok) revalidatePath('/messagerie');
   return r;
 }

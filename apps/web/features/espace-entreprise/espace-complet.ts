@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { libelleEnvoi } from '@/features/emails/journal';
 import { chargerEspaceEntreprise, facturesDuReferent, type DocumentEntreprise, type EspaceEntreprise, type FactureEntreprise } from './load';
+import { equipeJoignable, type MembreJoignable } from './messages-store';
 import { aUneAdresse, heuresApprenant, trierActions, type Action, type Feuille } from './espace-calculs';
 
 /**
@@ -73,6 +74,8 @@ export type EchangeEspace = {
   readonly titre: string;
   readonly texte: string | null;
   readonly auteur: string;
+  /** Messages écrits : `null` pour le fil général, sinon le membre du fil direct. E-mails : absent. */
+  readonly interlocuteur?: string | null;
 };
 
 export type PrixConvenu = { readonly dossierId: string; readonly reference: string; readonly formation: string | null; readonly montantHtCents: number };
@@ -86,6 +89,8 @@ export type EspaceComplet = EspaceEntreprise & {
   readonly factures: readonly FactureEntreprise[];
   readonly devis: readonly DevisEspace[];
   readonly echanges: readonly EchangeEspace[];
+  /** Les personnes que le référent peut joindre directement. */
+  readonly equipe: readonly MembreJoignable[];
   readonly actions: readonly Action[];
 };
 
@@ -352,7 +357,7 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
   }));
 
   // ── Échanges : ce que l'organisme lui a envoyé, et ce qu'il a écrit ──
-  const [{ data: courriels }, { data: messages }] = await Promise.all([
+  const [{ data: courriels }, { data: messages }, equipe] = await Promise.all([
     referentEmail
       ? admin
           .schema('app')
@@ -367,11 +372,12 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     admin
       .schema('app')
       .from('espace_entreprise_messages' as never)
-      .select('id, auteur, auteur_nom, body, created_at')
+      .select('id, auteur, auteur_nom, interlocuteur_user_id, body, created_at')
       .eq('organization_id', organizationId)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false })
-      .limit(100),
+      .limit(500),
+    equipeJoignable(organizationId),
   ]);
   const echanges: EchangeEspace[] = [
     ...((courriels ?? []) as Array<{ id: string; kind: string | null; subject: string | null; sent_at: string }>).map((c) => ({
@@ -382,13 +388,14 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
       texte: null,
       auteur: base.organisme,
     })),
-    ...((messages ?? []) as unknown as Array<{ id: string; auteur: string; auteur_nom: string; body: string; created_at: string }>).map((m) => ({
+    ...((messages ?? []) as unknown as Array<{ id: string; auteur: string; auteur_nom: string; interlocuteur_user_id: string | null; body: string; created_at: string }>).map((m) => ({
       id: `msg-${m.id}`,
       date: m.created_at,
       sens: m.auteur === 'entreprise' ? ('envoye' as const) : ('recu' as const),
       titre: m.auteur === 'entreprise' ? 'Votre message' : `Message de ${m.auteur_nom}`,
       texte: m.body,
       auteur: m.auteur_nom,
+      interlocuteur: m.interlocuteur_user_id,
     })),
   ].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -464,5 +471,5 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     });
   }
 
-  return { ...base, referentEmail, prix, seances, apprenants, factures, devis, echanges, actions: trierActions(actions) };
+  return { ...base, referentEmail, prix, seances, apprenants, factures, devis, echanges, equipe, actions: trierActions(actions) };
 }

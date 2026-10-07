@@ -11,7 +11,7 @@ import { SectionLabel } from '@/shared/ui/section-label';
 import { referentPropose } from '@/features/espace-entreprise/referent-dossier';
 import { EspaceEntrepriseClient } from './client';
 import { EchangesReferent } from './echanges.client';
-import { marquerLusParLOrganisme, messagesDuContact } from '@/features/espace-entreprise/messages-store';
+import { marquerLusParLOrganisme, messagesDuFil } from '@/features/espace-entreprise/messages-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +51,8 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
   // Les échanges avec ce référent ; les ouvrir les marque lus.
   const { data: org } = await sb.schema('app').from('dossiers').select('organization_id').eq('id', params.id).maybeSingle();
   const organizationId = (org as { organization_id: string } | null)?.organization_id ?? null;
-  const messages = referent?.contactId && organizationId ? await messagesDuContact(organizationId, referent.contactId) : [];
+  // Le fil général ; les fils directs se lisent dans la messagerie de leur destinataire.
+  const messages = referent?.contactId && organizationId ? await messagesDuFil(organizationId, referent.contactId, null) : [];
   if (referent?.contactId && organizationId && messages.some((m) => m.auteur === 'entreprise' && !m.luLe)) {
     await marquerLusParLOrganisme(organizationId, referent.contactId);
   }

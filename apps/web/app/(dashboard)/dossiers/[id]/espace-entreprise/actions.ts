@@ -4,11 +4,11 @@ import { env } from '@/env.mjs';
 import { guardRowAction } from '@/shared/lib/auth/guard-action';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateEntrepriseUrl } from '@/shared/lib/entreprise-token';
-import { espaceEntrepriseEmail, reponseEspaceEntrepriseEmail } from '@/shared/lib/email/templates';
+import { espaceEntrepriseEmail } from '@/shared/lib/email/templates';
 import { revalidatePath } from 'next/cache';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { messageEntrepriseSchema } from '@/features/espace-entreprise/message.schema';
-import { ecrireMessage, marquerLusParLOrganisme } from '@/features/espace-entreprise/messages-store';
+import { repondreAuContact } from '@/features/espace-entreprise/repondre-au-client';
 import { envoyerSousOrganisme } from '@/features/espace-entreprise/envoi';
 import { attacherReferent } from '@/features/espace-entreprise/referent-dossier';
 
@@ -101,29 +101,16 @@ export async function repondreAuReferent(dossierId: string, input: { body: strin
   if (!r.ok) return r;
   const me = await getCurrentMember();
   if (!me) return { ok: false, error: 'Votre session a expiré.' };
-  const ok = await ecrireMessage({
+  const envoi = await repondreAuContact({
     organizationId: r.organizationId,
     contactId: r.contactId,
     dossierId,
-    auteur: 'organisme',
     auteurNom: me.fullName,
     auteurUserId: me.userId,
     body: p.data.body,
   });
-  if (!ok) return { ok: false, error: 'Le message n’a pas été enregistré.' };
-  await marquerLusParLOrganisme(r.organizationId, r.contactId);
-  if (r.email && env.PUBLIC_APP_URL) {
-    const { url } = await generateEntrepriseUrl({ contactId: r.contactId, organizationId: r.organizationId }, env.PUBLIC_APP_URL);
-    const { data: o } = await supabaseAdmin().schema('app').from('organizations').select('name').eq('id', r.organizationId).maybeSingle();
-    const { subject, html } = reponseEspaceEntrepriseEmail({
-      prenom: r.prenom,
-      organisme: (o as { name: string | null } | null)?.name ?? 'Votre organisme de formation',
-      auteur: me.fullName,
-      message: p.data.body,
-      lien: `${url}?onglet=echanges`,
-    });
-    await envoyerSousOrganisme({ organizationId: r.organizationId, dossierId, to: r.email, subject, html, kind: 'reponse_espace_entreprise' });
-  }
+  if (!envoi.ok) return envoi;
+  revalidatePath('/messagerie');
   revalidatePath(`/dossiers/${dossierId}/espace-entreprise`);
   return { ok: true };
 }

@@ -10,11 +10,12 @@ import { loadFils, loadMessagesEquipe, marquerFilLu } from '@/features/discussio
 import { Messagerie } from '@/features/discussions/ui/messagerie';
 import { infosDuFil } from '@/features/discussions/infos-fil';
 import { accesConversation, interlocuteursDe, loadConversations, loadMessagesDirects, marquerConversationLue } from '@/features/discussions/directs-store';
-import { envoyerMessageDirectEquipe, envoyerMessageEquipe, ouvrirConversationEquipe } from './actions';
+import { envoyerMessageDirectEquipe, envoyerMessageEquipe, ouvrirConversationEquipe, repondreAuClient } from './actions';
+import { filsClients, marquerLusParLOrganisme, messagesDuFil } from '@/features/espace-entreprise/messages-store';
 
 export const dynamic = 'force-dynamic';
 
-export default async function MessageriePage({ searchParams }: { searchParams: { dossier?: string; direct?: string; q?: string; vue?: string } }) {
+export default async function MessageriePage({ searchParams }: { searchParams: { dossier?: string; direct?: string; client?: string; avec?: string; q?: string; vue?: string } }) {
   const moi = await accesEquipe(null);
   if (!moi.ok) redirect('/');
   const choisi = searchParams.dossier && (await accesEquipe(searchParams.dossier)).ok ? searchParams.dossier : null;
@@ -30,8 +31,34 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
     loadConversations(moi.userId, [moi.organizationId]),
     interlocuteursDe(moi.organizationId, { avecFormateurs: true }),
   ]);
+  // Les clients qui écrivent depuis leur espace : leur fil général, et ceux qui vous sont adressés.
+  const tousLesFils = await filsClients(moi.organizationId, moi.userId);
+  let client = null;
+  const avec = searchParams.avec ?? null;
+  const filClient = searchParams.client
+    ? tousLesFils.find((c) => c.contactId === searchParams.client && c.interlocuteurUserId === avec)
+    : undefined;
+  if (filClient && !choisi) {
+    const messagesClient = await messagesDuFil(moi.organizationId, filClient.contactId, filClient.interlocuteurUserId);
+    if (filClient.nonLus > 0) await marquerLusParLOrganisme(moi.organizationId, filClient.contactId, filClient.interlocuteurUserId);
+    client = {
+      contactId: filClient.contactId,
+      interlocuteurUserId: filClient.interlocuteurUserId,
+      nom: filClient.nom,
+      entreprise: filClient.entreprise,
+      messages: messagesClient.map((m) => ({
+        id: m.id,
+        authorUserId: m.auteurUserId,
+        authorName: m.auteurNom,
+        body: m.body,
+        mentions: [],
+        createdAt: m.createdAt,
+      })),
+    };
+  }
+
   let direct = null;
-  if (searchParams.direct && !choisi) {
+  if (searchParams.direct && !choisi && !client) {
     const acces = await accesConversation(searchParams.direct, moi.userId);
     const conversation = directs.find((c) => c.id === searchParams.direct);
     if (acces.ok && acces.organizationId === moi.organizationId && conversation) {
@@ -77,6 +104,9 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
         direct={direct}
         envoyerDirect={envoyerMessageDirectEquipe}
         ouvrirDirect={ouvrirConversationEquipe}
+        clients={filClient ? tousLesFils.map((c) => (c === filClient ? { ...c, nonLus: 0 } : c)) : tousLesFils}
+        client={client}
+        repondreClient={client ? repondreAuClient.bind(null, client.interlocuteurUserId) : undefined}
       />
     </div>
   );

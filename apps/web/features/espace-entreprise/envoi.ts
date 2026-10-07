@@ -10,7 +10,7 @@ import { expediteurDeLOrganisme } from '@/shared/lib/email/expediteur-organisme'
  */
 export async function envoyerSousOrganisme(m: {
   organizationId: string;
-  dossierId: string;
+  dossierId?: string;
   to: string;
   subject: string;
   html: string;

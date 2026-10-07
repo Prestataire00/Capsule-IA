@@ -1,6 +1,7 @@
 import { Download, FileText, Receipt, Tag } from 'lucide-react';
 import type { FactureEntreprise } from '@/features/espace-entreprise/load';
 import type { DevisEspace, PrixConvenu } from '@/features/espace-entreprise/espace-complet';
+import { KpiCard } from '@/shared/ui/kpi-card';
 import { BOUTON, CARTE, date, euros } from './format';
 
 const NATURE: Record<FactureEntreprise['nature'], string> = { facture: 'Facture', acompte: 'Acompte', solde: 'Facture de solde', avoir: 'Avoir' };
@@ -34,14 +35,9 @@ export function VueFacturation({
   const totalConvenu = prix.reduce((t, p) => t + p.montantHtCents, 0);
   return (
     <div className="space-y-6">
-      <section className={`${CARTE} overflow-hidden`} aria-labelledby="prix">
-        <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
-          <span className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Tag className="w-4 h-4" />
-            </span>
-            <h2 id="prix" className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Prix convenu</h2>
-          </span>
+      <section aria-labelledby="prix" className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 id="prix" className="text-[13px] font-medium uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">Prix convenu</h2>
           {prix.length > 1 && (
             <span className="text-[13px] text-zinc-600 dark:text-zinc-400">
               Total : <strong className="font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(totalConvenu)} HT</strong>
@@ -49,25 +45,21 @@ export function VueFacturation({
           )}
         </div>
         {prix.length === 0 ? (
-          <p className="px-5 py-4 text-[13px] text-zinc-500 dark:text-zinc-400">Le prix de votre formation n’est pas encore fixé.</p>
+          <p className={`${CARTE} px-5 py-4 text-[13px] text-zinc-500 dark:text-zinc-400`}>Le prix de votre formation n’est pas encore fixé.</p>
         ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <div className="grid gap-3 sm:grid-cols-2">
             {prix.map((p) => (
-              <li key={p.dossierId} className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
-                <span className="min-w-0">
-                  <span className="block text-[13px] text-zinc-900 dark:text-zinc-100">{p.formation ?? 'Formation'}</span>
-                  <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
-                    Dossier <span className="font-mono">{p.reference}</span>
-                  </span>
-                </span>
-                <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(p.montantHtCents)} HT</span>
-              </li>
+              <KpiCard
+                key={p.dossierId}
+                icon={Tag}
+                accent="emerald"
+                label={p.formation ?? 'Formation'}
+                value={`${euros(p.montantHtCents)} HT`}
+                hint={`Dossier ${p.reference} · repris par le devis et les factures`}
+              />
             ))}
-          </ul>
+          </div>
         )}
-        <p className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 text-[12px] text-zinc-500 dark:text-zinc-400">
-          Le devis et les factures reprennent ce montant ; ils apparaissent ci-dessous dès leur émission.
-        </p>
       </section>
 
       <section className={`${CARTE} overflow-hidden`} aria-labelledby="devis">
