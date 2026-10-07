@@ -32,6 +32,8 @@ type Ouvert = {
   infos: InfosFil | null;
   /** Page du dossier ; absente pour qui n'y a pas accès. */
   lien: string | null;
+  /** Le même dossier côté client : les échanges de l'espace entreprise de son référent. */
+  client?: { contactId: string; nom: string; messages: readonly MessageEquipe[] } | null;
 };
 
 type DirectOuvert = { conversation: ConversationDirecte; messages: readonly MessageEquipe[] };
@@ -69,6 +71,7 @@ export function Messagerie({
   meId,
   recherche = '',
   pourMoi = false,
+  vue: vueDemandee,
   directs,
   joignables,
   direct,
@@ -88,6 +91,8 @@ export function Messagerie({
   meId: string;
   recherche?: string;
   pourMoi?: boolean;
+  /** Tout le fil, mes mentions, ou l'échange avec le client du dossier. */
+  vue?: 'tout' | 'moi' | 'client';
   /** Conversations directes, hors dossier. */
   directs: readonly ConversationDirecte[];
   /** Les personnes à qui l'on peut écrire. */
@@ -123,7 +128,19 @@ export function Messagerie({
     ? clients.filter((c) => normaliser([c.nom, c.entreprise ?? '', c.dernier.body].join(' ')).includes(q))
     : clients;
   const unOuvert = Boolean(ouvert || direct || client);
-  const messages = ouvert && pourMoi ? ouvert.messages.filter((m) => m.mentions.includes(meId) || m.authorUserId === meId) : (ouvert?.messages ?? []);
+  const vue = vueDemandee ?? (pourMoi ? 'moi' : 'tout');
+  const duClient = ouvert?.client ?? null;
+  const ongletClient = vue === 'client' && duClient !== null;
+  const messages = !ouvert
+    ? []
+    : vue === 'moi'
+      ? ouvert.messages.filter((m) => m.mentions.includes(meId) || m.authorUserId === meId)
+      : ongletClient
+        ? duClient.messages
+        : [...ouvert.messages, ...(duClient?.messages ?? [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  // Le fil général d'un client rattaché à un dossier s'ouvre dans la discussion de ce dossier.
+  const lienClientDe = (c: FilClient) =>
+    !c.interlocuteurUserId && c.dossierId ? `${chemin}?dossier=${c.dossierId}&vue=client` : lienClient(chemin, c);
 
   return (
     <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)_280px] rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden lg:h-[calc(100vh-12rem)] lg:min-h-[560px]">
@@ -161,11 +178,13 @@ export function Messagerie({
               </p>
               <ul className="space-y-0.5">
                 {clientsVisibles.map((c) => {
-                  const actif = client?.contactId === c.contactId && client.interlocuteurUserId === c.interlocuteurUserId;
+                  const actif =
+                    (client?.contactId === c.contactId && client.interlocuteurUserId === c.interlocuteurUserId) ||
+                    (!c.interlocuteurUserId && c.dossierId !== null && ouvert?.dossier.id === c.dossierId && ongletClient);
                   return (
                     <li key={`${c.contactId}-${c.interlocuteurUserId ?? 'tous'}`}>
                       <Link
-                        href={lienClient(chemin, c)}
+                        href={lienClientDe(c)}
                         aria-current={actif ? 'page' : undefined}
                         className={`flex items-start gap-2.5 rounded-lg px-2.5 py-2 transition ${
                           actif ? 'bg-orange-50 dark:bg-orange-950/30' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
@@ -402,16 +421,17 @@ export function Messagerie({
 
           <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2" role="tablist" aria-label="Messages affichés">
             {[
-              { cle: false, libelle: 'Tout le fil' },
-              { cle: true, libelle: 'Pour moi' },
+              { cle: 'tout' as const, libelle: 'Tout le fil', extra: '' },
+              { cle: 'moi' as const, libelle: 'Pour moi', extra: '&vue=moi' },
+              ...(duClient ? [{ cle: 'client' as const, libelle: `Client · ${duClient.nom}`, extra: '&vue=client' }] : []),
             ].map((t) => (
               <Link
-                key={t.libelle}
+                key={t.cle}
                 role="tab"
-                aria-selected={pourMoi === t.cle}
-                href={lienFil(ouvert.dossier.id, t.cle ? '&vue=moi' : '')}
+                aria-selected={vue === t.cle}
+                href={lienFil(ouvert.dossier.id, t.extra)}
                 className={`h-8 px-3 inline-flex items-center rounded-full text-[13px] transition ${
-                  pourMoi === t.cle
+                  vue === t.cle
                     ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-orange-900/60 font-medium'
                     : 'text-zinc-600 dark:text-zinc-400 ring-1 ring-zinc-200 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800'
                 }`}
@@ -424,18 +444,49 @@ export function Messagerie({
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
             <FilMessages
               messages={messages}
-              noms={ouvert.equipe.map((m) => m.nom)}
+              noms={[...ouvert.equipe.map((m) => m.nom), ...(duClient ? [duClient.nom] : [])]}
               meId={meId}
-              vide={pourMoi ? 'Personne ne vous a encore mentionné ici.' : undefined}
+              vide={
+                vue === 'moi'
+                  ? 'Personne ne vous a encore mentionné ici.'
+                  : ongletClient
+                    ? `Aucun échange avec ${duClient.nom} pour l’instant. Écrivez-lui ci-dessous : le message rejoint son espace entreprise.`
+                    : undefined
+              }
             />
           </div>
 
           <div className="border-t border-zinc-100 dark:border-zinc-800 p-4">
-            <ComposerEquipe
-              dossierId={ouvert.dossier.id}
-              membres={ouvert.equipe.filter((m) => m.userId !== meId).map((m) => ({ userId: m.userId, nom: m.nom, role: m.role }))}
-              envoyer={envoyer}
-            />
+            {ongletClient && repondreClient ? (
+              <>
+                <ComposerDirect
+                  key={`client-${duClient.contactId}`}
+                  conversationId={duClient.contactId}
+                  envoyer={repondreClient}
+                  initial={`@${duClient.nom} `}
+                  fichierVers={{ url: `/api/messagerie/client/${duClient.contactId}`, champs: {} }}
+                />
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+                  Envoyé à {duClient.nom}, dans son espace entreprise ; un e-mail l’en prévient.
+                </p>
+              </>
+            ) : (
+              <>
+                <ComposerEquipe
+                  dossierId={ouvert.dossier.id}
+                  membres={ouvert.equipe.filter((m) => m.userId !== meId).map((m) => ({ userId: m.userId, nom: m.nom, role: m.role }))}
+                  envoyer={envoyer}
+                />
+                {duClient && (
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+                    Message interne à l’équipe.{' '}
+                    <Link href={lienFil(ouvert.dossier.id, '&vue=client')} className="text-orange-600 dark:text-orange-400 hover:underline">
+                      Écrire à {duClient.nom}
+                    </Link>
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </section>
       ) : (
@@ -554,6 +605,17 @@ export function Messagerie({
               Équipe · <span className="tabular-nums">{ouvert.equipe.length}</span>
             </h3>
             <ul className="space-y-2.5">
+              {duClient && (
+                <li className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                    {initiales(duClient.nom)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{duClient.nom}</span>
+                    <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">Référent client · onglet Client</span>
+                  </span>
+                </li>
+              )}
               {ouvert.equipe.map((m) => (
                 <li key={m.userId} className="flex items-center gap-2.5">
                   <span

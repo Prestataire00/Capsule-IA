@@ -100,6 +100,16 @@ export function FilMessages({
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                         {moi ? 'Vous' : m.authorName}
                       </span>{' '}
+                      {m.origine === 'client' && (
+                        <span className="mr-1 h-4 px-1.5 rounded-full text-[10px] align-middle inline-flex items-center bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                          client
+                        </span>
+                      )}
+                      {m.origine === 'vers_client' && (
+                        <span className="mr-1 h-4 px-1.5 rounded-full text-[10px] align-middle inline-flex items-center bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                          envoyé au client
+                        </span>
+                      )}
                       <span className="text-[12px] text-zinc-400 tabular-nums">
                         {heureFmt.format(new Date(m.createdAt))}
                       </span>

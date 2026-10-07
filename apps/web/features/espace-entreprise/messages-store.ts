@@ -153,6 +153,21 @@ export async function contactDeLOrganisme(organizationId: string, contactId: str
   return Boolean(data);
 }
 
+/** Le référent client d'un dossier de l'organisme, s'il en a un. */
+export async function referentDuDossier(organizationId: string, dossierId: string): Promise<{ contactId: string; nom: string } | null> {
+  const { data } = await admin()
+    .schema('app')
+    .from('dossiers')
+    .select('contact_id, contact:contacts(first_name, last_name)')
+    .eq('id', dossierId)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+  const d = data as { contact_id: string | null; contact: { first_name: string | null; last_name: string | null } | Array<{ first_name: string | null; last_name: string | null }> | null } | null;
+  if (!d?.contact_id) return null;
+  const c = Array.isArray(d.contact) ? d.contact[0] : d.contact;
+  return { contactId: d.contact_id, nom: `${c?.first_name ?? ''} ${c?.last_name ?? ''}`.trim() || 'Client' };
+}
+
 /** L'adresse d'un fil dans la messagerie de l'équipe. */
 export const lienDuFilClient = (contactId: string, interlocuteur: string | null): string =>
   `/messagerie?client=${contactId}${interlocuteur ? `&avec=${interlocuteur}` : ''}`;

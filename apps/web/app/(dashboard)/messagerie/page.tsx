@@ -12,7 +12,7 @@ import { infosDuFil } from '@/features/discussions/infos-fil';
 import { accesConversation, interlocuteursDe, loadConversations, loadMessagesDirects, marquerConversationLue } from '@/features/discussions/directs-store';
 import { envoyerMessageDirectEquipe, envoyerMessageEquipe, ouvrirConversationEquipe, repondreAuClient } from './actions';
 import { piecesAffichees } from '@/features/espace-entreprise/pieces-jointes';
-import { equipeJoignable, filsClients, marquerLusParLOrganisme, messagesDuFil } from '@/features/espace-entreprise/messages-store';
+import { equipeJoignable, filsClients, marquerLusParLOrganisme, messagesDuFil, referentDuDossier } from '@/features/espace-entreprise/messages-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,9 +82,34 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
   if (choisi) {
     const dossier = fils.find((f) => f.dossier.id === choisi)?.dossier ?? libelles.get(choisi);
     if (dossier) {
-      const [messages, equipe, infos] = await Promise.all([loadMessagesEquipe(choisi), equipeDuFil(moi.organizationId, choisi), infosDuFil(choisi)]);
+      const [messages, equipe, infos, referent] = await Promise.all([
+        loadMessagesEquipe(choisi),
+        equipeDuFil(moi.organizationId, choisi),
+        infosDuFil(choisi),
+        referentDuDossier(moi.organizationId, choisi),
+      ]);
       await marquerFilLu(moi.userId, choisi);
-      ouvert = { dossier, messages, equipe, infos, lien: `/dossiers/${choisi}` };
+      // Le même dossier, côté client : le fil général de son référent (espace entreprise).
+      let duClient = null;
+      if (referent) {
+        const echanges = await messagesDuFil(moi.organizationId, referent.contactId, null);
+        if (echanges.some((m) => m.auteur === 'entreprise' && !m.luLe)) await marquerLusParLOrganisme(moi.organizationId, referent.contactId, null);
+        duClient = {
+          contactId: referent.contactId,
+          nom: referent.nom,
+          messages: echanges.map((m) => ({
+            id: m.id,
+            authorUserId: m.auteurUserId,
+            authorName: m.auteurNom,
+            body: m.body,
+            mentions: [],
+            createdAt: m.createdAt,
+            pieces: piecesAffichees(m.id, m.pieces, '/api/messagerie/piece'),
+            origine: m.auteur === 'entreprise' ? ('client' as const) : ('vers_client' as const),
+          })),
+        };
+      }
+      ouvert = { dossier, messages, equipe, infos, lien: `/dossiers/${choisi}`, client: duClient };
     }
   }
 
@@ -108,7 +133,7 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
         envoyer={envoyerMessageEquipe}
         meId={moi.userId}
         recherche={searchParams.q ?? ''}
-        pourMoi={searchParams.vue === 'moi'}
+        vue={searchParams.vue === 'moi' ? 'moi' : searchParams.vue === 'client' ? 'client' : 'tout'}
         directs={directs}
         joignables={joignables.filter((j) => j.userId !== moi.userId)}
         direct={direct}
@@ -117,7 +142,7 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
         clients={filClient ? tousLesFils.map((c) => (c === filClient ? { ...c, nonLus: 0 } : c)) : tousLesFils}
         dossiersClients={dossiersClients}
         client={client}
-        repondreClient={client ? repondreAuClient.bind(null, client.interlocuteurUserId) : undefined}
+        repondreClient={client ? repondreAuClient.bind(null, client.interlocuteurUserId) : ouvert?.client ? repondreAuClient.bind(null, null) : undefined}
       />
     </div>
   );
