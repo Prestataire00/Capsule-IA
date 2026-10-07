@@ -7,10 +7,12 @@ import { envoyerFichesAvantSeance } from '@/features/questionnaire/positionnemen
 import { relancerReferentsSatisfaction } from '@/features/questionnaire/relance-satisfaction-referent';
 import { alerterDirectionDossiersRecents } from '@/features/dossier/alerte-nouveau-dossier';
 import { avancerLesDossiers } from '@/features/dossier/avancer-les-dossiers';
+import { creerLesVisiosManquantes } from '@/features/sessions/visios-manquantes';
 import { envoyerEvaluationsAuxStagiaires, envoyerSatisfactionEntreprises, lancerEvaluationsDeFin } from '@/features/questionnaire/evaluations-de-fin';
 
 /**
- * Le statut des dossiers suit leurs séances (en cours, terminé). Rappels de séance 48 h et 2 h avant le début, à l'entreprise et au
+ * Le statut des dossiers suit leurs séances (en cours, terminé). Les séances
+ * à distance sans lien Meet en reçoivent un (boîte générique). Rappels de séance 48 h et 2 h avant le début, à l'entreprise et au
  * formateur ; fiche de positionnement 24 h avant aux stagiaires qui ne l'ont
  * pas remplie ; 24 h après la dernière séance, relance de satisfaction au
  * référent pour ses stagiaires sans réponse ; alerte de la direction pour
@@ -27,6 +29,8 @@ async function tick() {
   const sb = supabaseAdmin() as never;
   // D'abord les statuts : les envois de fin de formation lisent « terminé ».
   const avancement = await avancerLesDossiers(sb);
+  // Puis les liens Meet manquants : le rappel 48 h doit pouvoir les porter.
+  const visios = await creerLesVisiosManquantes(sb);
   const [rappels, fiches, satisfaction, nouveauxDossiers, evaluationsFin, evaluationsStagiaires, satisfactionEntreprise] = await Promise.all([
     envoyerRappelsSeances(sb),
     envoyerFichesAvantSeance(sb),
@@ -36,7 +40,7 @@ async function tick() {
     envoyerEvaluationsAuxStagiaires(sb),
     envoyerSatisfactionEntreprises(sb),
   ]);
-  return { avancement, rappels, fiches, satisfaction, nouveauxDossiers, evaluationsFin, evaluationsStagiaires, satisfactionEntreprise };
+  return { avancement, visios, rappels, fiches, satisfaction, nouveauxDossiers, evaluationsFin, evaluationsStagiaires, satisfactionEntreprise };
 }
 
 export async function POST(req: Request) {

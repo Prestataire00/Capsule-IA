@@ -5,9 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
-import { sendEmail } from '@/shared/lib/email/resend';
 import { createMeetEvent } from '@/shared/lib/integrations/google-calendar-client';
-import { organisateurDuMeet, metadataMeet, invitesDeLaSeance, diffuserLienVisio } from '@/features/sessions/visio';
+import { organisateurDuMeet, metadataMeet, invitesDeLaSeance, diffuserLienVisio, envoyerDepuisLaBoiteDesCours } from '@/features/sessions/visio';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { parisIso } from '@/features/import/paris-time';
@@ -120,15 +119,16 @@ async function provisionMeet(
 
   // Envoi du lien aux apprenants (en plus de l'invitation Google Agenda automatique).
   if (ctx.learnerEmail) {
-    void sendEmail({
+    // Tout ce qui touche à la visio part de la boîte générique (arbitrage d'Ismael, 05/10/2026).
+    const r = await envoyerDepuisLaBoiteDesCours(sb as never, ctx.organizationId, {
       to: ctx.learnerEmail,
       subject: `Lien visio — ${title}`,
       html: meetEmailHtml({ meetUrl: res.value.meetUrl, title, startsAt, formationTitle: ctx.formationTitle }),
-      organizationId: ctx.organizationId,
       kind: 'session_meet_link',
-    }).then((r) => {
-      if (!r.ok && r.reason !== 'no_api_key') console.error('[session] meet email failed', r);
+      idempotencyKey: `session_meet_link:${sessionId}:${ctx.learnerEmail.toLowerCase()}:${res.value.meetUrl}`,
+      metadata: { session_id: sessionId },
     });
+    if (!r.ok && r.reason !== 'no_api_key' && r.reason !== 'duplicate') console.error('[session] lien visio non envoyé au stagiaire', sessionId, r.reason);
   }
   return 'created';
 }
