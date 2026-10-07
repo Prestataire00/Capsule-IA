@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Mail, Send } from 'lucide-react';
@@ -73,7 +74,16 @@ export function VueEchanges({ token, organisme, echanges }: { token: string; org
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2 flex-wrap">
-                    <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{e.titre}</span>
+                    {e.id.startsWith('mail-') ? (
+                      <Link
+                        href={`/espace-entreprise/${token}/echange/${e.id.slice(5)}`}
+                        className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 hover:text-orange-600 dark:hover:text-orange-400 hover:underline"
+                      >
+                        {e.titre}
+                      </Link>
+                    ) : (
+                      <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{e.titre}</span>
+                    )}
                     <span className="text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">{quand.format(new Date(e.date))}</span>
                   </span>
                   <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">{e.sens === 'envoye' ? 'Vous' : e.auteur}</span>

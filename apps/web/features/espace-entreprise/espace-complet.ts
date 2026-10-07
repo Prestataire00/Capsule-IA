@@ -75,8 +75,12 @@ export type EchangeEspace = {
   readonly auteur: string;
 };
 
+export type PrixConvenu = { readonly dossierId: string; readonly reference: string; readonly formation: string | null; readonly montantHtCents: number };
+
 export type EspaceComplet = EspaceEntreprise & {
   readonly referentEmail: string | null;
+  /** Le prix fixé sur chaque dossier : connu avant tout devis ou toute facture. */
+  readonly prix: readonly PrixConvenu[];
   readonly seances: readonly SeanceEspace[];
   readonly apprenants: readonly ApprenantEspace[];
   readonly factures: readonly FactureEntreprise[];
@@ -302,6 +306,19 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
   }
   apprenants.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 
+  // ── Prix convenus ──
+  const { data: montants } = dossierIds.length
+    ? await admin.schema('app').from('dossiers').select('id, total_amount_cents').in('id', dossierIds)
+    : { data: [] };
+  const prix: PrixConvenu[] = ((montants ?? []) as Array<{ id: string; total_amount_cents: number | null }>)
+    .filter((m) => Number(m.total_amount_cents ?? 0) > 0)
+    .map((m) => ({
+      dossierId: m.id,
+      reference: dossierDe.get(m.id)?.reference ?? '',
+      formation: dossierDe.get(m.id)?.formation ?? null,
+      montantHtCents: Number(m.total_amount_cents),
+    }));
+
   // ── Devis ──
   const { data: devisRows } = contact?.company_id
     ? await admin
@@ -447,5 +464,5 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     });
   }
 
-  return { ...base, referentEmail, seances, apprenants, factures, devis, echanges, actions: trierActions(actions) };
+  return { ...base, referentEmail, prix, seances, apprenants, factures, devis, echanges, actions: trierActions(actions) };
 }

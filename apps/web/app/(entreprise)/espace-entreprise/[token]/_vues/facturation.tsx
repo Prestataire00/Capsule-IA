@@ -1,6 +1,6 @@
-import { Download, FileText, Receipt } from 'lucide-react';
+import { Download, FileText, Receipt, Tag } from 'lucide-react';
 import type { FactureEntreprise } from '@/features/espace-entreprise/load';
-import type { DevisEspace } from '@/features/espace-entreprise/espace-complet';
+import type { DevisEspace, PrixConvenu } from '@/features/espace-entreprise/espace-complet';
 import { BOUTON, CARTE, date, euros } from './format';
 
 const NATURE: Record<FactureEntreprise['nature'], string> = { facture: 'Facture', acompte: 'Acompte', solde: 'Facture de solde', avoir: 'Avoir' };
@@ -19,10 +19,57 @@ const STATUT_DEVIS: Record<string, { libelle: string; ton: string }> = {
 };
 
 /** Ses devis et propositions, puis ses factures et ce qu'il reste à régler. */
-export function VueFacturation({ factures, devis, token }: { factures: readonly FactureEntreprise[]; devis: readonly DevisEspace[]; token: string }) {
+export function VueFacturation({
+  factures,
+  devis,
+  prix,
+  token,
+}: {
+  factures: readonly FactureEntreprise[];
+  devis: readonly DevisEspace[];
+  prix: readonly PrixConvenu[];
+  token: string;
+}) {
   const reste = factures.reduce((t, f) => t + f.resteCents, 0);
+  const totalConvenu = prix.reduce((t, p) => t + p.montantHtCents, 0);
   return (
     <div className="space-y-6">
+      <section className={`${CARTE} overflow-hidden`} aria-labelledby="prix">
+        <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
+          <span className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <Tag className="w-4 h-4" />
+            </span>
+            <h2 id="prix" className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">Prix convenu</h2>
+          </span>
+          {prix.length > 1 && (
+            <span className="text-[13px] text-zinc-600 dark:text-zinc-400">
+              Total : <strong className="font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(totalConvenu)} HT</strong>
+            </span>
+          )}
+        </div>
+        {prix.length === 0 ? (
+          <p className="px-5 py-4 text-[13px] text-zinc-500 dark:text-zinc-400">Le prix de votre formation n’est pas encore fixé.</p>
+        ) : (
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {prix.map((p) => (
+              <li key={p.dossierId} className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+                <span className="min-w-0">
+                  <span className="block text-[13px] text-zinc-900 dark:text-zinc-100">{p.formation ?? 'Formation'}</span>
+                  <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+                    Dossier <span className="font-mono">{p.reference}</span>
+                  </span>
+                </span>
+                <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">{euros(p.montantHtCents)} HT</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 text-[12px] text-zinc-500 dark:text-zinc-400">
+          Le devis et les factures reprennent ce montant ; ils apparaissent ci-dessous dès leur émission.
+        </p>
+      </section>
+
       <section className={`${CARTE} overflow-hidden`} aria-labelledby="devis">
         <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
           <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">

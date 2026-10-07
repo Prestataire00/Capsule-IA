@@ -114,3 +114,26 @@ export async function devisDuReferent(contactId: string, organizationId: string,
   const doc = Array.isArray(q.document) ? q.document[0] : q.document;
   return doc?.storage_path ? { storagePath: doc.storage_path } : null;
 }
+
+/** Un e-mail que l'organisme lui a envoyé : son adresse parmi les destinataires, le même organisme. */
+export async function courrielDuReferent(
+  contactId: string,
+  organizationId: string,
+  emailLogId: string,
+): Promise<{ subject: string | null; sentAt: string | null; html: string | null } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(emailLogId)) return null;
+  const contact = await contactDe(contactId, organizationId);
+  const email = contact?.email?.trim().toLowerCase();
+  if (!email) return null;
+  const { data } = await admin()
+    .schema('app')
+    .from('email_log')
+    .select('organization_id, recipient, subject, sent_at, status, body_html')
+    .eq('id', emailLogId)
+    .maybeSingle();
+  const r = data as { organization_id: string | null; recipient: string; subject: string | null; sent_at: string | null; status: string | null; body_html: string | null } | null;
+  if (!r || r.organization_id !== organizationId || r.status !== 'sent') return null;
+  const destinataires = r.recipient.split(',').map((x) => x.trim().toLowerCase());
+  if (!destinataires.includes(email)) return null;
+  return { subject: r.subject, sentAt: r.sent_at, html: r.body_html };
+}

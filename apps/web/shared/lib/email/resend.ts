@@ -242,6 +242,21 @@ async function reserverEnvoi(input: SendEmailInput): Promise<{ deja: boolean; id
 }
 
 /**
+ * Le contenu de l'e-mail, pour le relire ensuite (0220). Écriture à part et
+ * best-effort : si la colonne manque encore, le journal lui-même ne doit pas
+ * en pâtir.
+ */
+async function conserverContenu(id: string | null, html: string | undefined): Promise<void> {
+  if (!id || !html) return;
+  const { error } = await adminClient()
+    .schema('app')
+    .from('email_log' as never)
+    .update({ body_html: html.slice(0, 500_000) } as never)
+    .eq('id', id);
+  if (error) console.error('[email_log] contenu non conservé', error.message);
+}
+
+/**
  * Journalise chaque envoi dans app.email_log — best-effort, non bloquant.
  * Toute erreur d'écriture est tracée (console.error, red line #6 : on ne l'avale
  * pas silencieusement) mais ne modifie JAMAIS le résultat de l'envoi ni ne throw.
@@ -280,10 +295,11 @@ async function logEmailSend(
         } as never)
         .eq('id', reservationId);
       if (updateError) console.error('[email_log] update failed', updateError);
+      await conserverContenu(reservationId, input.html);
       return;
     }
 
-    const { error: insertError } = await admin
+    const { data: inserted, error: insertError } = await admin
       .schema('app')
       .from('email_log' as never)
       .insert({
@@ -296,8 +312,11 @@ async function logEmailSend(
         provider_id: result.ok ? result.id : null,
         error,
         metadata: input.metadata ?? {},
-      } as never);
+      } as never)
+      .select('id')
+      .single();
     if (insertError) console.error('[email_log] insert failed', insertError);
+    else await conserverContenu((inserted as { id: string } | null)?.id ?? null, input.html);
   } catch (err) {
     console.error('[email_log] logging failed', err);
   }
