@@ -41,7 +41,7 @@ export async function convertProspectToDossier(
     .schema('app')
     .from('prospects')
     .select(
-      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, funder_kinds, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, custom_formation_price_mode, employees_to_train, message',
+      'id, organization_id, civility, first_name, last_name, email, phone, birth_date, rqth, candidate_is_learner, formation_id, preferred_modality, preferred_start_date, company_name, company_siret, convention_collective, company_address, referent_name, referent_email, referent_phone, situation, funder_kind, funder_kinds, converted_dossier_id, custom_formation_title, custom_formation_hours, custom_formation_price_cents, custom_formation_price_mode, employees_to_train, message, company_batch_id',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -77,6 +77,8 @@ export async function convertProspectToDossier(
     employees_to_train: number | null;
     /** « Note interne » saisie sur la demande. */
     message: string | null;
+    /** Lot d'une inscription d'entreprise : ses salariés rejoignent le même dossier. */
+    company_batch_id: string | null;
   };
 
   if (p.converted_dossier_id) {
@@ -443,6 +445,27 @@ export async function convertProspectToDossier(
     .update({ converted_dossier_id: dossierId, status: 'converted', organization_id: orgId })
     .eq('id', prospect.id);
 
+  // Une inscription d'entreprise : tous les salariés du lot dans ce dossier.
+  if (p.company_batch_id) {
+    try {
+      // Les rattachements s'écrivent côté serveur (dossier_learners : service
+      // role seulement) ; le rôle de qui convertit a été vérifié par l'appelant.
+      await rattacherLeLot(supabaseAdmin() as never, {
+        orgId,
+        batchId: p.company_batch_id,
+        prospectId: prospect.id,
+        dossierId,
+        companyId,
+        titulaireId: candidatSuitLaFormation ? learnerId : null,
+        auteurId,
+        learners,
+        statut: p.situation,
+      });
+    } catch (e) {
+      console.error('[conversion] lot de l’entreprise non rattaché', dossierId, e);
+    }
+  }
+
   // Le devis de la proposition en cours suit la demande dans son dossier.
   await rattacherDevisDeProposition(sb, prospectId, dossierId);
 
@@ -545,4 +568,99 @@ function isEmptyAddress(raw: unknown): boolean {
   if (!raw) return true;
   if (typeof raw === 'string') return raw.trim().length === 0;
   return typeof raw === 'object' && Object.values(raw as Record<string, unknown>).every((v) => !v);
+}
+
+/**
+ * Les salariés d'une inscription d'entreprise forment UN dossier d'entreprise
+ * (audit du 07/10/2026) : la validation s'appliquait à tout le lot, la
+ * conversion n'en prenait qu'un, et les autres restaient des demandes
+ * orphelines. Chacun retrouve ou reçoit sa fiche apprenant, rattachée à
+ * l'entreprise et au dossier ; le titulaire aussi — dès qu'un dossier a des
+ * apprenants rattachés, seuls eux sont attendus.
+ */
+async function rattacherLeLot(
+  sb: Sb,
+  input: {
+    orgId: string;
+    batchId: string;
+    prospectId: string;
+    dossierId: string;
+    companyId: string | null;
+    titulaireId: string | null;
+    auteurId: string | null;
+    learners: LearnerCandidate[];
+    statut: string | null;
+  },
+): Promise<void> {
+  const { data: autres, error } = await sb
+    .schema('app')
+    .from('prospects')
+    .select('id, first_name, last_name, email, phone, birth_date, rqth')
+    .eq('company_batch_id', input.batchId)
+    .neq('id', input.prospectId)
+    .is('converted_dossier_id', null)
+    .is('deleted_at', null);
+  if (error) throw new Error(error.message);
+  const salaries = (autres ?? []) as Array<{
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string | null;
+    birth_date: string | null;
+    rqth: boolean;
+  }>;
+  if (salaries.length === 0) return;
+
+  const connus = [...input.learners];
+  const ids: string[] = input.titulaireId ? [input.titulaireId] : [];
+  for (const s of salaries) {
+    const m = matchLearner(s.email, connus, s.last_name);
+    let id: string;
+    if (m.action === 'reuse') id = m.id;
+    else {
+      const { data: cree, error: e } = await sb
+        .schema('app')
+        .from('learners')
+        .insert({
+          organization_id: input.orgId,
+          company_id: input.companyId,
+          first_name: s.first_name,
+          last_name: s.last_name,
+          email: s.email,
+          phone: s.phone,
+          birth_date: s.birth_date,
+          rqth: s.rqth,
+          statut: input.statut === 'salarie' ? 'salarie' : null,
+        })
+        .select('id')
+        .single();
+      if (e || !cree) throw new Error(`apprenant ${s.email} : ${e?.message ?? 'non créé'}`);
+      id = (cree as { id: string }).id;
+      connus.push({ id, email: s.email, lastName: s.last_name });
+    }
+    if (input.companyId) await sb.schema('app').from('learners').update({ company_id: input.companyId }).eq('id', id).is('company_id', null);
+    ids.push(id);
+  }
+
+  const { error: eLien } = await sb
+    .schema('app')
+    .from('dossier_learners')
+    .upsert(
+      [...new Set(ids)].map((learnerId) => ({
+        dossier_id: input.dossierId,
+        learner_id: learnerId,
+        organization_id: input.orgId,
+        added_by: input.auteurId,
+      })),
+      { onConflict: 'dossier_id,learner_id' },
+    );
+  if (eLien) throw new Error(`rattachement : ${eLien.message}`);
+
+  const { error: eDemandes } = await sb
+    .schema('app')
+    .from('prospects')
+    .update({ converted_dossier_id: input.dossierId, status: 'converted', organization_id: input.orgId })
+    .in('id', salaries.map((s) => s.id));
+  if (eDemandes) throw new Error(`demandes : ${eDemandes.message}`);
 }
