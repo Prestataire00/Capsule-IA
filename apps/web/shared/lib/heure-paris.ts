@@ -41,3 +41,13 @@ export function heureParis(d: Date): string {
   const { heure, minute } = partiesParis(d);
   return `${String(heure).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
+
+/** Minuit à Paris pour un jour « 2026-11-02 » : 23:00 ou 22:00 UTC la veille, selon l'heure d'été. */
+export function minuitParis(jour: string): Date {
+  const [a, m, j] = jour.split('-').map(Number) as [number, number, number];
+  const utc = Date.UTC(a, m - 1, j);
+  const { heure, jour: jourVu } = partiesParis(new Date(utc));
+  // À minuit UTC il est 1 h ou 2 h à Paris le même jour : on recule d'autant.
+  const decalage = jourVu === j ? heure : heure - 24;
+  return new Date(utc - decalage * 3600_000);
+}

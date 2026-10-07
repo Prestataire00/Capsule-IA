@@ -6,6 +6,7 @@ import { libelleEnvoi } from '@/features/emails/journal';
 import { chargerEspaceEntreprise, facturesDuReferent, type DocumentEntreprise, type EspaceEntreprise, type FactureEntreprise } from './load';
 import { equipeJoignable, type MembreJoignable } from './messages-store';
 import { piecesAffichees, type PieceAffichee, type PieceJointe } from './pieces-jointes';
+import { questionnairesDeLEntreprise, type QuestionnaireEspace } from './questionnaires-entreprise';
 import { aUneAdresse, heuresApprenant, trierActions, type Action, type Feuille } from './espace-calculs';
 
 /**
@@ -93,6 +94,8 @@ export type EspaceComplet = EspaceEntreprise & {
   readonly echanges: readonly EchangeEspace[];
   /** Les personnes que le référent peut joindre directement. */
   readonly equipe: readonly MembreJoignable[];
+  /** Ses questionnaires : à remplir, à venir (« à partir du… »), répondus. */
+  readonly questionnaires: readonly QuestionnaireEspace[];
   readonly actions: readonly Action[];
 };
 
@@ -430,21 +433,21 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
       });
     }
   }
-  const { data: questionnaires } = await admin
-    .schema('app')
-    .from('questionnaire_assignments')
-    .select('id, status, template:questionnaire_templates(title)')
-    .eq('organization_id', organizationId)
-    .eq('recipient_kind', 'company_rep' as never)
-    .eq('recipient_contact_id' as never, contactId as never)
-    .in('status', ['pending', 'in_progress']);
-  for (const q of (questionnaires ?? []) as unknown as Array<{ id: string; template: { title: string | null } | Array<{ title: string | null }> | null }>) {
+  const questionnaires = await questionnairesDeLEntreprise(admin as never, {
+    contactId,
+    organizationId,
+    token,
+    dossiers: base.dossiers.map((d) => ({ id: d.id, formation: d.formation })),
+    seances: brutes.map((s) => ({ id: s.id, debut: s.starts_at, fin: s.ends_at, dossierIds: dossiersDe.get(s.id) ?? [] })),
+  });
+  for (const q of questionnaires) {
+    if (q.statut !== 'disponible' || !q.lien) continue;
     actions.push({
-      cle: `questionnaire-${q.id}`,
+      cle: `questionnaire-${q.cle}`,
       nature: 'repondre',
-      titre: `Répondre : ${un(q.template)?.title ?? 'questionnaire de satisfaction'}`,
-      detail: 'Votre avis sur la formation de vos équipes — quelques minutes.',
-      lien: `/espace-entreprise/${token}/questionnaire/${q.id}`,
+      titre: `Répondre : ${q.titre}`,
+      detail: q.formation ? `${q.formation} — quelques minutes.` : 'Votre avis sur la formation de vos équipes — quelques minutes.',
+      lien: q.lien,
       libelleLien: 'Répondre',
       urgent: false,
     });
@@ -474,5 +477,5 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     });
   }
 
-  return { ...base, referentEmail, prix, seances, apprenants, factures, devis, echanges, equipe, actions: trierActions(actions) };
+  return { ...base, referentEmail, prix, seances, apprenants, factures, devis, echanges, equipe, questionnaires, actions: trierActions(actions) };
 }

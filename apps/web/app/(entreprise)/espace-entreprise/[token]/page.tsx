@@ -15,6 +15,7 @@ import { VueApprenants } from './_vues/apprenants';
 import { VueDocuments } from './_vues/documents';
 import { VueFacturation } from './_vues/facturation';
 import { VueEchanges } from './_vues/echanges.client';
+import { VueQuestionnaires } from './_vues/questionnaires';
 import { euros, heures, jourLong, heure } from './_vues/format';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ const ONGLETS = [
   { cle: 'apprenants', libelle: 'Apprenants' },
   { cle: 'documents', libelle: 'Documents' },
   { cle: 'facturation', libelle: 'Facturation' },
+  { cle: 'questionnaires', libelle: 'Questionnaires' },
   { cle: 'echanges', libelle: 'Échanges' },
 ] as const;
 type Onglet = (typeof ONGLETS)[number]['cle'];
@@ -60,6 +62,7 @@ export default async function EspaceEntreprisePage({ params, searchParams }: { p
     actions: espace.actions.length,
     apprenants: espace.apprenants.length,
     documents: espace.dossiers.reduce((n, d) => n + d.documents.length, 0),
+    questionnaires: espace.questionnaires.filter((q) => q.statut === 'disponible').length,
   };
 
   return (
@@ -135,6 +138,7 @@ export default async function EspaceEntreprisePage({ params, searchParams }: { p
         {onglet === 'apprenants' && <VueApprenants apprenants={espace.apprenants} token={params.token} />}
         {onglet === 'documents' && <VueDocuments dossiers={espace.dossiers} token={params.token} seancesAVenir={espace.seances.filter((s) => !s.passee).length} />}
         {onglet === 'facturation' && <VueFacturation factures={espace.factures} devis={espace.devis} prix={espace.prix} token={params.token} />}
+        {onglet === 'questionnaires' && <VueQuestionnaires questionnaires={espace.questionnaires} />}
         {onglet === 'echanges' && <VueEchanges token={params.token} organisme={espace.organisme} echanges={espace.echanges} equipe={espace.equipe} fil={searchParams.fil} />}
 
         <Link
