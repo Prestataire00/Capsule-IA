@@ -1,6 +1,7 @@
 // ARCHETYPE: command
 // Justification: vue de consultation des fiches besoin (analyse des besoins) —
 // regroupées par formation, réponses détaillées, apprenants + prospects.
+import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ClipboardList, GraduationCap, User, Building2 } from 'lucide-react';
@@ -230,9 +231,16 @@ export default async function FichesBesoinPage() {
                         {!f.answers.objectives &&
                           !f.answers.expectations &&
                           !f.answers.constraints &&
-                          !f.answers.accommodations && (
-                            <p className="text-[12px] text-zinc-400">Aucun détail renseigné.</p>
-                          )}
+                          !f.answers.accommodations &&
+                          !f.key.startsWith('resp-') && <p className="text-[12px] text-zinc-400">Aucun détail renseigné.</p>}
+                        {f.key.startsWith('resp-') && (
+                          <Link
+                            href={`/questionnaires/reponse/${f.key.slice(5)}`}
+                            className="inline-flex items-center h-8 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                          >
+                            Voir toutes les réponses
+                          </Link>
+                        )}
                       </div>
                     </details>
                   </li>

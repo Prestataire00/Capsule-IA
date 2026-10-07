@@ -87,6 +87,10 @@ export function notifHref(n: Notif): string | null {
     const prospectId = (p.prospect_id as string | undefined) ?? n.related_aggregate_id ?? undefined;
     if (prospectId) return `/prospects/${prospectId}`;
   }
+  // Une réponse à un questionnaire : droit à la réponse, en entier — y compris sans dossier.
+  if (n.template_code === 'questionnaire_completed' && typeof p.response_id === 'string') {
+    return `/questionnaires/reponse/${p.response_id}`;
+  }
   const dossierId =
     (p.dossier_id as string | undefined) ??
     (n.related_aggregate_type === 'dossier' ? n.related_aggregate_id ?? undefined : undefined);
