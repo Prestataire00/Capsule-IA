@@ -1,4 +1,8 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+
+// La révocation interroge la base : un test unitaire n'en a pas. Sans ce
+// simulacre, le test passait en local (base démarrée) et échouait en CI.
+vi.mock('@/shared/lib/link-revocation', () => ({ isLinkRevoked: async () => false }));
 
 beforeAll(() => {
   process.env.TOKEN_SIGNING_KEY = process.env.TOKEN_SIGNING_KEY ?? 'dGVzdC1zaWduaW5nLWtleS1iYXNlNjQ=';
