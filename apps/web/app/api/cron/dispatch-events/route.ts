@@ -172,8 +172,7 @@ async function transitionDossierScheduledOnConventionSigned(
 // (b) Facture payée → closed
 // Déclenché par billing.invoice.paid (payload: { dossier_id }).
 // Transition autorisée : completed → closed (0015_triggers.sql).
-// L'émission de billing.invoice.paid reste à brancher côté action "marquer payée"
-// (cf. rapport — pas d'action existante pour marquer une facture paid).
+// Émis par le déclencheur tg_facture_payee (0219), quel que soit le chemin.
 // Le handler est idempotent : WHERE status = 'completed' → 0 ligne si déjà closed.
 async function transitionDossierClosedOnInvoicePaid(
   event: DomainEvent,
@@ -197,6 +196,20 @@ async function transitionDossierClosedOnInvoicePaid(
 
   if (!dossierId) return { ok: false, error: 'dossier_id introuvable (payload + invoice lookup)' };
 
+  // Plusieurs factures (entreprise et OPCO, acompte et solde) : le dossier ne
+  // se clôt qu'une fois toutes réglées. Un brouillon est une facture à venir.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: restantes } = await (sb as any)
+    .schema('app')
+    .from('invoices')
+    .select('id')
+    .eq('dossier_id', dossierId)
+    .is('deleted_at', null)
+    .neq('kind', 'credit_note')
+    .not('status', 'in', '(paid,cancelled)')
+    .limit(1);
+  if ((restantes ?? []).length > 0) return { ok: true };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (sb as any)
     .schema('app')
@@ -205,6 +218,9 @@ async function transitionDossierClosedOnInvoicePaid(
     .eq('id', dossierId)
     .eq('status', 'completed');
 
+  // Bloqué par Qualiopi : pas une panne à relancer. Le passage des 15 minutes
+  // (avancerLesDossiers) le clôturera dès que ses preuves seront là.
+  if (error && error.message.includes('qualiopi_closing_blocked')) return { ok: true };
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
