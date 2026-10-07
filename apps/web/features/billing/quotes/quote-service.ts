@@ -998,6 +998,15 @@ export async function markQuoteSigned(
 
   await applyQuoteAmountToDossiers(sb, quoteId);
   const invoice = await createInvoiceFromQuote(sb, quoteId);
+
+  // Le client reçoit le lien de son espace entreprise et sa notice. Chargé à la
+  // demande, comme l'acceptation ; un échec est journalisé, la signature reste acquise.
+  try {
+    const { envoyerBienvenueEspace } = await import('@/features/espace-entreprise/bienvenue-espace');
+    await envoyerBienvenueEspace(sb as never, { organizationId: row.organization_id, quoteId, dossierIds: await coveredDossierIds(sb, quoteId) });
+  } catch (e) {
+    console.error('[quotes] espace entreprise non envoyé au client', quoteId, e);
+  }
   await notifyStaff(
     sb,
     row.organization_id,

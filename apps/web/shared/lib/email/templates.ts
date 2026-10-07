@@ -283,6 +283,37 @@ export function espaceEntrepriseEmail(d: { prenom: string; organisme: string; li
   return { subject, html };
 }
 
+/**
+ * Devis signé : le lien de l'espace entreprise, l'invitation à y échanger avec
+ * l'équipe, et la notice en pièce jointe (demande d'Ismael, 2026-10-07).
+ */
+export function bienvenueEspaceEntrepriseEmail(d: { prenom: string; organisme: string; lien: string; formation: string | null }): {
+  subject: string;
+  html: string;
+} {
+  const subject = `Votre espace entreprise ${d.organisme} est prêt`;
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Espace entreprise</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">Bonjour${d.prenom ? ` ${escapeHtml(d.prenom)}` : ''}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 12px;">
+        Merci, votre devis est signé${d.formation ? ` pour la formation <strong>${escapeHtml(d.formation)}</strong>` : ''}.
+        Pour suivre la formation de vos salariés, ${escapeHtml(d.organisme)} met à votre disposition votre espace entreprise :
+        planning des séances, liste de vos apprenants et leurs heures, documents à signer, factures, questionnaires.
+      </p>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
+        <strong>Pour échanger avec ${escapeHtml(d.organisme)} et ses membres</strong>, passez par la rubrique
+        <strong>« Échanges »</strong> de votre espace : vous pouvez écrire à toute l’équipe ou à une personne en particulier,
+        et y joindre vos documents. La réponse vous arrive au même endroit, et un e-mail vous prévient.
+      </p>
+      <div>${button(d.lien, 'Ouvrir mon espace')}</div>
+      <p style="font-size:13px; color:#52525b; margin:20px 0 0;">Vous trouverez en pièce jointe le mode d’emploi de votre espace.</p>
+      <p style="font-size:12px; color:#71717a; margin:12px 0 0;">Ce lien vous est personnel : merci de ne pas le transférer. Pensez à l’ajouter à vos favoris.</p>
+    `)}
+  `);
+  return { subject, html };
+}
+
 /** 24 h après la formation : au référent, les stagiaires qui n'ont pas donné leur avis. */
 export function relanceSatisfactionReferentEmail(d: {
   prenom: string;
