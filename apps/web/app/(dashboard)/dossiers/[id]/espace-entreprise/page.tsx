@@ -8,6 +8,7 @@ import { Building2, FileText, UserRound } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
 import { SectionLabel } from '@/shared/ui/section-label';
+import { referentPropose } from '@/features/espace-entreprise/referent-dossier';
 import { EspaceEntrepriseClient } from './client';
 
 export const dynamic = 'force-dynamic';
@@ -17,21 +18,18 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
   const { data, error } = await sb
     .schema('app')
     .from('dossiers')
-    .select('id, contact_id, company:companies(name)')
+    .select('id, company:companies(name)')
     .eq('id', params.id)
     .maybeSingle();
   exigerLecture('dossier', error);
   if (!data) notFound();
   const dossier = data as unknown as {
-    contact_id: string | null;
     company: { name: string | null } | Array<{ name: string | null }> | null;
   };
   const entreprise = Array.isArray(dossier.company) ? dossier.company[0]?.name : dossier.company?.name;
 
-  const [{ data: contact }, { count: visibles }, { count: internes }] = await Promise.all([
-    dossier.contact_id
-      ? sb.schema('app').from('contacts').select('first_name, last_name, email').eq('id', dossier.contact_id).maybeSingle()
-      : Promise.resolve({ data: null }),
+  const [referent, { count: visibles }, { count: internes }] = await Promise.all([
+    referentPropose(sb as never, params.id),
     sb
       .schema('app')
       .from('documents')
@@ -47,7 +45,6 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
       .eq('visible_entreprise' as never, false as never)
       .is('deleted_at', null),
   ]);
-  const c = contact as { first_name: string | null; last_name: string | null; email: string | null } | null;
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
@@ -69,16 +66,17 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
           </span>
           <div className="min-w-0">
             <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Référent{entreprise ? ` · ${entreprise}` : ''}</p>
-            {c ? (
+            {referent ? (
               <>
-                <p className="text-[14px] text-zinc-900 dark:text-zinc-100 truncate">
-                  {`${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || 'Sans nom'}
-                </p>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{c.email ?? 'Pas d’adresse e-mail'}</p>
+                <p className="text-[14px] text-zinc-900 dark:text-zinc-100 truncate">{referent.nom}</p>
+                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{referent.email ?? 'Pas d’adresse e-mail'}</p>
+                {referent.source === 'client' && (
+                  <p className="text-[11px] text-zinc-400 mt-1">Contact référent du client, repris de sa fiche entreprise.</p>
+                )}
               </>
             ) : (
               <p className="text-[13px] text-zinc-600 dark:text-zinc-300">
-                Aucun référent.{' '}
+                Aucun contact référent pour ce client.{' '}
                 <Link href={`/dossiers/${params.id}`} className="text-orange-600 dark:text-orange-400 hover:underline">
                   Le désigner sur la fiche
                 </Link>
@@ -102,8 +100,8 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
         </div>
       </div>
 
-      {c ? (
-        <EspaceEntrepriseClient dossierId={params.id} aUnEmail={Boolean(c.email)} />
+      {referent ? (
+        <EspaceEntrepriseClient dossierId={params.id} aUnEmail={Boolean(referent.email)} />
       ) : (
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-2">
           <Building2 className="w-4 h-4" /> L’espace s’ouvre au référent du client : désignez-le d’abord.

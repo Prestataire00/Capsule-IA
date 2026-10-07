@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { generateEntrepriseUrl } from '@/shared/lib/entreprise-token';
 import { espaceEntrepriseEmail } from '@/shared/lib/email/templates';
 import { envoyerSousOrganisme } from '@/features/espace-entreprise/envoi';
+import { attacherReferent } from '@/features/espace-entreprise/referent-dossier';
 
 /**
  * L'espace entreprise du référent d'un dossier : générer son lien, le lui
@@ -21,9 +22,13 @@ async function referentDuDossier(dossierId: string): Promise<
   const guard = await guardRowAction('dossiers', dossierId, 'dossiers');
   if (!guard.ok) return { ok: false, error: 'Votre rôle ne permet pas de gérer ce dossier.' };
   const admin = supabaseAdmin();
+  // Sans référent désigné, celui du client (fiche entreprise) devient le référent du dossier.
+  const contactId = await attacherReferent(admin as never, dossierId);
   const { data } = await admin.schema('app').from('dossiers').select('organization_id, contact_id').eq('id', dossierId).maybeSingle();
   const d = data as { organization_id: string; contact_id: string | null } | null;
-  if (!d?.contact_id) return { ok: false, error: 'Désignez d’abord le référent du client sur la fiche du dossier.' };
+  if (!d || !contactId || !d.contact_id) {
+    return { ok: false, error: 'Ce client n’a pas de contact référent : renseignez son responsable sur la fiche entreprise, ou désignez un référent sur le dossier.' };
+  }
   const { data: c } = await admin
     .schema('app')
     .from('contacts')

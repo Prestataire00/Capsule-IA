@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Check, Copy, Link2, Loader2, Mail, Unplug } from 'lucide-react';
+import { Check, Copy, Eye, Link2, Loader2, Mail, Unplug } from 'lucide-react';
 import { couperLiensEntreprise, envoyerLienEntreprise, genererLienEntreprise } from './actions';
 
 export function EspaceEntrepriseClient({ dossierId, aUnEmail }: { dossierId: string; aUnEmail: boolean }) {
@@ -18,6 +18,22 @@ export function EspaceEntrepriseClient({ dossierId, aUnEmail }: { dossierId: str
       if (r.url) setUrl(r.url);
       setMessage({ ok: true, texte: succes });
     });
+
+  // L'onglet s'ouvre au clic, avant l'attente : ouvert après, le navigateur le bloquerait.
+  const voir = () => {
+    const onglet = window.open('about:blank', '_blank');
+    start(async () => {
+      setMessage(null);
+      const r = await genererLienEntreprise(dossierId);
+      if (!r.ok || !r.url) {
+        onglet?.close();
+        return setMessage({ ok: false, texte: r.ok ? 'Lien indisponible.' : r.error });
+      }
+      setUrl(r.url);
+      if (onglet) onglet.location.href = r.url;
+      else window.location.href = r.url;
+    });
+  };
 
   const copier = async () => {
     if (!url) return;
@@ -44,6 +60,9 @@ export function EspaceEntrepriseClient({ dossierId, aUnEmail }: { dossierId: str
           title={aUnEmail ? undefined : 'Le référent n’a pas d’adresse e-mail'}
         >
           {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />} Envoyer son lien au référent
+        </button>
+        <button type="button" disabled={pending} onClick={voir} className={bouton}>
+          <Eye className="w-3.5 h-3.5" /> Voir l’espace du client
         </button>
         <button type="button" disabled={pending} onClick={() => agir(() => genererLienEntreprise(dossierId), 'Lien prêt.')} className={bouton}>
           <Link2 className="w-3.5 h-3.5" /> Obtenir le lien
