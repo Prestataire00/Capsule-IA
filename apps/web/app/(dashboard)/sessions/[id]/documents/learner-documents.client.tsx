@@ -132,7 +132,11 @@ export function LearnerDocuments({ sessionId, learners }: { sessionId: string; l
 
               {estOuvert && (
                 <ul className="mt-2.5 ml-9 space-y-1.5">
-                  {row.documents.map((doc) => (
+                  {row.documents.map((doc) => {
+                    // La convention d'une entreprise part à son référent : l'adresse de l'apprenant n'y est pour rien.
+                    const auReferent = doc.type === 'convention' && Boolean(row.companyName);
+                    const joignable = Boolean(row.email) || auReferent;
+                    return (
                     <li key={doc.type} className="flex flex-wrap items-center gap-x-2.5 gap-y-1 py-1">
                       <span className="text-[13px] text-zinc-800 dark:text-zinc-200 min-w-[13rem]">{doc.label}</span>
                       <a
@@ -145,20 +149,20 @@ export function LearnerDocuments({ sessionId, learners }: { sessionId: string; l
                       </a>
                       <button
                         type="button"
-                        disabled={pending || !row.email}
+                        disabled={pending || !joignable}
                         onClick={() => agir('email', row, doc)}
                         className={`${lien} ${ACCENTS.orange.soft}`}
-                        title={row.email ? 'Envoyer par e-mail à l’apprenant' : 'Apprenant sans adresse e-mail'}
+                        title={auReferent ? 'Envoyer par e-mail au référent de l’entreprise' : row.email ? 'Envoyer par e-mail à l’apprenant' : 'Apprenant sans adresse e-mail'}
                       >
                         {pending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />} Par e-mail
                       </button>
                       {doc.signable && (
                         <button
                           type="button"
-                          disabled={pending || !row.email}
+                          disabled={pending || !joignable}
                           onClick={() => agir('signature', row, doc)}
                           className={`${lien} ${ACCENTS.purple.soft}`}
-                          title="Archiver le document et envoyer un lien de signature"
+                          title={auReferent ? 'Archiver la convention et l’envoyer à signer au référent' : 'Archiver le document et envoyer un lien de signature'}
                         >
                           <PenLine className="w-3 h-3" /> En signature
                         </button>
@@ -177,7 +181,8 @@ export function LearnerDocuments({ sessionId, learners }: { sessionId: string; l
                         )}
                       </span>
                     </li>
-                  ))}
+                      );
+                  })}
                 </ul>
               )}
             </li>

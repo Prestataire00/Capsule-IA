@@ -329,7 +329,7 @@ export async function ensureQuoteForDossier(
       .eq('id', dossier.formation_id)
       .maybeSingle(),
     sb.schema('app').from('organizations').select('vat_regime, default_vat_rate').eq('id', orgId).maybeSingle(),
-    loadClientInfo(sb, client.kind, client.kind === 'company' ? client.companyId : client.learnerId),
+    loadClientInfo(sb, client.kind, client.kind === 'company' ? client.companyId : client.learnerId, dossier.id),
   ]);
   const formation = (fRow ?? {}) as {
     title?: string;
@@ -452,14 +452,31 @@ export async function tryEnsureQuoteForDossier(sb: Sb, dossierId: string): Promi
   }
 }
 
+async function referentDuDossierPourDevis(sb: Sb, dossierId: string): Promise<{ nom: string; email: string | null } | null> {
+  const { data } = await sb
+    .schema('app')
+    .from('dossiers')
+    .select('contact:contacts(first_name, last_name, email, deleted_at)')
+    .eq('id', dossierId)
+    .maybeSingle();
+  const brut = (data as { contact?: unknown } | null)?.contact;
+  const c = (Array.isArray(brut) ? brut[0] : brut) as { first_name: string | null; last_name: string | null; email: string | null; deleted_at: string | null } | null | undefined;
+  if (!c || c.deleted_at) return null;
+  return { nom: `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim(), email: c.email?.trim() || null };
+}
+
 type ClientInfo = {
   displayName: string;
   contactName: string | null;
   contactEmail: string | null;
 };
 
-async function loadClientInfo(sb: Sb, kind: QuoteClientKind, id: string): Promise<ClientInfo> {
+async function loadClientInfo(sb: Sb, kind: QuoteClientKind, id: string, dossierId?: string): Promise<ClientInfo> {
   if (kind === 'company') {
+    // Le référent du dossier d'abord, comme pour la convention et les
+    // factures : le contact générique de la fiche entreprise est souvent vide,
+    // et le devis ne pouvait alors pas partir (audit du 07/10/2026).
+    const referent = dossierId ? await referentDuDossierPourDevis(sb, dossierId) : null;
     const { data } = await sb
       .schema('app')
       .from('companies')
@@ -467,6 +484,7 @@ async function loadClientInfo(sb: Sb, kind: QuoteClientKind, id: string): Promis
       .eq('id', id)
       .maybeSingle();
     const c = (data ?? {}) as { name?: string; contact_name?: string | null; contact_email?: string | null };
+    if (referent?.email) return { displayName: c.name ?? 'Entreprise', contactName: referent.nom || c.contact_name || c.name || null, contactEmail: referent.email };
     return {
       displayName: c.name ?? 'Entreprise',
       contactName: c.contact_name ?? c.name ?? null,
