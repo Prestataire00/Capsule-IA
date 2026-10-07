@@ -90,8 +90,12 @@ export default async function MessageriePage({ searchParams }: { searchParams: {
       ]);
       await marquerFilLu(moi.userId, choisi);
       // Le même dossier, côté client : le fil général de son référent (espace entreprise).
+      // À défaut de référent noté sur le dossier : le client qui a écrit à son sujet.
+      const filDuDossier = tousLesFils.find((c) => c.dossierId === choisi && c.interlocuteurUserId === null);
+      const interlocuteurClient = referent ?? (filDuDossier ? { contactId: filDuDossier.contactId, nom: filDuDossier.nom } : null);
       let duClient = null;
-      if (referent) {
+      if (interlocuteurClient) {
+        const referent = interlocuteurClient;
         const echanges = await messagesDuFil(moi.organizationId, referent.contactId, null);
         if (echanges.some((m) => m.auteur === 'entreprise' && !m.luLe)) await marquerLusParLOrganisme(moi.organizationId, referent.contactId, null);
         duClient = {
