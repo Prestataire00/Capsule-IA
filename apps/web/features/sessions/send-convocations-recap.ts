@@ -33,7 +33,7 @@ type DossierRow = {
 const un = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
 
 const heure = (iso: string | null): string =>
-  iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
+  iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) : '—';
 
 export async function sendConvocationsRecap(sessionId: string): Promise<RecapResult> {
   const sb = supabaseAdmin();

@@ -151,7 +151,7 @@ export default async function ReclamationDetailPage({ params }: { params: { id: 
                         {payload.by ?? 'Système'}
                       </span>
                       <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-                        {new Date(ev.occurred_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(ev.occurred_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}
                       </span>
                     </div>
                     <p className="text-[13px] text-zinc-700 dark:text-zinc-300 mt-0.5 leading-snug whitespace-pre-wrap">

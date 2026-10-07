@@ -129,8 +129,8 @@ export default async function SessionsPage({ params }: { params: { id: string } 
                 const _end = s.ends_at
                   ? new Date(s.ends_at)
                   : new Date(_start.getTime() + Number(s.duration_hours ?? 0) * 3600000);
-                const _d = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const _t = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                const _d = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Paris' });
+                const _t = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
                 const _sameDay = _start.toDateString() === _end.toDateString();
                 const st = STATUS[s.status] ?? { label: s.status, tone: 'neutral' as const };
                 const shared = s.dossier_id !== params.id;

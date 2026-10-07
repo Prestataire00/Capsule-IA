@@ -2,6 +2,7 @@
 // Justification: planning calendaire des sessions réelles — vue semaine dense, events colorés par statut.
 
 import { AgendaNowLine } from '../agenda/agenda-now-line.client';
+import { heureParis, partiesParis } from '@/shared/lib/heure-paris';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus, Filter, CalendarDays, PlayCircle, CalendarClock, UsersRound } from 'lucide-react';
 import { KpiCard } from '@/shared/ui/kpi-card';
@@ -89,8 +90,10 @@ export default async function PlanningPage({
     .map((s) => {
       const start = new Date(s.starts_at);
       const end = new Date(s.ends_at);
-      const dayIdx = (start.getDay() + 6) % 7; // lundi = 0
-      const startHour = start.getHours() + start.getMinutes() / 60;
+      // Le serveur tourne en UTC : la grille se lit à l'heure de Paris.
+      const paris = partiesParis(start);
+      const dayIdx = paris.jourSemaine;
+      const startHour = paris.heure + paris.minute / 60;
       const durationH = Math.max(0.5, (end.getTime() - start.getTime()) / 3_600_000);
       return {
         id: s.id,
@@ -101,7 +104,7 @@ export default async function PlanningPage({
         isGroup: !s.dossier_id,
         status: s.status,
         dossierId: s.dossier_id,
-        timeLabel: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
+        timeLabel: heureParis(start),
       };
     })
     .filter((e) => e.dayIdx >= 0 && e.dayIdx <= 6);

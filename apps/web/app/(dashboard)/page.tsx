@@ -21,11 +21,12 @@ import { getHomeCharts } from '@/features/reports/home-charts.query';
 import { getRecentDossiers } from '@/features/reports/recent-dossiers.query';
 import { getOrgKpis } from '@/features/reports/org-kpis.query';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
+import { partiesParis } from '@/shared/lib/heure-paris';
 import { loadSignauxDuJour } from '@/features/pilotage/load-signaux';
 import { SignauxPanel } from '@/features/pilotage/signaux-panel';
 
 const greet = () => {
-  const h = new Date().getHours();
+  const h = partiesParis(new Date()).heure;
   if (h < 6) return 'Bonsoir';
   if (h < 12) return 'Bonjour';
   if (h < 18) return 'Bel après-midi';

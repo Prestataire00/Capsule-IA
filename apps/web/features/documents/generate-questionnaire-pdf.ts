@@ -32,7 +32,7 @@ const MUTED = rgb(0.42, 0.42, 0.45);
 const RULE = rgb(0.89, 0.89, 0.91);
 
 const fmtDateTime = (iso: string): string =>
-  new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).format(new Date(iso));
 
 function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const lines: string[] = [];
