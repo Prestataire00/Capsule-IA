@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { roomCode, roomSlot } from '@/features/attendance/room-code';
 import { loadSession } from '@/features/sessions/load-session';
 import { ensureSatisfactionTemplate, lienSatisfaction } from './satisfaction';
+import { stagiairesDeLaSeance } from './stagiaires-de-seance';
 
 /**
  * Questionnaire de satisfaction projeté en fin de séance : le formateur
@@ -29,7 +30,8 @@ export async function etatSalleSatisfaction(sessionId: string): Promise<EtatSall
   const sb = supabaseAdmin();
   const loaded = await loadSession(sb, sessionId);
   if (!loaded) return null;
-  const stagiaires = loaded.learners.filter((l) => l.dossierId);
+  // Titulaires et apprenants des dossiers de groupe.
+  const stagiaires = (await stagiairesDeLaSeance(sb as never, sessionId)).map((l) => ({ id: l.id, first_name: l.prenom, last_name: l.nom, dossierId: l.dossierId }));
   const templateId = await ensureSatisfactionTemplate(sb as never);
   const { data } = stagiaires.length
     ? await sb
@@ -53,7 +55,7 @@ export async function etatSalleSatisfaction(sessionId: string): Promise<EtatSall
 /** Le lien de réponse d'un stagiaire attendu sur la séance, ou null. */
 export async function lienSatisfactionEnSalle(sessionId: string, learnerId: string): Promise<string | null> {
   const loaded = await loadSession(supabaseAdmin(), sessionId);
-  const stagiaire = loaded?.learners.find((l) => l.id === learnerId && l.dossierId);
+  const stagiaire = (await stagiairesDeLaSeance(supabaseAdmin() as never, sessionId)).find((l) => l.id === learnerId);
   if (!loaded || !stagiaire) return null;
   return lienSatisfaction(supabaseAdmin() as never, {
     organizationId: loaded.session.organization_id,

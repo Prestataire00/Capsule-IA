@@ -12,14 +12,27 @@ type Etat = {
 };
 
 /** QR tournant (dix secondes) et réponses qui tombent en direct. */
-export function ProjecteurSatisfaction({ sessionId, titre }: { sessionId: string; titre: string }) {
+export function ProjecteurSatisfaction({
+  sessionId,
+  titre,
+  source = `/api/satisfaction/${sessionId}/live`,
+  surtitre = 'Questionnaire de satisfaction',
+  consigne = 'Deux minutes pour donner votre avis sur la formation.',
+}: {
+  sessionId: string;
+  titre: string;
+  /** Le flux en direct : la satisfaction à chaud, ou un questionnaire de la séance. */
+  source?: string;
+  surtitre?: string;
+  consigne?: string;
+}) {
   const [etat, setEtat] = useState<Etat | null>(null);
   const [erreur, setErreur] = useState(false);
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const charger = useCallback(async (): Promise<number | null> => {
     try {
-      const res = await fetch(`/api/satisfaction/${sessionId}/live`, { cache: 'no-store' });
+      const res = await fetch(source, { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
       const lu = (await res.json()) as Etat;
       setEtat(lu);
@@ -29,7 +42,7 @@ export function ProjecteurSatisfaction({ sessionId, titre }: { sessionId: string
       setErreur(true);
       return null;
     }
-  }, [sessionId]);
+  }, [source]);
 
   useEffect(() => {
     let actif = true;
@@ -54,7 +67,7 @@ export function ProjecteurSatisfaction({ sessionId, titre }: { sessionId: string
           <Star className="w-5 h-5" />
         </span>
         <div>
-          <p className="text-[13px] text-zinc-500">Questionnaire de satisfaction</p>
+          <p className="text-[13px] text-zinc-500">{surtitre}</p>
           <h1 className="text-[22px] font-semibold">{titre}</h1>
         </div>
         {etat && (
@@ -78,7 +91,7 @@ export function ProjecteurSatisfaction({ sessionId, titre }: { sessionId: string
           <p className="text-[20px] font-semibold inline-flex items-center gap-2">
             <Smartphone className="w-6 h-6 text-orange-500" aria-hidden /> Scannez avec votre téléphone
           </p>
-          <p className="text-[15px] text-zinc-500">Deux minutes pour donner votre avis sur la formation.</p>
+          <p className="text-[15px] text-zinc-500">{consigne}</p>
           {erreur && <p className="text-[13px] text-red-600">Connexion perdue, nouvel essai…</p>}
         </div>
         {etat && etat.participants.length > 0 && (

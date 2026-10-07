@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { Loader2, Star } from 'lucide-react';
 import { identifierPourSatisfaction } from './actions';
 
-export function IdentificationSatisfaction({ sessionId, pass, titre }: { sessionId: string; pass: string; titre: string }) {
+export function IdentificationSatisfaction({ sessionId, pass, titre, templateId }: { sessionId: string; pass: string; titre: string; templateId?: string }) {
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export function IdentificationSatisfaction({ sessionId, pass, titre }: { session
           e.preventDefault();
           start(async () => {
             setErreur(null);
-            const r = await identifierPourSatisfaction({ sessionId, pass, prenom, nom });
+            const r = await identifierPourSatisfaction({ sessionId, pass, prenom, nom, templateId });
             if (r.ok) window.location.assign(r.url);
             else setErreur(r.error);
           });
@@ -31,8 +31,10 @@ export function IdentificationSatisfaction({ sessionId, pass, titre }: { session
           <span className="mx-auto w-12 h-12 rounded-xl grid place-items-center bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
             <Star className="w-6 h-6" />
           </span>
-          <h1 className="text-[22px] font-semibold text-zinc-900 dark:text-zinc-100">Votre avis sur la formation</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{titre} — deux minutes, pour améliorer les prochaines.</p>
+          <h1 className="text-[22px] font-semibold text-zinc-900 dark:text-zinc-100">{templateId ? titre : 'Votre avis sur la formation'}</h1>
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+            {templateId ? 'Donnez votre nom, puis répondez sur ce téléphone.' : `${titre} — deux minutes, pour améliorer les prochaines.`}
+          </p>
         </div>
         <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" autoComplete="given-name" className={champ} />
         <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" autoComplete="family-name" className={champ} />
