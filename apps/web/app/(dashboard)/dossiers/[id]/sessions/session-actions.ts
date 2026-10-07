@@ -1,5 +1,6 @@
 'use server';
 
+import { guardRowAction } from '@/shared/lib/auth/guard-action';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
@@ -133,6 +134,10 @@ async function provisionMeet(
 }
 
 export async function createSession(input: CreateInput): Promise<CreateResult> {
+  // Écriture en service role : le rôle et l'organisme se vérifient ici, pas
+  // seulement à l'affichage du bouton (audit du 07/10/2026).
+  const garde = await guardRowAction('dossiers', input.dossierId, 'dossiers');
+  if (!garde.ok) return { ok: false, error: 'Votre rôle ne permet pas de planifier ce dossier.' };
   if (!input.title.trim()) return { ok: false, error: 'Intitulé requis' };
   if (!input.startsAt || !input.endsAt) return { ok: false, error: 'Dates requises' };
   if (new Date(input.endsAt) <= new Date(input.startsAt)) return { ok: false, error: 'Fin avant début' };
@@ -186,6 +191,10 @@ export async function createSession(input: CreateInput): Promise<CreateResult> {
 
 /** (Re)génère le lien Google Meet d'une session distancielle existante. */
 export async function generateMeetForSession(sessionId: string, dossierId: string): Promise<CreateResult> {
+  const garde = await guardRowAction('sessions', sessionId, 'dossiers');
+  if (!garde.ok) return { ok: false, error: 'Cette séance ne vous est pas accessible.' };
+  const gardeDossier = await guardRowAction('dossiers', dossierId, 'dossiers');
+  if (!gardeDossier.ok) return { ok: false, error: 'Ce dossier ne vous est pas accessible.' };
   const sb = admin();
   const userId = await currentUserId();
   const { data: s } = await sb
@@ -235,6 +244,8 @@ export async function creerSeancesEnSerie(input: {
   /** Groupe du dossier concerné ; absent = tout le dossier. */
   groupeId?: string | null;
 }): Promise<{ ok: true; creees: number } | { ok: false; error: string; creees?: number }> {
+  const garde = await guardRowAction('dossiers', input.dossierId, 'dossiers');
+  if (!garde.ok) return { ok: false, error: 'Votre rôle ne permet pas de planifier ce dossier.' };
   if (!input.title.trim()) return { ok: false, error: 'Intitulé requis' };
 
   const plan = genererSeances({
