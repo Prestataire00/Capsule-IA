@@ -67,10 +67,10 @@ SELECT is(
 -- ----------------------------------------------------------------------------
 -- 4) Questionnaire complété (réponse soumise) -> questionnaire_completed
 -- ----------------------------------------------------------------------------
-INSERT INTO app.questionnaire_templates (id, organization_id, kind, code, title) VALUES
+INSERT INTO app.questionnaire_templates (id, organization_id, kind, code, title, schema) VALUES
   ('79900000-0000-0000-0000-0000000079a1', 'aaaaaaaa-0000-0000-0000-0000000000ff',
    (SELECT enumlabel::app.questionnaire_kind FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'questionnaire_kind' LIMIT 1),
-   'Q-NOTIF', 'Satisfaction à chaud');
+   'Q-NOTIF', 'Satisfaction à chaud', '{"questions": []}'::jsonb);
 INSERT INTO app.questionnaire_assignments (id, organization_id, template_id, dossier_id, recipient_kind, recipient_learner_id, recipient_name, token_hash) VALUES
   ('a5500000-0000-0000-0000-0000000a5501', 'aaaaaaaa-0000-0000-0000-0000000000ff', '79900000-0000-0000-0000-0000000079a1',
    'dddddddd-0000-0000-0000-00000000d001', 'learner', 'cccccccc-0000-0000-0000-00000000a001', 'Bob Notif', 'tok-notif-test-1');

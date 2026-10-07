@@ -4,8 +4,8 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 /**
- * Marque comme lues toutes les notifications in-app non lues de l'organisation
- * de l'utilisateur courant. Écriture via service_role (pas de policy UPDATE sur
+ * Marque comme lues les notifications in-app non lues de l'utilisateur
+ * courant : les siennes et celles de toute l'organisation. Écriture via service_role (pas de policy UPDATE sur
  * notifications), scoppée à l'org résolue depuis les memberships.
  */
 export async function markNotificationsRead(): Promise<void> {
@@ -33,7 +33,9 @@ export async function markNotificationsRead(): Promise<void> {
     .update({ read_at: new Date().toISOString() } as never)
     .eq('organization_id', orgId)
     .eq('channel', 'in_app')
-    .is('read_at', null);
+    .is('read_at', null)
+    // Les siennes et celles de tous (0225) : jamais la cloche d'un collègue.
+    .or(`recipient_user_id.is.null,recipient_user_id.eq.${auth.user.id}`);
 }
 
 /**
@@ -65,5 +67,6 @@ export async function markNotificationRead(id: string): Promise<void> {
     .from('notifications')
     .update({ read_at: new Date().toISOString() } as never)
     .eq('organization_id', orgId)
-    .eq('id', id);
+    .eq('id', id)
+    .or(`recipient_user_id.is.null,recipient_user_id.eq.${auth.user.id}`);
 }
