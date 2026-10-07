@@ -180,6 +180,15 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
 
   const nomGroupe = new Map(((groupes ?? []) as Array<{ id: string; nom: string }>).map((g) => [g.id, g.nom]));
   const titreFormation = new Map(((formations ?? []) as Array<{ id: string; title: string }>).map((f) => [f.id, f.title]));
+  const { data: duDossier } = dossierIds.length
+    ? await admin.schema('app').from('dossier_trainers').select('dossier_id, trainer:trainers(first_name, last_name)').in('dossier_id', dossierIds)
+    : { data: [] };
+  const formateursDuDossier = new Map<string, string[]>();
+  for (const t of (duDossier ?? []) as unknown as Array<{ dossier_id: string; trainer: { first_name: string | null; last_name: string | null } | null }>) {
+    const tr = un(t.trainer);
+    const nom = `${tr?.first_name ?? ''} ${tr?.last_name ?? ''}`.trim();
+    if (nom) formateursDuDossier.set(t.dossier_id, [...(formateursDuDossier.get(t.dossier_id) ?? []), nom]);
+  }
   const formateursDe = new Map<string, string[]>();
   for (const t of (trainers ?? []) as unknown as Array<{ session_id: string; trainer: { first_name: string | null; last_name: string | null } | null }>) {
     const tr = un(t.trainer);
@@ -223,7 +232,9 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
       modalite: s.modality,
       lieu: s.location,
       visio: s.modality === 'presentiel' ? null : (s.zoom_join_url ?? s.remote_url),
-      formateurs: formateursDe.get(s.id) ?? [],
+      // Le formateur de la séance, sinon celui de son dossier : on l'assigne
+      // souvent au dossier sans le répéter sur chaque séance.
+      formateurs: formateursDe.get(s.id) ?? [...new Set((dossiersDe.get(s.id) ?? []).flatMap((d) => formateursDuDossier.get(d) ?? []))],
       participants: learnerIds.filter((l) => attendu(l, s)).map((l) => personnes.get(l)?.nom ?? 'Apprenant').sort((a, b) => a.localeCompare(b, 'fr')),
       passee: new Date(s.ends_at).getTime() < maintenant,
     };
