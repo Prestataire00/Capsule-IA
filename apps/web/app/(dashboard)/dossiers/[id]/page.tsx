@@ -14,6 +14,8 @@ import { DossierProgressTracker } from '@/features/dossier/progress-tracker';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { ReferentCard, type ContactOption } from './referent-card.client';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { attacherReferent } from '@/features/espace-entreprise/referent-dossier';
 import { TagsEditor } from './tags-editor';
 import { BpfFieldsEditor } from './bpf-fields-editor';
 
@@ -60,8 +62,19 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
   // pouvoir le désigner ici — jusqu'ici seul l'import d'une convention en
   // posait un, et un dossier saisi autrement restait sans interlocuteur.
   const companyId = (dossier.data?.company_id as string | null) ?? null;
-  const contactId = (dossier.data?.contact_id as string | null) ?? null;
-  const [{ data: contactRows }, { data: companyRow }, peutModifier] = await Promise.all([
+  const peutModifier = await canManageSection('dossiers');
+  // Sans référent désigné, celui du client — l'auteur de la demande, son
+  // référent déclaré, le responsable de la fiche — devient celui du dossier
+  // (07/10/2026). Seulement pour qui peut modifier le dossier.
+  let contactId = (dossier.data?.contact_id as string | null) ?? null;
+  if (!contactId && companyId && peutModifier) {
+    try {
+      contactId = await attacherReferent(supabaseAdmin() as never, id);
+    } catch (e) {
+      console.error('[dossier] référent du client non repris', id, e instanceof Error ? e.message : e);
+    }
+  }
+  const [{ data: contactRows }, { data: companyRow }] = await Promise.all([
     companyId
       ? sb
           .schema('app')
@@ -75,7 +88,6 @@ export default async function DossierOverviewPage({ params }: { params: { id: st
     companyId
       ? sb.schema('app').from('companies').select('name').eq('id', companyId).maybeSingle()
       : Promise.resolve({ data: null }),
-    canManageSection('dossiers'),
   ]);
   const contacts: ContactOption[] = (
     (contactRows ?? []) as Array<{

@@ -70,8 +70,8 @@ export default async function EspaceEntreprisePage({ params }: { params: { id: s
               <>
                 <p className="text-[14px] text-zinc-900 dark:text-zinc-100 truncate">{referent.nom}</p>
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{referent.email ?? 'Pas d’adresse e-mail'}</p>
-                {referent.source === 'client' && (
-                  <p className="text-[11px] text-zinc-400 mt-1">Contact référent du client, repris de sa fiche entreprise.</p>
+                {referent.origine && (
+                  <p className="text-[11px] text-zinc-400 mt-1">Repris automatiquement : {referent.origine}.</p>
                 )}
               </>
             ) : (
