@@ -240,6 +240,24 @@ export async function envoyerQuestionnaireSeance(sb: Client, args: { sessionId: 
         bilan.deja++;
         continue;
       }
+      // Satisfaction à chaud déjà remplie — en salle, ou par un autre
+      // questionnaire à chaud : on ne la redemande pas (2026-10-08).
+      if (modele.kind === 'satisfaction_chaud' && c.kind === 'learner' && c.learnerId) {
+        const { data: faite } = await sb
+          .schema('app')
+          .from('questionnaire_assignments')
+          .select('id, template:questionnaire_templates!inner(kind)')
+          .eq('recipient_learner_id', c.learnerId)
+          .eq('status', 'completed')
+          .eq('template.kind', 'satisfaction_chaud')
+          .or(`dossier_id.eq.${c.dossierId},dossier_id.is.null`)
+          .limit(1)
+          .maybeSingle();
+        if (faite) {
+          bilan.deja++;
+          continue;
+        }
+      }
 
       const { data: creee, error } = await sb
         .schema('app')

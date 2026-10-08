@@ -125,10 +125,13 @@ export async function lancerEvaluationsDeFin(sb: Sb, maintenant = new Date()): P
     const parReferent = new Map<string, { prenom: string; liste: Array<{ nom: string; satisfaction: string | null; quiz: Array<{ titre: string; lien: string }> }> }>();
     for (const l of stagiaires) {
       const args = { organizationId: s.organization_id, dossierId: l.dossierId, learnerId: l.id };
-      const satisfaction = await lienSatisfaction(sb, args);
+      // Déjà rempli en salle (QR projeté) : pas de lien à faire relayer par l'entreprise.
+      const { complete } = await assignationSatisfaction(sb, args);
+      const satisfaction = complete ? null : await lienSatisfaction(sb, args);
       const liensQuiz = await Promise.all(
         quiz.map(async (q) => ({ titre: q.title, lien: await lienStagiaire(base, 'quiz', { ...args, cibleId: q.id }) })),
       );
+      if (!satisfaction && liensQuiz.length === 0) continue;
       const ligne = { nom: `${l.first_name} ${l.last_name}`.trim(), satisfaction, quiz: liensQuiz };
       // Sans référent ni adresse : le QR projeté par le formateur reste le seul chemin.
       const ref = referents.get(l.dossierId);

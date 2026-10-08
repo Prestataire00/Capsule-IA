@@ -40,3 +40,15 @@ describe('évaluations de fin de formation (point Capsule IA du 05/10/2026)', ()
     expect(src).toContain("sessionsAutomationOff(sb, seances.map((s) => s.id), 'evaluations_fin')");
   });
 });
+
+describe('satisfaction à chaud remplie en salle : jamais redemandée (2026-10-08)', () => {
+  const seance = lire('../features/questionnaire/envoyer-questionnaire-seance.ts');
+  it('ni par e-mail au stagiaire, ni par les liens relayés par l’entreprise', () => {
+    // Les deux passages (stagiaire avec adresse, relais par le référent) testent la réponse avant d'envoyer.
+    expect(src.match(/const \{ complete \} = await assignationSatisfaction\(sb, args\);\n\s+const satisfaction = complete \? null : await lienSatisfaction\(sb, args\);/g)?.length).toBe(2);
+  });
+  it('ni par un autre questionnaire à chaud coché sur la séance', () => {
+    expect(seance).toContain("if (modele.kind === 'satisfaction_chaud' && c.kind === 'learner' && c.learnerId)");
+    expect(seance).toContain(".eq('template.kind', 'satisfaction_chaud')");
+  });
+});
