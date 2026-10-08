@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Ban, CheckCircle2, Eye, Loader2, Percent, Receipt, RotateCcw, Send, XCircle } from 'lucide-react';
+import { Ban, CheckCircle2, Download, Eye, Loader2, Percent, Receipt, RotateCcw, Send, XCircle } from 'lucide-react';
 import type { QuoteStatus } from '@/features/billing/domain/quote';
 import { canSendQuote } from '@/features/billing/domain/quote';
 import { changeQuoteStatus, invoiceDeposit, invoiceFromQuote, sendQuote } from '../actions';
@@ -53,6 +53,10 @@ export function QuoteSideActions(p: Props) {
           <Eye className="w-3.5 h-3.5" /> Aperçu du devis
         </Link>
       )}
+      {/* Le devis seul, en PDF — signé quand il l'est, avec son certificat. */}
+      <a href={`/api/devis/${p.quoteId}/pdf?dl=1`} className={btn}>
+        <Download className="w-3.5 h-3.5" /> {p.status === 'signed' ? 'Télécharger le devis signé (PDF)' : 'Télécharger le PDF'}
+      </a>
 
       {p.canManage && p.status !== 'draft' && canSendQuote(p.status) && (
         <button

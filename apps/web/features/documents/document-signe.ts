@@ -98,8 +98,20 @@ export async function construirePdfSigne(
   if (!doc.storage_path) return null;
   const { data: fichier, error } = await sb.storage.from('documents').download(doc.storage_path);
   if (error || !fichier) return null;
+  return construirePdfSigneDepuis(sb, new Uint8Array(await fichier.arrayBuffer()), doc, signatures);
+}
 
-  const pdf = await PDFDocument.load(new Uint8Array(await fichier.arrayBuffer()), { ignoreEncryption: true });
+/**
+ * Le certificat de signature ajouté à un PDF fourni : celui d'un document
+ * produit à la demande (le devis, rendu en PDF depuis ses données).
+ */
+export async function construirePdfSigneDepuis(
+  sb: SupabaseClient,
+  octets: Uint8Array,
+  doc: { id: string; title: string | null },
+  signatures: SignatureEnregistree[],
+): Promise<Uint8Array> {
+  const pdf = await PDFDocument.load(octets, { ignoreEncryption: true });
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const gras = await pdf.embedFont(StandardFonts.HelveticaBold);
 

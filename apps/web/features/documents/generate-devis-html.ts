@@ -83,6 +83,24 @@ function sessionLines(sessions: DevisSession[]): string {
     .join('<br>');
 }
 
+/** Les conditions du devis, en texte : les mêmes dans la page et dans le PDF. */
+export function conditionsDuDevis(input: Pick<QuoteHtmlInput, 'validUntil' | 'client'>): string[] {
+  const isCompany = input.client.kind === 'company';
+  return [
+    `Devis valable jusqu'au ${frDate(input.validUntil)}.`,
+    isCompany
+      ? "L'acceptation du devis vaut commande : une convention de formation professionnelle (art. L.6353-1 et suivants du Code du travail) est établie avant le démarrage."
+      : "L'acceptation du devis donne lieu à un contrat de formation professionnelle (art. L.6353-3 à L.6353-7 du Code du travail).",
+    isCompany
+      ? 'Règlement à 30 jours à réception de la facture, par virement. En cas de prise en charge par un OPCO, la subrogation de paiement doit nous être notifiée avant le démarrage.'
+      : "Aucune somme ne peut être exigée avant l'expiration du délai de rétractation ; l'acompte éventuel est plafonné à 30 % du prix (art. L.6353-6 du Code du travail).",
+    isCompany
+      ? 'Pénalités de retard : trois fois le taux d’intérêt légal (art. L.441-10 du Code de commerce) et indemnité forfaitaire pour frais de recouvrement de 40 € (art. D.441-5).'
+      : null,
+    'Le programme détaillé de la formation est annexé au présent devis.',
+  ].filter((c): c is string => Boolean(c));
+}
+
 export function buildDevisHtml(input: QuoteHtmlInput): string {
   const isCompany = input.client.kind === 'company';
   const exempt = input.totals.byRate.every((r) => r.rate === 0);
@@ -152,23 +170,9 @@ export function buildDevisHtml(input: QuoteHtmlInput): string {
         )
         .join('');
 
-  const conditions = [
-    `Devis valable jusqu'au ${frDate(input.validUntil)}.`,
-    isCompany
-      ? "L'acceptation du devis vaut commande : une convention de formation professionnelle (art. L.6353-1 et suivants du Code du travail) est établie avant le démarrage."
-      : "L'acceptation du devis donne lieu à un contrat de formation professionnelle (art. L.6353-3 à L.6353-7 du Code du travail).",
-    isCompany
-      ? 'Règlement à 30 jours à réception de la facture, par virement. En cas de prise en charge par un OPCO, la subrogation de paiement doit nous être notifiée avant le démarrage.'
-      : "Aucune somme ne peut être exigée avant l'expiration du délai de rétractation ; l'acompte éventuel est plafonné à 30 % du prix (art. L.6353-6 du Code du travail).",
-    isCompany
-      ? 'Pénalités de retard : trois fois le taux d’intérêt légal (art. L.441-10 du Code de commerce) et indemnité forfaitaire pour frais de recouvrement de 40 € (art. D.441-5).'
-      : null,
-    'Le programme détaillé de la formation est annexé au présent devis.',
-  ]
-    .filter(Boolean)
+  const conditions = conditionsDuDevis(input)
     .map((c) => `<li>${c}</li>`)
     .join('');
-
   const retractation = isCompany
     ? ''
     : `

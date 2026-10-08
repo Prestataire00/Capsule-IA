@@ -429,6 +429,17 @@ export default async function DocumentsPage({
                       </span>
                       <span className="flex items-center justify-end gap-0.5">
                         {d.storage_path && <EmailDocButton documentId={d.id} defaultEmail={learnerEmail} />}
+                        {d.kind === 'devis' && (d.metadata as { quote_id?: string } | null)?.quote_id && (
+                          // Le devis seul, en PDF (signé, avec son certificat) — sans l'interface.
+                          <a
+                            href={`/api/devis/${(d.metadata as { quote_id: string }).quote_id}/pdf?dl=1`}
+                            aria-label={`Télécharger le PDF — ${d.title}`}
+                            title="Télécharger le PDF"
+                            className={ICON_BTN}
+                          >
+                            <FileDown className="w-4 h-4" />
+                          </a>
+                        )}
                         {d.content_html || d.storage_path ? (
                           // HTML éditable OU PDF stocké → visualiseur universel (aperçu).
                           <Link href={`/documents/${d.id}/apercu`} aria-label={`Ouvrir — ${d.title}`} title="Ouvrir" className={ICON_BTN}>

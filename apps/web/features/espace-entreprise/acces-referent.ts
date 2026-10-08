@@ -93,8 +93,8 @@ export async function questionnaireDuReferent(
   return a.dossier_id ? { dossierId: a.dossier_id } : null;
 }
 
-/** Un devis émis pour son entreprise, avec son PDF. */
-export async function devisDuReferent(contactId: string, organizationId: string, quoteId: string): Promise<{ storagePath: string } | null> {
+/** Un devis émis pour son entreprise : son PDF se fabrique à la demande (`pdfDuDevis`). */
+export async function devisDuReferent(contactId: string, organizationId: string, quoteId: string): Promise<{ quoteId: string } | null> {
   const contact = await contactDe(contactId, organizationId);
   if (!contact?.company_id) return null;
   const { data } = await admin()
@@ -111,8 +111,7 @@ export async function devisDuReferent(contactId: string, organizationId: string,
     document: { storage_path: string | null } | Array<{ storage_path: string | null }> | null;
   } | null;
   if (!q || q.deleted_at || q.status === 'draft' || q.organization_id !== organizationId || q.company_id !== contact.company_id) return null;
-  const doc = Array.isArray(q.document) ? q.document[0] : q.document;
-  return doc?.storage_path ? { storagePath: doc.storage_path } : null;
+  return { quoteId };
 }
 
 /** Un e-mail que l'organisme lui a envoyé : son adresse parmi les destinataires, le même organisme. */

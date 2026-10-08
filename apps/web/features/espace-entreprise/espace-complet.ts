@@ -358,7 +358,8 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     totalCents: Number(q.total_cents ?? 0),
     emisLe: q.issued_on,
     validite: q.valid_until,
-    aUnPdf: Boolean(q.document_id),
+    // Le PDF se fabrique à la demande depuis les données du devis.
+    aUnPdf: true,
   }));
 
   // ── Échanges : ce que l'organisme lui a envoyé, et ce qu'il a écrit ──

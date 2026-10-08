@@ -33,7 +33,7 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     .schema('app')
     .from('documents')
     .select(
-      'id, title, content_html, dossier_id, storage_path, mime_type, organization_id, version, parent_document_id, source_key, source_url, created_at',
+      'id, title, kind, metadata, content_html, dossier_id, storage_path, mime_type, organization_id, version, parent_document_id, source_key, source_url, created_at',
     )
     .eq('id', params.id)
     .is('deleted_at', null)
@@ -42,6 +42,8 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
   const doc = data as unknown as {
     id: string;
     title: string;
+    kind: string | null;
+    metadata: { quote_id?: string } | null;
     content_html: string | null;
     dossier_id: string | null;
     storage_path: string | null;
@@ -159,6 +161,8 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
     }
   }
 
+  const devisId = doc.kind === 'devis' ? (doc.metadata?.quote_id ?? null) : null;
+
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 py-8 px-4">
       <style>{`
@@ -189,6 +193,18 @@ export default async function DocumentPreviewPage({ params }: { params: { id: st
             <Download className="w-4 h-4" />
             Ouvrir / Télécharger
           </a>
+        ) : devisId ? (
+          // Un devis : le PDF du document seul (signé, avec son certificat), sans l'interface.
+          <span className="flex items-center gap-2">
+            <a
+              href={`/api/devis/${devisId}/pdf?dl=1`}
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-10 rounded-lg transition inline-flex items-center gap-2 shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10"
+            >
+              <Download className="w-4 h-4" />
+              {signees.length > 0 ? 'Télécharger le devis signé (PDF)' : 'Télécharger le PDF'}
+            </a>
+            <PrintButton />
+          </span>
         ) : (
           <PrintButton />
         )}

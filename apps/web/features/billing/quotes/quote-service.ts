@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { generateDocumentSignatureToken } from '@/shared/lib/document-signature-token';
-import { buildDevisHtml, type DevisSession } from '@/features/documents/generate-devis-html';
+import { buildDevisHtml, type DevisSession, type QuoteHtmlInput } from '@/features/documents/generate-devis-html';
 import { wrapGeneratedHtml } from '@/features/documents/templates/wrap-generated-html';
 import { resolveOrgVariables } from '@/features/documents/templates/resolve-org-variables';
 import { ligneDeGroupe, prixParDefaut } from '@/features/billing/grille-tarifaire';
@@ -587,9 +587,13 @@ const toLineInput = (l: QuoteLineRow): QuoteLineInput => ({
  * (Ré)génère le document HTML du devis. Figé une fois signé : on ne réécrit
  * jamais le contenu d'un document qu'un client a signé.
  */
-export async function renderQuoteDocument(sb: Sb, quoteId: string): Promise<string | null> {
+/**
+ * Les données d'un devis, telles que le document les montre : la même source
+ * pour la page HTML (aperçu, signature) et pour le PDF téléchargeable.
+ */
+export async function donneesDuDevis(sb: Sb, quoteId: string): Promise<{ input: QuoteHtmlInput; variables: Awaited<ReturnType<typeof resolveOrgVariables>>; quote: NonNullable<Awaited<ReturnType<typeof loadQuoteRow>>>; dossierIds: string[] } | null> {
   const quote = await loadQuoteRow(sb, quoteId);
-  if (!quote || (quote.status !== 'draft' && quote.status !== 'sent')) return quote?.document_id ?? null;
+  if (!quote) return null;
 
   const dossierIds = await coveredDossierIds(sb, quoteId);
   const [lines, sessions, variables, { data: orgRow }, { data: fRow }, learnerNames, client] = await Promise.all([
@@ -632,7 +636,7 @@ export async function renderQuoteDocument(sb: Sb, quoteId: string): Promise<stri
   ).map((s) => ({ startsAt: s.starts_at, endsAt: s.ends_at, location: s.location }));
 
   const lineInputs = lines.map(toLineInput);
-  const body = buildDevisHtml({
+  const input: QuoteHtmlInput = {
     reference: quote.reference,
     issuedOn: quote.issued_on,
     validUntil: quote.valid_until,
@@ -658,7 +662,17 @@ export async function renderQuoteDocument(sb: Sb, quoteId: string): Promise<stri
     lines: lineInputs,
     totals: computeQuoteTotals(lineInputs, Number(quote.vat_rate)),
     vatRate: Number(quote.vat_rate),
-  });
+  };
+  return { input, variables, quote, dossierIds };
+}
+
+export async function renderQuoteDocument(sb: Sb, quoteId: string): Promise<string | null> {
+  const quote = await loadQuoteRow(sb, quoteId);
+  if (!quote || (quote.status !== 'draft' && quote.status !== 'sent')) return quote?.document_id ?? null;
+  const donnees = await donneesDuDevis(sb, quoteId);
+  if (!donnees) return null;
+  const { variables, dossierIds } = donnees;
+  const body = buildDevisHtml(donnees.input);
   const html = wrapGeneratedHtml(body, variables);
   const now = new Date().toISOString();
 
