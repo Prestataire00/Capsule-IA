@@ -4,7 +4,8 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
+import { DOCUMENT_CSS } from '@/features/documents/document-styles';
 import { verifyEntrepriseToken } from '@/shared/lib/entreprise-token';
 import { documentDuReferent } from '@/features/espace-entreprise/load';
 
@@ -25,12 +26,24 @@ export default async function DocumentEntreprisePage({ params }: { params: { tok
         >
           <ArrowLeft className="w-3 h-3" /> Mes documents
         </Link>
-        <h1 className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100">{doc.title}</h1>
-        {/* Isolé dans un cadre sans script : le contenu est montré, rien de plus. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h1 className="text-[20px] font-semibold text-zinc-900 dark:text-zinc-100">{doc.title}</h1>
+          {doc.quoteId && (
+            <a
+              href={`/api/espace-entreprise/${params.token}/devis/${doc.quoteId}`}
+              className="h-9 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium inline-flex items-center gap-1.5 shadow-sm"
+            >
+              <Download className="w-4 h-4" aria-hidden /> Télécharger en PDF
+            </a>
+          )}
+        </div>
+        {/* Isolé dans un cadre sans script : le contenu est montré, rien de plus.
+            Avec la feuille de style des documents, comme dans l'aperçu de l'équipe :
+            sans elle, le client voyait le texte brut (constat du 2026-10-08). */}
         <iframe
           title={doc.title}
           sandbox=""
-          srcDoc={doc.contentHtml}
+          srcDoc={`<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>body{margin:0;padding:40px 48px;background:#fff;font-family:Helvetica,Arial,sans-serif}${DOCUMENT_CSS}</style></head><body><article class="doc-sheet">${doc.contentHtml}</article></body></html>`}
           className="w-full h-[80vh] rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white"
         />
       </div>

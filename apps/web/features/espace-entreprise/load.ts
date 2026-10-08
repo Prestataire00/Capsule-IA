@@ -159,17 +159,19 @@ export async function documentDuReferent(
   contactId: string,
   organizationId: string,
   documentId: string,
-): Promise<{ title: string; storagePath: string | null; contentHtml: string | null } | null> {
+): Promise<{ title: string; storagePath: string | null; contentHtml: string | null; quoteId: string | null } | null> {
   const admin = supabaseAdmin();
   const { data, error } = await admin
     .schema('app')
     .from('documents')
-    .select('title, storage_path, content_html, dossier_id, organization_id, visible_entreprise, deleted_at')
+    .select('title, kind, metadata, storage_path, content_html, dossier_id, organization_id, visible_entreprise, deleted_at')
     .eq('id', documentId)
     .maybeSingle();
   exigerLecture('document de l’espace entreprise', error);
   const d = data as unknown as {
     title: string;
+    kind: string | null;
+    metadata: { quote_id?: string } | null;
     storage_path: string | null;
     content_html: string | null;
     dossier_id: string | null;
@@ -187,7 +189,12 @@ export async function documentDuReferent(
     .is('deleted_at', null)
     .maybeSingle();
   if ((dossier as { contact_id: string | null } | null)?.contact_id !== contactId) return null;
-  return { title: d.title, storagePath: d.storage_path, contentHtml: d.content_html };
+  return {
+    title: d.title,
+    storagePath: d.storage_path,
+    contentHtml: d.content_html,
+    quoteId: d.kind === 'devis' ? (d.metadata?.quote_id ?? null) : null,
+  };
 }
 
 export type FactureEntreprise = {
