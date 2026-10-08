@@ -68,8 +68,13 @@ export const CHAMPS_BESOIN = [
   { cle: 'typologyContext', label: 'Situation (contexte professionnel)' },
 ] as const satisfies ReadonlyArray<{ cle: keyof NeedsAnswers; label: string }>;
 
-const remplie = (a: NeedsAnswers | null | undefined): boolean =>
-  Boolean(a && (a.currentLevel || a.objectives || a.expectations || a.constraints || a.accommodations || a.typologyContext));
+/**
+ * Remplie dès qu'une question a une réponse. Ne regarder que les champs de la
+ * fiche d'origine laissait « en attente » toute fiche adaptée à la formation,
+ * dont les questions sont autres (constat du 2026-10-08).
+ */
+const remplie = (a: (NeedsAnswers & Record<string, unknown>) | null | undefined): boolean =>
+  Boolean(a && Object.values(a).some((v) => v !== null && v !== undefined && String(v).trim() !== ''));
 
 export async function loadSessionNeeds(
   sb: Client,
@@ -85,7 +90,9 @@ export async function loadSessionNeeds(
     .eq('kind', 'positionnement');
   const modeleIds = ((modeles ?? []) as { id: string }[]).map((m) => m.id);
 
-  const sansDossier = participants.filter((p) => !p.dossierId).map((p) => p.id);
+  // Fiches « sans dossier » de tous les participants : une fiche remplie avant
+  // qu'on rattache la personne à son dossier y a été enregistrée (2026-10-08).
+  const sansDossier = participants.map((p) => p.id);
   const colonnes = 'id, dossier_id, recipient_learner_id, status, created_at, template_id';
   const [{ data: aff }, { data: affSans }] = await Promise.all([
     modeleIds.length && dossierIds.length
@@ -160,9 +167,15 @@ export async function loadSessionNeeds(
   }[];
 
   return participants.map((p) => {
+    // Sa fiche sur son dossier, ou à défaut sans dossier ; une fiche remplie avant une fiche en attente.
     const a = affectations
-      .filter((x) => x.recipient_learner_id === p.id && x.dossier_id === p.dossierId)
-      .sort((x, y) => y.created_at.localeCompare(x.created_at))[0];
+      .filter((x) => x.recipient_learner_id === p.id && (x.dossier_id === p.dossierId || x.dossier_id === null))
+      .sort(
+        (x, y) =>
+          Number(Boolean(reponses.get(y.id))) - Number(Boolean(reponses.get(x.id))) ||
+          Number(y.dossier_id === p.dossierId) - Number(x.dossier_id === p.dossierId) ||
+          y.created_at.localeCompare(x.created_at),
+      )[0];
     const r = a ? reponses.get(a.id) : undefined;
     if (r && remplie(r.answers)) {
       return {

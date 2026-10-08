@@ -6,8 +6,7 @@ import { loadSession, type SessionLearner } from '@/features/sessions/load-sessi
 import { EmptyState } from '@/shared/ui/empty-state';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { loadSuiviStagiaires } from '@/features/sessions/suivi-stagiaires';
-import { stagiairesDeLaSeance } from '@/features/questionnaire/stagiaires-de-seance';
-import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { participantsResolus } from '@/features/sessions/participants-resolus';
 import { SuiviPastilles } from '@/features/sessions/ui/suivi-pastilles';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 
@@ -39,48 +38,9 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
   const { client } = loaded;
-  // Les stagiaires attendus avec leur dossier : la séance ne connaît que le
-  // titulaire de chaque dossier ; les autres apprenants d'un dossier de groupe
-  // manquaient, ou passaient pour « sans dossier » (constat du 2026-10-08).
-  const resolus = await stagiairesDeLaSeance(supabaseAdmin() as never, params.id);
-  const connus = new Set(loaded.learners.map((l) => l.id));
-  const aAjouter = resolus.filter((r) => r.dossierId && !connus.has(r.id));
-  const { data: dossiersAjoutes } = aAjouter.length
-    ? await supabaseAdmin()
-        .schema('app')
-        .from('dossiers')
-        .select('id, reference, company_id, company:companies(name)')
-        .in('id', [...new Set(aAjouter.map((r) => r.dossierId as string))])
-    : { data: [] };
-  const infoDossier = new Map(
-    ((dossiersAjoutes ?? []) as unknown as Array<{ id: string; reference: string; company_id: string | null; company: { name: string | null } | Array<{ name: string | null }> | null }>).map((d) => [
-      d.id,
-      { reference: d.reference, companyId: d.company_id, companyName: (Array.isArray(d.company) ? d.company[0]?.name : d.company?.name) ?? null },
-    ]),
-  );
-  const { data: emails } = aAjouter.length
-    ? await supabaseAdmin().schema('app').from('learners').select('id, email').in('id', aAjouter.map((r) => r.id))
-    : { data: [] };
-  const emailDe = new Map(((emails ?? []) as Array<{ id: string; email: string | null }>).map((e) => [e.id, e.email]));
-  const learners: SessionLearner[] = [
-    ...loaded.learners,
-    ...aAjouter.map((r) => {
-      const d = infoDossier.get(r.dossierId as string);
-      return {
-        id: r.id,
-        first_name: r.prenom,
-        last_name: r.nom,
-        email: emailDe.get(r.id) ?? '',
-        dossierId: r.dossierId as string,
-        dossierReference: d?.reference ?? '',
-        companyId: d?.companyId ?? null,
-        companyName: d?.companyName ?? null,
-      };
-    }),
-  ];
-  const avecDossier = new Set(learners.map((l) => l.id));
-  const directLearners = loaded.directLearners.filter((l) => !avecDossier.has(l.id));
-  const { parStagiaire, avecAcquis } = await loadSuiviStagiaires(params.id, [
+  // Chaque participant avec son dossier, apprenants des dossiers de groupe compris.
+  const { learners, directLearners } = await participantsResolus(params.id, loaded);
+  const { parStagiaire, avecAcquis, modeles } = await loadSuiviStagiaires(params.id, [
     ...learners.map((l) => ({ id: l.id, dossierId: l.dossierId })),
     ...directLearners.map((l) => ({ id: l.id, dossierId: null })),
   ]);
@@ -152,7 +112,16 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                       {l.first_name} {l.last_name}
                     </p>
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{l.email ?? 'sans e-mail'}</p>
-                    {parStagiaire.get(l.id) && <SuiviPastilles suivi={parStagiaire.get(l.id)!} avecAcquis={avecAcquis} />}
+                    {parStagiaire.get(l.id) && (
+                      <SuiviPastilles
+                        suivi={parStagiaire.get(l.id)!}
+                        avecAcquis={avecAcquis}
+                        learnerId={l.id}
+                        nom={`${l.first_name} ${l.last_name}`.trim()}
+                        modeles={modeles}
+                        gerer={gerer}
+                      />
+                    )}
                   </div>
                 </div>
                 <Link
@@ -202,7 +171,16 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
                       {l.email} · dossier <span className="font-mono">{l.dossierReference}</span>
                     </p>
-                    {parStagiaire.get(l.id) && <SuiviPastilles suivi={parStagiaire.get(l.id)!} avecAcquis={avecAcquis} />}
+                    {parStagiaire.get(l.id) && (
+                      <SuiviPastilles
+                        suivi={parStagiaire.get(l.id)!}
+                        avecAcquis={avecAcquis}
+                        learnerId={l.id}
+                        nom={`${l.first_name} ${l.last_name}`.trim()}
+                        modeles={modeles}
+                        gerer={gerer}
+                      />
+                    )}
                   </div>
                 </div>
                 <Link

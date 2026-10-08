@@ -7,6 +7,7 @@ import { ClipboardList } from 'lucide-react';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { loadSession } from '@/features/sessions/load-session';
+import { participantsResolus } from '@/features/sessions/participants-resolus';
 import { loadSessionNeeds } from '@/features/questionnaire/session-needs';
 import { NeedsCard } from '@/features/questionnaire/ui/needs-card';
 import { canManageSection } from '@/shared/lib/auth/require-access';
@@ -19,7 +20,10 @@ export default async function SessionFichesBesoin({ params }: { params: { id: st
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
-  const { session, learners, directLearners, dossierIds } = loaded;
+  const { session, dossierIds } = loaded;
+  // Chaque participant avec son dossier : les apprenants d'un dossier de groupe
+  // passaient pour « sans dossier », et leur fiche paraissait sans réponse.
+  const { learners, directLearners } = await participantsResolus(params.id, loaded);
   // Les stagiaires inscrits directement à la séance, sans dossier, ont aussi
   // leur fiche : ils étaient absents de cet onglet.
   const participants = [
