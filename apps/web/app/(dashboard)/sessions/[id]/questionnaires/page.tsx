@@ -20,10 +20,9 @@ import {
   momentParDefaut,
 } from '@/features/questionnaire/programmation-seance';
 import { programmationsDeLaSeance } from '@/features/questionnaire/questionnaires-de-seance';
+import { ensureNeedsAnalysisTemplate } from '@/features/questionnaire/needs-analysis';
 import { QuestionnairesSeance, type LigneQuestionnaire } from './questionnaires-seance.client';
-import { AdapterFiche } from './adapter-fiche.client';
 import { ReponsesRecues } from '@/app/(dashboard)/dossiers/[id]/questionnaires/reponses-recues';
-import { questionsDuSchema } from '@/features/questionnaire/fiche-besoin';
 import { codeFicheDeSeance, estFicheDeSeance } from '@/features/questionnaire/fiche-de-seance';
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +42,7 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
   const sb = supabaseServer();
   const loaded = await loadSession(sb, params.id);
   if (!loaded) notFound();
-  const { session, dossierIds, formation } = loaded;
+  const { session, dossierIds } = loaded;
   // La formation de la fiche : celle de la séance, sinon celle de son dossier.
   let formationFiche: string | null = session.formation_id;
   if (!formationFiche && dossierIds.length) {
@@ -87,13 +86,15 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
   // Une fiche adaptée à une autre formation n'a rien à faire ici.
   // Celle d'une autre séance non plus.
   const propreASeance = codeFicheDeSeance(params.id);
+  // Une seule fiche besoin (2026-10-08) : celle de l'organisme, ni la fiche
+  // d'origine en double, ni une fiche adaptée à une formation ou à une séance.
+  const ficheUnique = await ensureNeedsAnalysisTemplate(db, session.organization_id);
   const modeles = ((tData ?? []) as Modele[]).filter(
-    (m) => (!m.formation_id || m.formation_id === formationFiche) && (!estFicheDeSeance(m.code) || m.code === propreASeance),
+    (m) =>
+      (!m.formation_id || m.formation_id === formationFiche) &&
+      (!estFicheDeSeance(m.code) || m.code === propreASeance) &&
+      (m.kind !== 'positionnement' || m.id === ficheUnique),
   );
-  const adaptee =
-    modeles.find((m) => m.kind === 'positionnement' && m.code === propreASeance) ??
-    modeles.find((m) => m.kind === 'positionnement' && m.formation_id && m.formation_id === formationFiche) ??
-    null;
 
   const lignes: LigneQuestionnaire[] = modeles
     .map((m) => {
@@ -153,12 +154,6 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
         </div>
       </div>
       <ReponsesRecues sb={sb as never} dossierIds={dossierIds} sessionId={params.id} />
-      <AdapterFiche
-        sessionId={params.id}
-        formation={formation?.title ?? session.title ?? null}
-        ficheAdaptee={adaptee ? { id: adaptee.id, titre: adaptee.title, questions: questionsDuSchema(adaptee.schema).length } : null}
-        gerer={gerer}
-      />
       <QuestionnairesSeance sessionId={params.id} lignes={lignes} gerer={gerer} />
     </div>
   );

@@ -5,7 +5,6 @@ import { randomBytes, createHash } from 'node:crypto';
 import { env } from '@/env.mjs';
 import { sendEmail } from '@/shared/lib/email/resend';
 import { needsAnalysisEmail } from '@/shared/lib/email/templates';
-import { codeFicheDeSeance } from './fiche-de-seance';
 import { generateNeedsAnalysisUrl } from '@/shared/lib/needs-analysis-token';
 
 // « Fiche besoin » = questionnaire de positionnement (analyse des besoins) envoyé
@@ -43,34 +42,12 @@ export async function ensureNeedsAnalysisTemplate(
   formationId?: string | null,
   sessionId?: string | null,
 ): Promise<string> {
-  // La fiche adaptée à la séance (sans formation), puis à la formation (0211), puis celle de l'organisme.
-  if (organizationId && sessionId) {
-    const { data: deSeance } = await sb
-      .schema('app')
-      .from('questionnaire_templates')
-      .select('id')
-      .eq('organization_id', organizationId)
-      .eq('code', codeFicheDeSeance(sessionId))
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .maybeSingle();
-    if (deSeance) return (deSeance as { id: string }).id;
-  }
-  if (organizationId && formationId) {
-    const { data: adaptee } = await sb
-      .schema('app')
-      .from('questionnaire_templates')
-      .select('id')
-      .eq('organization_id', organizationId)
-      .eq('formation_id' as never, formationId as never)
-      .eq('kind', 'positionnement')
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (adaptee) return (adaptee as { id: string }).id;
-  }
+  // Une seule fiche besoin, la même pour toutes les formations et tous les
+  // dossiers (décision d'Ismael, 2026-10-08 : « il ne doit pas y avoir deux
+  // fiches besoin, on se perd ») : celle de l'organisme, sinon l'intégrée.
+  // Les fiches adaptées à une formation ou à une séance ne sont plus posées.
+  void formationId;
+  void sessionId;
   if (organizationId) {
     const { data: propre } = await sb
       .schema('app')
@@ -512,7 +489,9 @@ export async function ficheDePositionnement(
     .select('id, status')
     .eq('recipient_learner_id', args.learnerId)
     .in('template_id', modeleIds);
-  requete = args.dossierId ? requete.eq('dossier_id', args.dossierId) : requete.is('dossier_id', null);
+  // Sa fiche dans ce dossier, ou une fiche remplie sans dossier avant son
+  // rattachement : elle vaut, on ne la redemande pas (Sandaya, 2026-10-08).
+  requete = args.dossierId ? requete.or(`dossier_id.eq.${args.dossierId},dossier_id.is.null`) : requete.is('dossier_id', null);
   const { data: existantes } = modeleIds.length ? await requete : { data: [] };
   const fiches = (existantes ?? []) as Array<{ id: string; status: string }>;
   if (fiches.some((f) => f.status === 'completed')) return { statut: 'remplie' };

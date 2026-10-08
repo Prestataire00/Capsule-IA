@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { verifierSecretMachine } from '@/shared/lib/http/cron-auth';
 import { reponseCron } from '@/shared/lib/http/cron-response';
 import { envoyerRappelsSeances } from '@/features/sessions/rappels-seances';
-import { envoyerFichesAvantSeance } from '@/features/questionnaire/positionnement-avant-seance';
+import { envoyerFichesALInscription, envoyerFichesAvantSeance } from '@/features/questionnaire/positionnement-avant-seance';
 import { relancerReferentsSatisfaction } from '@/features/questionnaire/relance-satisfaction-referent';
 import { alerterDirectionDossiersRecents } from '@/features/dossier/alerte-nouveau-dossier';
 import { avancerLesDossiers } from '@/features/dossier/avancer-les-dossiers';
@@ -31,6 +31,8 @@ async function tick() {
   const avancement = await avancerLesDossiers(sb);
   // Puis les liens Meet manquants : le rappel 48 h doit pouvoir les porter.
   const visios = await creerLesVisiosManquantes(sb);
+  // La fiche besoin dès l'inscription (la veille, la relance ci-dessous).
+  const fichesInscription = await envoyerFichesALInscription(sb);
   const [rappels, fiches, satisfaction, nouveauxDossiers, evaluationsFin, evaluationsStagiaires, satisfactionEntreprise] = await Promise.all([
     envoyerRappelsSeances(sb),
     envoyerFichesAvantSeance(sb),
@@ -40,7 +42,7 @@ async function tick() {
     envoyerEvaluationsAuxStagiaires(sb),
     envoyerSatisfactionEntreprises(sb),
   ]);
-  return { avancement, visios, rappels, fiches, satisfaction, nouveauxDossiers, evaluationsFin, evaluationsStagiaires, satisfactionEntreprise };
+  return { avancement, visios, fichesInscription, rappels, fiches, satisfaction, nouveauxDossiers, evaluationsFin, evaluationsStagiaires, satisfactionEntreprise };
 }
 
 export async function POST(req: Request) {
