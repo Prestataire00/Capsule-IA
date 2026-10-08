@@ -1,12 +1,12 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, Download, FileText, Loader2, MonitorPlay, PenLine, RefreshCw, Send, Sun, Sunset, Users, X } from 'lucide-react';
 import type { ParticipantRow, SheetView } from '@/features/attendance/queries/load-session-emargement';
 import { attendanceErrorLabel } from '@/features/attendance/schemas';
-import { markAllPresent, sendSheetLinksAction } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
+import { markAllPresent, markAttendance, sendSheetLinksAction } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
 import { MarqueurPresence, SignatureTablette } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/sheet-grid';
 
 /**
@@ -84,6 +84,18 @@ export function AttendanceMatrix({
   }, [sheets]);
   const cellule = (sheet: SheetView, cle: string) => sheet.participants.find((p) => `${p.kind}:${p.id}` === cle);
 
+  // Les signatures par e-mail ou par QR arrivent pendant que la page est ouverte :
+  // elle se met à jour seule, sauf quand on est en train de saisir.
+  const ouverte = sheets.some((s) => !s.finalized);
+  const occupe = selection !== null || tablette !== null || pending;
+  useEffect(() => {
+    if (!ouverte || occupe) return;
+    const tic = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh();
+    }, 15_000);
+    return () => clearInterval(tic);
+  }, [ouverte, occupe, router]);
+
   const executer = (fn: () => Promise<{ ok: true; [k: string]: unknown } | { ok: false; error: string }>, succes: (r: Record<string, unknown>) => string) =>
     start(async () => {
       setMessage(null);
@@ -104,7 +116,7 @@ export function AttendanceMatrix({
         <div>
           <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">Émargement</h2>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Chaque participant signe à l’arrivée puis à la fin de chaque demi-journée. Cliquez une case pour marquer une présence ou faire signer sur place.
+            Chaque participant signe à l’arrivée puis à la fin de chaque demi-journée. « Présent » ou « Absent » sous chaque nom ; cliquez la case pour un retard, un motif ou faire signer sur place.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -229,6 +241,45 @@ export function AttendanceMatrix({
                         >
                           <Case p={c} vignette={vignettes[`${s.id}|${cle}|entry`] ?? null} />
                         </button>
+                        {c && !s.finalized && (
+                          <span className="mt-1 flex justify-center gap-1" role="group" aria-label={`Présence de ${p.fullName}`}>
+                            {(
+                              [
+                                { statut: 'present' as const, libelle: 'Présent', actif: c.status === 'present' || c.status === 'late' || c.status === 'remote', ton: 'bg-emerald-600 text-white border-emerald-600', icone: Check },
+                                { statut: 'absent' as const, libelle: 'Absent', actif: c.status === 'absent' || c.status === 'absent_justified', ton: 'bg-red-600 text-white border-red-600', icone: X },
+                              ]
+                            ).map((o) => (
+                              <button
+                                key={o.statut}
+                                type="button"
+                                disabled={pending}
+                                aria-pressed={o.actif}
+                                onClick={() =>
+                                  executer(
+                                    () =>
+                                      markAttendance({
+                                        sheetId: s.id,
+                                        learnerId: c.id,
+                                        signerKind: c.kind,
+                                        status: o.statut,
+                                        // Un retard ou un départ anticipé déjà noté reste noté.
+                                        lateArrival: o.statut === 'present' ? (c.lateArrival ?? null) : null,
+                                        earlyDeparture: o.statut === 'present' ? (c.earlyDeparture ?? null) : null,
+                                        reason: null,
+                                        captureMode: 'grille',
+                                      }),
+                                    () => `${p.fullName} : ${o.libelle.toLowerCase()}.`,
+                                  )
+                                }
+                                className={`inline-flex items-center gap-0.5 h-6 px-1.5 rounded-md border text-[11px] font-medium transition disabled:opacity-40 ${
+                                  o.actif ? o.ton : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                                }`}
+                              >
+                                <o.icone className="w-3 h-3" aria-hidden /> {o.libelle}
+                              </button>
+                            ))}
+                          </span>
+                        )}
                       </td>
                     );
                   })}
