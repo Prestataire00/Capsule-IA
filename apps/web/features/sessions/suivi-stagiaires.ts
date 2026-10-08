@@ -49,7 +49,9 @@ export async function loadSuiviStagiaires(
   stagiaires = stagiaires.map((s) => ({ id: s.id, dossierId: s.dossierId ?? resolus.get(s.id) ?? null }));
   const ids = stagiaires.map((s) => s.id);
   const dossierIds = [...new Set(stagiaires.map((s) => s.dossierId).filter((d): d is string => Boolean(d)))];
-  const sansDossier = stagiaires.filter((s) => !s.dossierId).map((s) => s.id);
+  // Les fiches sans dossier de tous : une fiche envoyée avant le rattachement
+  // de la personne à son dossier y est restée (fiches besoin Sandaya, 2026-10-08).
+  const sansDossier = stagiaires.map((s) => s.id);
   const colonnes = 'id, dossier_id, recipient_learner_id, status, template_id, template:questionnaire_templates(kind)';
   // Le questionnaire de satisfaction de l'organisme compte comme « à chaud », quel que soit son type en base.
   const { data: seance } = await supabaseAdmin().schema('app').from('sessions').select('organization_id').eq('id', sessionId).maybeSingle();
@@ -95,7 +97,7 @@ export async function loadSuiviStagiaires(
   const maintenant = Date.now();
   const parStagiaire = new Map<string, SuiviStagiaire>();
   for (const s of stagiaires) {
-    const siennes = assignations.filter((a) => a.learnerId === s.id && a.dossierId === s.dossierId);
+    const siennes = assignations.filter((a) => a.learnerId === s.id && (a.dossierId === s.dossierId || a.dossierId === null));
     parStagiaire.set(s.id, {
       emargement: etatEmargement(vue?.sheets ?? [], s.id, maintenant),
       questionnaires: Object.fromEntries(QUESTIONNAIRES_SUIVIS.map((k) => [k, etatQuestionnaire(siennes, k)])) as Record<

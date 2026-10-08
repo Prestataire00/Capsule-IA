@@ -42,10 +42,14 @@ export async function scoresPositionnement(
   const { data: r } = await sb.schema('app').from('questionnaire_responses').select('assignment_id, answers').in('assignment_id', fiches.map((f) => f.id));
   const reponses = new Map(((r ?? []) as Array<{ assignment_id: string; answers: Record<string, unknown> | null }>).map((x) => [x.assignment_id, x.answers]));
 
-  const voulus = new Set(stagiaires.map((s) => cleStagiaire(s.learnerId, s.dossierId)));
-  for (const f of fiches) {
-    const cle = cleStagiaire(f.recipient_learner_id, f.dossier_id);
-    if (!voulus.has(cle) || out.has(cle)) continue;
+  // Sa fiche dans son dossier, ou à défaut une fiche enregistrée sans dossier
+  // (envoyée avant son rattachement : cas des stagiaires Sandaya, 2026-10-08).
+  for (const s of stagiaires) {
+    const cle = cleStagiaire(s.learnerId, s.dossierId);
+    if (out.has(cle)) continue;
+    const siennes = fiches.filter((f) => f.recipient_learner_id === s.learnerId && (f.dossier_id === s.dossierId || f.dossier_id === null));
+    const f = siennes.find((x) => x.dossier_id === s.dossierId) ?? siennes[0];
+    if (!f) continue;
     const modele = Array.isArray(f.template) ? f.template[0] : f.template;
     const score = scorePositionnement(questionsDuSchema(modele?.schema), reponses.get(f.id));
     if (score) out.set(cle, score);

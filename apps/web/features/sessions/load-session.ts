@@ -1,5 +1,7 @@
 import 'server-only';
 import { exigerLecture } from '@/shared/lib/supabase/echec-lecture';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { stagiairesDeLaSeance } from '@/features/questionnaire/stagiaires-de-seance';
 
 // Charge une session et son entourage SANS embed PostgREST sur `sessions`
 // (le cache de schéma peut casser les relations de `sessions` depuis la migration
@@ -124,11 +126,24 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
     formation = (fRow as LoadedSession['formation']) ?? null;
   }
 
-  // Apprenants (via les dossiers).
+  // Apprenants : ceux qu'attend la séance, chacun avec son dossier — les
+  // apprenants d'un dossier de groupe comme son titulaire. Ne lire que le
+  // titulaire de chaque dossier faisait passer les autres pour « sans
+  // dossier » : leurs fiches, questionnaires et envois ne les trouvaient pas
+  // (constat du 2026-10-08 sur Sandaya).
   const learnerToDossier = new Map<string, { id: string; reference: string; companyId: string | null }>();
-  for (const d of dossiers) {
-    if (d.learner_id && !learnerToDossier.has(d.learner_id)) {
-      learnerToDossier.set(d.learner_id, { id: d.id, reference: d.reference, companyId: d.company_id });
+  const dossierParId = new Map(dossiers.map((d) => [d.id, d]));
+  const attendus = await stagiairesDeLaSeance(supabaseAdmin() as never, id);
+  for (const r of attendus) {
+    const d = r.dossierId ? dossierParId.get(r.dossierId) : undefined;
+    if (d && !learnerToDossier.has(r.id)) learnerToDossier.set(r.id, { id: d.id, reference: d.reference, companyId: d.company_id });
+  }
+  // Repli : la liste des attendus est vide (lecture impossible) — le titulaire, comme avant.
+  if (attendus.length === 0) {
+    for (const d of dossiers) {
+      if (d.learner_id && !learnerToDossier.has(d.learner_id)) {
+        learnerToDossier.set(d.learner_id, { id: d.id, reference: d.reference, companyId: d.company_id });
+      }
     }
   }
   const learnerIds = [...learnerToDossier.keys()];
