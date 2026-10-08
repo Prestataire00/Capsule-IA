@@ -4,10 +4,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { env } from '@/env.mjs';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { supabaseServer } from '@/shared/lib/supabase/server';
+import { canManageSection } from '@/shared/lib/auth/require-access';
 import { parseZoomCsv } from '@/features/attendance/zoom-csv-parser';
-import { renderAttendancePdf, type PdfSignatureLine } from '@/features/attendance/pdf-render';
-import { loadOrgIdentity } from '@/features/documents/load-org-identity';
-import { orgIdentityLines } from '@/features/documents/legal/org-identity';
+import { rendrePdfFeuille } from '@/features/attendance/pdf-feuille';
 import { accessibleSession, accessibleSheet } from '@/features/attendance/access';
 import { issueAttendanceLink } from '@/features/attendance/issue-attendance-link';
 import { markJustifiedAbsence } from '@/features/attendance/justifications';
@@ -97,6 +96,33 @@ export async function markAttendance(input: MarkInput): Promise<Result> {
   } as never);
   if (error) return erreur('marquage refusé', error);
   return { ok: true };
+}
+
+/**
+ * Corriger une présence sur une feuille clôturée (demande d'Ismael,
+ * 2026-10-08) : la feuille est rouverte avec un motif tracé au journal, la
+ * présence corrigée, puis la feuille reclôturée aussitôt — un nouveau PDF, le
+ * précédent conservé. Réservé à l'équipe qui gère les dossiers.
+ */
+export async function corrigerPresenceCloturee(input: MarkInput & { motif: string }): Promise<Result<{ regenere: boolean }>> {
+  const acces = await accessibleSheet(input.sheetId);
+  if (!acces.ok) return { ok: false, error: acces.error };
+  if (!(await canManageSection('dossiers'))) return { ok: false, error: 'forbidden' };
+  const motif = (input.motif ?? '').trim();
+  if (motif.length < 3) return { ok: false, error: 'reason_required' };
+
+  const { error } = await supabaseAdmin().schema('app').rpc('rouvrir_feuille_pour_correction' as never, {
+    p_sheet_id: input.sheetId,
+    p_actor: acces.userId,
+    p_motif: motif,
+  } as never);
+  if (error) return erreur('réouverture refusée', error);
+
+  const marque = await markAttendance({ ...input, captureMode: 'grille' });
+  // Reclôture dans tous les cas : la feuille ne reste pas ouverte par accident.
+  const clos = await finalizeAttendanceSheet({ sheetId: input.sheetId });
+  if (!marque.ok) return marque;
+  return { ok: true, regenere: clos.ok };
 }
 
 /** Clôture en vue : les apprenants qui n'ont rien signé sont marqués absents. */
@@ -285,76 +311,10 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
     return { ok: false, error: 'sheet_incomplete' };
   }
 
-  const [{ data: ctxData }, { data: sigsData }] = await Promise.all([
-    sb
-      .schema('app')
-      .from('attendance_sheets')
-      .select('dossiers(reference, formations(title)), sessions(title, formation:formations(title)), organizations(name, logo_url)')
-      .eq('id', ref.id)
-      .maybeSingle(),
-    sb
-      .schema('app')
-      .from('attendance_signatures')
-      .select('participant_kind, learner_id, trainer_id, evidence_source, signature_image_path, exit_image_path')
-      .eq('attendance_sheet_id', ref.id),
-  ]);
-  const ctx = ctxData as unknown as {
-    dossiers: { reference: string; formations: { title: string } | null } | null;
-    sessions: { title: string | null; formation: { title: string } | null } | null;
-    organizations: { name: string; logo_url: string | null } | null;
-  } | null;
-  type Sig = {
-    participant_kind: 'learner' | 'trainer';
-    learner_id: string | null;
-    trainer_id: string | null;
-    evidence_source: PdfSignatureLine['evidenceSource'] | null;
-    signature_image_path: string | null;
-    exit_image_path: string | null;
-  };
-  const sigs = new Map<string, Sig>();
-  for (const g of (sigsData ?? []) as unknown as Sig[]) sigs.set(`${g.participant_kind}:${g.learner_id ?? g.trainer_id}`, g);
-  const signer = async (chemin: string | null | undefined) =>
-    chemin ? ((await sb.storage.from('signatures').createSignedUrl(chemin, 300)).data?.signedUrl ?? null) : null;
-
-  const lines: PdfSignatureLine[] = [];
-  for (const p of feuille.participants) {
-    const g = sigs.get(`${p.kind}:${p.id}`);
-    lines.push({
-      participantKind: p.kind,
-      fullName: p.fullName,
-      status: p.status === 'absent_justified' ? 'excused' : p.status === 'remote' ? 'present' : (p.status ?? 'absent'),
-      signedAt: p.entryAt ?? p.attestedAt,
-      signerIp: null,
-      signerCountry: null,
-      evidenceSource: g?.evidence_source ?? 'manual',
-      signatureSignedUrl: await signer(g?.signature_image_path),
-      exitAt: p.exitAt,
-      exitSignatureUrl: await signer(g?.exit_image_path),
-      exitAttested: p.exitAttested,
-      lateArrival: p.lateArrival,
-      earlyDeparture: p.earlyDeparture,
-      absenceReason: p.absenceReason,
-      captureMode: p.captureMode,
-    });
-  }
-
   let pdf: Buffer;
+  let reference: string | null;
   try {
-    pdf = await renderAttendancePdf({
-      sheetId: ref.id,
-      halfDay: feuille.halfDay,
-      dossierReference: ctx?.dossiers?.reference ?? 'Session de groupe',
-      formationTitle: ctx?.dossiers?.formations?.title ?? ctx?.sessions?.formation?.title ?? ctx?.sessions?.title ?? '—',
-      organizationName: ctx?.organizations?.name ?? '—',
-      // Même bloc d'identité que sur les autres documents (SIRET, NDA, agréments).
-      organizationLines: orgIdentityLines(await loadOrgIdentity(sb as never, ref.organization_id)).slice(1),
-      organizationLogoUrl: ctx?.organizations?.logo_url ?? null,
-      sessionStartsAt: new Date(feuille.windowStart),
-      sessionEndsAt: new Date(feuille.windowEnd),
-      modality: vue.session.modality,
-      location: vue.session.location,
-      lines,
-    });
+    ({ pdf, reference } = await rendrePdfFeuille({ sheetId: ref.id, organizationId: ref.organization_id, feuille, vue }));
   } catch (e) {
     console.error('[émargement] PDF non généré', e);
     await relacher();
@@ -370,6 +330,22 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
     return { ok: false, error: 'storage_upload_failed' };
   }
 
+  // Une feuille corrigée après clôture : le PDF précédent devient une version
+  // antérieure (conservée), le nouveau devient la version courante.
+  const cle = `emargement:${ref.id}`;
+  const { data: precedents } = await sb
+    .schema('app')
+    .from('documents')
+    .update({ is_current: false } as never)
+    .eq('organization_id', ref.organization_id)
+    .eq('source_key' as never, cle as never)
+    .eq('is_current' as never, true as never)
+    .select('id');
+  const restaurer = async () => {
+    const anciens = ((precedents ?? []) as Array<{ id: string }>).map((d) => d.id);
+    if (anciens.length) await sb.schema('app').from('documents').update({ is_current: true } as never).in('id', anciens);
+  };
+
   const { error: docErr } = await sb
     .schema('app')
     .from('documents')
@@ -378,9 +354,9 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
       organization_id: ref.organization_id,
       dossier_id: ref.dossier_id,
       kind: 'feuille_emargement_signee',
-      // Une entrée par feuille : une nouvelle clôture versionne, sans doublon.
-      source_key: `emargement:${ref.id}`,
-      title: `Émargement ${ctx?.dossiers?.reference ?? vue.session.title ?? ''} — ${feuille.halfDay}`.trim(),
+      // Une entrée courante par feuille : une nouvelle clôture versionne, sans doublon.
+      source_key: cle,
+      title: `Émargement ${reference ?? vue.session.title ?? ''} — ${feuille.halfDay}`.trim(),
       status: 'ready',
       storage_path: chemin,
       mime_type: 'application/pdf',
@@ -390,7 +366,9 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
       metadata: { attendance_sheet_id: ref.id, session_id: ref.session_id },
     } as never);
   if (docErr) {
+    console.error('[émargement] PDF non enregistré', ref.id, docErr.message);
     await sb.storage.from('documents').remove([chemin]);
+    await restaurer();
     await relacher();
     return { ok: false, error: 'documents_insert_failed' };
   }
@@ -406,6 +384,7 @@ export async function finalizeAttendanceSheet(input: { sheetId: string }): Promi
     // La feuille n'est pas clôturée : pas de PDF orphelin présenté comme définitif.
     await sb.schema('app').from('documents').delete().eq('id', documentId);
     await sb.storage.from('documents').remove([chemin]);
+    await restaurer();
     await relacher();
     return { ok: false, error: 'finalize_update_failed' };
   }

@@ -9,9 +9,9 @@ const lire = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf
 const base: SignatureFacts = { status: 'present', signedAt: '2026-09-11T07:05:00Z', exitSignedAt: null, captureMode: 'lien', evidenceSource: 'qr', earlyDeparture: null };
 
 describe('état d’un participant', () => {
-  it('attend l’entrée puis la sortie d’un apprenant', () => {
+  it('l’entrée suffit à l’apprenant ; la sortie reste facultative (2026-10-08)', () => {
     expect(participantState('learner', null)).toBe('a_signer');
-    expect(participantState('learner', base)).toBe('entree_seule');
+    expect(participantState('learner', base)).toBe('complet');
     expect(participantState('learner', { ...base, exitSignedAt: '2026-09-11T11:00:00Z' })).toBe('complet');
     expect(participantState('learner', { ...base, earlyDeparture: '10:30:00' })).toBe('complet');
   });

@@ -1,8 +1,8 @@
 /**
  * Signatures reçues sur signatures attendues, pour une feuille ou une séance
- * (demande d'Ismael, 2026-10-08). Un apprenant doit son entrée et sa sortie,
- * le formateur son entrée ; une absence ou une excuse ne doit rien. Une
- * présence attestée par l'équipe compte comme reçue. Pur.
+ * (demande d'Ismael, 2026-10-08). Chacun doit une signature par demi-journée,
+ * à l'arrivée (la sortie est facultative, 2026-10-08) ; une absence ou une
+ * excuse ne doit rien. Une présence attestée par l'équipe compte. Pur.
  */
 
 export type ParticipantCompte = {
@@ -29,29 +29,24 @@ export function compteurSignatures(participants: readonly ParticipantCompte[]): 
   let eR = 0;
   let eA = 0;
   let sR = 0;
-  let sA = 0;
+  const sA = 0;
   let manquants = 0;
   for (const p of participants) {
     if (!p.expected || p.state === 'absent' || p.state === 'excuse') continue;
     const entree = Boolean(p.entryAt || p.attestedAt);
     eA += 1;
     if (entree) eR += 1;
-    let complet = entree;
-    if (p.kind === 'learner') {
-      const sortie = Boolean(p.exitAt || p.exitAttested);
-      sA += 1;
-      if (sortie) sR += 1;
-      complet = complet && sortie;
-    }
-    if (!complet) manquants += 1;
+    // Sorties : comptées quand elles existent, jamais attendues.
+    if (p.kind === 'learner' && (p.exitAt || p.exitAttested)) sR += 1;
+    if (!entree) manquants += 1;
   }
   return {
-    recues: eR + sR,
-    attendues: eA + sA,
+    recues: eR,
+    attendues: eA,
     entrees: { recues: eR, attendues: eA },
     sorties: { recues: sR, attendues: sA },
     manquants,
-    complet: eA + sA > 0 && eR + sR === eA + sA,
+    complet: eA > 0 && eR === eA,
   };
 }
 

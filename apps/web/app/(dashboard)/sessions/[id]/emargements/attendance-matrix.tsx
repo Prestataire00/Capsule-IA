@@ -7,7 +7,7 @@ import { Check, Download, FileText, Loader2, MonitorPlay, PenLine, RefreshCw, Se
 import type { ParticipantRow, SheetView } from '@/features/attendance/queries/load-session-emargement';
 import { attendanceErrorLabel } from '@/features/attendance/schemas';
 import { additionner, compteurSignatures, type Compteur } from '@/features/attendance/compteur-signatures';
-import { markAllPresent, markAttendance, sendSheetLinksAction } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
+import { corrigerPresenceCloturee, markAllPresent, markAttendance, sendSheetLinksAction } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
 import { MarqueurPresence, SignatureTablette } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/sheet-grid';
 
 /**
@@ -77,7 +77,7 @@ function Case({ p, vignette }: { p: ParticipantRow | undefined; vignette: string
       {(entree || p.attestedAt) && (
         <span className="text-[11px] text-zinc-500 tabular-nums">
           {entree ?? 'attesté'}
-          {p.kind === 'learner' ? ` → ${sortie ?? '…'}` : ''}
+          {p.kind === 'learner' && sortie ? ` → ${sortie}` : ''}
         </span>
       )}
       {p.lateArrival && <span className="text-[11px] text-amber-700 dark:text-amber-400">arrivé à {p.lateArrival}</span>}
@@ -149,7 +149,7 @@ export function AttendanceMatrix({
         <div>
           <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">Émargement</h2>
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Chaque participant signe à l’arrivée puis à la fin de chaque demi-journée. « Présent » ou « Absent » sous chaque nom ; cliquez la case pour un retard, un motif ou faire signer sur place.
+            Une signature à l’arrivée par demi-journée suffit. « Présent » ou « Absent » sous chaque nom, même après clôture (le PDF se régénère) ; cliquez la case pour un retard, un motif ou faire signer sur place.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -159,9 +159,20 @@ export function AttendanceMatrix({
                 <Download className="w-3.5 h-3.5" /> Feuille {LIBELLE[s.halfDay]?.toLowerCase()} signée
               </a>
             ) : (
-              <a key={s.id} href={`/api/attendance/${s.id}/paper`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                <FileText className="w-3.5 h-3.5" /> Feuille {LIBELLE[s.halfDay]?.toLowerCase()}
-              </a>
+              <span key={s.id} className="inline-flex items-center gap-2">
+                <a
+                  href={`/api/emargements/${s.id}/pdf`}
+                  target="_blank"
+                  rel="noopener"
+                  title="Le PDF de la feuille telle qu’elle est maintenant (provisoire jusqu’à la clôture)"
+                  className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  <Download className="w-3.5 h-3.5" /> PDF {LIBELLE[s.halfDay]?.toLowerCase()} à jour
+                </a>
+                <a href={`/api/attendance/${s.id}/paper`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                  <FileText className="w-3.5 h-3.5" /> Feuille papier
+                </a>
+              </span>
             ),
           )}
           <a href={csvHref} className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30">
@@ -281,7 +292,7 @@ export function AttendanceMatrix({
                         >
                           <Case p={c} vignette={vignettes[`${s.id}|${cle}|entry`] ?? null} />
                         </button>
-                        {c && !s.finalized && (
+                        {c && (
                           <span className="mt-1 flex justify-center gap-1" role="group" aria-label={`Présence de ${p.fullName}`}>
                             {(
                               [
@@ -294,7 +305,28 @@ export function AttendanceMatrix({
                                 type="button"
                                 disabled={pending}
                                 aria-pressed={o.actif}
-                                onClick={() =>
+                                onClick={() => {
+                                  // Feuille clôturée : correction tracée, PDF régénéré (0227).
+                                  if (s.finalized) {
+                                    const motif = window.prompt(`Feuille clôturée : motif de la correction pour ${p.fullName} (ex. « présence constatée par le formateur ») ?`);
+                                    if (!motif || motif.trim().length < 3) return;
+                                    executer(
+                                      () =>
+                                        corrigerPresenceCloturee({
+                                          sheetId: s.id,
+                                          learnerId: c.id,
+                                          signerKind: c.kind,
+                                          status: o.statut,
+                                          lateArrival: o.statut === 'present' ? (c.lateArrival ?? null) : null,
+                                          earlyDeparture: o.statut === 'present' ? (c.earlyDeparture ?? null) : null,
+                                          reason: null,
+                                          captureMode: 'grille',
+                                          motif,
+                                        }),
+                                      (r) => `${p.fullName} : ${o.libelle.toLowerCase()}. ${r.regenere ? 'Feuille reclôturée, PDF régénéré (l’ancien est conservé).' : 'Feuille rouverte : clôturez-la quand elle est complète.'}`,
+                                    );
+                                    return;
+                                  }
                                   executer(
                                     () =>
                                       markAttendance({
@@ -309,8 +341,8 @@ export function AttendanceMatrix({
                                         captureMode: 'grille',
                                       }),
                                     () => `${p.fullName} : ${o.libelle.toLowerCase()}.`,
-                                  )
-                                }
+                                  );
+                                }}
                                 className={`inline-flex items-center gap-0.5 h-6 px-1.5 rounded-md border text-[11px] font-medium transition disabled:opacity-40 ${
                                   o.actif ? o.ton : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
                                 }`}

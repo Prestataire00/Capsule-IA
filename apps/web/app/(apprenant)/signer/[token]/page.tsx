@@ -64,7 +64,7 @@ function FullScreenMessage({
   );
 }
 
-export default async function SignerPage({ params }: { params: { token: string } }) {
+export default async function SignerPage({ params, searchParams }: { params: { token: string }; searchParams: { sortie?: string } }) {
   const verified = await verifySignatureToken(params.token);
   if (!verified.ok) {
     return verified.error === 'expired_token' ? (
@@ -126,16 +126,17 @@ export default async function SignerPage({ params }: { params: { token: string }
       : null;
   const ficheUrl = fiche?.statut === 'a_remplir' ? fiche.url : null;
 
-  // Terminé : pas d'accès à l'espace depuis cette page, qui s'ouvre avec le seul lien.
-  if (row.entry_signed_at && (signerKind === 'trainer' || row.exit_signed_at)) {
+  // Terminé : l'entrée suffit (2026-10-08) ; la sortie reste possible sur demande.
+  const veutSortie = searchParams.sortie === '1' && signerKind === 'learner' && !row.exit_signed_at;
+  if (row.entry_signed_at && !veutSortie) {
     return (
       <FullScreenMessage
         tone="success"
         icon={<Check className="w-8 h-8" />}
-        title="Émargement complet"
+        title="Présence enregistrée"
         description={
           <>
-            Entrée signée le {date(row.entry_signed_at)}
+            Signée le {date(row.entry_signed_at)}. Une signature par demi-journée suffit.
             {row.exit_signed_at && (
               <>
                 <br />
@@ -150,6 +151,14 @@ export default async function SignerPage({ params }: { params: { token: string }
                   className="mt-5 inline-flex items-center h-11 px-5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[14px] font-semibold"
                 >
                   Remplir ma fiche de positionnement
+                </a>
+              </>
+            )}
+            {signerKind === 'learner' && !row.exit_signed_at && (
+              <>
+                <br />
+                <a href="?sortie=1" className="mt-4 inline-block text-[12px] text-zinc-500 underline underline-offset-2">
+                  Vous partez avant la fin ? Signez votre sortie
                 </a>
               </>
             )}

@@ -2,10 +2,11 @@
  * État d'émargement d'un participant sur une demi-journée, et feuille prête à
  * être clôturée. Pur : même règle pour l'écran, la clôture et le PDF.
  *
- * Un apprenant est « complet » quand il a signé son entrée ET sa sortie (ou
- * qu'un départ anticipé est constaté), ou quand l'équipe / Zoom atteste sa
- * présence pour la demi-journée. Un absent, excusé ou non, est traité.
- * Le formateur signe une fois.
+ * Une signature par demi-journée atteste la présence (décision d'Ismael, le
+ * 2026-10-08) : un apprenant est « complet » dès qu'il a signé son entrée, ou
+ * que l'équipe / Zoom atteste sa présence. La sortie reste possible (départ
+ * anticipé, sortie signée) sans être exigée. Un absent, excusé ou non, est
+ * traité. Le formateur signe une fois.
  */
 
 export type AttendanceStatus = 'present' | 'absent' | 'absent_justified' | 'late' | 'remote';
@@ -42,7 +43,7 @@ export function participantState(kind: 'learner' | 'trainer', f: SignatureFacts 
   if (f.status === 'absent_justified') return 'excuse';
   const signe = isSelfSigned(f);
   if (kind === 'trainer') return signe || isAttested(f) ? 'complet' : 'a_signer';
-  if (signe) return f.exitSignedAt || f.earlyDeparture ? 'complet' : 'entree_seule';
+  if (signe) return 'complet';
   return isAttested(f) ? 'complet' : 'a_signer';
 }
 

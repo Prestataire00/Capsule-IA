@@ -147,22 +147,18 @@ export function SignerForm({
       <div className="flex-1 flex flex-col items-center px-4 py-10">
         <div className="w-full max-w-[480px]">
           {entete}
-          <InfoCallout tone="info" className="mb-5">
-            Entrée enregistrée à <strong>{etat.heure}</strong>
-            {etat.retard ? ` (arrivée notée à ${etat.retard})` : ''}. Revenez sur ce même lien à la fin de la demi-journée ({finPrevue}) pour
-            signer votre sortie.
+          <InfoCallout tone="success" className="mb-5">
+            Présence enregistrée à <strong>{etat.heure}</strong>
+            {etat.retard ? ` (arrivée notée à ${etat.retard})` : ''}. C’est tout : une signature par demi-journée suffit. Vous partez avant la fin
+            ({finPrevue}) ? Signez votre sortie avec ce même lien.
           </InfoCallout>
           {etat.ficheUrl && <FicheAPresenter url={etat.ficheUrl} redirection />}
           <button
             type="button"
             onClick={() => setEtat({ nom: 'signature', moment: 'exit' })}
-            className={
-              etat.ficheUrl
-                ? 'w-full h-11 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 text-[13px] font-medium px-4 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition'
-                : 'w-full h-11 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 rounded-lg shadow-sm shadow-orange-600/30 ring-1 ring-inset ring-white/10 transition'
-            }
+            className="w-full h-11 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 text-[13px] font-medium px-4 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
           >
-            Signer ma sortie
+            Je pars plus tôt : signer ma sortie
           </button>
         </div>
       </div>
@@ -245,7 +241,7 @@ export function SignerForm({
         <InfoCallout tone="info" className="mb-5">
           {unSeulTemps
             ? 'Vous signez la feuille de présence en tant que formateur.'
-            : 'Vous signez à l’arrivée, puis à la fin de la demi-journée avec ce même lien.'}{' '}
+            : 'Une signature à votre arrivée suffit pour la demi-journée.'}{' '}
           Pour servir de preuve, {context.organizationName} conserve l’heure de chaque signature, l’adresse IP et le navigateur utilisés, pendant
           la durée d’archivage des formations (5 ans).
         </InfoCallout>

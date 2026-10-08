@@ -767,7 +767,7 @@ export function emargementLinkEmail(data: EmargementLinkData): { subject: string
       <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">${escapeHtml(data.halfDayLabel)} du ${escapeHtml(data.dateLabel)}</h1>
       <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
         Bonjour ${escapeHtml(data.firstName)}, signez votre présence à <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong> :
-        à votre arrivée, puis à la fin de la demi-journée, avec ce même lien.
+        une signature à votre arrivée suffit pour la demi-journée.
       </p>
       <table style="width:100%; border-collapse:collapse; border-top:1px solid #f4f4f5;">
         ${dataRow('Horaire', `${escapeHtml(data.start)} – ${escapeHtml(data.end)}`)}
