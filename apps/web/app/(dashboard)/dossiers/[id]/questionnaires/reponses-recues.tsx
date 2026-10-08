@@ -25,19 +25,28 @@ const virgule = (n: number) => String(n).replace('.', ',');
  * moyennes des notes, la répartition des choix, et chaque commentaire avec
  * son auteur (demande d'Ismael, 2026-10-08).
  */
-export async function ReponsesRecues({ sb, dossierId }: { sb: SupabaseClient; dossierId: string }) {
+const COLONNES =
+  'id, answers, submitted_at, template_id, template:questionnaire_templates(title, schema), assignment:questionnaire_assignments(recipient_name, recipient_kind, session_id, learner:learners(first_name, last_name))';
+// Filtrer sur la séance de l'assignation impose la jointure interne.
+const COLONNES_SEANCE = COLONNES.replace('questionnaire_assignments(', 'questionnaire_assignments!inner(');
+
+/** D'un dossier, ou d'une séance (ses dossiers, et ce qu'on a envoyé pour elle seule). */
+export async function ReponsesRecues({ sb, dossierId, dossierIds, sessionId }: { sb: SupabaseClient; dossierId?: string; dossierIds?: readonly string[]; sessionId?: string }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = sb as unknown as SupabaseClient<any, any, any>;
-  const { data, error } = await db
-    .schema('app')
-    .from('questionnaire_responses')
-    .select(
-      'id, answers, submitted_at, template_id, template:questionnaire_templates(title, schema), assignment:questionnaire_assignments(recipient_name, recipient_kind, learner:learners(first_name, last_name))',
-    )
-    .eq('dossier_id', dossierId)
-    .order('submitted_at', { ascending: false });
-  if (error) throw new Error(`[questionnaires] réponses du dossier illisibles : ${error.message}`);
-  const lignes = (data ?? []) as unknown as Ligne[];
+  const dossiers = dossierId ? [dossierId] : [...(dossierIds ?? [])];
+  const [parDossier, parSeance] = await Promise.all([
+    dossiers.length
+      ? db.schema('app').from('questionnaire_responses').select(COLONNES).in('dossier_id', dossiers).order('submitted_at', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    sessionId
+      ? db.schema('app').from('questionnaire_responses').select(COLONNES_SEANCE).eq('assignment.session_id', sessionId).order('submitted_at', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const erreur = parDossier.error ?? parSeance.error;
+  if (erreur) throw new Error(`[questionnaires] réponses illisibles : ${erreur.message}`);
+  const vues = new Set<string>();
+  const lignes = ([...(parDossier.data ?? []), ...(parSeance.data ?? [])] as unknown as Ligne[]).filter((l) => !vues.has(l.id) && vues.add(l.id));
 
   const parModele = new Map<string, Ligne[]>();
   for (const l of lignes) parModele.set(l.template_id, [...(parModele.get(l.template_id) ?? []), l]);

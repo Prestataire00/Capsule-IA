@@ -12,6 +12,7 @@ import { ACCENTS, AccentBar } from '@/shared/ui/kpi-card';
 import { unlinkDossierFromSession } from './actions';
 import { SessionForm, GenerateMeetButton } from './_components/session-form';
 import { ImportPlanning } from './import-planning.client';
+import { compteursDesSeances } from '@/features/attendance/compteurs-des-seances';
 
 const STATUS: Record<string, { label: string; tone: 'info' | 'success' | 'neutral' | 'danger' }> = {
   planned: { label: 'Planifiée', tone: 'info' },
@@ -21,7 +22,7 @@ const STATUS: Record<string, { label: string; tone: 'info' | 'success' | 'neutra
 };
 const MODALITY_LABEL: Record<string, string> = { presentiel: 'Présentiel', distanciel: 'Distanciel', hybride: 'Hybride' };
 
-const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_150px_72px_minmax(0,1.4fr)_104px_minmax(0,1.1fr)] gap-4 px-5';
+const ROW_GRID = 'grid grid-cols-[minmax(0,2fr)_150px_72px_minmax(0,1.3fr)_150px_104px_minmax(0,1fr)] gap-4 px-5';
 
 export default async function SessionsPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
@@ -72,6 +73,8 @@ export default async function SessionsPage({ params }: { params: { id: string } 
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (sessions as any[]) ?? [];
+  // Le récapitulatif d'émargement de chaque séance (demande d'Ismael, 2026-10-08).
+  const emargements = await compteursDesSeances(rows.filter((s) => s.status !== 'cancelled').map((s) => s.id as string));
   // Quelle séance est pour quel groupe : sans cette ligne, la liste ne le
   // disait pas — et le titre, seul endroit où le groupe se lisait jusqu'ici,
   // n'est qu'un texte libre qu'on peut oublier de renseigner.
@@ -113,12 +116,13 @@ export default async function SessionsPage({ params }: { params: { id: string } 
 
       {rows.length > 0 && (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
-          <div className="min-w-[860px]">
+          <div className="min-w-[1000px]">
             <div className={`${ROW_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
               <div>Session</div>
               <div>Dates</div>
               <div>Durée</div>
               <div>Modalité</div>
+              <div>Émargement</div>
               <div>Statut</div>
               <div className="text-right">Actions</div>
             </div>
@@ -178,6 +182,32 @@ export default async function SessionsPage({ params }: { params: { id: string } 
                           Rejoindre la visio <ArrowUpRight className="w-3 h-3" />
                         </a>
                       )}
+                    </div>
+
+                    <div>
+                      {(() => {
+                        const c = emargements.get(s.id);
+                        if (!c || c.attendues === 0) return <span className="text-[12px] text-zinc-400">—</span>;
+                        return (
+                          <Link href={`/sessions/${s.id}/emargements`} className="block group" title={`Entrées ${c.entrees.recues}/${c.entrees.attendues} · Sorties ${c.sorties.recues}/${c.sorties.attendues}`}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-[13px] font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 group-hover:underline">
+                                {c.recues}/{c.attendues}
+                              </span>
+                              <span
+                                className={`inline-flex items-center h-5 px-1.5 rounded-full text-[11px] font-medium ${
+                                  c.complet ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                }`}
+                              >
+                                {c.complet ? 'Complet' : `${c.manquants} incompl.`}
+                              </span>
+                            </span>
+                            <span className="mt-1 block h-1.5 w-28 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden" aria-hidden>
+                              <span className={`block h-full rounded-full ${c.complet ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.round((c.recues / c.attendues) * 100)}%` }} />
+                            </span>
+                          </Link>
+                        );
+                      })()}
                     </div>
 
                     <div>

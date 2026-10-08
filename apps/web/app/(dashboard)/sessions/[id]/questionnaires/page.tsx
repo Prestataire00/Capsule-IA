@@ -22,6 +22,7 @@ import {
 import { programmationsDeLaSeance } from '@/features/questionnaire/questionnaires-de-seance';
 import { QuestionnairesSeance, type LigneQuestionnaire } from './questionnaires-seance.client';
 import { AdapterFiche } from './adapter-fiche.client';
+import { ReponsesRecues } from '@/app/(dashboard)/dossiers/[id]/questionnaires/reponses-recues';
 import { questionsDuSchema } from '@/features/questionnaire/fiche-besoin';
 import { codeFicheDeSeance, estFicheDeSeance } from '@/features/questionnaire/fiche-de-seance';
 
@@ -151,6 +152,7 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
           </Link>
         </div>
       </div>
+      <ReponsesRecues sb={sb as never} dossierIds={dossierIds} sessionId={params.id} />
       <AdapterFiche
         sessionId={params.id}
         formation={formation?.title ?? session.title ?? null}
