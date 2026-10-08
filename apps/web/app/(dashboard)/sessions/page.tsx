@@ -354,6 +354,12 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
       return a.isPast ? tb - ta : ta - tb;
     });
 
+  // Les séances du jour, en tête : le jour J, on clique directement dessus.
+  const aujourdhui = dateFmt.format(new Date(now));
+  const duJour = searched
+    .filter((s) => s.status !== 'cancelled' && dateFmt.format(new Date(s.starts_at)) === aujourdhui)
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+
   // ── Synthèse et graphiques (sur les sessions affichées) ──
   const formationKey = (s: (typeof all)[number]) => s.formation?.id ?? '__hors';
   const labelOf = (k: string) => (k === '__hors' ? 'Hors formation' : formationsById.get(k)?.title ?? 'Formation');
@@ -547,6 +553,58 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
           Impossible de charger les sessions pour le moment (erreur base de données). Réessayez dans un instant ;
           si le problème persiste, contactez le support.
         </div>
+      )}
+
+      {duJour.length > 0 && (
+        <section aria-label="Sessions du jour" className="mb-5 rounded-xl border border-blue-200/80 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+          <h2 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-blue-800 dark:text-blue-300">
+            <CalendarClock className="w-4 h-4" aria-hidden /> Aujourd’hui · <span className="tabular-nums">{duJour.length}</span> session{duJour.length > 1 ? 's' : ''}
+          </h2>
+          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {duJour.map((s) => {
+              const debut = new Date(s.starts_at);
+              const fin = new Date(s.ends_at);
+              const enCours = debut.getTime() <= now && fin.getTime() >= now;
+              return (
+                <li key={s.id} className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition p-3.5 flex flex-col gap-2">
+                  <Link href={`/sessions/${s.id}`} className="min-w-0 group">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: s.color }} />
+                      <span className="truncate text-[15px] font-semibold group-hover:underline" style={{ color: deepColor(s.color) }}>
+                        {s.formation?.title ?? s.title ?? 'Session'}
+                      </span>
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-zinc-600 dark:text-zinc-400">
+                      <span className="tabular-nums font-medium text-blue-700 dark:text-blue-300">
+                        {timeFmt.format(debut)} – {timeFmt.format(fin)}
+                      </span>
+                      {enCours && <span className="inline-flex items-center h-5 px-1.5 rounded-full text-[11px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">en cours</span>}
+                      {s.isPast && <span className="inline-flex items-center h-5 px-1.5 rounded-full text-[11px] bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">terminée</span>}
+                      <span className="inline-flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5" aria-hidden /> <span className="tabular-nums">{s.learnerCount}</span>
+                      </span>
+                      {s.location && <span className="truncate max-w-[180px]">{s.location}</span>}
+                    </span>
+                  </Link>
+                  <span className="flex gap-2">
+                    <Link
+                      href={`/sessions/${s.id}/emargements`}
+                      className="h-8 px-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium inline-flex items-center gap-1.5 shadow-sm"
+                    >
+                      <ClipboardCheck className="w-3.5 h-3.5" aria-hidden /> Émargement
+                    </Link>
+                    <Link
+                      href={`/sessions/${s.id}`}
+                      className="h-8 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 inline-flex items-center gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5" aria-hidden /> Ouvrir
+                    </Link>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {filtered.length === 0 ? (
