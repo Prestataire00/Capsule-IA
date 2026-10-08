@@ -13,6 +13,7 @@ import { AssignLearner } from './assign-learner';
 import { SendTrainer } from './send-trainer';
 import { SendCompany } from './send-company';
 import { SuiviEnvois } from './suivi-envois';
+import { ReponsesRecues } from './reponses-recues';
 
 // Types de questionnaires affectables à un apprenant (le financeur a son propre flux).
 const LEARNER_KINDS = new Set([
@@ -81,6 +82,8 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
 
   return (
     <div className="space-y-10">
+      <ReponsesRecues sb={sb as never} dossierId={params.id} />
+
       <SuiviEnvois dossierId={params.id} envois={suivi.envois} courriels={suivi.courriels} />
 
       <div className="space-y-4">

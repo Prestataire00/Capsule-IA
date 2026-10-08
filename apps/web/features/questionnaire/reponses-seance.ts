@@ -47,3 +47,26 @@ export function syntheseDesReponses(
   }
   return out;
 }
+
+export type StatistiqueQuestion =
+  | { question: Question; genre: 'note'; moyenne: number; max: number; n: number }
+  | { question: Question; genre: 'choix'; repartition: Array<[string, number]>; n: number }
+  | { question: Question; genre: 'texte'; n: number };
+
+/** Par question : la moyenne d'une note, la répartition d'un choix, le nombre de commentaires. */
+export function statistiquesDesReponses(questions: readonly Question[], reponses: ReadonlyArray<Record<string, unknown>>): StatistiqueQuestion[] {
+  return questions.map((q) => {
+    const valeurs = reponses.map((r) => r[q.id]).filter((v) => v !== undefined && v !== null && v !== '');
+    if (q.type === 'rating' || q.type === 'nps') {
+      const nombres = valeurs.map(Number).filter((n) => Number.isFinite(n));
+      const moyenne = nombres.length ? arrondi(nombres.reduce((s, n) => s + n, 0) / nombres.length) : 0;
+      return { question: q, genre: 'note' as const, moyenne, max: q.type === 'nps' ? 10 : q.max, n: nombres.length };
+    }
+    if (q.type === 'choice') {
+      const compte = new Map<string, number>();
+      for (const v of valeurs) for (const o of Array.isArray(v) ? v : [v]) compte.set(String(o), (compte.get(String(o)) ?? 0) + 1);
+      return { question: q, genre: 'choix' as const, repartition: [...compte.entries()].sort((a, b) => b[1] - a[1]), n: valeurs.length };
+    }
+    return { question: q, genre: 'texte' as const, n: valeurs.length };
+  });
+}

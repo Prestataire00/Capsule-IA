@@ -79,6 +79,16 @@ export const ficheBesoinRemplie = (r: ReponsesFicheBesoin | null | undefined): b
  * posée par le code. L'écran de saisie ne lisait que la première : la fiche
  * besoin y était donc inutilisable.
  */
+/** Les questions du questionnaire de satisfaction intégré, posé par le code sans libellés. */
+const LIBELLES_INTEGRES: Record<string, string> = {
+  nps: 'Recommanderiez-vous cette formation ?',
+  overallRating: 'Satisfaction globale',
+  pedagogyRating: 'Qualité pédagogique',
+  organizationRating: 'Organisation',
+  whatWorked: 'Ce qui a bien fonctionné',
+  whatToImprove: 'Ce qui serait à améliorer',
+};
+
 export function questionsDuSchema(schema: unknown): Question[] {
   const s = (schema ?? {}) as { questions?: unknown; fields?: unknown };
 
@@ -90,7 +100,7 @@ export function questionsDuSchema(schema: unknown): Question[] {
       const connu = CHAMPS_FICHE_BESOIN.find((c) => c.cle === f.key);
       const id = f.key ?? '';
       if (id === '') continue;
-      const label = f.label ?? connu?.label ?? id;
+      const label = f.label ?? connu?.label ?? LIBELLES_INTEGRES[id] ?? id;
       const required = connu?.requis ?? false;
       if (f.kind === 'nps') out.push({ id, type: 'nps', label, required });
       else if (f.kind === 'rating_5' || f.kind === 'rating') out.push({ id, type: 'rating', label, required, max: 5 });
