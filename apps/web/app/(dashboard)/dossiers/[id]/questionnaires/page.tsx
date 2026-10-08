@@ -8,6 +8,8 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { ACCENTS, type Accent } from '@/shared/ui/kpi-card';
 import { loadSuiviEnvois } from '@/features/questionnaire/suivi-envois-store';
+import { modeleSatisfaction } from '@/features/questionnaire/satisfaction';
+import { apprenantsDuDossier } from '@/features/questionnaire/envoyer-a-un-apprenant';
 import { SendFunder } from './send-funder';
 import { AssignLearner } from './assign-learner';
 import { SendTrainer } from './send-trainer';
@@ -41,13 +43,19 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
         .from('dossier_trainers')
         .select('trainer:trainers(id, first_name, last_name, email)')
         .eq('dossier_id', params.id),
-      sb.schema('app').from('dossiers').select('company_id').eq('id', params.id).maybeSingle(),
+      sb.schema('app').from('dossiers').select('company_id, organization_id').eq('id', params.id).maybeSingle(),
       loadSuiviEnvois(sb, params.id),
     ]);
 
-  const templates = ((tplData as { id: string; title: string; kind: string }[] | null) ?? []).filter((t) =>
-    LEARNER_KINDS.has(t.kind),
-  );
+  // Le questionnaire de satisfaction de l'organisme en tête : c'est lui qu'on renvoie le plus souvent.
+  const organizationId = (dossierRow as { organization_id: string } | null)?.organization_id ?? null;
+  const satisfaction = organizationId ? await modeleSatisfaction(sb as never, organizationId) : null;
+  const templates = ((tplData as { id: string; title: string; kind: string }[] | null) ?? [])
+    .filter((t) => LEARNER_KINDS.has(t.kind))
+    .sort((a, b) => Number(b.id === satisfaction?.id) - Number(a.id === satisfaction?.id));
+
+  // Tous les stagiaires du dossier (groupe compris), pour viser l'un d'eux.
+  const apprenants = await apprenantsDuDossier(params.id);
 
   const funders = ((funderLinks as { funder: { id: string; name: string } | null }[] | null) ?? [])
     .map((l) => l.funder)
@@ -90,7 +98,7 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
         <SectionLabel>Envoyer un questionnaire</SectionLabel>
         <div className="grid gap-4 lg:grid-cols-2">
           <Envoi titre="Apprenants" icon={UserRound} accent="rose">
-            <AssignLearner dossierId={params.id} templates={templates} />
+            <AssignLearner dossierId={params.id} templates={templates} apprenants={apprenants} />
           </Envoi>
           <Envoi
             titre="Entreprise"

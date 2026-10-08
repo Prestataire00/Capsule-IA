@@ -1,6 +1,7 @@
 // ARCHETYPE: command
 // Justification: conformité Qualiopi réelle par indicateur + actions de transition gardées.
 
+import { apprenantsDuDossier } from '@/features/questionnaire/envoyer-a-un-apprenant';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Check, X, ShieldCheck, ShieldAlert, ArrowRight, Minus } from 'lucide-react';
@@ -38,6 +39,7 @@ type RefRow = VersionRow & { id: string; number: number; title: string; criterio
 
 export default async function QualiopiPage({ params }: { params: { id: string } }) {
   const sb = supabaseServer();
+  const apprenants = await apprenantsDuDossier(params.id);
 
   const { data: dossier, error: erreurLecture } = await sb
     .schema('app').from('dossiers')
@@ -222,7 +224,7 @@ export default async function QualiopiPage({ params }: { params: { id: string } 
                   <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-0.5">{g.todo}</p>
                   <div className="mt-2">
                     {inlineQuestionnaire ? (
-                      <AssignLearner dossierId={params.id} templates={qstTemplates!} />
+                      <AssignLearner dossierId={params.id} templates={qstTemplates!} apprenants={apprenants} />
                     ) : (
                       <Link
                         href={g.href ?? `/dossiers/${params.id}/${g.tab}`}

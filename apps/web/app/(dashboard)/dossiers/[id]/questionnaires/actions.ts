@@ -8,6 +8,7 @@ import { generateQuestionnaireToken } from '@/shared/lib/questionnaire-token';
 import { generateTrainerSatisfactionUrl } from '@/shared/lib/trainer-satisfaction-token';
 import { ensureTrainerSatisfactionTemplate } from '@/features/questionnaire/satisfaction-formateur';
 import { ensureCompanySatisfactionTemplate } from '@/features/questionnaire/satisfaction-entreprise';
+import { envoyerQuestionnaireAUnApprenant } from '@/features/questionnaire/envoyer-a-un-apprenant';
 import { trainerSatisfactionEmail } from '@/shared/lib/email/trainer-satisfaction-email';
 import { questionnaireEmail } from '@/shared/lib/email/questionnaire-email';
 import { sendEmail } from '@/shared/lib/email/resend';
@@ -82,6 +83,29 @@ export const assignLearnerQuestionnaire = authActionClient
 
     revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
     return { ok: true as const };
+  });
+
+const EnvoiApprenantSchema = z.object({
+  dossierId: z.string().uuid(),
+  learnerId: z.string().uuid(),
+  templateId: z.string().uuid(),
+});
+
+/** Un questionnaire à un apprenant précis du dossier : par e-mail, et le lien en retour. */
+export const envoyerQuestionnaireApprenant = authActionClient
+  .schema(EnvoiApprenantSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    // Le dossier lu sous les droits du membre : c'est sa preuve d'accès.
+    const { data: dossier } = await ctx.supabase.schema('app').from('dossiers').select('id, organization_id').eq('id', parsedInput.dossierId).maybeSingle();
+    if (!dossier) return { ok: false as const, error: 'dossier_not_found' };
+    const r = await envoyerQuestionnaireAUnApprenant(adminClient() as never, {
+      organizationId: (dossier as { organization_id: string }).organization_id,
+      dossierId: parsedInput.dossierId,
+      learnerId: parsedInput.learnerId,
+      templateId: parsedInput.templateId,
+    });
+    if (r.ok) revalidatePath(`/dossiers/${parsedInput.dossierId}/questionnaires`);
+    return r;
   });
 
 export const sendFunderQuestionnaire = authActionClient
