@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Check, Download, FileText, Loader2, MonitorPlay, PenLine, RefreshCw, Send, Sun, Sunset, Users, X } from 'lucide-react';
 import type { ParticipantRow, SheetView } from '@/features/attendance/queries/load-session-emargement';
 import { attendanceErrorLabel } from '@/features/attendance/schemas';
+import { additionner, compteurSignatures, type Compteur } from '@/features/attendance/compteur-signatures';
 import { markAllPresent, markAttendance, sendSheetLinksAction } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/actions';
 import { MarqueurPresence, SignatureTablette } from '@/app/(dashboard)/dossiers/[id]/emargements/[sessionId]/sheet-grid';
 
@@ -22,6 +23,36 @@ const heure = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).format(new Date(iso)) : null;
 
 type Tablette = { sheetId: string; participant: ParticipantRow; moment: 'entry' | 'exit' } | null;
+
+/** « 12 / 18 signatures », barre, et Complet ou ce qui manque. Se met à jour avec la feuille. */
+function Indicateur({ c, titre }: { c: Compteur; titre?: string }) {
+  if (c.attendues === 0) return null;
+  const pct = Math.round((c.recues / c.attendues) * 100);
+  return (
+    <div className={`rounded-lg px-2.5 py-2 text-left ${c.complet ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-amber-50 dark:bg-amber-950/20'}`}>
+      {titre && <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{titre}</p>}
+      <p className="flex items-baseline justify-between gap-2">
+        <span className="text-[15px] font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+          {c.recues} <span className="text-[12px] font-normal text-zinc-500">/ {c.attendues} signatures</span>
+        </span>
+        <span
+          className={`shrink-0 inline-flex items-center h-5 px-1.5 rounded-full text-[11px] font-medium ${
+            c.complet ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+          }`}
+        >
+          {c.complet ? 'Complet' : `${c.manquants} incomplet${c.manquants > 1 ? 's' : ''}`}
+        </span>
+      </p>
+      <span className="mt-1.5 block h-1.5 rounded-full bg-white/70 dark:bg-zinc-800 overflow-hidden" aria-hidden>
+        <span className={`block h-full rounded-full ${c.complet ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
+      </span>
+      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+        Entrées {c.entrees.recues}/{c.entrees.attendues}
+        {c.sorties.attendues > 0 && ` · Sorties ${c.sorties.recues}/${c.sorties.attendues}`}
+      </p>
+    </div>
+  );
+}
 
 function Case({ p, vignette }: { p: ParticipantRow | undefined; vignette: string | null }) {
   if (!p) return <span className="text-[12px] text-zinc-300 dark:text-zinc-600">—</span>;
@@ -83,6 +114,8 @@ export function AttendanceMatrix({
     return [...tous.filter(([, p]) => p.kind === 'learner'), ...tous.filter(([, p]) => p.kind === 'trainer')];
   }, [sheets]);
   const cellule = (sheet: SheetView, cle: string) => sheet.participants.find((p) => `${p.kind}:${p.id}` === cle);
+  const compteurs = new Map(sheets.map((s) => [s.id, compteurSignatures(s.participants)]));
+  const total = additionner([...compteurs.values()]);
 
   // Les signatures par e-mail ou par QR arrivent pendant que la page est ouverte :
   // elle se met à jour seule, sauf quand on est en train de saisir.
@@ -140,6 +173,12 @@ export function AttendanceMatrix({
         </div>
       </header>
 
+      {sheets.length > 1 && total.attendues > 0 && (
+        <div className="mx-5 mt-4 max-w-sm">
+          <Indicateur c={total} titre="Toute la séance" />
+        </div>
+      )}
+
       {message && (
         <p role="status" className={`mx-5 mt-4 text-[13px] ${message.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-300'}`}>
           {message.texte}
@@ -163,6 +202,7 @@ export function AttendanceMatrix({
                       <p className="text-[12px] text-zinc-500 tabular-nums">
                         {heure(s.windowStart)} – {heure(s.windowEnd)}
                       </p>
+                      {compteurs.get(s.id) && <Indicateur c={compteurs.get(s.id) as Compteur} />}
                       {s.finalized ? (
                         <p className="text-[12px] font-medium text-zinc-600 dark:text-zinc-300">Feuille clôturée</p>
                       ) : (
