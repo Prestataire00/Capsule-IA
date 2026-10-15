@@ -603,7 +603,13 @@ export default async function FacturationPage({
                   {formatEuros(inv.total_cents, inv.currency)}
                 </span>
                 <StatusPill tone={statusTone[inv.status]}>{statusLabel[inv.status]}</StatusPill>
-                <InvoiceActions invoiceId={inv.id} pdfUrl={`/api/invoices/${inv.id}/facture.pdf`} />
+                <InvoiceActions
+                  invoiceId={inv.id}
+                  pdfUrl={`/api/invoices/${inv.id}/facture.pdf`}
+                  status={inv.status}
+                  reference={inv.reference}
+                  canDelete={me.role === 'owner' || me.role === 'admin'}
+                />
               </li>
             ))}
           </ul>

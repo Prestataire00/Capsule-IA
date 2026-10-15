@@ -26,6 +26,7 @@ import {
 import { buildInvoicePdf, loadInvoiceHeader } from '@/features/billing/invoices/invoice-pdf';
 import { createCreditNote, creditedCents } from '@/features/billing/invoices/credit-notes';
 import { sendInvoiceReminder } from '@/features/billing/invoices/reminders';
+import { peutSupprimerFacture } from '@/features/billing/domain/suppression-facture';
 
 const admin = () => supabaseAdmin() as unknown as SupabaseClient;
 
@@ -434,5 +435,67 @@ export async function setAutoPaymentReminders(enabled: boolean): Promise<Invoice
     .eq('id', me.organizationId);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/factures');
+  return { ok: true };
+}
+
+/**
+ * Supprime une facture — et les avoirs qui l'annulent, et leurs PDF archivés.
+ * Réservé au propriétaire et aux administrateurs : une facture émise retirée
+ * laisse un trou dans la numérotation, admis pour une donnée de test seulement
+ * (voir suppression-facture.ts). Suppression logique : le journal d'audit des
+ * factures garde la trace de qui l'a retirée et quand.
+ */
+export async function deleteInvoice(invoiceId: string, confirmation: string | null): Promise<InvoiceMutationResult> {
+  const me = await getCurrentMember();
+  if (!me || (me.role !== 'owner' && me.role !== 'admin')) return { ok: false, error: 'forbidden' };
+  if (!z.string().uuid().safeParse(invoiceId).success) return { ok: false, error: 'not_found' };
+
+  const sb = admin();
+  const { data: row } = await sb
+    .schema('app')
+    .from('invoices')
+    .select('id, reference, status, dossier_id')
+    .eq('id', invoiceId)
+    .eq('organization_id', me.organizationId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  const inv = row as { id: string; reference: string; status: string; dossier_id: string | null } | null;
+  if (!inv) return { ok: false, error: 'not_found' };
+
+  const garde = peutSupprimerFacture(
+    { reference: inv.reference, status: inv.status, provisoire: isProvisionalReference(inv.reference) },
+    confirmation,
+  );
+  if (!garde.ok) return { ok: false, error: garde.error };
+
+  const { data: avoirs } = await sb
+    .schema('app')
+    .from('invoices')
+    .select('id')
+    .eq('related_invoice_id', inv.id)
+    .eq('organization_id', me.organizationId)
+    .is('deleted_at', null);
+  const ids = [inv.id, ...((avoirs ?? []) as Array<{ id: string }>).map((a) => a.id)];
+  const maintenant = new Date().toISOString();
+
+  const { error } = await sb
+    .schema('app')
+    .from('invoices')
+    .update({ deleted_at: maintenant, updated_at: maintenant } as never)
+    .in('id', ids)
+    .eq('organization_id', me.organizationId);
+  if (error) return { ok: false, error: error.message };
+
+  const { error: docErr } = await sb
+    .schema('app')
+    .from('documents')
+    .update({ deleted_at: maintenant, updated_at: maintenant } as never)
+    .eq('organization_id', me.organizationId)
+    .in('source_key', ids.map((id) => `invoice:${id}`))
+    .is('deleted_at', null);
+  if (docErr) console.error('[facture] PDF archivé non retiré', inv.id, docErr.message);
+
+  revalidatePath('/factures');
+  if (inv.dossier_id) revalidatePath(`/dossiers/${inv.dossier_id}/facturation`);
   return { ok: true };
 }

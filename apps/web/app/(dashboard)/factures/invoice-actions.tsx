@@ -6,6 +6,7 @@ import { Mail, Check, Loader2, AlertCircle, FileText, BellRing } from 'lucide-re
 import { sendInvoiceByEmail, sendPaymentReminder } from './actions';
 import { PaymentButton } from './payment-button.client';
 import { CreditNoteButton } from './credit-note-button.client';
+import { DeleteInvoiceButton } from './delete-invoice-button.client';
 
 type SendState =
   | { status: 'idle' }
@@ -25,6 +26,7 @@ export function InvoiceActions({
   kind,
   reference,
   creditableCents,
+  canDelete = false,
 }: {
   invoiceId: string;
   pdfUrl?: string;
@@ -36,6 +38,8 @@ export function InvoiceActions({
   reference?: string;
   /** TTC encore créditable : affiche le bouton « avoir » sur une facture émise. */
   creditableCents?: number;
+  /** Propriétaire ou administrateur : affiche la suppression (données de test). */
+  canDelete?: boolean;
 }) {
   const [send, setSend] = useState<SendState>({ status: 'idle' });
   const [remind, setRemind] = useState<SendState>({ status: 'idle' });
@@ -154,6 +158,8 @@ export function InvoiceActions({
           )}
         </button>
       )}
+
+      {canDelete && status && reference && <DeleteInvoiceButton invoiceId={invoiceId} reference={reference} status={status} />}
     </div>
   );
 }

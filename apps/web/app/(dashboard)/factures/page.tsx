@@ -298,6 +298,7 @@ export default async function FacturesPage({
                 kind={inv.kind}
                 reference={inv.reference}
                 creditableCents={Math.max(0, inv.total_cents - inv.credited_cents)}
+                canDelete={me.role === 'owner' || me.role === 'admin'}
               />
             </li>
           ))}
