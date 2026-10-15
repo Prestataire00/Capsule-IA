@@ -8,6 +8,7 @@ import { SignatureStampSection } from './signature-stamp-section';
 import { IdentitySection } from './identity-section';
 import { AttendanceSettings } from './attendance-settings';
 import { formaterIban } from '@/shared/lib/iban';
+import { typeDuChemin } from '@/features/documents/rib-organisme';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,11 +65,11 @@ export default async function ParametresOrganisationPage() {
   const { data: banque } = await sb
     .schema('app')
     .from('organizations')
-    .select('bank_iban, bank_bic, bank_name' as never)
+    .select('bank_iban, bank_bic, bank_name, rib_path' as never)
     .is('deleted_at', null)
     .limit(1)
     .maybeSingle();
-  const b = banque as { bank_iban?: string | null; bank_bic?: string | null; bank_name?: string | null } | null;
+  const b = banque as { bank_iban?: string | null; bank_bic?: string | null; bank_name?: string | null; rib_path?: string | null } | null;
   const r = reglage as { attendance_auto_send?: boolean; attendance_lunch_start?: string; attendance_lunch_end?: string } | null;
   const envoiAuto = Boolean(r?.attendance_auto_send);
 
@@ -112,6 +113,7 @@ export default async function ParametresOrganisationPage() {
           bankIban: b?.bank_iban ? formaterIban(b.bank_iban) : '',
           bankBic: b?.bank_bic ?? '',
           bankName: b?.bank_name ?? '',
+          rib: b?.rib_path ? typeDuChemin(b.rib_path) : null,
         }}
       />
 

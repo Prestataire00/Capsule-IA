@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useAction } from 'next-safe-action/hooks';
 import { Building2 } from 'lucide-react';
 import { updateOrgIdentityAction } from './identity-actions';
+import { RibDepot } from './rib-depot';
 
 type IdentityProps = {
   name: string;
@@ -24,6 +25,7 @@ type IdentityProps = {
   bankIban: string;
   bankBic: string;
   bankName: string;
+  rib: 'pdf' | 'png' | 'jpg' | null;
 };
 
 const inputCls =
@@ -253,6 +255,7 @@ export function IdentitySection(props: { org: IdentityProps }) {
 
       <div className="border-t border-zinc-200/70 dark:border-zinc-800 pt-4 space-y-3">
         <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">Coordonnées bancaires</p>
+        <RibDepot depose={form.rib} />
         <div className="grid grid-cols-3 gap-3">
           <label className={`${labelCls} col-span-3 sm:col-span-2`}>
             IBAN
@@ -274,7 +277,7 @@ export function IdentitySection(props: { org: IdentityProps }) {
           <input value={form.bankName} onChange={set('bankName')} maxLength={120} className={inputCls} placeholder="Qonto" />
         </label>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-          Imprimées sur chaque facture, sous « Règlement par virement », au nom de la raison sociale.
+          Facultatif si vous avez déposé le RIB : l’IBAN saisi s’imprime en clair sur la facture, sous « Règlement par virement », au nom de la raison sociale.
         </p>
       </div>
 

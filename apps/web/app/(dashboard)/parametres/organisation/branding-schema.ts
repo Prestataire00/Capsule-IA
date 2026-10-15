@@ -12,3 +12,10 @@ export const OrgAssetUploadSchema = z.object({
   pngBase64: z.string().min(1),
 });
 export type OrgAssetUploadInput = z.infer<typeof OrgAssetUploadSchema>;
+
+// Le RIB déposé tel quel : PDF ou image, joint en dernière page des factures.
+export const OrgRibUploadSchema = z.object({
+  type: z.enum(['pdf', 'png', 'jpg']),
+  base64: z.string().min(1),
+});
+export type OrgRibUploadInput = z.infer<typeof OrgRibUploadSchema>;

@@ -157,3 +157,18 @@ describe('le RIB de l’organisme sur la facture', () => {
     expect(texteDuPdf(await generateInvoicePDF({ ...avecRib, invoice: { ...avecRib.invoice, kind: 'credit_note' } }))).not.toContain('VIREMENT');
   });
 });
+
+describe('le RIB déposé, joint en dernière page', () => {
+  it('ajoute une page sur une facture, aucune sur un avoir', async () => {
+    const { PDFDocument } = await import('pdf-lib');
+    const ribDoc = await PDFDocument.create();
+    ribDoc.addPage([595.28, 841.89]).drawText('RIB');
+    const rib = { bytes: await ribDoc.save(), type: 'pdf' as const };
+    const facture = await PDFDocument.load(await generateInvoicePDF({ ...base, rib }));
+    const sans = await PDFDocument.load(await generateInvoicePDF(base));
+    const avoir = await PDFDocument.load(await generateInvoicePDF({ ...base, rib, invoice: { ...base.invoice, kind: 'credit_note' } }));
+    expect(facture.getPageCount()).toBe(sans.getPageCount() + 1);
+    expect(avoir.getPageCount()).toBe(sans.getPageCount());
+    expect(texteDuPdf(await generateInvoicePDF({ ...base, rib }))).toContain('joint en derni');
+  });
+});

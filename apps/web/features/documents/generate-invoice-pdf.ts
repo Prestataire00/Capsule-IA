@@ -5,6 +5,7 @@ import { BLANC, ouvrirDocument, VIOLET } from './charte-pdf';
 import { drawRgpdMention } from './pdf-rgpd';
 import { formaterSiren, formaterSiret, sirenDeSiret } from '@/shared/lib/siret';
 import { formaterIban } from '@/shared/lib/iban';
+import { ajouterRibEnAnnexe, type RibDepose } from './rib-organisme';
 
 export type InvoiceLine = {
   description: string;
@@ -58,6 +59,8 @@ export type InvoiceInput = {
   };
   lines: InvoiceLine[];
   generatedAt: Date;
+  /** Le RIB déposé par l'organisme, joint en dernière page. */
+  rib?: RibDepose | null;
 };
 
 const A4 = { width: 595.28, height: 841.89 };
@@ -326,12 +329,18 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
   // Règlement par virement : ce qu'il faut au client pour payer. Pas sur un
   // avoir, qui ne se règle pas.
   const banque = input.organization.bank;
-  if (banque && input.invoice.kind !== 'credit_note') {
+  const ribJoint = Boolean(input.rib) && input.invoice.kind !== 'credit_note';
+  if ((banque || ribJoint) && input.invoice.kind !== 'credit_note') {
     const lignes: Array<[string, string]> = [
-      ['Titulaire', banque.holder],
-      ['IBAN', formaterIban(banque.iban)],
-      ...(banque.bic ? [['BIC', banque.bic] as [string, string]] : []),
-      ...(banque.name ? [['Banque', banque.name] as [string, string]] : []),
+      ...(banque
+        ? ([
+            ['Titulaire', banque.holder],
+            ['IBAN', formaterIban(banque.iban)],
+            ...(banque.bic ? [['BIC', banque.bic]] : []),
+            ...(banque.name ? [['Banque', banque.name]] : []),
+          ] as Array<[string, string]>)
+        : []),
+      ...(ribJoint ? [['RIB', 'joint en dernière page'] as [string, string]] : []),
       ['Référence à indiquer', input.invoice.reference],
     ];
     const hauteur = 30 + lignes.length * 14;
@@ -361,6 +370,8 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
     place: input.place,
     date: input.generatedAt,
   });
+
+  if (ribJoint && input.rib) await ajouterRibEnAnnexe(doc, input.rib, { font, fontBold }, input.invoice.reference);
 
   // Footer
   const pages = doc.getPages();

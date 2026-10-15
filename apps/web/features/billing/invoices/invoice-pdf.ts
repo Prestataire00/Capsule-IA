@@ -4,6 +4,7 @@ import { generateInvoicePDF, type InvoiceInput } from '@/features/documents/gene
 import { loadOrgBranding } from '@/features/documents/load-org-branding';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
 import { isProvisionalReference } from '@/features/billing/quotes/quote-service';
+import { typeDuChemin, type RibDepose } from '@/features/documents/rib-organisme';
 
 // Rendu et destinataire d'une facture, partagés par le téléchargement et les
 // envois (facture, relance). Client service_role : l'appelant fournit
@@ -44,10 +45,22 @@ type InvoiceParties = {
  * subrogation ; sinon l'entreprise cliente, à l'attention de son responsable
  * (jamais le salarié) ; sinon le particulier lui-même.
  */
-type Banque = { legal_name: string | null; bank_iban: string | null; bank_bic: string | null; bank_name: string | null };
+type Banque = { legal_name: string | null; bank_iban: string | null; bank_bic: string | null; bank_name: string | null; rib_path?: string | null };
 
 const banqueDe = (b: Banque | null, nom: string | null): NonNullable<InvoiceInput['organization']['bank']> | null =>
   b?.bank_iban ? { holder: b.legal_name?.trim() || nom || '—', iban: b.bank_iban, bic: b.bank_bic, name: b.bank_name } : null;
+
+/** Le RIB déposé : une facture part quand même s'il est illisible. */
+async function chargerRib(sb: Sb, path: string | null): Promise<RibDepose | null> {
+  const type = path ? typeDuChemin(path) : null;
+  if (!path || !type) return null;
+  const { data, error } = await sb.storage.from('org_assets').download(path);
+  if (error || !data) {
+    console.error('[facture] RIB introuvable', path, error?.message);
+    return null;
+  }
+  return { bytes: new Uint8Array(await data.arrayBuffer()), type };
+}
 
 export async function resolveInvoiceRecipient(sb: Sb, inv: InvoiceParties): Promise<InvoiceRecipient> {
   if (inv.funder_id) {
@@ -158,7 +171,7 @@ export async function buildInvoicePdf(
   const [{ data: banqueRow }, { data: orgRow }, { data: linesRows }, { data: dossierRow }, { data: quoteRow }, recipient, branding, { data: relatedRow }] =
     await Promise.all([
       // Lues à part (0228) : une colonne absente ne doit pas priver de facture.
-      sb.schema('app').from('organizations').select('legal_name, bank_iban, bank_bic, bank_name' as never).eq('id', inv.organization_id).maybeSingle(),
+      sb.schema('app').from('organizations').select('legal_name, bank_iban, bank_bic, bank_name, rib_path' as never).eq('id', inv.organization_id).maybeSingle(),
       sb
         .schema('app')
         .from('organizations')
@@ -243,7 +256,7 @@ export async function buildInvoicePdf(
     generatedAt: new Date(),
   };
 
-  const bytes = await generateInvoicePDF(input);
+  const bytes = await generateInvoicePDF({ ...input, rib: await chargerRib(sb, (banqueRow as Banque | null)?.rib_path ?? null) });
 
   if (opts.persist && !isProvisionalReference(inv.reference)) {
     try {
