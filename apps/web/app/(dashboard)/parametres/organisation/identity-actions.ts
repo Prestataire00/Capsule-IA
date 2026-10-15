@@ -61,6 +61,9 @@ export const updateOrgIdentityAction = authActionClient
         default_vat_rate: parsedInput.vatRegime === 'subject' ? parsedInput.defaultVatRate : 0,
         // Un organisme exonéré n'a rien à opter : la mention n'aurait pas de sens.
         vat_on_debits: parsedInput.vatRegime === 'subject' ? parsedInput.vatOnDebits : false,
+        bank_iban: orNull(parsedInput.bankIban),
+        bank_bic: orNull(parsedInput.bankBic),
+        bank_name: orNull(parsedInput.bankName),
       } as never)
       .eq('id', orgId)
       .select('id');

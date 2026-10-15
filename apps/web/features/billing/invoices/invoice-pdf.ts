@@ -44,6 +44,11 @@ type InvoiceParties = {
  * subrogation ; sinon l'entreprise cliente, à l'attention de son responsable
  * (jamais le salarié) ; sinon le particulier lui-même.
  */
+type Banque = { legal_name: string | null; bank_iban: string | null; bank_bic: string | null; bank_name: string | null };
+
+const banqueDe = (b: Banque | null, nom: string | null): NonNullable<InvoiceInput['organization']['bank']> | null =>
+  b?.bank_iban ? { holder: b.legal_name?.trim() || nom || '—', iban: b.bank_iban, bic: b.bank_bic, name: b.bank_name } : null;
+
 export async function resolveInvoiceRecipient(sb: Sb, inv: InvoiceParties): Promise<InvoiceRecipient> {
   if (inv.funder_id) {
     const { data } = await sb
@@ -150,8 +155,10 @@ export async function buildInvoicePdf(
   const inv = await loadInvoiceHeader(sb, invoiceId, organizationId);
   if (!inv) return null;
 
-  const [{ data: orgRow }, { data: linesRows }, { data: dossierRow }, { data: quoteRow }, recipient, branding, { data: relatedRow }] =
+  const [{ data: banqueRow }, { data: orgRow }, { data: linesRows }, { data: dossierRow }, { data: quoteRow }, recipient, branding, { data: relatedRow }] =
     await Promise.all([
+      // Lues à part (0228) : une colonne absente ne doit pas priver de facture.
+      sb.schema('app').from('organizations').select('legal_name, bank_iban, bank_bic, bank_name' as never).eq('id', inv.organization_id).maybeSingle(),
       sb
         .schema('app')
         .from('organizations')
@@ -199,6 +206,7 @@ export async function buildInvoicePdf(
       contactPhone: org?.contact_phone ?? null,
       certifications: (org as { certifications?: string | null } | null)?.certifications ?? null,
       vatOnDebits: (org as { vat_on_debits?: boolean } | null)?.vat_on_debits ?? false,
+      bank: banqueDe(banqueRow as Banque | null, org?.name ?? null),
     },
     recipient: {
       name: recipient.name,

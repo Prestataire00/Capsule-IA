@@ -4,6 +4,7 @@ import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
 import { BLANC, ouvrirDocument, VIOLET } from './charte-pdf';
 import { drawRgpdMention } from './pdf-rgpd';
 import { formaterSiren, formaterSiret, sirenDeSiret } from '@/shared/lib/siret';
+import { formaterIban } from '@/shared/lib/iban';
 
 export type InvoiceLine = {
   description: string;
@@ -23,6 +24,8 @@ export type InvoiceInput = {
     contactEmail: string | null;
     contactPhone: string | null;
     certifications?: string | null;
+    /** Imprimées sous « Règlement par virement » quand l'IBAN est renseigné. */
+    bank?: { holder: string; iban: string; bic: string | null; name: string | null } | null;
   };
   recipient: {
     name: string;
@@ -318,6 +321,31 @@ export async function generateInvoicePDF(input: InvoiceInput): Promise<Uint8Arra
       c.page.drawText(l, { x: MARGIN, y: c.y, size: 10, font, color: COLOR_BODY });
       c = { ...c, y: c.y - 14 };
     }
+  }
+
+  // Règlement par virement : ce qu'il faut au client pour payer. Pas sur un
+  // avoir, qui ne se règle pas.
+  const banque = input.organization.bank;
+  if (banque && input.invoice.kind !== 'credit_note') {
+    const lignes: Array<[string, string]> = [
+      ['Titulaire', banque.holder],
+      ['IBAN', formaterIban(banque.iban)],
+      ...(banque.bic ? [['BIC', banque.bic] as [string, string]] : []),
+      ...(banque.name ? [['Banque', banque.name] as [string, string]] : []),
+      ['Référence à indiquer', input.invoice.reference],
+    ];
+    const hauteur = 30 + lignes.length * 14;
+    c = ensureRoom(doc, c, hauteur + 10);
+    c = { ...c, y: c.y - 6 };
+    c.page.drawRectangle({ x: MARGIN, y: c.y - hauteur + 12, width: COL, height: hauteur, borderColor: COLOR_RULE, borderWidth: 0.8 });
+    c.page.drawText('RÈGLEMENT PAR VIREMENT', { x: MARGIN + 12, y: c.y - 4, size: 8, font: fontBold, color: COLOR_MUTED });
+    c = { ...c, y: c.y - 20 };
+    for (const [libelle, valeur] of lignes) {
+      c.page.drawText(libelle, { x: MARGIN + 12, y: c.y, size: 9, font, color: COLOR_MUTED });
+      c.page.drawText(valeur, { x: MARGIN + 130, y: c.y, size: 10, font: libelle === 'IBAN' ? fontBold : font, color: COLOR_BODY });
+      c = { ...c, y: c.y - 14 };
+    }
+    c = { ...c, y: c.y - 8 };
   }
 
   // Cadre signature auto (signature + cachet OF apposés), en bas à droite

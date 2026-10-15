@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { bicValide, ibanValide, normaliserBancaire } from '@/shared/lib/iban';
 
 const optionalText = z.string().trim().max(200).optional().or(z.literal(''));
 
@@ -34,6 +35,20 @@ export const OrgIdentitySchema = z.object({
   // l'encaissement. Quand elle est prise, la mention doit figurer sur chaque
   // facture — c'est l'une des quatre mentions de la facturation électronique.
   vatOnDebits: z.coerce.boolean().optional().default(false),
+  // Imprimées sur chaque facture, pour le règlement par virement.
+  bankIban: z
+    .string()
+    .transform(normaliserBancaire)
+    .refine((v) => v === '' || ibanValide(v), 'IBAN invalide')
+    .optional()
+    .default(''),
+  bankBic: z
+    .string()
+    .transform(normaliserBancaire)
+    .refine((v) => v === '' || bicValide(v), 'BIC invalide')
+    .optional()
+    .default(''),
+  bankName: z.string().trim().max(120).optional().or(z.literal('')),
 });
 
 export type OrgIdentityInput = z.infer<typeof OrgIdentitySchema>;

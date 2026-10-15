@@ -7,6 +7,7 @@ import { DataList, DataRow } from '@/shared/ui/data-row';
 import { SignatureStampSection } from './signature-stamp-section';
 import { IdentitySection } from './identity-section';
 import { AttendanceSettings } from './attendance-settings';
+import { formaterIban } from '@/shared/lib/iban';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,15 @@ export default async function ParametresOrganisationPage() {
     .is('deleted_at', null)
     .limit(1)
     .maybeSingle();
+  // Coordonnées bancaires (0228), lues à part pour la même raison.
+  const { data: banque } = await sb
+    .schema('app')
+    .from('organizations')
+    .select('bank_iban, bank_bic, bank_name' as never)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle();
+  const b = banque as { bank_iban?: string | null; bank_bic?: string | null; bank_name?: string | null } | null;
   const r = reglage as { attendance_auto_send?: boolean; attendance_lunch_start?: string; attendance_lunch_end?: string } | null;
   const envoiAuto = Boolean(r?.attendance_auto_send);
 
@@ -99,6 +109,9 @@ export default async function ParametresOrganisationPage() {
           vatRegime: org.vat_regime === 'subject' ? 'subject' : 'exempt',
           defaultVatRate: String(org.default_vat_rate ?? 0),
           vatOnDebits: org.vat_on_debits ?? false,
+          bankIban: b?.bank_iban ? formaterIban(b.bank_iban) : '',
+          bankBic: b?.bank_bic ?? '',
+          bankName: b?.bank_name ?? '',
         }}
       />
 

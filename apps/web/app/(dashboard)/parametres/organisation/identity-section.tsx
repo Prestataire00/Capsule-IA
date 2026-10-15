@@ -21,6 +21,9 @@ type IdentityProps = {
   vatRegime: 'exempt' | 'subject';
   defaultVatRate: string;
   vatOnDebits: boolean;
+  bankIban: string;
+  bankBic: string;
+  bankName: string;
 };
 
 const inputCls =
@@ -41,6 +44,9 @@ const FIELD_LABELS: Record<string, string> = {
   vatRegime: 'Régime de TVA',
   defaultVatRate: 'Taux de TVA',
   vatOnDebits: 'Option pour les débits',
+  bankIban: 'IBAN',
+  bankBic: 'BIC',
+  bankName: 'Banque',
 };
 
 export function IdentitySection(props: { org: IdentityProps }) {
@@ -77,6 +83,9 @@ export function IdentitySection(props: { org: IdentityProps }) {
         vatRegime: form.vatRegime,
         defaultVatRate: Number(form.defaultVatRate) || 0,
         vatOnDebits: form.vatOnDebits,
+        bankIban: form.bankIban,
+        bankBic: form.bankBic,
+        bankName: form.bankName,
       });
       const out = res?.data;
       if (out?.ok) {
@@ -90,7 +99,7 @@ export function IdentitySection(props: { org: IdentityProps }) {
           .map((k) => FIELD_LABELS[k] ?? k);
         setError(
           invalid.length
-            ? `À corriger : ${invalid.join(', ')}. (SIRET ≤ 14 caractères sans espaces ; email au bon format ; nom commercial requis.)`
+            ? `À corriger : ${invalid.join(', ')}. (SIRET ≤ 14 caractères sans espaces ; email au bon format ; IBAN complet et sans faute de frappe ; nom commercial requis.)`
             : 'Champs invalides.',
         );
       } else if (out?.error === 'forbidden') {
@@ -239,6 +248,33 @@ export function IdentitySection(props: { org: IdentityProps }) {
           Ce réglage pré-remplit le taux des nouvelles factures et sert de référence aux tarifs du
           catalogue. La formation professionnelle continue est exonérée de TVA sous réserve de
           l’attestation fiscale — vérifiez votre situation avant de passer en « assujetti ».
+        </p>
+      </div>
+
+      <div className="border-t border-zinc-200/70 dark:border-zinc-800 pt-4 space-y-3">
+        <p className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">Coordonnées bancaires</p>
+        <div className="grid grid-cols-3 gap-3">
+          <label className={`${labelCls} col-span-3 sm:col-span-2`}>
+            IBAN
+            <input
+              value={form.bankIban}
+              onChange={set('bankIban')}
+              maxLength={42}
+              className={`${inputCls} font-mono`}
+              placeholder="FR76 0000 0000 0000 0000 0000 000"
+            />
+          </label>
+          <label className={`${labelCls} col-span-3 sm:col-span-1`}>
+            BIC
+            <input value={form.bankBic} onChange={set('bankBic')} maxLength={11} className={`${inputCls} font-mono`} />
+          </label>
+        </div>
+        <label className={labelCls}>
+          Banque
+          <input value={form.bankName} onChange={set('bankName')} maxLength={120} className={inputCls} placeholder="Qonto" />
+        </label>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          Imprimées sur chaque facture, sous « Règlement par virement », au nom de la raison sociale.
         </p>
       </div>
 

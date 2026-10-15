@@ -135,3 +135,25 @@ describe('le financeur porte enfin un identifiant', () => {
     expect(SOURCE).not.toContain('branding.representativeName ?? org?.contact_email');
   });
 });
+
+describe('le RIB de l’organisme sur la facture', () => {
+  const avecRib: InvoiceInput = {
+    ...base,
+    organization: {
+      ...base.organization,
+      bank: { holder: 'Capsule IA', iban: 'FR7630006000011234567890189', bic: 'QNTOFRP1XXX', name: 'Qonto' },
+    },
+  };
+
+  it('imprime titulaire, IBAN par blocs, BIC et la référence à rappeler', async () => {
+    const pdf = texteDuPdf(await generateInvoicePDF(avecRib));
+    expect(pdf).toContain('VIREMENT');
+    expect(pdf).toContain('FR76 3000 6000 0112 3456 7890 189');
+    expect(pdf).toContain('QNTOFRP1XXX');
+  });
+
+  it('rien sans IBAN, ni sur un avoir', async () => {
+    expect(texteDuPdf(await generateInvoicePDF(base))).not.toContain('VIREMENT');
+    expect(texteDuPdf(await generateInvoicePDF({ ...avecRib, invoice: { ...avecRib.invoice, kind: 'credit_note' } }))).not.toContain('VIREMENT');
+  });
+});
