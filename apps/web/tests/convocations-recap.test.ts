@@ -27,6 +27,7 @@ const SEANCE = {
   visio: null,
   formation: 'Compta',
   groupe: 'Groupe A',
+  groupeId: 'g1',
   formateur: null,
   dossierIds: ['d1', 'd3'],
 };
@@ -44,9 +45,10 @@ const pdfPour: string[][] = [];
 vi.mock('@/features/sessions/convocation-groupe', () => ({
   chargerSeance: async () => SEANCE,
   participantsConvoques: async () => PARTICIPANTS,
-  construireConvocationGroupe: async (_sb: unknown, _s: unknown, liste: Array<{ nom: string }>) => {
-    pdfPour.push(liste.map((p) => p.nom));
-    return { bytes: new Uint8Array([1, 2, 3]), filename: 'convocation-groupe-a-2026-10-08.pdf', titre: 'Convocation' };
+  seancesDuGroupe: async () => [SEANCE],
+  construireConvocationDuGroupe: async (_sb: unknown, _s: unknown, participants: Map<string, Array<{ nom: string }>>) => {
+    pdfPour.push([...participants.values()].flat().map((p) => p.nom));
+    return { bytes: new Uint8Array([1, 2, 3]), filename: 'convocation-groupe-a-acme.pdf', titre: 'Convocation' };
   },
 }));
 
@@ -101,7 +103,7 @@ describe('convocation aux entreprises', () => {
     const acme = envois.find((e) => e.to === 'referent@acme.fr');
     expect(acme?.html).toContain('Léa Martin');
     expect(acme?.html).not.toContain('Ana Diaz');
-    expect(acme?.attachments?.[0]?.filename).toBe('convocation-groupe-a-2026-10-08.pdf');
+    expect(acme?.attachments?.[0]?.filename).toBe('convocation-groupe-a-acme.pdf');
     expect(pdfPour).toContainEqual(['Martin']);
     expect(pdfPour).toContainEqual(['Diaz']);
   });

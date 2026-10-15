@@ -5,13 +5,15 @@ import { sendEmail } from '@/shared/lib/email/resend';
 import { convocationsRecapEmail } from '@/shared/lib/email/templates';
 import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
 import { persistGeneratedDocument } from '@/features/documents/persist-document';
-import { chargerSeance, construireConvocationGroupe, participantsConvoques } from './convocation-groupe';
+import { chargerSeance, construireConvocationDuGroupe, participantsConvoques, seancesDuGroupe } from './convocation-groupe';
 import type { ParticipantConvoque } from './convocation-groupe-contenu';
 
 /**
  * Convocation adressée à chaque entreprise cliente d'une séance : un e-mail
  * à son référent, avec en pièce jointe la convocation de ses salariés et leur
- * liste.
+ * liste. Elle couvre tout le groupe de la séance, toutes ses dates (demande
+ * d'Ismael, 15/10/2026) : une seule par groupe dans l'espace entreprise, et un
+ * seul e-mail de l'automate, avant la première séance du groupe.
  *
  * Les participants sont ceux de la séance — que le choix d'un groupe met à
  * jour —, et non ceux des dossiers : la liste disait sinon « toute la
@@ -26,12 +28,9 @@ export type RecapResult = {
   readonly erreurs: string[];
 };
 
-const heure = (iso: string): string =>
-  new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
-
 /**
- * `uneFois` : envoi de l'automate, qui repasse chaque jour tant que la séance
- * est dans le délai — une clé par séance, entreprise et horaire. Le bouton de
+ * `uneFois` : envoi de l'automate, qui repasse chaque jour pour chaque séance
+ * dans le délai — une clé par dossier, groupe et entreprise. Le bouton de
  * l'équipe, lui, renvoie quand on le lui demande.
  */
 export async function sendConvocationsRecap(sessionId: string, opts: { uneFois?: boolean } = {}): Promise<RecapResult> {
@@ -72,11 +71,22 @@ export async function sendConvocationsRecap(sessionId: string, opts: { uneFois?:
       erreurs.push('entreprise introuvable');
       continue;
     }
-    const pdf = await construireConvocationGroupe(sb, seance, salaries, entreprise.name);
+    const sesDossiers = dossiersDe.get(companyId) ?? [];
+    const seances = await seancesDuGroupe(sb, seance, sesDossiers);
+    const participants = new Map<string, readonly ParticipantConvoque[]>([[seance.id, salaries]]);
+    for (const s of seances) {
+      if (participants.has(s.id)) continue;
+      participants.set(s.id, (await participantsConvoques(sb, s)).filter((p) => p.companyId === companyId));
+    }
+    const convoques = new Map<string, ParticipantConvoque>();
+    for (const liste of participants.values()) for (const p of liste) convoques.set(p.id, p);
+    const pdf = await construireConvocationDuGroupe(sb, seances, participants, entreprise.name);
+    const cle = `convocation_groupe_dossier:${sesDossiers[0] ?? seance.id}:${seance.groupeId ?? 'sans-groupe'}:${companyId}`;
 
     // Déposée dans l'espace entreprise, que l'e-mail parte ou non : une
-    // version par séance et par entreprise, remplacée si les horaires changent.
-    const dossierId = dossiersDe.get(companyId)?.[0];
+    // version par groupe et par entreprise, remplacée si une date change. Les
+    // convocations séance par séance d'avant n'y sont plus montrées.
+    const dossierId = sesDossiers[0];
     if (dossierId) {
       try {
         const doc = await persistGeneratedDocument(sb, {
@@ -85,21 +95,28 @@ export async function sendConvocationsRecap(sessionId: string, opts: { uneFois?:
           kind: 'convocation',
           title: pdf.titre,
           bytes: pdf.bytes,
-          generationInput: { session_id: seance.id, company_id: companyId },
-          sourceKey: `convocation_groupe:${seance.id}:${companyId}`,
+          generationInput: { session_ids: seances.map((x) => x.id), company_id: companyId },
+          sourceKey: cle,
           sourceUrl: `/api/sessions/${seance.id}/convocation-groupe.pdf?entreprise=${companyId}`,
-          metadata: { session_id: seance.id, company_id: companyId, groupe: seance.groupe },
+          metadata: { session_ids: seances.map((x) => x.id), company_id: companyId, groupe: seance.groupe },
         });
         const { error } = await sb.schema('app').from('documents').update({ visible_entreprise: true } as never).eq('id', doc.documentId);
         if (error) erreurs.push(`${entreprise.name} : dépôt dans l’espace entreprise — ${error.message}`);
         else deposees += 1;
+        const { error: masque } = await sb
+          .schema('app')
+          .from('documents')
+          .update({ visible_entreprise: false } as never)
+          .in('dossier_id', [...sesDossiers])
+          .like('source_key', `convocation_groupe:%:${companyId}`);
+        if (masque) erreurs.push(`${entreprise.name} : anciennes convocations — ${masque.message}`);
       } catch (e) {
         erreurs.push(`${entreprise.name} : dépôt dans l’espace entreprise — ${e instanceof Error ? e.message : 'échec'}`);
       }
     }
 
     // Le référent du dossier d'abord : c'est lui qui suit cette formation.
-    const referent = (dossiersDe.get(companyId) ?? []).map((id) => referents.get(id)).find(Boolean);
+    const referent = sesDossiers.map((id) => referents.get(id)).find(Boolean);
     let destinataire = referent?.email ?? entreprise.contact_email?.trim() ?? null;
     let prenom = referent?.prenom || entreprise.contact_name;
     if (!destinataire) {
@@ -125,15 +142,17 @@ export async function sendConvocationsRecap(sessionId: string, opts: { uneFois?:
       companyName: entreprise.name,
       contactName: prenom ?? null,
       formationTitle: seance.formation,
-      sessionDate: seance.debut,
-      sessionStartTime: heure(seance.debut),
-      sessionEndTime: heure(seance.fin),
-      modality: seance.modalite,
-      location: seance.lieu,
-      remoteUrl: seance.modalite === 'presentiel' ? null : seance.visio,
+      seances: seances.map((x) => ({
+        debut: x.debut,
+        fin: x.fin,
+        modality: x.modalite,
+        location: x.lieu,
+        remoteUrl: x.modalite === 'presentiel' ? null : x.visio,
+      })),
       groupe: seance.groupe,
-      learners: salaries.map((s) => ({ fullName: `${s.prenom} ${s.nom}`.trim() || '—', email: s.email })),
+      learners: [...convoques.values()].map((p) => ({ fullName: `${p.prenom} ${p.nom}`.trim() || '—', email: p.email })),
     });
+
 
     const envoi = await sendEmail({
       to: destinataire,
@@ -143,8 +162,8 @@ export async function sendConvocationsRecap(sessionId: string, opts: { uneFois?:
       organizationId: seance.organizationId,
       dossierId,
       kind: 'convocation_recap_entreprise',
-      metadata: { session_id: seance.id, company_id: companyId, participants: salaries.length },
-      ...(opts.uneFois ? { idempotencyKey: `convocation_groupe:${seance.id}:${companyId}:${seance.debut}` } : {}),
+      metadata: { session_id: seance.id, company_id: companyId, participants: convoques.size, seances: seances.length },
+      ...(opts.uneFois ? { idempotencyKey: cle } : {}),
     });
     if (envoi.ok) envoyes += 1;
     else if (envoi.reason !== 'duplicate') erreurs.push(`${entreprise.name} : ${envoi.reason}`);

@@ -661,44 +661,51 @@ export function funderEmail(
   return { subject, html };
 }
 
-
-
 export type ConvocationsRecapData = {
   companyName: string;
   contactName: string | null;
   formationTitle: string;
-  sessionDate: string; // ISO
-  sessionStartTime: string;
-  sessionEndTime: string;
-  modality: string;
-  location: string | null;
-  remoteUrl: string | null;
+  /** Toutes les séances du groupe, la première en tête. */
+  seances: ReadonlyArray<{ debut: string; fin: string; modality: string; location: string | null; remoteUrl: string | null }>;
   learners: ReadonlyArray<{ fullName: string; email: string | null }>;
-  /** Groupe convoqué, quand la séance n'en vise qu'un. */
+  /** Groupe convoqué, quand la formation en compte plusieurs. */
   groupe?: string | null;
 };
 
 /**
  * Récapitulatif adressé au responsable d'une entreprise cliente : la convocation
- * de TOUS ses salariés inscrits à une séance, en un seul envoi, qu'il peut
- * transmettre ou imprimer.
+ * de TOUS ses salariés d'un groupe, toutes ses dates en un seul envoi, qu'il
+ * peut transmettre ou imprimer.
  *
  * Les convocations individuelles partent en parallèle aux apprenants : celle-ci
  * ne les remplace pas, elle donne à l'entreprise la vue d'ensemble qui lui
  * manquait.
  */
 export function convocationsRecapEmail(data: ConvocationsRecapData): { subject: string; html: string } {
-  const dateFR = new Date(data.sessionDate).toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Europe/Paris',
-  });
-  const modalityLabel = MODALITY_LABEL[data.modality] ?? data.modality;
-  const lieu = data.remoteUrl ? 'À distance' : (data.location ?? 'Lieu à préciser');
+  const jour = (iso: string) =>
+    new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
+  const heure = (iso: string) =>
+    new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
+  const seances = [...data.seances].sort((a, b) => a.debut.localeCompare(b.debut));
+  const premiere = seances[0];
+  const debutFR = premiere ? jour(premiere.debut) : '';
+  const lieu = (s: ConvocationsRecapData['seances'][number]) =>
+    s.remoteUrl ? 'À distance' : `${MODALITY_LABEL[s.modality] ?? s.modality} · ${s.location ?? 'lieu à préciser'}`;
 
-  const subject = `Convocation${data.groupe ? ` ${data.groupe}` : 's'} ${data.companyName} — ${data.formationTitle} le ${dateFR}`;
+  const subject =
+    `Convocation${data.groupe ? ` ${data.groupe}` : 's'} ${data.companyName} — ${data.formationTitle}` +
+    (seances.length > 1 ? ` · ${seances.length} séances dès le ${debutFR}` : ` le ${debutFR}`);
+
+  const dates = seances
+    .map(
+      (s) => `
+      <tr>
+        <td style="padding:9px 0; border-top:1px solid #f4f4f5; font-size:14px; color:#18181b; text-transform:capitalize;">${escapeHtml(jour(s.debut))}</td>
+        <td style="padding:9px 0; border-top:1px solid #f4f4f5; font-size:13px; color:#18181b; text-align:right; white-space:nowrap;">${escapeHtml(heure(s.debut))} – ${escapeHtml(heure(s.fin))}</td>
+      </tr>
+      <tr><td colspan="2" style="padding:0 0 9px; font-size:12px; color:#71717a;">${escapeHtml(lieu(s))}</td></tr>`,
+    )
+    .join('');
 
   const lignes = data.learners
     .map(
@@ -713,28 +720,17 @@ export function convocationsRecapEmail(data: ConvocationsRecapData): { subject: 
   const html = wrapper(`
     ${card(`
       <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Convocations — ${escapeHtml(data.companyName)}</p>
-      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px; text-transform:capitalize;">${dateFR}</h1>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">${escapeHtml(data.formationTitle)}${data.groupe ? ` · ${escapeHtml(data.groupe)}` : ''}</h1>
       <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
         ${data.contactName ? `Bonjour ${escapeHtml(data.contactName)}, ` : 'Bonjour, '}voici la convocation de vos
         ${data.learners.length > 1 ? `${data.learners.length} collaborateurs` : 'collaborateurs'} inscrits à
-        <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong>${data.groupe ? ` (${escapeHtml(data.groupe)})` : ''}.
-        Vous la trouverez jointe en PDF, avec la liste des participants, pour la leur transmettre.
+        <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong>${data.groupe ? ` (${escapeHtml(data.groupe)})` : ''},
+        ${seances.length > 1 ? `pour ses ${seances.length} séances` : 'pour sa séance'}.
+        Vous la trouverez jointe en PDF, avec la liste des participants, pour la leur transmettre ; elle est aussi dans votre espace entreprise.
       </p>
 
-      <table style="width:100%; border-collapse:collapse; margin:0 0 20px;">
-        <tr>
-          <td style="padding:0 0 6px; font-size:13px; color:#71717a;">Horaires</td>
-          <td style="padding:0 0 6px; font-size:13px; color:#18181b; text-align:right;">${escapeHtml(data.sessionStartTime)} – ${escapeHtml(data.sessionEndTime)}</td>
-        </tr>
-        <tr>
-          <td style="padding:0 0 6px; font-size:13px; color:#71717a;">Modalité</td>
-          <td style="padding:0 0 6px; font-size:13px; color:#18181b; text-align:right;">${escapeHtml(modalityLabel)}</td>
-        </tr>
-        <tr>
-          <td style="padding:0; font-size:13px; color:#71717a;">Lieu</td>
-          <td style="padding:0; font-size:13px; color:#18181b; text-align:right;">${escapeHtml(lieu)}</td>
-        </tr>
-      </table>
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#a1a1aa; font-weight:600; margin:0 0 4px;">Dates</p>
+      <table style="width:100%; border-collapse:collapse; margin:0 0 20px;">${dates}</table>
 
       <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#a1a1aa; font-weight:600; margin:0 0 4px;">Participants convoqués</p>
       <table style="width:100%; border-collapse:collapse;">${lignes}</table>

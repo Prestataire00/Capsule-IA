@@ -2,7 +2,14 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateLegalDocPDF } from '@/features/documents/generate-legal-doc-pdf';
 import { loadOrgBranding } from '@/features/documents/load-org-branding';
-import { lignesParticipants, nomFichierConvocation, trierParticipants, type ParticipantConvoque } from './convocation-groupe-contenu';
+import {
+  lignesConvocationDuGroupe,
+  lignesParticipants,
+  nomFichierConvocation,
+  nomFichierConvocationDuGroupe,
+  trierParticipants,
+  type ParticipantConvoque,
+} from './convocation-groupe-contenu';
 
 /**
  * Convocation d'un groupe à une séance : un seul document qui dit au client
@@ -46,6 +53,7 @@ export type Seance = {
   readonly visio: string | null;
   readonly formation: string;
   readonly groupe: string | null;
+  readonly groupeId: string | null;
   readonly formateur: string | null;
   readonly dossierIds: readonly string[];
 };
@@ -110,6 +118,7 @@ export async function chargerSeance(sb: Client, sessionId: string): Promise<Sean
     visio: seance.zoom_join_url ?? seance.remote_url,
     formation: (f as { title: string } | null)?.title ?? seance.title ?? 'Formation',
     groupe: (groupe as { nom: string } | null)?.nom ?? null,
+    groupeId: seance.groupe_id,
     formateur: formateurs.length ? formateurs.join(', ') : null,
     dossierIds,
   };
@@ -236,4 +245,71 @@ export async function construireConvocationGroupe(
   });
 
   return { bytes, filename: nomFichierConvocation(seance.groupe, seance.debut, jourIso(seance.debut)), titre: `${titreDoc} — ${seance.formation}` };
+}
+
+/**
+ * Les séances du groupe de cette séance, dans ces dossiers : toutes ses dates,
+ * passées comprises. Sans groupe, les séances sans groupe des dossiers.
+ */
+export async function seancesDuGroupe(sb: Client, seance: Seance, dossierIds: readonly string[]): Promise<Seance[]> {
+  if (dossierIds.length === 0) return [seance];
+  const [{ data: directes }, { data: liens }] = await Promise.all([
+    sb.schema('app').from('sessions').select('id').in('dossier_id', [...dossierIds]),
+    sb.schema('app').from('session_dossiers').select('session_id').in('dossier_id', [...dossierIds]),
+  ]);
+  const ids = [
+    ...new Set([
+      ...((directes ?? []) as Array<{ id: string }>).map((r) => r.id),
+      ...((liens ?? []) as Array<{ session_id: string }>).map((r) => r.session_id),
+    ]),
+  ];
+  let requete = sb.schema('app').from('sessions').select('id').in('id', ids.length ? ids : [seance.id]).neq('status', 'cancelled');
+  requete = seance.groupeId ? requete.eq('groupe_id', seance.groupeId) : requete.is('groupe_id', null);
+  const { data: duGroupe } = await requete;
+  const autres = ((duGroupe ?? []) as Array<{ id: string }>).map((r) => r.id).filter((id) => id !== seance.id);
+  const chargees = await Promise.all(autres.map((id) => chargerSeance(sb, id)));
+  return [seance, ...chargees.filter((x): x is Seance => x !== null)].sort((a, b) => a.debut.localeCompare(b.debut));
+}
+
+/** La convocation d'un groupe à toutes ses séances, pour ces participants. */
+export async function construireConvocationDuGroupe(
+  sb: Client,
+  seances: readonly Seance[],
+  participants: ReadonlyMap<string, readonly ParticipantConvoque[]>,
+  client: string | null,
+): Promise<ConvocationGroupe> {
+  const premiere = seances[0];
+  if (!premiere) throw new Error('convocation sans séance');
+  const { data: orgRow } = await sb
+    .schema('app')
+    .from('organizations')
+    .select('name, siret, declaration_activite, address, contact_email, contact_phone, certifications')
+    .eq('id', premiere.organizationId)
+    .maybeSingle();
+  const org = orgRow as {
+    name: string;
+    siret: string | null;
+    declaration_activite: string | null;
+    address: AddressJson | null;
+    contact_email: string | null;
+    contact_phone: string | null;
+    certifications: string | null;
+  } | null;
+  const branding = await loadOrgBranding(sb as never, premiere.organizationId);
+  const titreDoc = premiere.groupe ? `Convocation — ${premiere.groupe}` : 'Convocation des participants';
+  const bytes = await generateLegalDocPDF({
+    title: titreDoc,
+    organization: {
+      name: org?.name ?? 'Organisme de formation',
+      nda: org?.declaration_activite ?? null,
+      address: adresse(org?.address),
+      siret: org?.siret ?? null,
+      contactEmail: org?.contact_email ?? null,
+      contactPhone: org?.contact_phone ?? null,
+      certifications: org?.certifications ?? null,
+    },
+    logoPng: branding.logoPng,
+    contentMd: lignesConvocationDuGroupe({ formation: premiere.formation, client, groupe: premiere.groupe, seances, participants }).join('\n'),
+  });
+  return { bytes, filename: nomFichierConvocationDuGroupe(premiere.groupe, client), titre: `${titreDoc} — ${premiere.formation}` };
 }
