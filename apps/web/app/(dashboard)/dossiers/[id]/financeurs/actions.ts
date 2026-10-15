@@ -8,6 +8,7 @@ import { funderEmail } from '@/shared/lib/email/templates';
 import { decideTransport } from '@/shared/lib/funders/attachments';
 import { guardRowAction } from '@/shared/lib/auth/guard-action';
 import { estStatutFinancement, estDecide } from '@/features/funders/prise-en-charge';
+import { alignerBrouillonsSurLePlan } from '@/features/billing/invoices/brouillons-du-plan';
 
 const admin = () =>
   createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -233,8 +234,12 @@ export async function enregistrerDecisionFinanceur(input: {
     console.error('[financement] décision non enregistrée', input.ligneId, error.message);
     return { ok: false, error: "La décision n'a pas pu être enregistrée." };
   }
+  // Un refus ou un accord partiel déplace les factures brouillon (accès gardé ci-dessus).
+  const { erreurs } = await alignerBrouillonsSurLePlan(sb as never, input.dossierId);
+  if (erreurs.length) console.error('[financement] brouillons non réalignés', input.dossierId, erreurs);
 
   revalidatePath(`/dossiers/${input.dossierId}/financeurs`);
+  revalidatePath(`/dossiers/${input.dossierId}/facturation`);
   revalidatePath(`/dossiers/${input.dossierId}`);
   return { ok: true };
 }

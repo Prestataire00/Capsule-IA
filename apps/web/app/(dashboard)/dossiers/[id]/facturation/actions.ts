@@ -7,6 +7,13 @@ import { z } from 'zod';
 import { requireAccess } from '@/shared/lib/auth/require-access';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { estStatutFinancement, estDecide } from '@/features/billing/domain/funding-status';
+import { alignerBrouillonsSurLePlan } from '@/features/billing/invoices/brouillons-du-plan';
+
+/** Les factures brouillon suivent le financement : un échec n'empêche pas d'enregistrer le financeur. */
+async function aligner(sb: ReturnType<typeof supabaseServer>, dossierId: string): Promise<void> {
+  const { erreurs } = await alignerBrouillonsSurLePlan(sb as never, dossierId);
+  if (erreurs.length) console.error('[financement] brouillons non réalignés', dossierId, erreurs);
+}
 
 const schema = z.object({
   dossierId: z.string().uuid(),
@@ -118,6 +125,7 @@ export async function addDossierFunder(formData: FormData): Promise<void> {
   if (error) {
     redirect(`/dossiers/${parsed.data.dossierId}/facturation?funderError=1`);
   }
+  await aligner(sb, parsed.data.dossierId);
 
   revalidatePath(`/dossiers/${parsed.data.dossierId}/facturation`);
   redirect(`/dossiers/${parsed.data.dossierId}/facturation?funderSaved=1`);
@@ -138,6 +146,7 @@ export async function removeDossierFunder(formData: FormData): Promise<void> {
     .delete()
     .eq('dossier_id', dossierId)
     .eq('funder_id', funderId);
+  await aligner(sb, dossierId);
 
   revalidatePath(`/dossiers/${dossierId}/facturation`);
   redirect(`/dossiers/${dossierId}/facturation?funderSaved=1`);
@@ -186,6 +195,7 @@ export async function setDossierFunderDecision(formData: FormData): Promise<void
     } as never)
     .eq('dossier_id', dossierId)
     .eq('funder_id', funderId);
+  await aligner(sb, dossierId);
 
   revalidatePath(`/dossiers/${dossierId}/facturation`);
   redirect(`/dossiers/${dossierId}/facturation?funderSaved=1`);
