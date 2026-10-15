@@ -9,6 +9,29 @@ import { destinationAutorisee } from '@/shared/lib/auth/trainer-routes';
 
 type LoginResult = { ok: false; error: string };
 
+const MESSAGE_INDISPONIBLE = 'La connexion est momentanément impossible. Réessayez dans quelques minutes.';
+
+/**
+ * Chaque refus de Supabase disait « Identifiants incorrects » : un compte non
+ * confirmé, suspendu ou bloqué après trop d'essais passait pour un mauvais
+ * mot de passe, et on cherchait la mauvaise cause.
+ */
+function messageDeConnexion(code: string | undefined): string {
+  switch (code) {
+    case 'invalid_credentials':
+      return 'Email ou mot de passe incorrect. En cas de doute, utilisez « Mot de passe oublié ? ».';
+    case 'email_not_confirmed':
+      return 'Votre adresse email n’est pas encore confirmée : ouvrez le lien reçu par email, ou demandez un nouveau mot de passe.';
+    case 'user_banned':
+      return 'Ce compte est suspendu. Contactez l’administrateur de votre organisme.';
+    case 'over_request_rate_limit':
+    case 'over_email_send_rate_limit':
+      return 'Trop de tentatives de connexion. Patientez quelques minutes avant de réessayer.';
+    default:
+      return MESSAGE_INDISPONIBLE;
+  }
+}
+
 /** N'autorise qu'une redirection interne (même origine), sinon retombe sur l'accueil. */
 function safeRedirect(target: string | undefined): string {
   if (target && target.startsWith('/') && !target.startsWith('//')) return target;
@@ -29,7 +52,11 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     password: parsed.data.password,
   });
 
-  if (error) return { ok: false, error: 'Identifiants incorrects.' };
+  if (error) {
+    const message = messageDeConnexion(error.code);
+    if (message === MESSAGE_INDISPONIBLE) console.error('[connexion] échec', error.code, error.status, error.message);
+    return { ok: false, error: message };
+  }
 
   const {
     data: { user },
