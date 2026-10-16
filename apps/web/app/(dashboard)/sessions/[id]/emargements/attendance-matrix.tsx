@@ -26,14 +26,14 @@ type Tablette = { sheetId: string; participant: ParticipantRow; moment: 'entry' 
 
 /** « 12 / 18 signatures », barre, et Complet ou ce qui manque. Se met à jour avec la feuille. */
 function Indicateur({ c, titre }: { c: Compteur; titre?: string }) {
-  if (c.attendues === 0) return null;
-  const pct = Math.round((c.recues / c.attendues) * 100);
+  if (c.attendues === 0 && c.formateur.attendues === 0) return null;
+  const pct = c.attendues ? Math.round((c.recues / c.attendues) * 100) : 100;
   return (
     <div className={`rounded-lg px-2.5 py-2 text-left ${c.complet ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-amber-50 dark:bg-amber-950/20'}`}>
       {titre && <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{titre}</p>}
       <p className="flex items-baseline justify-between gap-2">
         <span className="text-[15px] font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-          {c.recues} <span className="text-[12px] font-normal text-zinc-500">/ {c.attendues} signatures</span>
+          {c.recues} <span className="text-[12px] font-normal text-zinc-500">/ {c.attendues} stagiaire{c.attendues > 1 ? 's' : ''}</span>
         </span>
         <span
           className={`shrink-0 inline-flex items-center h-5 px-1.5 rounded-full text-[11px] font-medium ${
@@ -49,6 +49,8 @@ function Indicateur({ c, titre }: { c: Compteur; titre?: string }) {
       <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
         Entrées {c.entrees.recues}/{c.entrees.attendues}
         {c.sorties.attendues > 0 && ` · Sorties ${c.sorties.recues}/${c.sorties.attendues}`}
+        {c.formateur.attendues > 0 &&
+          ` · Formateur ${c.formateur.recues === c.formateur.attendues ? 'signé' : `${c.formateur.recues}/${c.formateur.attendues}`}`}
       </p>
     </div>
   );

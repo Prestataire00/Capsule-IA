@@ -229,6 +229,8 @@ export async function loadSession(sb: any, id: string): Promise<LoadedSession | 
     .schema('app')
     .from('attendance_signatures')
     .select('attendance_sheet_id, status')
+    // Les stagiaires seulement : la signature du formateur faisait « 13/12 ».
+    .eq('participant_kind', 'learner')
     .in(
       'attendance_sheet_id',
       sheetRows.map((sh) => sh.id),
