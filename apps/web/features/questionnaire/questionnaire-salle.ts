@@ -9,6 +9,7 @@ import { generateNeedsAnalysisToken } from '@/shared/lib/needs-analysis-token';
 import { lienStagiaire } from './lien-stagiaire';
 import { interlocuteurDuModele } from './cartographie';
 import { testsDePositionnement } from './test-positionnement';
+import { derniereSeanceDuGroupe } from '@/features/sessions/derniere-seance-du-groupe';
 
 /**
  * N'importe quel questionnaire de la séance, projeté en salle (demande
@@ -142,8 +143,8 @@ export async function lienQuestionnaireEnSalle(sessionId: string, templateId: st
 
 /**
  * Les questionnaires stagiaires prévus pour la séance (cochés ou déjà
- * envoyés), à projeter — et le test de positionnement de sa formation, qui
- * se passe en salle sans qu'on ait à le cocher.
+ * envoyés), à projeter — et, au dernier cours du groupe, le test de
+ * positionnement de sa formation, sans qu'on ait à le cocher.
  */
 export async function questionnairesProjetables(sessionId: string): Promise<Array<{ id: string; titre: string }>> {
   if (!UUID.test(sessionId)) return [];
@@ -160,7 +161,10 @@ export async function questionnairesProjetables(sessionId: string): Promise<Arra
       const { data: d } = await sb.schema('app').from('dossiers').select('formation_id').eq('id', seance.dossier_id).maybeSingle();
       formationId = (d as { formation_id: string | null } | null)?.formation_id ?? null;
     }
-    if (formationId) ids.push(...(await testsDePositionnement(sb, seance.organization_id, [formationId])).map((t) => t.id));
+    // Le test se passe au dernier cours du groupe, pas à chaque séance.
+    if (formationId && (await derniereSeanceDuGroupe(sb, sessionId)).estLaDerniere) {
+      ids.push(...(await testsDePositionnement(sb, seance.organization_id, [formationId])).map((t) => t.id));
+    }
   }
   if (ids.length === 0) return [];
   const { data: t } = await sb.schema('app').from('questionnaire_templates').select('id, title, kind, code, audience').in('id', ids).is('deleted_at', null);
