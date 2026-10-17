@@ -61,7 +61,11 @@ describe('le rattachement Qualiopi', () => {
   it('refuse un indicateur qui n’est pas de portée dossier', () => {
     // La contrainte de la table l'exigerait de toute façon ; mieux vaut le dire
     // avant que la base ne le refuse.
-    expect(ROUTE).toContain("ind?.scope === 'dossier'");
+    expect(ROUTE).toContain(".filter((i) => i.scope === 'dossier')");
+  });
+
+  it('une pièce peut justifier plusieurs indicateurs', () => {
+    expect(ROUTE).toContain("fd.getAll('indicatorId')");
   });
 
   it('un échec de rattachement ne perd pas la pièce', () => {

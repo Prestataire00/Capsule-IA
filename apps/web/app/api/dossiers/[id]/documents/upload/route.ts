@@ -49,7 +49,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const fichier = fd.get('file');
   const kind = String(fd.get('kind') ?? 'autre');
   const titre = String(fd.get('title') ?? '').trim();
-  const indicatorId = String(fd.get('indicatorId') ?? '').trim();
+  // Une pièce peut justifier plusieurs indicateurs à la fois (réunion avec Laurie, 16/10/2026).
+  const indicatorIds = [...new Set(fd.getAll('indicatorId').map((v) => String(v).trim()))].filter((v) => UUID.test(v)).slice(0, 40);
   // Ce qu'on sait du document et que son nom ne dit pas. Dans `metadata`, qui
   // est déjà du JSONB : une colonne de plus pour une note facultative aurait
   // coûté une migration sans rien apporter.
@@ -119,32 +120,33 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // Rattachement Qualiopi : c'est la preuve de portée « dossier » qui coche
   // l'indicateur, et elle déclenche le recalcul de la checklist (0143).
-  let indicateurRattache = false;
-  if (indicatorId && UUID.test(indicatorId)) {
-    const { data: indicateur } = await sb
+  let indicateursRattaches = 0;
+  if (indicatorIds.length) {
+    const { data: indicateurs } = await sb
       .schema('app')
       .from('qualiopi_indicators')
       .select('id, scope')
-      .eq('id', indicatorId)
-      .maybeSingle();
-    const ind = indicateur as { id: string; scope: string } | null;
-    if (ind?.scope === 'dossier') {
+      .in('id', indicatorIds);
+    const deDossier = ((indicateurs ?? []) as Array<{ id: string; scope: string }>).filter((i) => i.scope === 'dossier');
+    if (deDossier.length) {
       const { error: erreurPreuve } = await sb
         .schema('app')
         .from('qualiopi_proofs')
-        .insert({
-          organization_id: membre.organizationId,
-          indicator_id: ind.id,
-          scope: 'dossier',
-          dossier_id: params.id,
-          document_id: documentId,
-          title: (titre || fichier.name).slice(0, 200),
-          created_by: membre.userId,
-        } as never);
-      if (erreurPreuve) console.error('[dossier] preuve Qualiopi non créée', erreurPreuve.message);
-      else indicateurRattache = true;
+        .insert(
+          deDossier.map((ind) => ({
+            organization_id: membre.organizationId,
+            indicator_id: ind.id,
+            scope: 'dossier',
+            dossier_id: params.id,
+            document_id: documentId,
+            title: (titre || fichier.name).slice(0, 200),
+            created_by: membre.userId,
+          })) as never,
+        );
+      if (erreurPreuve) console.error('[dossier] preuves Qualiopi non créées', erreurPreuve.message);
+      else indicateursRattaches = deDossier.length;
     }
   }
 
-  return NextResponse.json({ ok: true, documentId, indicateurRattache });
+  return NextResponse.json({ ok: true, documentId, indicateursRattaches });
 }

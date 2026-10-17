@@ -25,7 +25,7 @@ export function DeposerPiece({
   const [fichier, setFichier] = useState<File | null>(null);
   const [kind, setKind] = useState('autre');
   const [titre, setTitre] = useState('');
-  const [indicateur, setIndicateur] = useState('');
+  const [choisis, setChoisis] = useState<string[]>([]);
   const [commentaire, setCommentaire] = useState('');
   const [visible, setVisible] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -54,23 +54,23 @@ export function DeposerPiece({
       fd.set('file', fichier);
       fd.set('kind', kind);
       fd.set('title', titre);
-      if (indicateur) fd.set('indicatorId', indicateur);
+      for (const id of choisis) fd.append('indicatorId', id);
       if (commentaire.trim()) fd.set('comment', commentaire.trim());
       if (visible) fd.set('visibleEntreprise', '1');
       const r = await fetch(`/api/dossiers/${dossierId}/documents/upload`, { method: 'POST', body: fd });
-      const corps = (await r.json()) as { ok: boolean; error?: string; indicateurRattache?: boolean };
+      const corps = (await r.json()) as { ok: boolean; error?: string; indicateursRattaches?: number };
       if (!corps.ok) {
         setErreur(ERREURS[corps.error ?? ''] ?? 'Le dépôt a échoué.');
         return;
       }
       setMessage(
-        corps.indicateurRattache
-          ? 'Pièce déposée et rattachée à l’indicateur Qualiopi.'
+        corps.indicateursRattaches
+          ? `Pièce déposée et rattachée à ${corps.indicateursRattaches > 1 ? `${corps.indicateursRattaches} indicateurs` : 'l’indicateur'} Qualiopi.`
           : 'Pièce déposée.',
       );
       setFichier(null);
       setTitre('');
-      setIndicateur('');
+      setChoisis([]);
       setCommentaire('');
       setVisible(false);
       if (champFichier.current) champFichier.current.value = '';
@@ -170,17 +170,31 @@ export function DeposerPiece({
         </label>
 
         {indicateurs.length > 0 && (
-          <label className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 sm:col-span-2">
-            Justifie l’indicateur Qualiopi <span className="font-normal text-zinc-400">(facultatif)</span>
-            <select value={indicateur} onChange={(e) => setIndicateur(e.target.value)} className={`${champ} mt-1`}>
-              <option value="">Aucun</option>
+          <fieldset className="text-[12px] font-medium text-zinc-700 dark:text-zinc-300 sm:col-span-2">
+            <legend>
+              Justifie les indicateurs Qualiopi <span className="font-normal text-zinc-400">(facultatif, plusieurs possibles)</span>
+            </legend>
+            <div className="mt-1 max-h-44 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800">
               {indicateurs.map((i) => (
-                <option key={i.id} value={i.id}>
-                  Indicateur {i.numero} — {i.libelle}
-                </option>
+                <label key={i.id} className="flex items-start gap-2 px-2.5 py-1.5 font-normal cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                  <input
+                    type="checkbox"
+                    checked={choisis.includes(i.id)}
+                    onChange={(e) => setChoisis((c) => (e.target.checked ? [...c, i.id] : c.filter((x) => x !== i.id)))}
+                    className="mt-0.5 w-3.5 h-3.5 rounded border-zinc-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span>
+                    <span className="font-medium tabular-nums">Indicateur {i.numero}</span> — {i.libelle}
+                  </span>
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+            {choisis.length > 0 && (
+              <p className="mt-1 text-[11px] font-normal text-zinc-500 tabular-nums">
+                {choisis.length} indicateur{choisis.length > 1 ? 's' : ''} sélectionné{choisis.length > 1 ? 's' : ''}
+              </p>
+            )}
+          </fieldset>
         )}
       </div>
 

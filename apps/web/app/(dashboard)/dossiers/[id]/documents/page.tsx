@@ -18,6 +18,7 @@ import { GenerateWithAi } from './_components/generate-with-ai';
 import { EmailDocButton } from './_components/email-doc-button';
 import { GenerateConventionsButton } from './_components/generate-conventions-button';
 import { VisibiliteToggle } from '../../../documents/visibilite-toggle.client';
+import { SupprimerDocumentButton } from '../../../documents/supprimer-document.client';
 
 // PDF générés à la volée (générateurs pdf-lib existants : génèrent, persistent, renvoient le PDF).
 // La convention est générée à part (1 par financeur + reste à charge) via GenerateConventionsButton.
@@ -123,6 +124,7 @@ export default async function DocumentsPage({
       .from('documents')
       .select('id, title, kind, status, content_html, storage_path, metadata, created_at, visible_entreprise')
       .eq('dossier_id', params.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false }),
     sb
       .schema('app')
@@ -460,6 +462,7 @@ export default async function DocumentsPage({
                             </a>
                           )
                         )}
+                        {peutCommenter && <SupprimerDocumentButton documentId={d.id} titre={d.title} />}
                       </span>
                     </li>
                   );

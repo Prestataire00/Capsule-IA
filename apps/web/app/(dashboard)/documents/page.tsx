@@ -13,6 +13,7 @@ import { StatusPill } from '@/shared/ui/status-pill';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { DocumentUploadButton, AttachToDossier, type DossierOption } from './document-tools';
 import { VisibiliteToggle } from './visibilite-toggle.client';
+import { SupprimerDocumentButton } from './supprimer-document.client';
 import { KindFilter } from './kind-filter';
 import { StandaloneGenerateButton } from './standalone-generate';
 
@@ -305,6 +306,7 @@ export default async function DocumentsPage({
                       >
                         <ActionIcon className="w-4 h-4" />
                       </Link>
+                      <SupprimerDocumentButton documentId={d.id} titre={d.title} />
                     </div>
                   </li>
                 );
