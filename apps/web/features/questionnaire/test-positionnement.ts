@@ -2,7 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 import { toRuntimeQuestion } from './template.schema';
-import { PREFIXE_TEST_POSITIONNEMENT, scoreTest, type ScoreTest, codeTestPositionnement, lireProgramme, lireTestGenere, nombreAttendu, promptTestPositionnement, titreTestPositionnement, type ContenuFormation } from './test-positionnement-contenu';
+import { PREFIXE_TEST_POSITIONNEMENT, scoreTest, type ScoreTest, codeTestPositionnement, lireProgramme, lireTestGenereDetail, nombreAttendu, promptTestPositionnement, titreTestPositionnement, type ContenuFormation } from './test-positionnement-contenu';
 import { loadProgrammePourFormateur } from '@/features/formations/programme/load-for-trainer';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,27 +60,32 @@ export async function genererTestPositionnement(
 
   const client = anthropic();
   if (!client) return { ok: false, error: 'ia_indisponible' };
+  // Deux essais : une réponse mal formée n'est pas une raison d'abandonner.
   let genere = null;
-  try {
-    const msg = await client.messages
-      .stream({
-        model: LEGAL_MODEL,
-        max_tokens: 8000,
-        thinking: { type: 'adaptive' },
+  for (let essai = 1; essai <= 2 && !genere; essai++) {
+    try {
+      const msg = await client.messages
+        .stream({
+          model: LEGAL_MODEL,
+          max_tokens: 16000,
+          thinking: { type: 'adaptive' },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          output_config: { effort: 'medium' } as any,
+          messages: [{ role: 'user', content: promptTestPositionnement(contenu) }],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+        .finalMessage();
+      const texte = msg.content
+        .filter((b) => b.type === 'text')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        output_config: { effort: 'medium' } as any,
-        messages: [{ role: 'user', content: promptTestPositionnement(contenu) }],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
-      .finalMessage();
-    const texte = msg.content
-      .filter((b) => b.type === 'text')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((b) => (b as any).text as string)
-      .join('\n');
-    genere = lireTestGenere(texte, nombreAttendu(contenu));
-  } catch (e) {
-    console.error('[test de positionnement] génération impossible', e instanceof Error ? e.message : e);
+        .map((b) => (b as any).text as string)
+        .join('\n');
+      const lu = lireTestGenereDetail(texte, nombreAttendu(contenu));
+      if (lu.ok) genere = lu.test;
+      else console.error('[test de positionnement] réponse rejetée', { essai, raison: lu.raison, arret: msg.stop_reason, debut: texte.slice(0, 300) });
+    } catch (e) {
+      console.error('[test de positionnement] génération impossible', { essai, erreur: e instanceof Error ? e.message : String(e) });
+    }
   }
   if (!genere) return { ok: false, error: 'generation_echouee' };
   const { questions, corrections } = genere;

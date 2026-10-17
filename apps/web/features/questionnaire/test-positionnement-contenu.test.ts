@@ -37,7 +37,9 @@ describe('test du dernier cours', () => {
     const lu = lireTestGenere(JSON.stringify({ questions: [...q(1), ...q(2)] }), nombreAttendu(contenu));
     expect(lu?.questions).toHaveLength(4);
     expect(lu?.corrections).toEqual({ m1_situation: 'A', m2_situation: 'A' });
-    expect(lireTestGenere(JSON.stringify({ questions: q(1) }), nombreAttendu(contenu))).toBeNull();
+    // Marge de deux questions autour de l'attendu ; au-delà, refusé.
+    expect(lireTestGenere(JSON.stringify({ questions: q(1) }), nombreAttendu(contenu))?.questions).toHaveLength(2);
+    expect(lireTestGenere(JSON.stringify({ questions: q(1) }), { min: 10, max: 10 })).toBeNull();
     expect(lireTestGenere('pas de JSON', { min: 1, max: 2 })).toBeNull();
   });
   it('lit les modules et le reste du programme', () => {
@@ -64,9 +66,24 @@ describe('test du dernier cours', () => {
     expect(codeTestPositionnement('0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b')).toBe('test_positionnement_0190a1b2c3d47e5f8a9b0c1d2e3f4a5b');
   });
 
-  it('refuse une mise en situation sans bonne réponse valable', () => {
+  it('une bonne réponse introuvable : la question reste, sans compter dans le score', () => {
     const sans = [...q(1), ...q(2)].map((x) => (x.id === 'm2_situation' ? { ...x, correcte: 'Je ne sais pas' } : x));
-    expect(lireTestGenere(JSON.stringify({ questions: sans }), nombreAttendu(contenu))).toBeNull();
+    const lu = lireTestGenere(JSON.stringify({ questions: sans }), nombreAttendu(contenu));
+    expect(lu?.questions).toHaveLength(4);
+    expect(lu?.corrections).toEqual({ m1_situation: 'A' });
+  });
+
+  it('retrouve la bonne réponse malgré apostrophes, casse et espaces', () => {
+    const lu = lireTestGenere(
+      JSON.stringify({
+        questions: [
+          { id: 'm1_auto', type: 'rating', label: 'Je sais', options: [] },
+          { id: 'M1 Situation', type: 'choice', label: 'Cas', options: ['L’outil d’IA', 'Autre', 'Je ne sais pas'], correcte: " l'outil d'ia " },
+        ],
+      }),
+      { min: 2, max: 2 },
+    );
+    expect(lu?.corrections).toEqual({ m1_situation: 'L’outil d’IA' });
   });
   it('note le test : bonnes réponses et niveau déclaré', () => {
     const schema = {

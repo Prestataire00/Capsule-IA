@@ -3,7 +3,6 @@
 // modalités de la formation (17/10/2026), plutôt que de ses seuls objectifs :
 // deux questions par module du programme. Pur.
 
-import { z } from 'zod';
 import { questionDraftSchema, type QuestionDraft } from './template.schema';
 import type { Programme } from '@/features/formations/programme/types';
 
@@ -92,38 +91,79 @@ Réponds UNIQUEMENT par un objet JSON valide, sans texte autour :
 Français simple, sans jargon ; libellés de 200 caractères au plus.`;
 }
 
-const reponseSchema = z.object({ questions: z.array(questionDraftSchema).min(2).max(40) });
-
 export type TestGenere = { questions: QuestionDraft[]; corrections: Record<string, string> };
+export type LectureTest = { ok: true; test: TestGenere } | { ok: false; raison: string };
+
+/** Comparaison tolérante : casse, espaces, apostrophes et guillemets typographiques. */
+const normaliser = (t: string) =>
+  t
+    .normalize('NFKC')
+    .replace(/[’‘`´]/g, "'")
+    .replace(/[«»“”"]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+const idPropre = (id: unknown, i: number) =>
+  (typeof id === 'string' ? id : '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60) || `q${i + 1}`;
 
 /**
- * La réponse de l'IA, si elle respecte le nombre de questions attendu. Chaque
- * mise en situation garde sa bonne réponse (`corrections`), pour noter le test.
+ * La réponse de l'IA, lue avec tolérance (17/10/2026 : une réponse correcte
+ * était rejetée pour une apostrophe ou une question de trop). Le nombre de
+ * questions doit rester proche de l'attendu ; une mise en situation dont la
+ * bonne réponse est introuvable reste posée, sans compter dans le score.
  */
 export function lireTestGenere(texte: string, attendu: { min: number; max: number }): TestGenere | null {
+  const r = lireTestGenereDetail(texte, attendu);
+  return r.ok ? r.test : null;
+}
+
+export function lireTestGenereDetail(texte: string, attendu: { min: number; max: number }): LectureTest {
   const json = /\{[\s\S]*\}/.exec(texte);
-  if (!json) return null;
+  if (!json) return { ok: false, raison: 'pas de JSON dans la réponse' };
   let brut: unknown;
   try {
     brut = JSON.parse(json[0]);
   } catch {
-    return null;
+    return { ok: false, raison: 'JSON illisible' };
   }
-  const p = reponseSchema.safeParse(brut);
-  if (!p.success) return null;
-  const questions = p.data.questions;
-  if (questions.length < attendu.min || questions.length > attendu.max) return null;
-  if (new Set(questions.map((q) => q.id)).size !== questions.length) return null;
-  if (questions.some((q) => q.type === 'choice' && q.options.length < 2)) return null;
-  const bruts = ((brut as { questions?: Array<{ id?: unknown; correcte?: unknown }> }).questions ?? []);
+  const liste = Array.isArray((brut as { questions?: unknown }).questions) ? ((brut as { questions: unknown[] }).questions as Array<Record<string, unknown>>) : null;
+  if (!liste) return { ok: false, raison: 'pas de liste « questions »' };
+
+  const vus = new Set<string>();
+  const questions: QuestionDraft[] = [];
   const corrections: Record<string, string> = {};
-  for (const q of questions) {
-    if (q.type !== 'choice') continue;
-    const c = bruts.find((b) => b.id === q.id)?.correcte;
-    if (typeof c !== 'string' || !q.options.includes(c) || /^je ne sais pas$/i.test(c.trim())) return null;
-    corrections[q.id] = c;
+  liste.forEach((q, i) => {
+    let id = idPropre(q.id, i);
+    while (vus.has(id)) id = `${id}_${i}`;
+    const options = Array.isArray(q.options) ? q.options.filter((o): o is string => typeof o === 'string' && o.trim() !== '').map((o) => o.trim().slice(0, 300)) : [];
+    const type = q.type === 'choice' && options.length >= 2 ? 'choice' : q.type === 'rating' ? 'rating' : q.type === 'choice' ? null : 'text';
+    const label = typeof q.label === 'string' ? q.label.trim().slice(0, 500) : '';
+    if (!type || !label) return;
+    const p = questionDraftSchema.safeParse({ id, type, label, required: true, options: type === 'choice' ? options.slice(0, 20) : [], max: 5 });
+    if (!p.success) return;
+    vus.add(id);
+    questions.push(p.data);
+    if (type === 'choice' && typeof q.correcte === 'string') {
+      const juste = p.data.options.find((o) => normaliser(o) === normaliser(q.correcte as string));
+      if (juste && !/^je ne sais pas$/i.test(juste)) corrections[id] = juste;
+    }
+  });
+
+  // Une marge de deux questions de part et d'autre : l'IA en ajoute ou en
+  // oublie parfois une, ce n'est pas une raison pour tout jeter.
+  const min = Math.max(2, attendu.min - 2);
+  const max = Math.min(40, attendu.max + 2);
+  if (questions.length < min || questions.length > max) {
+    return { ok: false, raison: `${questions.length} questions valables pour ${attendu.min}–${attendu.max} attendues` };
   }
-  return { questions, corrections };
+  return { ok: true, test: { questions, corrections } };
 }
 
 /** Le score au test : bonnes réponses aux mises en situation, et niveau déclaré moyen. Pur. */
