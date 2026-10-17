@@ -21,7 +21,7 @@ export const AUTOMATION_KEYS = [
     label: 'Convocation',
     quand: '7 jours avant la séance, aux apprenants (et le récapitulatif aux entreprises)',
   },
-  { key: 'rappel_48h', label: 'Rappel 48 h avant', quand: 'Deux jours avant le début, à l’entreprise et au formateur' },
+  { key: 'rappel_48h', label: 'Rappel la veille', quand: 'La veille, à l’entreprise, au formateur et aux stagiaires' },
   { key: 'rappel_2h', label: 'Rappel 2 h avant', quand: 'Deux heures avant le début, à l’entreprise et au formateur' },
   {
     key: 'emargement_liens',

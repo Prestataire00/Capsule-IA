@@ -36,15 +36,15 @@ describe('rappelDu', () => {
   const debut = '2026-10-10T09:00:00.000Z';
   const avant = (heures: number) => new Date(new Date(debut).getTime() - heures * 3600_000);
 
-  it('rappel à 48 h entre 48 h et 24 h avant', () => {
-    expect(rappelDu(debut, avant(48))).toBe('48h');
-    expect(rappelDu(debut, avant(47.8))).toBe('48h');
-    expect(rappelDu(debut, avant(25))).toBe('48h');
+  it('rappel de la veille entre 24 h et 6 h avant', () => {
+    expect(rappelDu(debut, avant(24))).toBe('veille');
+    expect(rappelDu(debut, avant(23.8))).toBe('veille');
+    expect(rappelDu(debut, avant(10))).toBe('veille');
   });
-  it('rien entre 24 h et 2 h, ni avant 48 h', () => {
-    expect(rappelDu(debut, avant(24))).toBeNull();
-    expect(rappelDu(debut, avant(10))).toBeNull();
-    expect(rappelDu(debut, avant(49))).toBeNull();
+  it('rien entre 6 h et 2 h, ni plus de 24 h avant', () => {
+    expect(rappelDu(debut, avant(5))).toBeNull();
+    expect(rappelDu(debut, avant(25))).toBeNull();
+    expect(rappelDu(debut, avant(48))).toBeNull();
   });
   it('rappel à 2 h dans les deux dernières heures, rien une fois commencée', () => {
     expect(rappelDu(debut, avant(2))).toBe('2h');

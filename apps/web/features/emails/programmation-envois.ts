@@ -48,7 +48,8 @@ export const REGLABLES: Readonly<Record<string, Reglable>> = {
   nouvelle_demande: { coupable: true, delai: null },
   convocation_j7: {
     coupable: true,
-    delai: { defaut: 7, min: 1, max: 60, sens: 'avant', libelle: 'avant le début de la séance' },
+    // J-5 par défaut (réunion avec Laurie, 16/10/2026) ; chaque organisme le règle.
+    delai: { defaut: 5, min: 1, max: 60, sens: 'avant', libelle: 'avant le début de la séance' },
   },
   // Le récapitulatif suit les convocations individuelles : lui donner son
   // propre délai le ferait partir un jour où rien n'a été convoqué.

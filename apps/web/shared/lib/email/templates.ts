@@ -176,28 +176,32 @@ export function lienVisioEntrepriseEmail(d: SeanceEmailData & { lienVisio: strin
       <table style="width:100%; border-collapse:collapse; margin:0 0 16px;">${lignesSeance(d)}</table>
       ${blocVisio(d.lienVisio)}
       <div>${button(d.lienVisio, 'Rejoindre la visio')}</div>
-      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">Un rappel vous sera envoyé 48 h puis 2 h avant le début. — ${escapeHtml(d.orgName)}</p>
+      <p style="font-size:12px; color:#71717a; margin:16px 0 0;">Un rappel vous sera envoyé la veille puis 2 h avant le début. — ${escapeHtml(d.orgName)}</p>
     `)}
   `);
   return { subject, html };
 }
 
-/** Rappel 48 h ou 2 h avant une séance, à l'entreprise ou au formateur. */
+/** Rappel la veille ou 2 h avant une séance, à l'entreprise, au formateur ou au stagiaire. */
 export function rappelSeanceEmail(
-  d: SeanceEmailData & { delai: '48h' | '2h'; pour: 'entreprise' | 'formateur'; lienEspace: string | null },
+  d: SeanceEmailData & { delai: 'veille' | '2h'; pour: 'entreprise' | 'formateur' | 'stagiaire'; lienEspace: string | null },
 ): { subject: string; html: string } {
-  const echeance = d.delai === '2h' ? 'dans 2 heures' : 'dans 48 heures';
-  const subject = `Rappel : ${d.formationTitle} commence ${echeance}`;
+  const echeance = d.delai === '2h' ? 'dans 2 heures' : 'bientôt';
+  const subject = d.delai === '2h' ? `Rappel : ${d.formationTitle} commence ${echeance}` : `Rappel : ${d.formationTitle} — ${d.quand}`;
   const consigne =
     d.pour === 'formateur'
       ? 'Rejoignez la séance depuis votre espace formateur : le lien de la visio, la liste des stagiaires et l’émargement y sont réunis.'
+      : d.pour === 'stagiaire'
+        ? d.lienVisio
+          ? 'Votre séance approche. Le lien de la visio est ci-dessous ; votre lien d’émargement vous parviendra 10 minutes avant le début.'
+          : 'Votre séance approche. Merci d’arriver quelques minutes en avance ; votre lien d’émargement vous parviendra 10 minutes avant le début.'
       : d.lienVisio
         ? 'Pensez à transmettre le lien de la visio à vos salariés inscrits.'
         : 'Merci de rappeler l’horaire et le lieu à vos salariés inscrits.';
   const action =
     d.pour === 'formateur' && d.lienEspace
       ? button(d.lienEspace, 'Ouvrir la séance dans mon espace')
-      : d.lienVisio
+      : d.lienVisio && d.pour !== 'stagiaire'
         ? button(d.lienVisio, 'Rejoindre la visio')
         : '';
   const html = wrapper(`

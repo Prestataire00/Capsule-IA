@@ -40,7 +40,7 @@ describe('le catalogue et les réglages ne divergent pas', () => {
   });
 
   it('garde les délais d’origine du code, pour que ne rien régler ne change rien', () => {
-    expect(reglageParDefaut('convocation_j7').delaiJours).toBe(7);
+    expect(reglageParDefaut('convocation_j7').delaiJours).toBe(5);
     expect(reglageParDefaut('satisfaction_chaud').delaiJours).toBe(1);
     expect(reglageParDefaut('fin_de_formation').delaiJours).toBe(1);
   });
@@ -48,8 +48,8 @@ describe('le catalogue et les réglages ne divergent pas', () => {
 
 describe('ce qui s’applique réellement', () => {
   it('retombe sur le défaut quand l’organisme n’a rien réglé', () => {
-    expect(reglageEffectif('convocation_j7', null)).toEqual({ actif: true, delaiJours: 7 });
-    expect(reglageEffectif('convocation_j7', undefined)).toEqual({ actif: true, delaiJours: 7 });
+    expect(reglageEffectif('convocation_j7', null)).toEqual({ actif: true, delaiJours: 5 });
+    expect(reglageEffectif('convocation_j7', undefined)).toEqual({ actif: true, delaiJours: 5 });
   });
 
   it('applique le délai réglé', () => {
@@ -66,8 +66,8 @@ describe('ce qui s’applique réellement', () => {
 
   it('ignore un délai hors bornes plutôt que de l’appliquer', () => {
     // Une valeur aberrante en base ne doit pas faire convoquer à 90 jours.
-    expect(reglageEffectif('convocation_j7', regle('convocation_j7', true, 90)).delaiJours).toBe(7);
-    expect(reglageEffectif('convocation_j7', regle('convocation_j7', true, 0)).delaiJours).toBe(7);
+    expect(reglageEffectif('convocation_j7', regle('convocation_j7', true, 90)).delaiJours).toBe(5);
+    expect(reglageEffectif('convocation_j7', regle('convocation_j7', true, 0)).delaiJours).toBe(5);
   });
 
   it('refuse de couper un envoi qui ne se coupe pas ici, même si la base dit l’inverse', () => {
@@ -133,7 +133,7 @@ describe('phrase affichée', () => {
 
 describe('ce que le cron doit examiner', () => {
   it('examine le défaut même quand personne ne l’a réglé', () => {
-    expect(delaisAConsiderer('convocation_j7', new Map())).toEqual([7]);
+    expect(delaisAConsiderer('convocation_j7', new Map())).toEqual([5]);
   });
 
   it('examine tous les délais réglés, sans doublon et dans l’ordre', () => {
@@ -142,13 +142,13 @@ describe('ce que le cron doit examiner', () => {
       ['orgB', regle('convocation_j7', true, 3)],
       ['orgC', regle('convocation_j7', true, 15)],
     ]);
-    expect(delaisAConsiderer('convocation_j7', regles)).toEqual([3, 7, 15]);
+    expect(delaisAConsiderer('convocation_j7', regles)).toEqual([3, 5, 15]);
   });
 
   it('garde le défaut dans la liste même si tous les organismes connus l’ont changé', () => {
     // Un organisme sans ligne existe toujours : son envoi passerait à la trappe.
     const regles = new Map([['orgA', regle('convocation_j7', true, 15)]]);
-    expect(delaisAConsiderer('convocation_j7', regles)).toContain(7);
+    expect(delaisAConsiderer('convocation_j7', regles)).toContain(5);
   });
 });
 
@@ -161,7 +161,7 @@ describe('faut-il envoyer aujourd’hui ?', () => {
   it('envoie au défaut pour un organisme qui n’a rien réglé', () => {
     const cas = (ecartJours: number) =>
       doitPartirAujourdhui({ kind: 'convocation_j7', organizationId: 'orgSansRegle', regles, ecartJours });
-    expect(cas(7)).toBe(true);
+    expect(cas(5)).toBe(true);
     expect(cas(15)).toBe(false);
   });
 
@@ -169,7 +169,7 @@ describe('faut-il envoyer aujourd’hui ?', () => {
     const cas = (ecartJours: number) =>
       doitPartirAujourdhui({ kind: 'convocation_j7', organizationId: 'orgRegle', regles, ecartJours });
     expect(cas(15)).toBe(true);
-    expect(cas(7)).toBe(false);
+    expect(cas(5)).toBe(false);
   });
 
   it('n’envoie jamais pour un organisme qui a coupé', () => {
@@ -198,8 +198,8 @@ describe('faut-il envoyer aujourd’hui ?', () => {
 
 describe('convocation dans le délai', () => {
   const regles = new Map();
-  it('part de J-7 à J0, plus seulement à J-7', () => {
-    expect([8, 7, 5, 1, 0, -1].map((ecartJours) => doitPartirDansLeDelai({ kind: 'convocation_j7', organizationId: 'o', regles, ecartJours }))).toEqual([
+  it('part de J-5 à J0, plus seulement à J-5', () => {
+    expect([6, 5, 3, 1, 0, -1].map((ecartJours) => doitPartirDansLeDelai({ kind: 'convocation_j7', organizationId: 'o', regles, ecartJours }))).toEqual([
       false,
       true,
       true,
