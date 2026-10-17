@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { codeTestPositionnement, lireProgramme, lireTestGenere, nombreAttendu, promptTestPositionnement, type ContenuFormation } from './test-positionnement-contenu';
+import { codeTestPositionnement, lireProgramme, lireTestGenere, nombreAttendu, promptTestPositionnement, scoreTest, type ContenuFormation } from './test-positionnement-contenu';
 import type { Programme } from '@/features/formations/programme/types';
 
 const q = (n: number) => [
   { id: `m${n}_auto`, type: 'rating', label: `Je sais ${n}`, required: true, options: [], max: 5 },
-  { id: `m${n}_situation`, type: 'choice', label: `Cas ${n}`, required: true, options: ['A', 'B', 'Je ne sais pas'], max: 5 },
+  { id: `m${n}_situation`, type: 'choice', label: `Cas ${n}`, required: true, options: ['A', 'B', 'Je ne sais pas'], max: 5, correcte: 'A' },
 ];
 
 const contenu: ContenuFormation = {
@@ -34,7 +34,9 @@ describe('test du dernier cours', () => {
   it('deux questions par module ; sans modules, 10 à 16', () => {
     expect(nombreAttendu(contenu)).toEqual({ min: 4, max: 4 });
     expect(nombreAttendu({ modules: [] })).toEqual({ min: 10, max: 16 });
-    expect(lireTestGenere(JSON.stringify({ questions: [...q(1), ...q(2)] }), nombreAttendu(contenu))).toHaveLength(4);
+    const lu = lireTestGenere(JSON.stringify({ questions: [...q(1), ...q(2)] }), nombreAttendu(contenu));
+    expect(lu?.questions).toHaveLength(4);
+    expect(lu?.corrections).toEqual({ m1_situation: 'A', m2_situation: 'A' });
     expect(lireTestGenere(JSON.stringify({ questions: q(1) }), nombreAttendu(contenu))).toBeNull();
     expect(lireTestGenere('pas de JSON', { min: 1, max: 2 })).toBeNull();
   });
@@ -60,5 +62,28 @@ describe('test du dernier cours', () => {
   });
   it('un code par formation', () => {
     expect(codeTestPositionnement('0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b')).toBe('test_positionnement_0190a1b2c3d47e5f8a9b0c1d2e3f4a5b');
+  });
+
+  it('refuse une mise en situation sans bonne réponse valable', () => {
+    const sans = [...q(1), ...q(2)].map((x) => (x.id === 'm2_situation' ? { ...x, correcte: 'Je ne sais pas' } : x));
+    expect(lireTestGenere(JSON.stringify({ questions: sans }), nombreAttendu(contenu))).toBeNull();
+  });
+  it('note le test : bonnes réponses et niveau déclaré', () => {
+    const schema = {
+      questions: [
+        { id: 'm1_auto', type: 'rating', max: 5 },
+        { id: 'm1_situation', type: 'choice' },
+        { id: 'm2_auto', type: 'rating', max: 5 },
+        { id: 'm2_situation', type: 'choice' },
+      ],
+      corrections: { m1_situation: 'A', m2_situation: 'B' },
+    };
+    expect(scoreTest(schema, { m1_auto: 2, m1_situation: 'A', m2_auto: 3, m2_situation: 'Je ne sais pas' })).toEqual({
+      libelle: '1/2 justes · 2,5/5 déclaré',
+      pourcentage: 50,
+      justes: 1,
+      total: 2,
+    });
+    expect(scoreTest(schema, null)).toBeNull();
   });
 });

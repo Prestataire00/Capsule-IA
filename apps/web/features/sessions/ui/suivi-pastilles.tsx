@@ -36,6 +36,7 @@ const jour = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '
 export function SuiviPastilles({
   suivi,
   avecAcquis,
+  avecTest = false,
   learnerId,
   nom,
   modeles,
@@ -43,6 +44,7 @@ export function SuiviPastilles({
 }: {
   suivi: SuiviStagiaire;
   avecAcquis: boolean;
+  avecTest?: boolean;
   learnerId: string;
   nom: string;
   modeles: Record<QuestionnaireSuivi, string | null>;
@@ -57,7 +59,13 @@ export function SuiviPastilles({
   const { attendues, signees } = suivi.emargement;
   const tonEmargement =
     attendues === 0 ? TON.aucun : signees === attendues ? TON.rempli : signees === 0 ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' : TON.envoye;
-  const kinds: QuestionnaireSuivi[] = ['positionnement', ...(avecAcquis ? (['evaluation_acquis'] as const) : []), 'satisfaction_chaud', 'satisfaction_froid'];
+  const kinds: QuestionnaireSuivi[] = [
+    'positionnement',
+    ...(avecTest ? (['test_positionnement'] as const) : []),
+    ...(avecAcquis ? (['evaluation_acquis'] as const) : []),
+    'satisfaction_chaud',
+    'satisfaction_froid',
+  ];
 
   const envoyer = (k: QuestionnaireSuivi, templateId: string) =>
     start(async () => {
@@ -111,9 +119,15 @@ export function SuiviPastilles({
               <Icone className="w-3 h-3" />
               {QUESTIONNAIRE_LABELS[k]}
               {k === 'positionnement' && suivi.positionnement && (
-                <span className="tabular-nums font-semibold" title="Score du test de positionnement">
+                <span className="tabular-nums font-semibold" title="Niveau déclaré par le stagiaire dans sa fiche besoin">
                   {' · '}
                   {suivi.positionnement.libelle}
+                </span>
+              )}
+              {k === 'test_positionnement' && suivi.testPositionnement && (
+                <span className="tabular-nums font-semibold" title="Bonnes réponses aux mises en situation, et niveau qu’il s’attribue">
+                  {' · '}
+                  {suivi.testPositionnement.libelle}
                 </span>
               )}
             </button>

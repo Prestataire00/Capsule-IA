@@ -2,7 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 import { toRuntimeQuestion } from './template.schema';
-import { codeTestPositionnement, lireProgramme, lireTestGenere, nombreAttendu, promptTestPositionnement, titreTestPositionnement, type ContenuFormation } from './test-positionnement-contenu';
+import { PREFIXE_TEST_POSITIONNEMENT, scoreTest, type ScoreTest, codeTestPositionnement, lireProgramme, lireTestGenere, nombreAttendu, promptTestPositionnement, titreTestPositionnement, type ContenuFormation } from './test-positionnement-contenu';
 import { loadProgrammePourFormateur } from '@/features/formations/programme/load-for-trainer';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,7 +60,7 @@ export async function genererTestPositionnement(
 
   const client = anthropic();
   if (!client) return { ok: false, error: 'ia_indisponible' };
-  let questions = null;
+  let genere = null;
   try {
     const msg = await client.messages
       .stream({
@@ -78,11 +78,12 @@ export async function genererTestPositionnement(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((b) => (b as any).text as string)
       .join('\n');
-    questions = lireTestGenere(texte, nombreAttendu(contenu));
+    genere = lireTestGenere(texte, nombreAttendu(contenu));
   } catch (e) {
     console.error('[test de positionnement] génération impossible', e instanceof Error ? e.message : e);
   }
-  if (!questions) return { ok: false, error: 'generation_echouee' };
+  if (!genere) return { ok: false, error: 'generation_echouee' };
+  const { questions, corrections } = genere;
 
   const code = codeTestPositionnement(args.formationId);
   const ligne = {
@@ -95,7 +96,8 @@ export async function genererTestPositionnement(
     audience: 'apprenant',
     title: titreTestPositionnement(f.title),
     description: 'Construit sur le programme, le contenu et les modalités de la formation ; passé au premier cours du groupe.',
-    schema: { questions: questions.map(toRuntimeQuestion) },
+    // Les bonnes réponses restent dans le modèle, jamais montrées au stagiaire.
+    schema: { questions: questions.map(toRuntimeQuestion), corrections },
     thank_you_message: 'Merci ! Votre formateur adaptera la formation à vos réponses.',
     is_active: true,
     deleted_at: null,
@@ -130,4 +132,46 @@ export async function testsDePositionnement(sb: Sb, organizationId: string, form
     .eq('is_active', true)
     .is('deleted_at', null);
   return ((data ?? []) as Array<{ id: string; title: string; formation_id: string }>).map((t) => ({ id: t.id, title: t.title, formationId: t.formation_id }));
+}
+
+/**
+ * Le score de chaque stagiaire au test de positionnement passé en salle :
+ * dans son dossier, ou sans dossier. Lecture en service role, bornée aux
+ * stagiaires passés par l'appelant.
+ */
+export async function scoresTestPositionnement(
+  sb: Sb,
+  stagiaires: ReadonlyArray<{ learnerId: string; dossierId: string | null }>,
+): Promise<Map<string, ScoreTest>> {
+  const out = new Map<string, ScoreTest>();
+  const ids = [...new Set(stagiaires.map((s) => s.learnerId))];
+  if (ids.length === 0) return out;
+  const { data: a, error } = await sb
+    .schema('app')
+    .from('questionnaire_assignments')
+    .select('id, dossier_id, recipient_learner_id, template:questionnaire_templates!inner(code, schema)')
+    .in('recipient_learner_id', ids)
+    .eq('status', 'completed')
+    .like('template.code', `${PREFIXE_TEST_POSITIONNEMENT}%`)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(`[test de positionnement] réponses illisibles : ${error.message}`);
+  const tests = (a ?? []) as unknown as Array<{
+    id: string;
+    dossier_id: string | null;
+    recipient_learner_id: string;
+    template: { schema: unknown } | Array<{ schema: unknown }> | null;
+  }>;
+  if (tests.length === 0) return out;
+  const { data: r } = await sb.schema('app').from('questionnaire_responses').select('assignment_id, answers').in('assignment_id', tests.map((t) => t.id));
+  const reponses = new Map(((r ?? []) as Array<{ assignment_id: string; answers: Record<string, unknown> | null }>).map((x) => [x.assignment_id, x.answers]));
+  for (const s of stagiaires) {
+    const cle = `${s.learnerId}|${s.dossierId ?? ''}`;
+    const siens = tests.filter((t) => t.recipient_learner_id === s.learnerId && (t.dossier_id === s.dossierId || t.dossier_id === null));
+    const t = siens.find((x) => x.dossier_id === s.dossierId) ?? siens[0];
+    if (!t) continue;
+    const modele = Array.isArray(t.template) ? t.template[0] : t.template;
+    const score = scoreTest(modele?.schema as never, reponses.get(t.id));
+    if (score) out.set(cle, score);
+  }
+  return out;
 }

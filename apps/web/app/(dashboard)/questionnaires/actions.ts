@@ -86,6 +86,18 @@ export const saveQuestionnaireTemplate = authActionClient
     };
 
     if (parsedInput.templateId) {
+      // Les bonnes réponses du test de positionnement (non éditables ici) :
+      // gardées pour les questions qui existent encore avec la même option.
+      const { data: avant } = await sb.schema('app').from('questionnaire_templates').select('schema').eq('id', parsedInput.templateId).maybeSingle();
+      const corrections = ((avant as { schema?: { corrections?: Record<string, string> } } | null)?.schema?.corrections ?? null);
+      if (corrections) {
+        const gardees = Object.fromEntries(
+          Object.entries(corrections).filter(([id, rep]) =>
+            schema.questions.some((q) => q.id === id && q.type === 'choice' && q.options.includes(rep)),
+          ),
+        );
+        (base.schema as { corrections?: Record<string, string> }).corrections = gardees;
+      }
       const { error } = await sb
         .schema('app')
         .from('questionnaire_templates')

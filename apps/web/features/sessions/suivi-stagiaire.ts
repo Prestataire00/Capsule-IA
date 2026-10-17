@@ -3,11 +3,14 @@
  * positionnement, évaluations. Module pur — le chargeur lit, ceci décide.
  */
 
-export const QUESTIONNAIRES_SUIVIS = ['positionnement', 'evaluation_acquis', 'satisfaction_chaud', 'satisfaction_froid'] as const;
+export const QUESTIONNAIRES_SUIVIS = ['positionnement', 'test_positionnement', 'evaluation_acquis', 'satisfaction_chaud', 'satisfaction_froid'] as const;
 export type QuestionnaireSuivi = (typeof QUESTIONNAIRES_SUIVIS)[number];
 
 export const QUESTIONNAIRE_LABELS: Record<QuestionnaireSuivi, string> = {
-  positionnement: 'Positionnement',
+  // La fiche besoin (analyse des besoins), avec le niveau que le stagiaire déclare.
+  positionnement: 'Fiche besoin',
+  // Le test passé en salle au premier cours, noté sur ses bonnes réponses.
+  test_positionnement: 'Test de positionnement',
   evaluation_acquis: 'Acquis',
   satisfaction_chaud: 'Satisfaction à chaud',
   satisfaction_froid: 'Satisfaction à froid',

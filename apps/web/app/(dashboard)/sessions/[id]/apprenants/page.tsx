@@ -40,7 +40,7 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
   const { client } = loaded;
   // Chaque participant avec son dossier, apprenants des dossiers de groupe compris.
   const { learners, directLearners } = await participantsResolus(params.id, loaded);
-  const { parStagiaire, avecAcquis, modeles } = await loadSuiviStagiaires(params.id, [
+  const { parStagiaire, avecAcquis, avecTest, modeles } = await loadSuiviStagiaires(params.id, [
     ...learners.map((l) => ({ id: l.id, dossierId: l.dossierId })),
     ...directLearners.map((l) => ({ id: l.id, dossierId: null })),
   ]);
@@ -116,6 +116,7 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                       <SuiviPastilles
                         suivi={parStagiaire.get(l.id)!}
                         avecAcquis={avecAcquis}
+                        avecTest={avecTest}
                         learnerId={l.id}
                         nom={`${l.first_name} ${l.last_name}`.trim()}
                         modeles={modeles}
@@ -175,6 +176,7 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                       <SuiviPastilles
                         suivi={parStagiaire.get(l.id)!}
                         avecAcquis={avecAcquis}
+                        avecTest={avecTest}
                         learnerId={l.id}
                         nom={`${l.first_name} ${l.last_name}`.trim()}
                         modeles={modeles}

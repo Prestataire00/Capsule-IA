@@ -14,6 +14,8 @@ import { cleStagiaire, scoresPositionnement } from '@/features/questionnaire/sco
 import type { ScorePositionnement } from '@/features/questionnaire/score-positionnement';
 import { stagiairesDeLaSeance } from '@/features/questionnaire/stagiaires-de-seance';
 import { modeleSatisfaction } from '@/features/questionnaire/satisfaction';
+import { scoresTestPositionnement, testsDePositionnement } from '@/features/questionnaire/test-positionnement';
+import { PREFIXE_TEST_POSITIONNEMENT, type ScoreTest } from '@/features/questionnaire/test-positionnement-contenu';
 
 export type DetailQuestionnaire = {
   /** La réponse, quand il a répondu : pour l'ouvrir. */
@@ -29,8 +31,10 @@ export type SuiviStagiaire = {
   readonly details: Record<QuestionnaireSuivi, DetailQuestionnaire>;
   /** Son dossier dans cette séance : sans lui, pas d'envoi individuel. */
   readonly dossierId: string | null;
-  /** Score du test de positionnement, une fois rempli. */
+  /** Niveau déclaré dans la fiche besoin, une fois remplie. */
   readonly positionnement: ScorePositionnement | null;
+  /** Score au test de positionnement passé en salle. */
+  readonly testPositionnement: ScoreTest | null;
 };
 
 /**
@@ -41,7 +45,12 @@ export type SuiviStagiaire = {
 export async function loadSuiviStagiaires(
   sessionId: string,
   stagiaires: ReadonlyArray<{ id: string; dossierId: string | null }>,
-): Promise<{ parStagiaire: Map<string, SuiviStagiaire>; avecAcquis: boolean; modeles: Record<QuestionnaireSuivi, string | null> }> {
+): Promise<{
+  parStagiaire: Map<string, SuiviStagiaire>;
+  avecAcquis: boolean;
+  avecTest: boolean;
+  modeles: Record<QuestionnaireSuivi, string | null>;
+}> {
   // Le dossier de chacun, apprenants des dossiers de groupe compris : la séance
   // ne connaît que le titulaire de chaque dossier, et les autres passaient pour
   // « sans dossier » — leurs réponses ne remontaient pas (constat du 2026-10-08).
@@ -52,12 +61,12 @@ export async function loadSuiviStagiaires(
   // Les fiches sans dossier de tous : une fiche envoyée avant le rattachement
   // de la personne à son dossier y est restée (fiches besoin Sandaya, 2026-10-08).
   const sansDossier = stagiaires.map((s) => s.id);
-  const colonnes = 'id, dossier_id, recipient_learner_id, status, template_id, template:questionnaire_templates(kind)';
+  const colonnes = 'id, dossier_id, recipient_learner_id, status, template_id, template:questionnaire_templates(kind, code)';
   // Le questionnaire de satisfaction de l'organisme compte comme « à chaud », quel que soit son type en base.
   const { data: seance } = await supabaseAdmin().schema('app').from('sessions').select('organization_id').eq('id', sessionId).maybeSingle();
   const orgId = (seance as { organization_id: string } | null)?.organization_id ?? null;
   const satisfactionId = orgId ? (await modeleSatisfaction(supabaseAdmin() as never, orgId)).id : null;
-  const [vue, { data, error }, { data: dataSans, error: errSans }, scores] = await Promise.all([
+  const [vue, { data, error }, { data: dataSans, error: errSans }, scores, scoresTest] = await Promise.all([
     loadSessionEmargement(supabaseServer(), sessionId),
     ids.length && dossierIds.length
       ? supabaseAdmin().schema('app').from('questionnaire_assignments').select(colonnes).in('dossier_id', dossierIds).in('recipient_learner_id', ids)
@@ -67,6 +76,7 @@ export async function loadSuiviStagiaires(
       ? supabaseAdmin().schema('app').from('questionnaire_assignments').select(colonnes).is('dossier_id', null).in('recipient_learner_id', sansDossier)
       : Promise.resolve({ data: [], error: null }),
     scoresPositionnement(supabaseAdmin() as never, stagiaires.map((s) => ({ learnerId: s.id, dossierId: s.dossierId }))),
+    scoresTestPositionnement(supabaseAdmin() as never, stagiaires.map((s) => ({ learnerId: s.id, dossierId: s.dossierId }))),
   ]);
   if (error || errSans) throw new Error(`[suivi] questionnaires illisibles : ${(error ?? errSans)?.message}`);
 
@@ -77,14 +87,19 @@ export async function loadSuiviStagiaires(
     id: string;
     status: string;
     template_id: string;
-    template: { kind: string } | Array<{ kind: string }> | null;
+    template: { kind: string; code: string | null } | Array<{ kind: string; code: string | null }> | null;
   }>).map((a) => ({
     id: a.id,
     templateId: a.template_id,
     dossierId: a.dossier_id,
     learnerId: a.recipient_learner_id,
     status: a.status,
-    kind: a.template_id === satisfactionId ? 'satisfaction_chaud' : (un(a.template)?.kind ?? ''),
+    kind:
+      a.template_id === satisfactionId
+        ? 'satisfaction_chaud'
+        : (un(a.template)?.code ?? '').startsWith(PREFIXE_TEST_POSITIONNEMENT)
+          ? 'test_positionnement'
+          : (un(a.template)?.kind ?? ''),
   }));
 
   // Les réponses des fiches remplies, pour les ouvrir d'un clic.
@@ -114,9 +129,17 @@ export async function loadSuiviStagiaires(
       ) as Record<QuestionnaireSuivi, DetailQuestionnaire>,
       dossierId: s.dossierId,
       positionnement: scores.get(cleStagiaire(s.id, s.dossierId)) ?? null,
+      testPositionnement: scoresTest.get(cleStagiaire(s.id, s.dossierId)) ?? null,
     });
   }
-  return { parStagiaire, avecAcquis: assignations.some((a) => a.kind === 'evaluation_acquis'), modeles: await modelesParDefaut(orgId, sessionId, satisfactionId) };
+  const modeles = await modelesParDefaut(orgId, sessionId, satisfactionId);
+  return {
+    parStagiaire,
+    avecAcquis: assignations.some((a) => a.kind === 'evaluation_acquis'),
+    // La pastille du test n'apparaît que si la formation en a un.
+    avecTest: Boolean(modeles.test_positionnement) || assignations.some((a) => a.kind === 'test_positionnement'),
+    modeles,
+  };
 }
 
 /**
@@ -125,7 +148,7 @@ export async function loadSuiviStagiaires(
  * premier questionnaire à froid. Les acquis passent par les quiz : pas d'envoi d'ici.
  */
 async function modelesParDefaut(orgId: string | null, sessionId: string, satisfactionId: string | null): Promise<Record<QuestionnaireSuivi, string | null>> {
-  const vide = { positionnement: null, evaluation_acquis: null, satisfaction_chaud: satisfactionId, satisfaction_froid: null };
+  const vide = { positionnement: null, test_positionnement: null, evaluation_acquis: null, satisfaction_chaud: satisfactionId, satisfaction_froid: null };
   if (!orgId) return vide;
   const sb = supabaseAdmin();
   const [{ data: s }, { data: t }] = await Promise.all([
@@ -144,5 +167,6 @@ async function modelesParDefaut(orgId: string | null, sessionId: string, satisfa
   // Le plus proche d'abord : celui de la formation, puis celui de l'organisme, puis l'intégré.
   const rang = (m: (typeof modeles)[number]) => (m.formation_id && m.formation_id === formation ? 0 : m.formation_id ? 9 : m.organization_id ? 1 : 2);
   const meilleur = (kind: string) => modeles.filter((m) => m.kind === kind && rang(m) < 9).sort((a, b) => rang(a) - rang(b))[0]?.id ?? null;
-  return { ...vide, positionnement: meilleur('positionnement'), satisfaction_froid: meilleur('satisfaction_froid') };
+  const [test] = formation ? await testsDePositionnement(sb as never, orgId, [formation]) : [];
+  return { ...vide, positionnement: meilleur('positionnement'), test_positionnement: test?.id ?? null, satisfaction_froid: meilleur('satisfaction_froid') };
 }

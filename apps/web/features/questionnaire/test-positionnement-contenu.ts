@@ -82,20 +82,25 @@ ${c.programmeTexte || '—'}
 
 Pour chaque module (ou thème) :
 1. une auto-évaluation : type "rating", max 5, « Je sais … » reformulant un savoir-faire précis du module, à la première personne (1 = pas du tout, 5 = parfaitement) ;
-2. une mise en situation tirée du contenu réel du module (outil, exercice, cas qui sera travaillé), accessible à un débutant : type "choice", 3 ou 4 options concrètes dont une seule juste, plus la dernière option « Je ne sais pas ».
+2. une mise en situation tirée du contenu réel du module (outil, exercice, cas qui sera travaillé), accessible à un débutant : type "choice", 3 ou 4 options concrètes dont une seule juste, plus la dernière option « Je ne sais pas » ; indique la bonne option, recopiée mot pour mot, dans "correcte".
 
 ${regleNombre}
 
 Réponds UNIQUEMENT par un objet JSON valide, sans texte autour :
-{"questions": [{"id": "m1_auto", "type": "rating", "label": "...", "required": true, "options": [], "max": 5}, {"id": "m1_situation", "type": "choice", "label": "...", "required": true, "options": ["...", "...", "Je ne sais pas"], "max": 5}]}
+{"questions": [{"id": "m1_auto", "type": "rating", "label": "...", "required": true, "options": [], "max": 5}, {"id": "m1_situation", "type": "choice", "label": "...", "required": true, "options": ["...", "...", "Je ne sais pas"], "max": 5, "correcte": "..."}]}
 
 Français simple, sans jargon ; libellés de 200 caractères au plus.`;
 }
 
 const reponseSchema = z.object({ questions: z.array(questionDraftSchema).min(2).max(40) });
 
-/** La réponse de l'IA, si elle respecte le nombre de questions attendu. */
-export function lireTestGenere(texte: string, attendu: { min: number; max: number }): QuestionDraft[] | null {
+export type TestGenere = { questions: QuestionDraft[]; corrections: Record<string, string> };
+
+/**
+ * La réponse de l'IA, si elle respecte le nombre de questions attendu. Chaque
+ * mise en situation garde sa bonne réponse (`corrections`), pour noter le test.
+ */
+export function lireTestGenere(texte: string, attendu: { min: number; max: number }): TestGenere | null {
   const json = /\{[\s\S]*\}/.exec(texte);
   if (!json) return null;
   let brut: unknown;
@@ -110,5 +115,38 @@ export function lireTestGenere(texte: string, attendu: { min: number; max: numbe
   if (questions.length < attendu.min || questions.length > attendu.max) return null;
   if (new Set(questions.map((q) => q.id)).size !== questions.length) return null;
   if (questions.some((q) => q.type === 'choice' && q.options.length < 2)) return null;
-  return questions;
+  const bruts = ((brut as { questions?: Array<{ id?: unknown; correcte?: unknown }> }).questions ?? []);
+  const corrections: Record<string, string> = {};
+  for (const q of questions) {
+    if (q.type !== 'choice') continue;
+    const c = bruts.find((b) => b.id === q.id)?.correcte;
+    if (typeof c !== 'string' || !q.options.includes(c) || /^je ne sais pas$/i.test(c.trim())) return null;
+    corrections[q.id] = c;
+  }
+  return { questions, corrections };
+}
+
+/** Le score au test : bonnes réponses aux mises en situation, et niveau déclaré moyen. Pur. */
+export type ScoreTest = { readonly libelle: string; readonly pourcentage: number; readonly justes: number; readonly total: number };
+
+export function scoreTest(
+  schema: { questions?: ReadonlyArray<{ id: string; type: string; max?: number }>; corrections?: Record<string, string> } | null | undefined,
+  reponses: Record<string, unknown> | null | undefined,
+): ScoreTest | null {
+  if (!schema?.questions || !reponses) return null;
+  const corrections = schema.corrections ?? {};
+  const situations = schema.questions.filter((q) => q.type === 'choice' && corrections[q.id]);
+  const justes = situations.filter((q) => String(reponses[q.id] ?? '') === corrections[q.id]).length;
+  const notes = schema.questions
+    .filter((q) => q.type === 'rating')
+    .map((q) => ({ v: Number(reponses[q.id]), max: q.max ?? 5 }))
+    .filter((x) => Number.isFinite(x.v) && x.v >= 1 && x.v <= x.max);
+  const declare = notes.length ? notes.reduce((t, x) => t + (x.v / x.max) * 5, 0) / notes.length : null;
+  if (situations.length === 0 && declare === null) return null;
+  const pourcentage = situations.length ? Math.round((justes / situations.length) * 100) : Math.round(((declare ?? 0) / 5) * 100);
+  const parts = [
+    situations.length ? `${justes}/${situations.length} justes` : null,
+    declare !== null ? `${declare.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}/5 déclaré` : null,
+  ].filter(Boolean);
+  return { libelle: parts.join(' · '), pourcentage, justes, total: situations.length };
 }
