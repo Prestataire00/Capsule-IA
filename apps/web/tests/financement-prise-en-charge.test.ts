@@ -128,3 +128,15 @@ describe('repère visuel, bannière et liste', () => {
     expect(PASTILLE).toContain('title={r.titre}');
   });
 });
+
+describe('qui paie quoi, en deux cases', () => {
+  it('OPCO 8 000 € accordés sur 9 800 € : financeur 8 000, entreprise 1 800', async () => {
+    const { partsFinancement } = await import('@/features/funders/pastille-financement');
+    const { etatFinancement } = await import('@/features/funders/prise-en-charge');
+    const parts = partsFinancement(etatFinancement(980000, [{ status: 'approved', amountCents: 980000, grantedCents: 800000 }]));
+    expect(parts.map((p) => [p.qui, p.montant.replace(/\s/g, ' '), p.detail])).toEqual([
+      ['Financeur', '8 000,00 €', 'accordés'],
+      ['Entreprise', '1 800,00 €', 'reste à sa charge'],
+    ]);
+  });
+});

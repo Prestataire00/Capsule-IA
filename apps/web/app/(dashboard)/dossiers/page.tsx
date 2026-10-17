@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import type { ComponentType } from 'react';
-import { Plus, Search, FolderOpen, List, LayoutGrid, Columns3, Eye, CalendarClock, FileText } from 'lucide-react';
+import { Plus, Search, FolderOpen, List, LayoutGrid, Columns3, Eye, CalendarClock, FileText, Landmark } from 'lucide-react';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
@@ -16,8 +16,14 @@ import { ManageOnly } from '@/shared/components/auth/manage-only';
 import { DeleteEntityButton } from '@/features/corbeille/ui/delete-entity-button.client';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { StatusFilter } from './status-filter.client';
+import { KanbanDossiers } from './kanban-dossiers.client';
 import { chargerEtatsFinancement } from '@/features/funders/charger-etats';
-import { PastilleFinancement } from '@/features/funders/pastille-financement';
+import { PastilleFinancement, PartsFinancement } from '@/features/funders/pastille-financement';
+import { chargerEncaissements } from '@/features/billing/charger-encaissements';
+import { impayeAAfficher, type Encaissement } from '@/features/billing/domain/encaissement';
+import { libelleStatut, tonStatut } from '@/features/funders/prise-en-charge';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
+import { canManageSection } from '@/shared/lib/auth/require-access';
 import { DossierStatusControl } from './[id]/dossier-status-control.client';
 import type { DossierStatus } from '@/features/dossier/domain/value-objects/dossier-status';
 
@@ -37,13 +43,21 @@ const STATUS_ACCENT: Record<string, { bar: string; head: string }> = {
 
 const ROW_GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1.6fr)_112px_112px_128px_144px] gap-4 px-5';
 
+const FIN_GRID = 'grid grid-cols-[minmax(0,1.5fr)_100px_minmax(0,1.3fr)_minmax(0,1.6fr)_96px_96px_120px_136px] gap-4 px-5';
+const FIN_TON: Record<string, string> = {
+  success: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+  warning: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+  danger: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
+  neutral: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+};
+
 const ACTIONS: { suffix: string; icon: ComponentType<{ className?: string }>; label: string }[] = [
   { suffix: '', icon: Eye, label: 'Ouvrir le dossier' },
   { suffix: '/sessions', icon: CalendarClock, label: 'Sessions' },
   { suffix: '/documents', icon: FileText, label: 'Documents' },
 ];
 
-type ViewMode = 'list' | 'grid' | 'kanban';
+type ViewMode = 'list' | 'grid' | 'kanban' | 'financement';
 type SearchParams = { q?: string; status?: string | string[]; view?: string };
 
 type Row = {
@@ -63,6 +77,10 @@ type Row = {
 };
 
 const fmtDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
+/** Montant du dossier : rouge tant qu'il reste à encaisser sur un dossier fini. */
+const classeMontant = (impaye: boolean) => (impaye ? 'text-red-600 dark:text-red-400' : ACCENTS.emerald.value);
+const titreImpaye = (e: Encaissement | undefined) =>
+  e ? (e.aFacturer ? 'Rien n’est encore facturé dans Capsule' : `Reste à encaisser : ${fmtEuros(e.resteCents)}`) : undefined;
 const fmtEuros = (cents: number | null) =>
   cents == null ? '—' : `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €`;
 /** Repli quand le référent n'est pas encore chargé (cartes de la vue grille). */
@@ -88,10 +106,14 @@ function DossierCard({
   d,
   nom = learnerName(d),
   responsable = null,
+  impaye = false,
+  titreMontant,
 }: {
   d: Row;
   nom?: string;
   responsable?: string | null;
+  impaye?: boolean;
+  titreMontant?: string;
 }) {
   const accent = STATUS_ACCENT[d.status] ?? STATUS_ACCENT.draft!;
   return (
@@ -111,7 +133,7 @@ function DossierCard({
       <p className="text-[13px] font-bold text-zinc-700 dark:text-zinc-300 truncate mt-0.5">{d.formation?.title ?? '—'}</p>
       <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80">
         <span className="tabular-nums text-[12px] font-semibold text-blue-700 dark:text-blue-300">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
-        <span className={`text-[13px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>{fmtEuros(d.total_amount_cents)}</span>
+        <span className={`text-[13px] font-bold tabular-nums ${classeMontant(impaye)}`} title={impaye ? titreMontant : undefined}>{fmtEuros(d.total_amount_cents)}</span>
       </div>
     </Link>
   );
@@ -119,7 +141,8 @@ function DossierCard({
 
 export default async function DossiersPage({ searchParams }: { searchParams: SearchParams }) {
   const q = (searchParams.q ?? '').trim();
-  const view: ViewMode = searchParams.view === 'grid' || searchParams.view === 'kanban' ? searchParams.view : 'list';
+  const view: ViewMode =
+    searchParams.view === 'grid' || searchParams.view === 'kanban' || searchParams.view === 'financement' ? searchParams.view : 'list';
   const statuses = Array.isArray(searchParams.status)
     ? searchParams.status
     : searchParams.status
@@ -155,6 +178,37 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
   // repérer d'un coup d'œil ceux dont l'OPCO n'a pas répondu.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const etatsFinancement = await chargerEtatsFinancement(sb as any, rows);
+  // Encaissements des dossiers déjà lus sous RLS : les factures ne se lisent
+  // sous RLS qu'en direction et comptabilité, le rouge doit valoir pour tous.
+  const encaissements = await chargerEncaissements(supabaseAdmin() as never, rows);
+  const aujourdhui = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+  const impaye = (d: Row) => {
+    const e = encaissements.get(d.id);
+    return Boolean(e && impayeAAfficher(e, { status: d.status, endDate: d.end_date }, aujourdhui));
+  };
+  const peutGerer = await canManageSection('dossiers');
+  // Les financeurs de chaque dossier, pour la vue Financements.
+  const financeurs = new Map<string, Array<{ nom: string; status: string; demande: number; accorde: number | null }>>();
+  if (view === 'financement' && rows.length) {
+    const { data: lignes } = await sb
+      .schema('app')
+      .from('dossier_funders')
+      .select('dossier_id, status, amount_cents, granted_cents, funder:funders(name)')
+      .in('dossier_id', rows.map((d) => d.id));
+    for (const l of (lignes ?? []) as unknown as Array<{
+      dossier_id: string;
+      status: string;
+      amount_cents: number | string;
+      granted_cents: number | string | null;
+      funder: { name: string } | Array<{ name: string }> | null;
+    }>) {
+      const f = Array.isArray(l.funder) ? l.funder[0] : l.funder;
+      financeurs.set(l.dossier_id, [
+        ...(financeurs.get(l.dossier_id) ?? []),
+        { nom: f?.name ?? 'Financeur', status: l.status, demande: Number(l.amount_cents), accorde: l.granted_cents == null ? null : Number(l.granted_cents) },
+      ]);
+    }
+  }
 
   // Référents (0167), en requête séparée et tolérante : la colonne n'existe pas
   // sur une base où la migration n'est pas encore appliquée, et la liste des
@@ -257,7 +311,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
   // Colonnes kanban : statuts filtrés si sélection, sinon tous.
   const kanbanStatuses = statuses.length ? STATUSES.filter((s) => statuses.includes(s)) : STATUSES;
 
-  const maxW = view === 'kanban' ? 'max-w-[1600px]' : 'max-w-7xl';
+  const maxW = view === 'kanban' || view === 'financement' ? 'max-w-[1600px]' : 'max-w-7xl';
   const totalCents = filtered.reduce((sum, d) => sum + (d.total_amount_cents ?? 0), 0);
 
   return (
@@ -322,6 +376,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
           {viewBtn('list', List, 'Vue liste')}
           {viewBtn('grid', LayoutGrid, 'Vue grille')}
           {viewBtn('kanban', Columns3, 'Vue kanban')}
+          {viewBtn('financement', Landmark, 'Vue financements')}
         </nav>
       </div>
 
@@ -342,31 +397,83 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
           />
         </div>
       ) : view === 'kanban' ? (
-        <div className="flex gap-3 overflow-x-auto pb-3">
-          {kanbanStatuses.map((s) => {
-            const col = filtered.filter((d) => d.status === s);
-            const accent = STATUS_ACCENT[s]!;
-            return (
-              <div key={s} className="w-72 shrink-0 flex flex-col">
-                <div className={`flex items-center justify-between px-3 h-9 rounded-t-xl text-[12px] font-bold ${accent.head}`}>
-                  <span>{dossierStatusLabel(s)}</span>
-                  <span className="tabular-nums rounded-full px-2 py-0.5 text-[12px] font-bold bg-white/70 dark:bg-zinc-900/50">{col.length}</span>
-                </div>
-                <div className="flex-1 bg-zinc-100/60 dark:bg-zinc-950/40 rounded-b-xl p-2 space-y-2 min-h-[80px]">
-                  {col.length === 0 ? (
-                    <p className="text-[12px] text-zinc-400 dark:text-zinc-600 text-center py-4">—</p>
-                  ) : (
-                    col.map((d) => <DossierCard key={d.id} d={d} nom={client(d).nom} responsable={client(d).responsable} />)
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <KanbanDossiers
+          modifiable={peutGerer}
+          colonnes={kanbanStatuses.map((s) => ({
+            status: s,
+            libelle: dossierStatusLabel(s),
+            entete: STATUS_ACCENT[s]!.head,
+            cartes: filtered
+              .filter((d) => d.status === s)
+              .map((d) => ({
+                id: d.id,
+                carte: <DossierCard d={d} nom={client(d).nom} responsable={client(d).responsable} impaye={impaye(d)} titreMontant={titreImpaye(encaissements.get(d.id))} />,
+              })),
+          }))}
+        />
+      ) : view === 'financement' ? (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 rounded-xl shadow-sm overflow-x-auto">
+          <div className="min-w-[1180px]">
+            <div className={`${FIN_GRID} h-9 items-center text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200/70 dark:border-zinc-800`}>
+              <div>Client · formation</div>
+              <div className="text-right">Montant</div>
+              <div>Financeur</div>
+              <div>Qui paie quoi</div>
+              <div className="text-right">Facturé</div>
+              <div className="text-right">Encaissé</div>
+              <div className="text-right">Reste à encaisser</div>
+              <div>Statut</div>
+            </div>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {filtered.map((d) => {
+                const e = encaissements.get(d.id);
+                const etat = etatsFinancement.get(d.id);
+                const fin = financeurs.get(d.id) ?? [];
+                return (
+                  <li key={d.id} className={`${FIN_GRID} py-3 items-center hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors`}>
+                    <div className="min-w-0">
+                      <Link href={`/dossiers/${d.id}/facturation`} className="block truncate text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:underline">
+                        {client(d).nom}
+                      </Link>
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{d.formation?.title ?? '—'}</p>
+                    </div>
+                    <div className="text-right text-[14px] font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{fmtEuros(d.total_amount_cents)}</div>
+                    <div className="min-w-0 space-y-1">
+                      {fin.length === 0 ? (
+                        <span className="text-[12px] text-zinc-400">Aucun</span>
+                      ) : (
+                        fin.map((f, i) => (
+                          <p key={i} className="text-[12px] leading-tight">
+                            <span className="font-medium text-zinc-800 dark:text-zinc-200">{f.nom}</span>{' '}
+                            <span className={`inline-flex rounded-full px-1.5 text-[11px] font-medium ${FIN_TON[tonStatut(f.status)]}`}>{libelleStatut(f.status)}</span>
+                            <span className="block text-zinc-500 tabular-nums">
+                              {f.accorde != null ? `${fmtEuros(f.accorde)} accordés sur ${fmtEuros(f.demande)}` : `${fmtEuros(f.demande)} demandés`}
+                            </span>
+                          </p>
+                        ))
+                      )}
+                    </div>
+                    <div>{etat && <PartsFinancement etat={etat} />}</div>
+                    <div className="text-right text-[13px] tabular-nums text-zinc-700 dark:text-zinc-300">
+                      {e?.regleHorsCrm ? <span className="text-[12px] text-emerald-700 dark:text-emerald-400">réglé hors Capsule</span> : e?.aFacturer ? <span className="text-[12px] text-zinc-400">à facturer</span> : fmtEuros(e?.factureCents ?? 0)}
+                    </div>
+                    <div className="text-right text-[13px] tabular-nums text-emerald-700 dark:text-emerald-400">{e && !e.regleHorsCrm ? fmtEuros(e.encaisseCents) : '—'}</div>
+                    <div className={`text-right text-[14px] font-semibold tabular-nums ${impaye(d) ? 'text-red-600 dark:text-red-400' : (e?.resteCents ?? 0) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                      {(e?.resteCents ?? 0) > 0 ? fmtEuros(e?.resteCents ?? 0) : 'Soldé'}
+                    </div>
+                    <div>
+                      <DossierStatusControl dossierId={d.id} status={d.status as DossierStatus} compact />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((d) => (
-            <DossierCard key={d.id} d={d} nom={client(d).nom} responsable={client(d).responsable} />
+            <DossierCard key={d.id} d={d} nom={client(d).nom} responsable={client(d).responsable} impaye={impaye(d)} titreMontant={titreImpaye(encaissements.get(d.id))} />
           ))}
         </div>
       ) : (
@@ -410,9 +517,14 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                   </div>
 
                   <div className="text-right">
-                    <p className={`text-[15px] font-bold tabular-nums ${ACCENTS.emerald.value}`}>
+                    <p className={`text-[15px] font-bold tabular-nums ${classeMontant(impaye(d))}`} title={impaye(d) ? titreImpaye(encaissements.get(d.id)) : undefined}>
                       {fmtEuros(d.total_amount_cents)}
                     </p>
+                    {impaye(d) && (
+                      <p className="text-[11px] font-medium text-red-600 dark:text-red-400">
+                        {encaissements.get(d.id)?.aFacturer ? 'non facturé' : `${fmtEuros(encaissements.get(d.id)?.resteCents ?? 0)} impayés`}
+                      </p>
+                    )}
                     {etatsFinancement.get(d.id) && (
                       <PastilleFinancement etat={etatsFinancement.get(d.id)!} className="mt-1" />
                     )}

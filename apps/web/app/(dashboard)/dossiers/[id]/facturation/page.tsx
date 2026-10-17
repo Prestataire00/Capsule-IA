@@ -30,6 +30,7 @@ import { INVOICE_KIND_LABELS, type InvoiceKind } from '@/features/billing/domain
 import { tryEnsureQuoteForDossier } from '@/features/billing/quotes/quote-service';
 import { QuoteCard } from '../../../devis/_components/quote-card.client';
 import { GenerateQuoteButton } from '../../../devis/_components/generate-quote-button.client';
+import { RegleHorsCrm } from './regle-hors-crm.client';
 
 export const dynamic = 'force-dynamic';
 
@@ -197,6 +198,17 @@ export default async function FacturationPage({
   const totalHt = dossier.total_amount_cents ?? 0;
   const amountMissing = dossier.total_amount_cents == null;
   const editable = !['closed', 'archived', 'cancelled'].includes(dossier.status);
+  // Réglé dans Qonto (0232) : lu à part, la colonne peut manquer avant la migration.
+  const { data: regleRow } = await createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+    .schema('app')
+    .from('dossiers')
+    .select('regle_hors_crm_at, regle_hors_crm_note' as never)
+    .eq('id', dossier.id)
+    .maybeSingle();
+  const regle = (regleRow as { regle_hors_crm_at?: string | null; regle_hors_crm_note?: string | null } | null) ?? null;
+  const regleHorsCrm = Boolean(regle?.regle_hors_crm_at);
 
   const allocations: FunderAllocationInput[] = funders.map((f) => ({
     funderId: f.funder_id,
@@ -513,7 +525,7 @@ export default async function FacturationPage({
           {payerLines.map((line) => {
             const isReste = line.payer === null;
             const payerParam = isReste ? 'reste' : line.payer;
-            const canInvoice = line.remainingHtCents > 0 && line.status !== 'refused';
+            const canInvoice = !regleHorsCrm && line.remainingHtCents > 0 && line.status !== 'refused';
             return (
               <li
                 key={isReste ? 'reste' : line.payer}
@@ -566,6 +578,10 @@ export default async function FacturationPage({
           })}
         </ul>
       </div>
+
+      {canManageBilling && (
+        <RegleHorsCrm dossierId={dossier.id} regleLe={regle?.regle_hors_crm_at ?? null} note={regle?.regle_hors_crm_note ?? null} />
+      )}
 
       {/* Factures émises pour ce dossier */}
       <div className="space-y-2">

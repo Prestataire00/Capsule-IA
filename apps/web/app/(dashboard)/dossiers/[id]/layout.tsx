@@ -10,7 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseServer } from '@/shared/lib/supabase/server';
 import { nomDuDossier } from '@/features/dossier/referent';
 import { canManageSection } from '@/shared/lib/auth/require-access';
-import { PastilleFinancement } from '@/features/funders/pastille-financement';
+import { PartsFinancement } from '@/features/funders/pastille-financement';
 import { chargerEtatsFinancement } from '@/features/funders/charger-etats';
 import { FormateurChip } from './formateur-chip.client';
 import { TabsNav } from '@/shared/components/layout/tabs-nav';
@@ -367,7 +367,7 @@ export default async function DossierLayout({
           >
             {/* Où en est le financement : la question se pose en même temps
                 que le montant, elle se lit donc au même endroit. */}
-            <PastilleFinancement etat={etatFinancement} className="mt-1.5" />
+            <PartsFinancement etat={etatFinancement} className="mt-1.5" />
           </KpiCard>
         </section>
 
