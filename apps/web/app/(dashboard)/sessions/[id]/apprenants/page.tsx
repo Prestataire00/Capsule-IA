@@ -9,6 +9,9 @@ import { loadSuiviStagiaires } from '@/features/sessions/suivi-stagiaires';
 import { participantsResolus } from '@/features/sessions/participants-resolus';
 import { SuiviPastilles } from '@/features/sessions/ui/suivi-pastilles';
 import { canManageSection } from '@/shared/lib/auth/require-access';
+import { ResultatToggle } from '@/features/dossier/resultat/resultat-toggle.client';
+import { resultatDe } from '@/features/dossier/resultat/resultat';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +47,16 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
     ...learners.map((l) => ({ id: l.id, dossierId: l.dossierId })),
     ...directLearners.map((l) => ({ id: l.id, dossierId: null })),
   ]);
+
+  // Réussite ou échec de chacun (0235), lus sur ses dossiers.
+  const dossiersDesStagiaires = [
+    ...new Set([...learners.map((l) => l.dossierId), ...[...parStagiaire.values()].map((x) => x.dossierId)].filter((d): d is string => Boolean(d))),
+  ];
+  const { data: resultatsRows } = dossiersDesStagiaires.length
+    ? await supabaseAdmin().schema('app').from('dossiers').select('id, resultats' as never).in('id', dossiersDesStagiaires)
+    : { data: [] };
+  const resultatsDe = new Map(((resultatsRows ?? []) as unknown as Array<{ id: string; resultats: unknown }>).map((r) => [r.id, r.resultats]));
+  const resultat = (learnerId: string, dossierId: string | null) => (dossierId ? resultatDe(resultatsDe.get(dossierId), learnerId) : null);
 
   if (learners.length === 0 && directLearners.length === 0) {
     return (
@@ -125,6 +138,15 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                     )}
                   </div>
                 </div>
+                {parStagiaire.get(l.id)?.dossierId && (
+                  <ResultatToggle
+                    dossierId={parStagiaire.get(l.id)!.dossierId!}
+                    learnerId={l.id}
+                    sessionId={params.id}
+                    initial={resultat(l.id, parStagiaire.get(l.id)!.dossierId)}
+                    modifiable={gerer}
+                  />
+                )}
                 <Link
                   href={`/apprenants/${l.id}`}
                   className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md text-[12px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition shrink-0"
@@ -185,6 +207,9 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                     )}
                   </div>
                 </div>
+                {l.dossierId && (
+                  <ResultatToggle dossierId={l.dossierId} learnerId={l.id} sessionId={params.id} initial={resultat(l.id, l.dossierId)} modifiable={gerer} />
+                )}
                 <Link
                   href={`/dossiers/${l.dossierId}`}
                   className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md text-[12px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-300 transition shrink-0"

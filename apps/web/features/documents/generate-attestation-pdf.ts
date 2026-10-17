@@ -34,6 +34,8 @@ export type AttestationInput = {
   };
   /** Niveau atteint par objectif (fin de formation) ; absent = « acquis » partout. */
   acquis?: ReadonlyArray<{ objectif: string; niveau: NiveauAcquis }>;
+  /** Réussite ou échec coché sur l'apprenant (0235) ; absent = rien d'imprimé. */
+  resultat?: 'reussite' | 'echec' | null;
   dossier: {
     reference: string;
     startDate: string;
@@ -178,6 +180,7 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
     c = drawKeyValue(c, font, fontBold, 'Durée totale', `${input.dossier.totalHours} heures`);
     c = drawKeyValue(c, font, fontBold, 'Modalité', modalityLabel(input.dossier.modality));
     c = drawKeyValue(c, font, fontBold, "Taux d'assiduité", `${Math.round(input.dossier.attendanceRate)} %`);
+    if (input.resultat) c = drawKeyValue(c, font, fontBold, 'Résultat', input.resultat === 'reussite' ? 'Réussite' : 'Échec');
   }
   c = { ...c, y: c.y - 18 };
 

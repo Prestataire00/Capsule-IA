@@ -9,6 +9,7 @@ import { buildConvocationPdf } from './build-convocation-pdf';
 import { loadOrgBranding } from './load-org-branding';
 import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
 import { acquisDesObjectifs } from './acquis-objectifs';
+import { resultatDe } from '@/features/dossier/resultat/resultat';
 
 /**
  * Documents d'un stagiaire, au même endroit que dans RFC : la séance les
@@ -120,8 +121,10 @@ async function buildAttestationInput(
   const attendanceRate = variant === 'fin' ? await computeDossierAttendanceRate(sb as never, dossierId) : 0;
   // Acquis par objectif (0234), lus à part : la colonne peut manquer avant la migration.
   const { data: acquisRow } = variant === 'fin'
-    ? await sb.schema('app').from('dossiers').select('acquis_objectifs' as never).eq('id', dossierId).maybeSingle()
+    ? await sb.schema('app').from('dossiers').select('acquis_objectifs, resultats, learner_id' as never).eq('id', dossierId).maybeSingle()
     : { data: null };
+  const ligneAcquis = acquisRow as { resultats?: unknown; learner_id?: string } | null;
+  const resultat = ligneAcquis?.learner_id ? resultatDe(ligneAcquis.resultats, ligneAcquis.learner_id) : null;
   const acquis = acquisDesObjectifs(d.formation?.objectives ?? [], (acquisRow as { acquis_objectifs?: unknown } | null)?.acquis_objectifs);
 
   return {
@@ -151,7 +154,7 @@ async function buildAttestationInput(
         birthDate: d.learner?.birth_date ?? null,
       },
       formation: { title: d.formation?.title ?? '—', objectives: d.formation?.objectives ?? [] },
-      ...(variant === 'fin' ? { acquis } : {}),
+      ...(variant === 'fin' ? { acquis, resultat } : {}),
       dossier: {
         reference: d.reference,
         startDate: d.start_date,
