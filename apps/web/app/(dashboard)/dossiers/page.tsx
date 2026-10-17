@@ -108,12 +108,15 @@ function DossierCard({
   responsable = null,
   impaye = false,
   titreMontant,
+  financement,
 }: {
   d: Row;
   nom?: string;
   responsable?: string | null;
   impaye?: boolean;
   titreMontant?: string;
+  /** Où en est le financement, en bas de carte. */
+  financement?: FinancementCarte;
 }) {
   const accent = STATUS_ACCENT[d.status] ?? STATUS_ACCENT.draft!;
   return (
@@ -135,7 +138,71 @@ function DossierCard({
         <span className="tabular-nums text-[12px] font-semibold text-blue-700 dark:text-blue-300">{fmtDate(d.start_date)} → {fmtDate(d.end_date)}</span>
         <span className={`text-[13px] font-bold tabular-nums ${classeMontant(impaye)}`} title={impaye ? titreMontant : undefined}>{fmtEuros(d.total_amount_cents)}</span>
       </div>
+      {financement && <FinancementDeCarte f={financement} />}
     </Link>
+  );
+}
+
+type FinancementCarte = {
+  financeurs: ReadonlyArray<{ nom: string; status: string; demande: number; accorde: number | null; note: string | null }>;
+  entrepriseCents: number;
+  encaissement: Encaissement | undefined;
+  impaye: boolean;
+};
+
+/**
+ * Le financement sur la carte (17/10/2026 : « dans les cartes, détaille le
+ * financement, où ça en est ») : chaque financeur, son statut et sa note,
+ * la part de l'entreprise, puis l'encaissement.
+ */
+function FinancementDeCarte({ f }: { f: FinancementCarte }) {
+  const e = f.encaissement;
+  return (
+    <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 space-y-1.5 text-[12px] leading-snug">
+      {f.financeurs.length === 0 ? (
+        <p className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
+          <Landmark className="w-3 h-3 shrink-0" aria-hidden /> Sans financeur : l’entreprise règle tout
+        </p>
+      ) : (
+        f.financeurs.map((x, i) => (
+          <div key={i}>
+            <p className="flex items-center gap-1.5 flex-wrap">
+              <Landmark className="w-3 h-3 shrink-0 text-zinc-400" aria-hidden />
+              <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[9rem]">{x.nom}</span>
+              <span className={`inline-flex rounded-full px-1.5 text-[11px] font-medium ${FIN_TON[tonStatut(x.status)]}`}>{libelleStatut(x.status)}</span>
+              <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
+                {x.accorde != null ? `${fmtEuros(x.accorde)} accordés` : `${fmtEuros(x.demande)} demandés`}
+              </span>
+            </p>
+            {x.note && <p className="ml-[18px] text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2" title={x.note}>{x.note}</p>}
+          </div>
+        ))
+      )}
+      {f.financeurs.length > 0 && (
+        <p className="tabular-nums text-blue-700 dark:text-blue-300">
+          Entreprise : {f.entrepriseCents > 0 ? `${fmtEuros(f.entrepriseCents)} à sa charge` : 'rien à sa charge'}
+        </p>
+      )}
+      {e && (
+        <p
+          className={`tabular-nums font-medium ${
+            e.regleHorsCrm || e.resteCents === 0
+              ? 'text-emerald-700 dark:text-emerald-400'
+              : f.impaye
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-zinc-500 dark:text-zinc-400'
+          }`}
+        >
+          {e.regleHorsCrm
+            ? 'Réglé hors Capsule'
+            : e.resteCents === 0
+              ? 'Soldé'
+              : e.aFacturer
+                ? 'À facturer'
+                : `Facturé ${fmtEuros(e.factureCents)} · encaissé ${fmtEuros(e.encaisseCents)} · reste ${fmtEuros(e.resteCents)}`}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -187,25 +254,38 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
     return Boolean(e && impayeAAfficher(e, { status: d.status, endDate: d.end_date }, aujourdhui));
   };
   const peutGerer = await canManageSection('dossiers');
+  const financementDe = (d: Row): FinancementCarte => ({
+    financeurs: financeurs.get(d.id) ?? [],
+    entrepriseCents: etatsFinancement.get(d.id)?.resteAPayerCents ?? d.total_amount_cents ?? 0,
+    encaissement: encaissements.get(d.id),
+    impaye: impaye(d),
+  });
   // Les financeurs de chaque dossier, pour la vue Financements.
-  const financeurs = new Map<string, Array<{ nom: string; status: string; demande: number; accorde: number | null }>>();
-  if (view === 'financement' && rows.length) {
+  const financeurs = new Map<string, Array<{ nom: string; status: string; demande: number; accorde: number | null; note: string | null }>>();
+  if (view !== 'list' && rows.length) {
     const { data: lignes } = await sb
       .schema('app')
       .from('dossier_funders')
-      .select('dossier_id, status, amount_cents, granted_cents, funder:funders(name)')
+      .select('dossier_id, status, amount_cents, granted_cents, decision_note, funder:funders(name)')
       .in('dossier_id', rows.map((d) => d.id));
     for (const l of (lignes ?? []) as unknown as Array<{
       dossier_id: string;
       status: string;
       amount_cents: number | string;
       granted_cents: number | string | null;
+      decision_note: string | null;
       funder: { name: string } | Array<{ name: string }> | null;
     }>) {
       const f = Array.isArray(l.funder) ? l.funder[0] : l.funder;
       financeurs.set(l.dossier_id, [
         ...(financeurs.get(l.dossier_id) ?? []),
-        { nom: f?.name ?? 'Financeur', status: l.status, demande: Number(l.amount_cents), accorde: l.granted_cents == null ? null : Number(l.granted_cents) },
+        {
+          nom: f?.name ?? 'Financeur',
+          status: l.status,
+          demande: Number(l.amount_cents),
+          accorde: l.granted_cents == null ? null : Number(l.granted_cents),
+          note: l.decision_note?.trim() || null,
+        },
       ]);
     }
   }
@@ -407,7 +487,16 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
               .filter((d) => d.status === s)
               .map((d) => ({
                 id: d.id,
-                carte: <DossierCard d={d} nom={client(d).nom} responsable={client(d).responsable} impaye={impaye(d)} titreMontant={titreImpaye(encaissements.get(d.id))} />,
+                carte: (
+                  <DossierCard
+                    d={d}
+                    nom={client(d).nom}
+                    responsable={client(d).responsable}
+                    impaye={impaye(d)}
+                    titreMontant={titreImpaye(encaissements.get(d.id))}
+                    financement={financementDe(d)}
+                  />
+                ),
               })),
           }))}
         />
@@ -449,6 +538,11 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
                             <span className="block text-zinc-500 tabular-nums">
                               {f.accorde != null ? `${fmtEuros(f.accorde)} accordés sur ${fmtEuros(f.demande)}` : `${fmtEuros(f.demande)} demandés`}
                             </span>
+                            {f.note && (
+                              <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2" title={f.note}>
+                                {f.note}
+                              </span>
+                            )}
                           </p>
                         ))
                       )}
@@ -473,7 +567,15 @@ export default async function DossiersPage({ searchParams }: { searchParams: Sea
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((d) => (
-            <DossierCard key={d.id} d={d} nom={client(d).nom} responsable={client(d).responsable} impaye={impaye(d)} titreMontant={titreImpaye(encaissements.get(d.id))} />
+            <DossierCard
+              key={d.id}
+              d={d}
+              nom={client(d).nom}
+              responsable={client(d).responsable}
+              impaye={impaye(d)}
+              titreMontant={titreImpaye(encaissements.get(d.id))}
+              financement={financementDe(d)}
+            />
           ))}
         </div>
       ) : (
