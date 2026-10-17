@@ -1,4 +1,5 @@
-import { Download, Eye, FileText, Mail, MailX } from 'lucide-react';
+import { Download, Eye, FileText } from 'lucide-react';
+import { CoordonneesApprenant } from './coordonnees.client';
 import type { ApprenantEspace } from '@/features/espace-entreprise/espace-complet';
 import { TEMPLATE_KIND_LABELS } from '@/app/(dashboard)/documents/modeles/schema';
 import { CARTE, DEMI_JOURNEE, STATUT_EMARGEMENT, date, heures, jourCourt } from './format';
@@ -40,10 +41,7 @@ export function VueApprenants({ apprenants, token }: { apprenants: readonly Appr
               <div className="px-5 pb-5 grid gap-5 md:grid-cols-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
                 <div className="space-y-2">
                   <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">Coordonnées</p>
-                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 inline-flex items-center gap-1.5">
-                    {a.joignable ? <Mail className="w-3.5 h-3.5" aria-hidden /> : <MailX className="w-3.5 h-3.5 text-amber-600" aria-hidden />}
-                    {a.joignable ? a.email : 'Pas d’adresse e-mail : il reçoit ses documents par vous.'}
-                  </p>
+                  <CoordonneesApprenant token={token} learnerId={a.id} email={a.email} telephone={a.telephone} joignable={a.joignable} />
                   {a.prochaineSeance && (
                     <p className="text-[13px] text-zinc-600 dark:text-zinc-300 tabular-nums">Prochaine séance : {jourCourt.format(new Date(a.prochaineSeance))}</p>
                   )}

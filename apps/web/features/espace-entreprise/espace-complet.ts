@@ -47,6 +47,7 @@ export type ApprenantEspace = {
   readonly id: string;
   readonly nom: string;
   readonly email: string | null;
+  readonly telephone: string | null;
   readonly joignable: boolean;
   readonly dossierId: string;
   readonly dossierReference: string;
@@ -188,7 +189,7 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
       ? admin.schema('app').from('session_participants').select('session_id, learner_id, source').in('session_id', seanceIds).eq('participant_kind', 'learner')
       : Promise.resolve({ data: [] }),
     seanceIds.length ? admin.schema('app').from('attendance_sheets').select('id, session_id, half_day').in('session_id', seanceIds) : Promise.resolve({ data: [] }),
-    learnerIds.length ? admin.schema('app').from('learners').select('id, first_name, last_name, email').in('id', learnerIds) : Promise.resolve({ data: [] }),
+    learnerIds.length ? admin.schema('app').from('learners').select('id, first_name, last_name, email, phone').in('id', learnerIds) : Promise.resolve({ data: [] }),
     groupeIds.length ? admin.schema('app').from('dossier_groupe_membres').select('groupe_id, learner_id').in('groupe_id', groupeIds) : Promise.resolve({ data: [] }),
   ]);
 
@@ -210,9 +211,9 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     if (nom) formateursDe.set(t.session_id, [...(formateursDe.get(t.session_id) ?? []), nom]);
   }
   const personnes = new Map(
-    ((learnersRows ?? []) as Array<{ id: string; first_name: string | null; last_name: string | null; email: string | null }>).map((l) => [
+    ((learnersRows ?? []) as Array<{ id: string; first_name: string | null; last_name: string | null; email: string | null; phone: string | null }>).map((l) => [
       l.id,
-      { nom: `${l.first_name ?? ''} ${l.last_name ?? ''}`.trim() || 'Apprenant', email: l.email },
+      { nom: `${l.first_name ?? ''} ${l.last_name ?? ''}`.trim() || 'Apprenant', email: l.email, telephone: l.phone },
     ]),
   );
   const groupesDe = new Map<string, string[]>();
@@ -290,6 +291,7 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
         id: learnerId,
         nom: p.nom,
         email: p.email,
+        telephone: p.telephone ?? null,
         joignable: aUneAdresse(p.email),
         dossierId,
         dossierReference: dossier.reference,

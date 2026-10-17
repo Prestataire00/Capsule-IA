@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { verifyEntrepriseToken } from '@/shared/lib/entreprise-token';
 import { messageEntrepriseSchema } from '@/features/espace-entreprise/message.schema';
 import { ecrireDepuisLEspace } from '@/features/espace-entreprise/ecrire-depuis-l-espace';
+import { mettreAJourCoordonnees } from '@/features/espace-entreprise/coordonnees-apprenant';
+import type { CoordonneesApprenant } from '@/features/espace-entreprise/coordonnees.schema';
 
 /** Le référent écrit à l'organisme depuis son espace. Son lien est sa seule preuve. */
 export async function envoyerMessageEntreprise(
@@ -15,6 +17,18 @@ export async function envoyerMessageEntreprise(
   const lien = await verifyEntrepriseToken(token);
   if (!lien.ok) return { ok: false, error: 'Ce lien n’est plus valable. Demandez-en un nouveau à votre organisme.' };
   const r = await ecrireDepuisLEspace({ ...lien.value, body: p.data.body, interlocuteur: p.data.interlocuteur ?? null });
+  if (r.ok) revalidatePath(`/espace-entreprise/${token}`);
+  return r;
+}
+
+/** Le référent corrige l'e-mail ou le téléphone d'un de ses salariés. */
+export async function modifierCoordonneesApprenant(
+  token: string,
+  input: CoordonneesApprenant,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const lien = await verifyEntrepriseToken(token);
+  if (!lien.ok) return { ok: false, error: 'Ce lien n’est plus valable. Demandez-en un nouveau à votre organisme.' };
+  const r = await mettreAJourCoordonnees({ ...lien.value, token }, input);
   if (r.ok) revalidatePath(`/espace-entreprise/${token}`);
   return r;
 }
