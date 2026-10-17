@@ -30,21 +30,77 @@ const heureParis = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', 
 /** Heure locale de Paris : le serveur tourne en UTC, `getHours()` décalait d'une à deux heures. */
 export const heureLocale = (iso: string): string => heureParis.format(new Date(iso));
 
-/** Stagiaires qui ont déjà reçu la convocation J-7 de cette séance. */
+/**
+ * Stagiaires qui ont déjà reçu une convocation pour cette séance : la sienne
+ * seule (ancienne forme), ou celle de toute la formation qui la comprenait.
+ */
 export async function stagiairesDejaConvoques(sb: SupabaseClient, sessionId: string): Promise<Set<string>> {
   const prefixe = `convocation_j7:${sessionId}:`;
-  const { data, error } = await sb
+  const [{ data, error }, { data: formation, error: e2 }] = await Promise.all([
+    sb.schema('app').from('email_log').select('idempotency_key').like('idempotency_key', `${prefixe}%`).eq('status', 'sent'),
+    sb
+      .schema('app')
+      .from('email_log')
+      .select('metadata')
+      .like('idempotency_key', 'convocation_formation:%')
+      .contains('metadata', { session_ids: [sessionId] })
+      .eq('status', 'sent'),
+  ]);
+  if (error ?? e2) console.error('[convocation] journal illisible', sessionId, (error ?? e2)?.message);
+  return new Set([
+    ...((data ?? []) as Array<{ idempotency_key: string | null }>).map((r) => r.idempotency_key?.slice(prefixe.length) ?? '').filter(Boolean),
+    ...((formation ?? []) as Array<{ metadata: { learner_id?: string } | null }>).map((r) => r.metadata?.learner_id ?? '').filter(Boolean),
+  ]);
+}
+
+type SeanceDuStagiaire = { id: string; debut: string; fin: string; modality: string; location: string | null; remoteUrl: string | null };
+
+/**
+ * Les séances du stagiaire dans cette formation (son dossier, sinon la même
+ * formation), non annulées : ce que liste sa convocation unique.
+ */
+async function seancesDuStagiaire(
+  sb: SupabaseClient,
+  learnerId: string,
+  dossierId: string | null,
+  formationId: string | null,
+): Promise<SeanceDuStagiaire[]> {
+  const { data: parts } = await sb
     .schema('app')
-    .from('email_log')
-    .select('idempotency_key')
-    .like('idempotency_key', `${prefixe}%`)
-    .eq('status', 'sent');
-  if (error) console.error('[convocation] journal illisible', sessionId, error.message);
-  return new Set(
-    ((data ?? []) as Array<{ idempotency_key: string | null }>)
-      .map((r) => r.idempotency_key?.slice(prefixe.length) ?? '')
-      .filter(Boolean),
-  );
+    .from('session_participants')
+    .select('session_id, source')
+    .eq('learner_id', learnerId)
+    .eq('participant_kind', 'learner');
+  const ids = ((parts ?? []) as Array<{ session_id: string; source: string | null }>).filter((p) => p.source !== 'manual_remove').map((p) => p.session_id);
+  if (ids.length === 0) return [];
+  const [{ data: seances }, { data: liens }] = await Promise.all([
+    sb.schema('app').from('sessions').select('id, starts_at, ends_at, modality, location, remote_url, zoom_join_url, formation_id, dossier_id, status').in('id', ids).neq('status', 'cancelled'),
+    dossierId ? sb.schema('app').from('session_dossiers').select('session_id').eq('dossier_id', dossierId) : Promise.resolve({ data: [] }),
+  ]);
+  const duDossier = new Set(((liens ?? []) as Array<{ session_id: string }>).map((l) => l.session_id));
+  return (
+    (seances ?? []) as Array<{
+      id: string;
+      starts_at: string;
+      ends_at: string;
+      modality: string;
+      location: string | null;
+      remote_url: string | null;
+      zoom_join_url: string | null;
+      formation_id: string | null;
+      dossier_id: string | null;
+    }>
+  )
+    .filter((x) => (dossierId && (x.dossier_id === dossierId || duDossier.has(x.id))) || (formationId && x.formation_id === formationId))
+    .map((x) => ({ id: x.id, debut: x.starts_at, fin: x.ends_at, modality: x.modality, location: x.location, remoteUrl: x.zoom_join_url ?? x.remote_url }))
+    .sort((a, b) => a.debut.localeCompare(b.debut));
+}
+
+/** La convocation de formation déjà partie pour ce stagiaire, et les séances qu'elle couvrait. */
+async function convocationFormationEnvoyee(sb: SupabaseClient, cle: string): Promise<string[] | null> {
+  const { data } = await sb.schema('app').from('email_log').select('metadata').eq('idempotency_key', cle).eq('status', 'sent').limit(1).maybeSingle();
+  const m = (data as { metadata: { session_ids?: string[] } | null } | null)?.metadata;
+  return m ? (m.session_ids ?? []) : null;
 }
 
 /**
@@ -122,6 +178,18 @@ export async function convoquerSeance(
   for (const learner of learners) {
     try {
       const dossierDuLearner = dossierParLearner.get(learner.id);
+      // Une seule convocation pour toute la formation (16/10/2026) : elle
+      // part avec la première séance due et liste toutes les dates. Une séance
+      // ajoutée après coup, absente de cette convocation, reçoit la sienne.
+      let seances: SeanceDuStagiaire[] | undefined;
+      let cleFormation: string | null = null;
+      if (!opts.modification) {
+        cleFormation = `convocation_formation:${dossierDuLearner?.id ?? formationId ?? session.id}:${learner.id}`;
+        const dejaCouvertes = await convocationFormationEnvoyee(sb, cleFormation);
+        if (dejaCouvertes?.includes(session.id)) continue;
+        if (dejaCouvertes) cleFormation = null;
+        else seances = await seancesDuStagiaire(sb, learner.id, dossierDuLearner?.id ?? null, formationId);
+      }
       const tpl = sessionConvocationEmail({
         firstName: learner.first_name,
         formationTitle,
@@ -133,6 +201,7 @@ export async function convoquerSeance(
         remoteUrl: session.remote_url,
         trainerName,
         modification: opts.modification,
+        ...(seances && seances.length > 1 ? { seances } : {}),
       });
       const cible = destinatairesConvocation({
         learnerEmail: learner.email,
@@ -156,11 +225,18 @@ export async function convoquerSeance(
         organizationId: session.organization_id,
         dossierId: dossierDuLearner?.id,
         kind: opts.modification ? 'convocation_modifiee' : 'convocation_j7',
-        // Une convocation par séance et par apprenant (0180) ; une mise à jour
-        // par nouveau début, pour qu'un second changement reparte aussi.
+        // Une convocation par formation et par apprenant ; une séance ajoutée
+        // depuis a la sienne ; une mise à jour par nouveau début, pour qu'un
+        // second changement reparte aussi.
         idempotencyKey: opts.modification
           ? `convocation_modifiee:${session.id}:${learner.id}:${session.starts_at}:${session.ends_at}`
-          : `convocation_j7:${session.id}:${learner.id}`,
+          : cleFormation && seances && seances.length > 1
+            ? cleFormation
+            : `convocation_j7:${session.id}:${learner.id}`,
+        metadata: {
+          learner_id: learner.id,
+          session_ids: seances && seances.length > 1 ? seances.map((x) => x.id) : [session.id],
+        },
       });
       if (r.ok) sent++;
       else if (r.reason !== 'no_api_key' && r.reason !== 'duplicate')

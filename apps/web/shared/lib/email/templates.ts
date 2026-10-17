@@ -542,9 +542,15 @@ export type SessionConvocationData = {
   trainerName: string | null;
   /** Convocation renvoyée parce que la date ou les horaires ont changé. */
   modification?: boolean;
+  /**
+   * Toutes les séances du stagiaire pour cette formation : une seule
+   * convocation pour la formation entière, plus une par jour (16/10/2026).
+   */
+  seances?: ReadonlyArray<{ debut: string; fin: string; modality: string; location: string | null; remoteUrl: string | null }>;
 };
 
 export function sessionConvocationEmail(data: SessionConvocationData): { subject: string; html: string } {
+  if (!data.modification && data.seances && data.seances.length > 1) return convocationFormationEmail(data, data.seances);
   const dateFR = new Date(data.sessionDate).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const subject = data.modification
     ? `Horaires modifiés — ${data.formationTitle} le ${dateFR}`
@@ -555,7 +561,7 @@ export function sessionConvocationEmail(data: SessionConvocationData): { subject
 
   const html = wrapper(`
     ${card(`
-      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">${data.modification ? 'Convocation mise à jour' : 'Convocation — J-7'}</p>
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">${data.modification ? 'Convocation mise à jour' : 'Convocation'}</p>
       <h1 style="font-size:20px; font-weight:600; margin:0 0 12px; text-transform:capitalize;">${dateFR}</h1>
       <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
         ${
@@ -583,6 +589,50 @@ export function sessionConvocationEmail(data: SessionConvocationData): { subject
     </p>
   `);
 
+  return { subject, html };
+}
+
+/** Une convocation pour toute la formation : chaque date, son horaire et son lieu. */
+function convocationFormationEmail(
+  data: SessionConvocationData,
+  seancesBrutes: NonNullable<SessionConvocationData['seances']>,
+): { subject: string; html: string } {
+  const seances = [...seancesBrutes].sort((a, b) => a.debut.localeCompare(b.debut));
+  const jour = (iso: string) =>
+    new Date(iso).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const heure = (iso: string) =>
+    new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
+  const premiere = seances[0]!;
+  const subject = `Convocation — ${data.formationTitle} · ${seances.length} séances dès le ${jour(premiere.debut)}`;
+  const lieu = (s: (typeof seances)[number]) =>
+    s.remoteUrl && (s.modality === 'distanciel' || s.modality === 'hybride')
+      ? `À distance · <a href="${s.remoteUrl}" style="color:#7c3aed;">lien de la visio</a>`
+      : `${escapeHtml(MODALITY_LABEL[s.modality] ?? s.modality)}${s.location ? ` · ${escapeHtml(s.location)}` : ''}`;
+  const lignes = seances
+    .map(
+      (s) => `
+      <tr>
+        <td style="padding:9px 0 2px; border-top:1px solid #f4f4f5; font-size:14px; color:#18181b; text-transform:capitalize;">${escapeHtml(jour(s.debut))}</td>
+        <td style="padding:9px 0 2px; border-top:1px solid #f4f4f5; font-size:13px; color:#18181b; text-align:right; white-space:nowrap;">${heure(s.debut)} – ${heure(s.fin)}</td>
+      </tr>
+      <tr><td colspan="2" style="padding:0 0 9px; font-size:12px; color:#71717a;">${lieu(s)}</td></tr>`,
+    )
+    .join('');
+  const html = wrapper(`
+    ${card(`
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; font-weight:600; margin:0 0 8px;">Convocation</p>
+      <h1 style="font-size:20px; font-weight:600; margin:0 0 12px;">${escapeHtml(data.formationTitle)}</h1>
+      <p style="font-size:14px; color:#52525b; margin:0 0 20px;">
+        Bonjour ${escapeHtml(data.firstName)}, vous êtes convoqué(e) à la formation <strong style="color:#18181b;">${escapeHtml(data.formationTitle)}</strong>,
+        pour ses ${seances.length} séances ci-dessous. Un rappel vous sera envoyé la veille de chacune.
+      </p>
+      <table style="width:100%; border-collapse:collapse; margin:0 0 12px;">${lignes}</table>
+      ${data.trainerName ? `<p style="font-size:13px; color:#52525b; margin:0;">Formateur : ${escapeHtml(data.trainerName)}</p>` : ''}
+    `)}
+    <p style="font-size:12px; color:#a1a1aa; margin:20px 0 8px;">
+      En cas d'empêchement, merci de prévenir au plus vite${data.trainerName ? ' votre formateur' : ' votre organisme'} pour replanifier.
+    </p>
+  `);
   return { subject, html };
 }
 
