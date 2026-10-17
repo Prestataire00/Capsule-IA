@@ -8,6 +8,7 @@ import { stagiairesDeLaSeance } from './stagiaires-de-seance';
 import { generateNeedsAnalysisToken } from '@/shared/lib/needs-analysis-token';
 import { lienStagiaire } from './lien-stagiaire';
 import { interlocuteurDuModele } from './cartographie';
+import { testsDePositionnement } from './test-positionnement';
 
 /**
  * N'importe quel questionnaire de la séance, projeté en salle (demande
@@ -139,12 +140,28 @@ export async function lienQuestionnaireEnSalle(sessionId: string, templateId: st
   });
 }
 
-/** Les questionnaires stagiaires prévus pour la séance (cochés ou déjà envoyés), à projeter. */
+/**
+ * Les questionnaires stagiaires prévus pour la séance (cochés ou déjà
+ * envoyés), à projeter — et le test de positionnement de sa formation, qui
+ * se passe en salle sans qu'on ait à le cocher.
+ */
 export async function questionnairesProjetables(sessionId: string): Promise<Array<{ id: string; titre: string }>> {
   if (!UUID.test(sessionId)) return [];
   const sb = admin();
-  const { data: p } = await sb.schema('app').from('session_questionnaires').select('template_id, enabled, sent_at').eq('session_id', sessionId);
+  const [{ data: p }, { data: s }] = await Promise.all([
+    sb.schema('app').from('session_questionnaires').select('template_id, enabled, sent_at').eq('session_id', sessionId),
+    sb.schema('app').from('sessions').select('organization_id, formation_id, dossier_id').eq('id', sessionId).maybeSingle(),
+  ]);
   const ids = ((p ?? []) as Array<{ template_id: string; enabled: boolean; sent_at: string | null }>).filter((x) => x.enabled || x.sent_at).map((x) => x.template_id);
+  const seance = s as { organization_id: string; formation_id: string | null; dossier_id: string | null } | null;
+  if (seance) {
+    let formationId = seance.formation_id;
+    if (!formationId && seance.dossier_id) {
+      const { data: d } = await sb.schema('app').from('dossiers').select('formation_id').eq('id', seance.dossier_id).maybeSingle();
+      formationId = (d as { formation_id: string | null } | null)?.formation_id ?? null;
+    }
+    if (formationId) ids.push(...(await testsDePositionnement(sb, seance.organization_id, [formationId])).map((t) => t.id));
+  }
   if (ids.length === 0) return [];
   const { data: t } = await sb.schema('app').from('questionnaire_templates').select('id, title, kind, code, audience').in('id', ids).is('deleted_at', null);
   return ((t ?? []) as Array<{ id: string; title: string; kind: string; code: string | null; audience: string | null }>)

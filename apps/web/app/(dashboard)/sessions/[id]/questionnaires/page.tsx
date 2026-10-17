@@ -24,6 +24,9 @@ import { ensureNeedsAnalysisTemplate } from '@/features/questionnaire/needs-anal
 import { QuestionnairesSeance, type LigneQuestionnaire } from './questionnaires-seance.client';
 import { ReponsesRecues } from '@/app/(dashboard)/dossiers/[id]/questionnaires/reponses-recues';
 import { codeFicheDeSeance, estFicheDeSeance } from '@/features/questionnaire/fiche-de-seance';
+import { TestPositionnement } from './test-positionnement.client';
+import { testsDePositionnement } from '@/features/questionnaire/test-positionnement';
+import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,6 +124,17 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
         a.titre.localeCompare(b.titre, 'fr'),
     );
 
+  // Le test de positionnement de la formation (généré par l'IA), s'il existe.
+  const [testExistant] = formationFiche
+    ? await testsDePositionnement(supabaseAdmin() as never, session.organization_id, [formationFiche])
+    : [];
+  const { data: testRow } = testExistant
+    ? await supabaseAdmin().schema('app').from('questionnaire_templates').select('schema').eq('id', testExistant.id).maybeSingle()
+    : { data: null };
+  const testPositionnement = testExistant
+    ? { id: testExistant.id, questions: ((testRow as { schema?: { questions?: unknown[] } } | null)?.schema?.questions ?? []).length }
+    : null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -153,6 +167,7 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
           </Link>
         </div>
       </div>
+      {formationFiche && <TestPositionnement sessionId={params.id} test={testPositionnement} gerer={gerer} />}
       <ReponsesRecues sb={sb as never} dossierIds={dossierIds} sessionId={params.id} />
       <QuestionnairesSeance sessionId={params.id} lignes={lignes} gerer={gerer} />
     </div>
