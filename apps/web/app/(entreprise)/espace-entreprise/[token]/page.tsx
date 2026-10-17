@@ -136,7 +136,7 @@ export default async function EspaceEntreprisePage({ params, searchParams }: { p
         {onglet === 'actions' && <VueActions actions={espace.actions} />}
         {onglet === 'planning' && <VuePlanning seances={espace.seances} token={params.token} vue={searchParams.vue === 'liste' ? 'liste' : 'tableau'} />}
         {onglet === 'apprenants' && <VueApprenants apprenants={espace.apprenants} token={params.token} />}
-        {onglet === 'documents' && <VueDocuments dossiers={espace.dossiers} token={params.token} seancesAVenir={espace.seances.filter((s) => !s.passee).length} />}
+        {onglet === 'documents' && <VueDocuments dossiers={espace.dossiers} token={params.token} seancesAVenir={espace.seances.filter((s) => !s.passee).length} livretAccueil={espace.livretAccueil} />}
         {onglet === 'facturation' && <VueFacturation factures={espace.factures} devis={espace.devis} prix={espace.prix} token={params.token} />}
         {onglet === 'questionnaires' && <VueQuestionnaires questionnaires={espace.questionnaires} />}
         {onglet === 'echanges' && <VueEchanges token={params.token} organisme={espace.organisme} echanges={espace.echanges} equipe={espace.equipe} fil={searchParams.fil} />}

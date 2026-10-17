@@ -86,6 +86,8 @@ export type PrixConvenu = { readonly dossierId: string; readonly reference: stri
 
 export type EspaceComplet = EspaceEntreprise & {
   readonly referentEmail: string | null;
+  /** L'organisme a déposé un livret d'accueil (0233). */
+  readonly livretAccueil: boolean;
   /** Le prix fixé sur chaque dossier : connu avant tout devis ou toute facture. */
   readonly prix: readonly PrixConvenu[];
   readonly seances: readonly SeanceEspace[];
@@ -480,5 +482,7 @@ export async function chargerEspaceComplet(contactId: string, organizationId: st
     });
   }
 
-  return { ...base, referentEmail, prix, seances, apprenants, factures, devis, echanges, equipe, questionnaires, actions: trierActions(actions) };
+  const { data: livret } = await admin.schema('app').from('organizations').select('livret_accueil_path').eq('id', organizationId).maybeSingle();
+  const livretAccueil = Boolean((livret as { livret_accueil_path?: string | null } | null)?.livret_accueil_path);
+  return { ...base, referentEmail, livretAccueil, prix, seances, apprenants, factures, devis, echanges, equipe, questionnaires, actions: trierActions(actions) };
 }

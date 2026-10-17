@@ -5,6 +5,7 @@ import { supabaseServer } from '@/shared/lib/supabase/server';
 import { SectionLabel } from '@/shared/ui/section-label';
 import { DataList, DataRow } from '@/shared/ui/data-row';
 import { SignatureStampSection } from './signature-stamp-section';
+import { LivretDepot } from './livret-depot';
 import { IdentitySection } from './identity-section';
 import { AttendanceSettings } from './attendance-settings';
 import { formaterIban } from '@/shared/lib/iban';
@@ -65,11 +66,11 @@ export default async function ParametresOrganisationPage() {
   const { data: banque } = await sb
     .schema('app')
     .from('organizations')
-    .select('bank_iban, bank_bic, bank_name, rib_path' as never)
+    .select('bank_iban, bank_bic, bank_name, rib_path, livret_accueil_path' as never)
     .is('deleted_at', null)
     .limit(1)
     .maybeSingle();
-  const b = banque as { bank_iban?: string | null; bank_bic?: string | null; bank_name?: string | null; rib_path?: string | null } | null;
+  const b = banque as { bank_iban?: string | null; bank_bic?: string | null; bank_name?: string | null; rib_path?: string | null; livret_accueil_path?: string | null } | null;
   const r = reglage as { attendance_auto_send?: boolean; attendance_lunch_start?: string; attendance_lunch_end?: string } | null;
   const envoiAuto = Boolean(r?.attendance_auto_send);
 
@@ -152,6 +153,8 @@ export default async function ParametresOrganisationPage() {
         lunchStart={(r?.attendance_lunch_start ?? '12:30').slice(0, 5)}
         lunchEnd={(r?.attendance_lunch_end ?? '13:30').slice(0, 5)}
       />
+      <LivretDepot depose={Boolean(b?.livret_accueil_path)} />
+
       <SignatureStampSection
         representativeName={org.representative_name ?? null}
         representativeTitle={org.representative_title ?? null}

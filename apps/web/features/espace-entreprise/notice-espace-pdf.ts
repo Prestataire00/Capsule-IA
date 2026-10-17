@@ -37,7 +37,7 @@ const RUBRIQUES: ReadonlyArray<[string, string]> = [
   ['À faire', 'Ce qui vous attend, le plus urgent en premier : documents à signer, questionnaires à remplir, factures à régler, convocations à transmettre à vos salariés.'],
   ['Planning', 'Les séances à venir et passées de vos salariés, en tableau ou en liste : dates, horaires, lieu ou lien de connexion, formateur, participants. Les heures réalisées sur les heures prévues. La convocation générale en PDF.'],
   ['Apprenants', 'Vos salariés inscrits : leurs heures, leurs émargements et les documents qui les concernent.'],
-  ['Documents', 'Convention, convocations, programme, attestations : à consulter, télécharger ou signer en ligne.'],
+  ['Documents', 'Livret d’accueil à transmettre à vos salariés, convention, convocations, programme, attestations : à consulter, télécharger ou signer en ligne.'],
   ['Facturation', 'Le prix convenu, vos devis et vos factures, avec le reste à payer.'],
   ['Questionnaires', 'Vos questionnaires : à remplir, à venir (avec la date à laquelle ils s’ouvrent) et déjà répondus. Ils s’ouvrent d’eux-mêmes le jour venu.'],
   ['Échanges', 'Votre messagerie avec l’équipe : un fil commun et un fil personnel avec chaque membre, documents joints compris. Les e-mails que nous vous avons envoyés y sont aussi.'],

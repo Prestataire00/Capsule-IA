@@ -1,15 +1,44 @@
-import { CalendarDays, Download, Eye, FileText, FolderOpen, PlayCircle, Users } from 'lucide-react';
+import { BookOpen, CalendarDays, Download, Eye, FileText, FolderOpen, PlayCircle, Users } from 'lucide-react';
 import type { DossierEntreprise } from '@/features/espace-entreprise/load';
 import { TEMPLATE_KIND_LABELS } from '@/app/(dashboard)/documents/modeles/schema';
 import { CARTE, date } from './format';
 
 /** Les documents rendus visibles, formation par formation, et les replays. */
-export function VueDocuments({ dossiers, token, seancesAVenir }: { dossiers: readonly DossierEntreprise[]; token: string; seancesAVenir: number }) {
+export function VueDocuments({
+  dossiers,
+  token,
+  seancesAVenir,
+  livretAccueil = false,
+}: {
+  dossiers: readonly DossierEntreprise[];
+  token: string;
+  seancesAVenir: number;
+  livretAccueil?: boolean;
+}) {
+  const livret = livretAccueil && (
+    <a
+      href={`/api/espace-entreprise/${token}/livret`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${CARTE} px-5 py-4 flex items-center gap-3 hover:shadow-md transition`}
+    >
+      <span className="w-9 h-9 rounded-xl grid place-items-center bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 shrink-0">
+        <BookOpen className="w-4 h-4" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-medium text-zinc-900 dark:text-zinc-100">Livret d’accueil</span>
+        <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">À transmettre à vos salariés avant leur première séance.</span>
+      </span>
+      <Download className="w-4 h-4 text-zinc-400" aria-hidden />
+    </a>
+  );
   if (dossiers.length === 0) {
+    if (livret) return <div className="space-y-4">{livret}</div>;
     return <p className={`${CARTE} px-5 py-10 text-center text-[13px] text-zinc-500 dark:text-zinc-400`}>Aucune formation en cours pour l’instant.</p>;
   }
   return (
     <div className="space-y-4">
+      {livret}
       {seancesAVenir > 0 && (
         <section className={`${CARTE} px-5 py-4 flex items-center gap-3 flex-wrap`} aria-label="Convocation générale">
           <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
