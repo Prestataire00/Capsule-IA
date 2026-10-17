@@ -8,6 +8,7 @@ import { buildCertificatPdf } from './build-certificat-pdf';
 import { buildConvocationPdf } from './build-convocation-pdf';
 import { loadOrgBranding } from './load-org-branding';
 import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
+import { acquisDesObjectifs } from './acquis-objectifs';
 
 /**
  * Documents d'un stagiaire, au même endroit que dans RFC : la séance les
@@ -117,6 +118,11 @@ async function buildAttestationInput(
 
   const branding = await loadOrgBranding(sb as never, d.organization_id);
   const attendanceRate = variant === 'fin' ? await computeDossierAttendanceRate(sb as never, dossierId) : 0;
+  // Acquis par objectif (0234), lus à part : la colonne peut manquer avant la migration.
+  const { data: acquisRow } = variant === 'fin'
+    ? await sb.schema('app').from('dossiers').select('acquis_objectifs' as never).eq('id', dossierId).maybeSingle()
+    : { data: null };
+  const acquis = acquisDesObjectifs(d.formation?.objectives ?? [], (acquisRow as { acquis_objectifs?: unknown } | null)?.acquis_objectifs);
 
   return {
     organizationId: d.organization_id,
@@ -145,6 +151,7 @@ async function buildAttestationInput(
         birthDate: d.learner?.birth_date ?? null,
       },
       formation: { title: d.formation?.title ?? '—', objectives: d.formation?.objectives ?? [] },
+      ...(variant === 'fin' ? { acquis } : {}),
       dossier: {
         reference: d.reference,
         startDate: d.start_date,

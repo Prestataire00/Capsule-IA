@@ -24,6 +24,8 @@ import {
 import { StatusPill } from '@/shared/ui/status-pill';
 import { IdPill } from '@/shared/ui/id-pill';
 import { loadMyDossier, requireMyTrainerDossier } from '@/features/trainer-space/my-dossiers';
+import { AcquisObjectifs } from '@/features/documents/acquis/acquis-objectifs.client';
+import { chargerAcquis } from '@/features/documents/acquis/charger-acquis';
 import { heure, jourLong, jourNumero, moisCourt } from '@/features/trainer-space/dates';
 import { Chip, CarreIcone, Initiales } from '@/features/trainer-space/ui/chip';
 
@@ -55,6 +57,7 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
   const detail = await loadMyDossier(acces.sb, params.id);
   if (!detail) notFound();
   const { dossier, referent, apprenants, seances, notes, accessibilityNotes } = detail;
+  const acquis = await chargerAcquis(params.id);
   const st = STATUT[dossier.status] ?? { label: dossier.status, tone: 'neutral' as const };
 
   return (
@@ -99,6 +102,8 @@ export default async function DossierConfiePage({ params }: { params: { id: stri
           </Chip>
         </div>
       </header>
+
+      <AcquisObjectifs dossierId={params.id} lignes={acquis} modifiable />
 
       <section className={carte}>
         <p className={titreCarte}>

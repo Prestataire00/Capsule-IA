@@ -7,6 +7,7 @@ import { persistGeneratedDocument } from '@/features/documents/persist-document'
 
 import { canAccessDossier } from '@/features/documents/guard-dossier-access';
 import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
+import { acquisDesObjectifs } from '@/features/documents/acquis-objectifs';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   } | null) ?? null;
 
   const attendanceRate = await computeDossierAttendanceRate(sb, params.id);
+  // Acquis par objectif (0234), lus à part : la colonne peut manquer avant la migration.
+  const { data: acquisRow } = await sb.schema('app').from('dossiers').select('acquis_objectifs' as never).eq('id', params.id).maybeSingle();
+  const acquis = acquisDesObjectifs(d.formation?.objectives ?? [], (acquisRow as { acquis_objectifs?: unknown } | null)?.acquis_objectifs);
 
   const orgId = d.organization_id;
   const branding = await loadOrgBranding(sb as never, orgId);
@@ -106,6 +110,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       title: d.formation?.title ?? '—',
       objectives: d.formation?.objectives ?? [],
     },
+    acquis,
     dossier: {
       reference: d.reference,
       startDate: d.start_date,

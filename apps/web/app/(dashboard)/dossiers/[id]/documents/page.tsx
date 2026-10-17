@@ -19,6 +19,8 @@ import { EmailDocButton } from './_components/email-doc-button';
 import { GenerateConventionsButton } from './_components/generate-conventions-button';
 import { VisibiliteToggle } from '../../../documents/visibilite-toggle.client';
 import { SupprimerDocumentButton } from '../../../documents/supprimer-document.client';
+import { AcquisObjectifs } from '@/features/documents/acquis/acquis-objectifs.client';
+import { chargerAcquis } from '@/features/documents/acquis/charger-acquis';
 
 // PDF générés à la volée (générateurs pdf-lib existants : génèrent, persistent, renvoient le PDF).
 // La convention est générée à part (1 par financeur + reste à charge) via GenerateConventionsButton.
@@ -64,6 +66,7 @@ export default async function DocumentsPage({
   const sb = supabaseServer();
   // Commenter, c'est suivre le dossier : même droit que déposer une pièce.
   const peutCommenter = await canManageSection('dossiers');
+  const acquis = await chargerAcquis(params.id);
 
   // Dossier : formation (héritage modèles) + email apprenant (envoi par défaut).
   const { data: dRow } = await sb
@@ -213,6 +216,7 @@ export default async function DocumentsPage({
 
   return (
     <div className="space-y-8">
+      <AcquisObjectifs dossierId={params.id} lignes={acquis} modifiable={peutCommenter} />
       {/* Dépôt d'une pièce reçue : l'onglet ne savait que générer, alors que le
           guidage Qualiopi y renvoyait pour « ajouter la preuve ». */}
       <section className="space-y-3">

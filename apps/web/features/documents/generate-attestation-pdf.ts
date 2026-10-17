@@ -4,6 +4,7 @@ import { drawSignatureBlock, orgCachetLines } from './apply-org-signature';
 import { dessinerLigneLibelle, dessinerTitreSection, ouvrirDocument, VIOLET } from './charte-pdf';
 import { drawRgpdMention } from './pdf-rgpd';
 import { drawOrgIdentity, identityOf } from './pdf-org-header';
+import { LIBELLE_ACQUIS, NIVEAUX_ACQUIS, type NiveauAcquis } from './acquis-objectifs';
 
 export type AttestationInput = {
   organization: {
@@ -31,6 +32,8 @@ export type AttestationInput = {
     title: string;
     objectives: string[];
   };
+  /** Niveau atteint par objectif (fin de formation) ; absent = « acquis » partout. */
+  acquis?: ReadonlyArray<{ objectif: string; niveau: NiveauAcquis }>;
   dossier: {
     reference: string;
     startDate: string;
@@ -53,6 +56,21 @@ const COLOR_MUTED = rgb(0.42, 0.42, 0.45);
 const COLOR_ACCENT = VIOLET;
 
 type Cursor = { page: PDFPage; y: number };
+
+function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const lignes: string[] = [];
+  let courante = '';
+  for (const mot of text.split(/\s+/)) {
+    const essai = courante ? `${courante} ${mot}` : mot;
+    if (font.widthOfTextAtSize(essai, size) <= maxWidth || !courante) courante = essai;
+    else {
+      lignes.push(courante);
+      courante = mot;
+    }
+  }
+  if (courante) lignes.push(courante);
+  return lignes;
+}
 
 const fmtDate = (iso: string): string => {
   const d = new Date(iso);
@@ -107,7 +125,7 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
 
   // En-tête à la charte Capsule IA : bandeau violet, logo, référence.
   const isEntree = input.variant === 'entree';
-  const titre = isEntree ? "Attestation d'entrée en formation" : 'Attestation de réalisation';
+  const titre = isEntree ? "Attestation d'entrée en formation" : 'Attestation de fin de formation';
   const yTete = await ouvrirDocument(doc, page, { font, fontBold }, {
     titre,
     sousTitre: "Action de formation professionnelle continue — article L.6353-1 du Code du Travail",
@@ -163,13 +181,43 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
   }
   c = { ...c, y: c.y - 18 };
 
-  // Objectifs (si présents)
-  if (input.formation.objectives.length > 0) {
+  // Objectifs : à l'entrée, ceux qui sont visés ; en fin de formation, une
+  // ligne par objectif et son niveau (acquis, en cours, non acquis).
+  if (input.formation.objectives.length > 0 && isEntree) {
     c = { ...c, y: dessinerTitreSection(c.page, { font, fontBold }, MARGIN, c.y, COL, 'Objectifs pédagogiques visés') + 4 };
     for (const obj of input.formation.objectives) {
       c = drawText(c, font, `•  ${obj}`, { size: 10 });
     }
     c = { ...c, y: c.y - 16 };
+  } else if (input.formation.objectives.length > 0) {
+    const lignes = input.acquis ?? input.formation.objectives.map((objectif) => ({ objectif, niveau: 'acquis' as NiveauAcquis }));
+    c = { ...c, y: dessinerTitreSection(c.page, { font, fontBold }, MARGIN, c.y, COL, 'Évaluation des acquis, par objectif') + 4 };
+    const colNiv = 78;
+    const xNiv = MARGIN + COL - colNiv * NIVEAUX_ACQUIS.length;
+    NIVEAUX_ACQUIS.forEach((n, i) => {
+      const lib = n === 'en_cours' ? 'En cours' : LIBELLE_ACQUIS[n];
+      const w = font.widthOfTextAtSize(lib, 8);
+      c.page.drawText(lib, { x: xNiv + i * colNiv + (colNiv - w) / 2, y: c.y, size: 8, font: fontBold, color: COLOR_MUTED });
+    });
+    c = { ...c, y: c.y - 14 };
+    for (const l of lignes) {
+      const texte = wrap(`${l.objectif}`, font, 9.5, xNiv - MARGIN - 10);
+      const h = Math.max(1, texte.length) * 12.5 + 6;
+      // Un long programme continue sur une page suivante, signature comprise.
+      if (c.y - h < 150) c = { page: doc.addPage([A4.width, A4.height]), y: A4.height - MARGIN };
+      c.page.drawLine({ start: { x: MARGIN, y: c.y + 10 }, end: { x: MARGIN + COL, y: c.y + 10 }, thickness: 0.5, color: rgb(0.89, 0.89, 0.91) });
+      texte.forEach((t, i) => c.page.drawText(t, { x: MARGIN, y: c.y - i * 12.5, size: 9.5, font, color: COLOR_BODY }));
+      NIVEAUX_ACQUIS.forEach((n, i) => {
+        const cx = xNiv + i * colNiv + colNiv / 2 - 4.5;
+        c.page.drawRectangle({ x: cx, y: c.y - 2, width: 9, height: 9, borderColor: COLOR_MUTED, borderWidth: 0.8 });
+        if (l.niveau === n) {
+          c.page.drawLine({ start: { x: cx + 1.8, y: c.y + 2.6 }, end: { x: cx + 3.8, y: c.y + 0.4 }, thickness: 1.4, color: COLOR_ACCENT });
+          c.page.drawLine({ start: { x: cx + 3.8, y: c.y + 0.4 }, end: { x: cx + 7.6, y: c.y + 5.8 }, thickness: 1.4, color: COLOR_ACCENT });
+        }
+      });
+      c = { ...c, y: c.y - h };
+    }
+    c = { ...c, y: c.y - 12 };
   }
 
   // Closing
@@ -193,7 +241,7 @@ export async function generateAttestationPDF(input: AttestationInput): Promise<U
   });
 
   // Footer
-  page.drawText(`${input.organization.name}  ·  ${input.dossier.reference}  ·  Attestation Qualiopi`, {
+  page.drawText(`${input.organization.name}  ·  ${input.dossier.reference}  ·  ${titre}`, {
     x: MARGIN, y: 24, size: 7, font, color: COLOR_MUTED,
   });
 
