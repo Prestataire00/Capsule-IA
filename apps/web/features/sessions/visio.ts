@@ -298,6 +298,17 @@ export async function seancePourEmail(sb: Sb, sessionId: string): Promise<Seance
 }
 
 /**
+ * Une séance déjà terminée ne déclenche aucun envoi : on la saisit pour
+ * l'historique d'un dossier, pas pour convoquer (réunion avec Laurie,
+ * 16/10/2026 : une cliente avait reçu le lien d'une visio passée).
+ */
+async function seanceTerminee(sb: Sb, sessionId: string): Promise<boolean> {
+  const { data } = await sb.schema('app').from('sessions').select('ends_at, status').eq('id', sessionId).maybeSingle();
+  const s = data as { ends_at: string; status: string } | null;
+  return !s || s.status === 'cancelled' || s.status === 'done' || new Date(s.ends_at).getTime() < Date.now();
+}
+
+/**
  * Le lien de la visio, à l'entreprise de chaque stagiaire, dès qu'il existe :
  * on n'a pas toujours l'adresse des salariés, c'est elle qui transmet.
  */
@@ -307,6 +318,7 @@ export async function diffuserLienVisio(sb: Sb, sessionId: string): Promise<numb
   if (!seance || !lien) return 0;
 
   if (!(await envoiActif(seance.organizationId, 'lien_visio_entreprise'))) return 0;
+  if (await seanceTerminee(sb, sessionId)) return 0;
 
   let envoyes = 0;
   const { subject, html } = lienVisioEntrepriseEmail({ ...seance.donnees, lienVisio: lien });
@@ -391,6 +403,9 @@ export async function invitesDeLaSeance(
   sessionId: string,
   stagiaires?: ReadonlyArray<string | null | undefined>,
 ): Promise<string[]> {
+  // Séance passée : la visio peut exister pour mémoire, mais Google n'envoie
+  // d'invitation à personne.
+  if (await seanceTerminee(sb, sessionId)) return [];
   const [connus, formateurs, referents] = await Promise.all([
     stagiaires ? Promise.resolve(stagiaires) : emailsStagiairesDeSeance(sb, sessionId),
     emailsFormateursDeSeance(sb, sessionId),

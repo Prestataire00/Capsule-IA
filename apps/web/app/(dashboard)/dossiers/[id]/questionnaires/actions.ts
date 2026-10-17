@@ -16,6 +16,7 @@ import { env } from '@/env.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { guardAction } from '@/shared/lib/auth/guard-action';
 import { relancerAssignation } from '@/features/questionnaire/relancer-assignation';
+import { adresseDuDestinataire } from '@/features/questionnaire/adresse-du-destinataire';
 
 /** Écriture en service role : la garde de rôle est explicite à chaque action. */
 const adminClient = () =>
@@ -398,8 +399,17 @@ export const sendCompanyQuestionnaire = authActionClient
       .eq('company_id', d.company_id)
       .is('deleted_at', null)
       .maybeSingle();
-    const c = contactRow as { first_name: string | null; last_name: string | null; email: string | null } | null;
-    if (!c) return { ok: false as const, error: 'contact_not_linked' };
+    const fiche = contactRow as { first_name: string | null; last_name: string | null; email: string | null } | null;
+    if (!fiche) return { ok: false as const, error: 'contact_not_linked' };
+    // L'adresse du jour : celle de l'interlocuteur, sinon celle de la société.
+    const c = {
+      ...fiche,
+      email: await adresseDuDestinataire(sb as never, {
+        recipient_kind: 'company_rep',
+        recipient_email: fiche.email,
+        recipient_contact_id: parsedInput.contactId,
+      }),
+    };
 
     const templateId = await ensureCompanySatisfactionTemplate(sb as never);
 
@@ -435,6 +445,9 @@ export const sendCompanyQuestionnaire = authActionClient
         .single();
       if (error || !creee) return { ok: false as const, error: 'assignment_create_failed', details: error?.message };
       assignmentId = (creee as { id: string }).id;
+    } else if (c.email) {
+      // Créée sans adresse, complétée depuis : on la met à jour.
+      await sb.schema('app').from('questionnaire_assignments').update({ recipient_email: c.email } as never).eq('id', assignmentId);
     }
 
     const signed = await generateQuestionnaireToken({

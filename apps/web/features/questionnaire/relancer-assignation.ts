@@ -22,6 +22,7 @@ import { REGLABLES, reglageEffectif } from '@/features/emails/programmation-envo
 import { lienStagiaire } from './lien-stagiaire';
 import { referentsDesDossiers } from '@/features/espace-entreprise/referents';
 import { liensStagiairesReferentEmail } from '@/shared/lib/email/templates';
+import { adresseDuDestinataire } from './adresse-du-destinataire';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Client = SupabaseClient<any, any, any>;
@@ -46,7 +47,7 @@ export async function relancerAssignation(
   const { data: row } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .select('id, organization_id, dossier_id, status, recipient_kind, recipient_email, recipient_name, recipient_learner_id, recipient_trainer_id, template:questionnaire_templates(title, code)')
+    .select('id, organization_id, dossier_id, status, recipient_kind, recipient_email, recipient_name, recipient_learner_id, recipient_trainer_id, recipient_contact_id, template:questionnaire_templates(title, code)')
     .eq('id', assignmentId)
     .maybeSingle();
   const a = row as unknown as {
@@ -58,6 +59,7 @@ export async function relancerAssignation(
     recipient_email: string | null;
     recipient_name: string | null;
     recipient_learner_id: string | null;
+    recipient_contact_id: string | null;
     recipient_trainer_id: string | null;
     template: { title: string; code: string | null } | { title: string; code: string | null }[] | null;
   } | null;
@@ -81,17 +83,15 @@ export async function relancerAssignation(
     ]);
     const ref = referents.get(a.dossier_id);
     if (!ref) return { ok: false, raison: 'Ce dossier n’a ni référent ni contact d’entreprise à qui écrire.' };
-    const lien =
-      modele?.code === SATISFACTION_STAGIAIRE_CODE
-        ? (await generateSatisfactionUrl({ assignmentId: a.id, dossierId: a.dossier_id, organizationId: a.organization_id, learnerId: a.recipient_learner_id }, base)).url
-        : await lienStagiaire(base, 'questionnaire', {
-            learnerId: a.recipient_learner_id,
-            organizationId: a.organization_id,
-            dossierId: a.dossier_id,
-            cibleId: a.id,
-          });
-    const stagiaire = l as { first_name: string | null; last_name: string | null } | null;
-    const nom = `${stagiaire?.first_name ?? ''} ${stagiaire?.last_name ?? ''}`.trim() || a.recipient_name || 'Votre stagiaire';
+    const { nom, lien } = await lienDuStagiaire(sb, {
+      assignmentId: a.id,
+      dossierId: a.dossier_id,
+      organizationId: a.organization_id,
+      learnerId: a.recipient_learner_id,
+      code: modele?.code ?? null,
+      nomParDefaut: a.recipient_name,
+      prenomNom: l as { first_name: string | null; last_name: string | null } | null,
+    }, base);
     const tpl = liensStagiairesReferentEmail({
       prenom: ref.prenom,
       objet: `Rappel — « ${modele?.title ?? 'Questionnaire'} » pour ${nom}`,
@@ -116,12 +116,11 @@ export async function relancerAssignation(
     return { ok: true, email: ref.email };
   }
 
-  let email = a.recipient_email;
-  if (!email && a.recipient_kind === 'learner' && a.recipient_learner_id) {
-    const { data: l } = await sb.schema('app').from('learners').select('email').eq('id', a.recipient_learner_id).maybeSingle();
-    email = (l as { email: string | null } | null)?.email ?? null;
+  const email = await adresseDuDestinataire(sb, a);
+  if (!email) return { ok: false, raison: 'Aucune adresse enregistrée pour ce destinataire.' };
+  if (email !== a.recipient_email) {
+    await sb.schema('app').from('questionnaire_assignments').update({ recipient_email: email } as never).eq('id', a.id);
   }
-  if (!email || email.toLowerCase().endsWith('.invalid')) return { ok: false, raison: 'Aucune adresse enregistrée pour ce destinataire.' };
 
   // Le lien, par le chemin qui convient au destinataire et au modèle.
   const ctx = { assignmentId: a.id, dossierId: a.dossier_id, organizationId: a.organization_id };
@@ -172,6 +171,139 @@ export async function relancerAssignation(
   return { ok: true, email };
 }
 
+/** Le nom du stagiaire et SON lien, par le chemin qui convient au modèle. */
+async function lienDuStagiaire(
+  sb: Client,
+  a: {
+    assignmentId: string;
+    dossierId: string;
+    organizationId: string;
+    learnerId: string;
+    code: string | null;
+    nomParDefaut: string | null;
+    prenomNom: { first_name: string | null; last_name: string | null } | null;
+  },
+  base: string,
+): Promise<{ nom: string; lien: string }> {
+  const lien =
+    a.code === SATISFACTION_STAGIAIRE_CODE
+      ? (await generateSatisfactionUrl({ assignmentId: a.assignmentId, dossierId: a.dossierId, organizationId: a.organizationId, learnerId: a.learnerId }, base)).url
+      : await lienStagiaire(base, 'questionnaire', {
+          learnerId: a.learnerId,
+          organizationId: a.organizationId,
+          dossierId: a.dossierId,
+          cibleId: a.assignmentId,
+        });
+  const nom = `${a.prenomNom?.first_name ?? ''} ${a.prenomNom?.last_name ?? ''}`.trim() || a.nomParDefaut || 'Votre stagiaire';
+  return { nom, lien };
+}
+
+/**
+ * Les stagiaires d'un même référent, pour un même questionnaire, relancés en
+ * UN e-mail qui les liste avec leur lien (réunion avec Laurie, 16/10/2026 :
+ * Nathanaël recevait un e-mail par stagiaire). Un stagiaire déjà relancé n'y
+ * figure plus ; chacun est marqué relancé une fois l'e-mail parti.
+ */
+async function relancerParReferent(
+  sb: Client,
+  lignes: ReadonlyArray<{ id: string; organization_id: string; dossier_id: string; template_id: string; recipient_learner_id: string; recipient_name: string | null; reminders_sent: number | null }>,
+): Promise<{ sent: number; errors: string[] }> {
+  const errors: string[] = [];
+  const base = env.PUBLIC_APP_URL?.trim().replace(/\/$/, '') ?? '';
+  if (!base || lignes.length === 0) return { sent: 0, errors };
+
+  // Déjà relancés, à l'ancienne (un e-mail chacun) ou depuis : on ne les relance plus.
+  const { data: dejaLog } = await sb
+    .schema('app')
+    .from('email_log' as never)
+    .select('idempotency_key')
+    .in('idempotency_key' as never, lignes.map((l) => cleRelance(l.id)) as never);
+  const deja = new Set(((dejaLog ?? []) as Array<{ idempotency_key: string }>).map((r) => r.idempotency_key));
+  const aFaire = lignes.filter((l) => !deja.has(cleRelance(l.id)) && !(l.reminders_sent && l.reminders_sent > 0));
+  if (aFaire.length === 0) return { sent: 0, errors };
+
+  const [referents, { data: stagiaires }, { data: modeles }] = await Promise.all([
+    referentsDesDossiers(sb, aFaire.map((l) => l.dossier_id)),
+    sb.schema('app').from('learners').select('id, first_name, last_name').in('id', [...new Set(aFaire.map((l) => l.recipient_learner_id))]),
+    sb.schema('app').from('questionnaire_templates').select('id, title, code').in('id', [...new Set(aFaire.map((l) => l.template_id))]),
+  ]);
+  const personne = new Map(((stagiaires ?? []) as Array<{ id: string; first_name: string | null; last_name: string | null }>).map((x) => [x.id, x]));
+  const modele = new Map(((modeles ?? []) as Array<{ id: string; title: string; code: string | null }>).map((x) => [x.id, x]));
+
+  const groupes = new Map<string, { ref: { email: string; prenom: string }; organizationId: string; dossierId: string; templateId: string; membres: typeof aFaire }>();
+  for (const l of aFaire) {
+    const ref = referents.get(l.dossier_id);
+    if (!ref) continue;
+    const cle = `${l.organization_id}|${ref.email}|${l.template_id}`;
+    const g = groupes.get(cle) ?? { ref, organizationId: l.organization_id, dossierId: l.dossier_id, templateId: l.template_id, membres: [] };
+    g.membres = [...g.membres, l];
+    groupes.set(cle, g);
+  }
+
+  let sent = 0;
+  for (const g of groupes.values()) {
+    try {
+      const m = modele.get(g.templateId);
+      const liste = await Promise.all(
+        g.membres.map((l) =>
+          lienDuStagiaire(sb, {
+            assignmentId: l.id,
+            dossierId: l.dossier_id,
+            organizationId: l.organization_id,
+            learnerId: l.recipient_learner_id,
+            code: m?.code ?? null,
+            nomParDefaut: l.recipient_name,
+            prenomNom: personne.get(l.recipient_learner_id) ?? null,
+          }, base),
+        ),
+      );
+      liste.sort((x, y) => x.nom.localeCompare(y.nom, 'fr'));
+      const titre = m?.title ?? 'Questionnaire';
+      const expediteur = await expediteurDeLOrganisme(sb, g.organizationId);
+      const tpl = liensStagiairesReferentEmail({
+        prenom: g.ref.prenom,
+        objet: liste.length > 1 ? `Rappel — « ${titre} » : ${liste.length} stagiaires n’ont pas répondu` : `Rappel — « ${titre} » pour ${liste[0]?.nom ?? 'votre stagiaire'}`,
+        intro:
+          liste.length > 1
+            ? `Voici les stagiaires qui n’ont pas encore répondu à « ${titre} ». Pourriez-vous transmettre à chacun son lien ?`
+            : `${liste[0]?.nom ?? 'Votre stagiaire'} n’a pas encore répondu à « ${titre} ». Pourriez-vous lui transmettre son lien ?`,
+        stagiaires: liste,
+        organisme: expediteur.nom,
+        libelleLien: 'son questionnaire',
+      });
+      const ids = g.membres.map((l) => l.id).sort();
+      const r = await sendEmail({
+        to: g.ref.email,
+        from: expediteur.from,
+        ...(expediteur.email ? { replyTo: expediteur.email } : {}),
+        subject: tpl.subject,
+        html: tpl.html,
+        organizationId: g.organizationId,
+        dossierId: g.dossierId,
+        kind: 'relance_satisfaction',
+        metadata: { assignment_ids: ids, via: 'referent', stagiaires: ids.length },
+        idempotencyKey: `relance_referent:${createHash('sha256').update(ids.join(',')).digest('hex').slice(0, 32)}`,
+      });
+      if (!r.ok) {
+        if (r.reason !== 'duplicate') errors.push(`relance référent ${g.ref.email} : envoi échoué`);
+        continue;
+      }
+      sent += 1;
+      const maintenant = new Date().toISOString();
+      for (const l of g.membres) {
+        await sb
+          .schema('app')
+          .from('questionnaire_assignments')
+          .update({ reminders_sent: (l.reminders_sent ?? 0) + 1, last_reminder_at: maintenant } as never)
+          .eq('id', l.id);
+      }
+    } catch (e) {
+      errors.push(`relance référent : ${e instanceof Error ? e.message : 'échec'}`);
+    }
+  }
+  return { sent, errors };
+}
+
 /**
  * Passage quotidien : relance à J+3 chaque questionnaire de satisfaction resté
  * sans réponse. Une fois par questionnaire — la clé d'unicité en fait foi.
@@ -186,23 +318,41 @@ export async function runRelancesSatisfaction(sb: Client, maintenant = new Date(
   const { data, error } = await sb
     .schema('app')
     .from('questionnaire_assignments')
-    .select('id, organization_id, status, created_at, template:questionnaire_templates(kind, code)')
+    .select('id, organization_id, status, created_at, dossier_id, template_id, recipient_kind, recipient_learner_id, recipient_name, reminders_sent, template:questionnaire_templates(kind, code)')
     .in('status', ['pending', 'in_progress'])
     .gte('created_at', depuis)
     .lte('created_at', jusqua)
     .limit(1000);
   if (error) return { candidates: 0, sent: 0, errors: [`relances satisfaction : ${error.message}`] };
 
-  type Ligne = { id: string; organization_id: string; status: string; created_at: string; template: { kind: string; code: string | null } | { kind: string; code: string | null }[] | null };
+  type Ligne = {
+    id: string;
+    organization_id: string;
+    status: string;
+    created_at: string;
+    dossier_id: string | null;
+    template_id: string;
+    recipient_kind: string;
+    recipient_learner_id: string | null;
+    recipient_name: string | null;
+    reminders_sent: number | null;
+    template: { kind: string; code: string | null } | { kind: string; code: string | null }[] | null;
+  };
   const aTraiter = ((data ?? []) as unknown as Ligne[]).filter((l) => {
     const t = Array.isArray(l.template) ? l.template[0] : l.template;
     const reglage = reglageEffectif('relance_satisfaction', regles.get(l.organization_id));
     return t && reglage.actif && estSatisfaction(t) && aRelancer(l, maintenant, reglage.delaiJours);
   });
 
-  let sent = 0;
-  const errors: string[] = [];
-  for (const l of aTraiter) {
+  // Les stagiaires : un e-mail par référent et par questionnaire, qui les liste.
+  const parStagiaire = aTraiter.filter(
+    (l): l is Ligne & { dossier_id: string; recipient_learner_id: string } =>
+      l.recipient_kind === 'learner' && Boolean(l.recipient_learner_id) && Boolean(l.dossier_id),
+  );
+  const groupes = await relancerParReferent(sb, parStagiaire);
+  let sent = groupes.sent;
+  const errors: string[] = [...groupes.errors];
+  for (const l of aTraiter.filter((x) => !parStagiaire.includes(x as never))) {
     try {
       const r = await relancerAssignation(sb, l.id, { automatique: true, idempotencyKey: cleRelance(l.id) });
       if (r.ok) sent++;

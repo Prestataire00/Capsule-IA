@@ -56,7 +56,12 @@ function Indicateur({ c, titre }: { c: Compteur; titre?: string }) {
   );
 }
 
-function Case({ p, vignette }: { p: ParticipantRow | undefined; vignette: string | null }) {
+/**
+ * `commence` : la demi-journée a démarré. Une signature qui manque alors se
+ * voit en rouge (réunion avec Laurie, 16/10/2026 : Aymeric passait inaperçu
+ * dans une liste de présents).
+ */
+function Case({ p, vignette, commence }: { p: ParticipantRow | undefined; vignette: string | null; commence: boolean }) {
   if (!p) return <span className="text-[12px] text-zinc-300 dark:text-zinc-600">—</span>;
   const entree = heure(p.entryAt);
   const sortie = heure(p.exitAt);
@@ -69,7 +74,9 @@ function Case({ p, vignette }: { p: ParticipantRow | undefined; vignette: string
           ? { t: 'Absent', c: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300' }
           : p.state === 'excuse'
             ? { t: 'Excusé', c: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' }
-            : { t: 'Non émargé', c: 'border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500' };
+            : p.expected && commence
+              ? { t: 'Non signé', c: 'bg-red-50 text-red-700 ring-1 ring-red-300 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-800' }
+              : { t: 'Non émargé', c: 'border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500' };
   return (
     <span className="flex flex-col items-center gap-1">
       <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${badge.c}`}>
@@ -292,7 +299,7 @@ export function AttendanceMatrix({
                           aria-pressed={choisieIci}
                           className={`w-full rounded-lg px-1 py-1.5 transition ${choisieIci ? 'ring-2 ring-orange-400' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'} disabled:cursor-default disabled:hover:bg-transparent`}
                         >
-                          <Case p={c} vignette={vignettes[`${s.id}|${cle}|entry`] ?? null} />
+                          <Case p={c} vignette={vignettes[`${s.id}|${cle}|entry`] ?? null} commence={new Date(s.windowStart).getTime() <= Date.now()} />
                         </button>
                         {c && (
                           <span className="mt-1 flex justify-center gap-1" role="group" aria-label={`Présence de ${p.fullName}`}>
@@ -412,6 +419,7 @@ export function AttendanceMatrix({
         <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> En retard</span>
         <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400" /> Absent</span>
         <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full border border-dashed border-zinc-400" /> Non émargé</span>
+        <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-100 ring-1 ring-red-300" /> Non signé, séance commencée</span>
         {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-label="Enregistrement" />}
       </footer>
 

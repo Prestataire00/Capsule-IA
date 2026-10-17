@@ -75,18 +75,28 @@ export default async function QuestionnairesPage({ params }: { params: { id: str
     ? await sb
         .schema('app')
         .from('contacts')
-        .select('id, first_name, last_name, email, is_primary')
+        .select('id, first_name, last_name, email, is_primary, company:companies(contact_email)')
         .eq('company_id', companyId)
         .is('deleted_at', null)
         .order('is_primary', { ascending: false })
     : { data: [] };
   const contacts = (
-    (contactsRows as { id: string; first_name: string | null; last_name: string | null; email: string | null }[] | null) ?? []
-  ).map((c) => ({
-    id: c.id,
-    nom: `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || 'Interlocuteur',
-    email: c.email,
-  }));
+    (contactsRows as unknown as {
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+      company: { contact_email: string | null } | Array<{ contact_email: string | null }> | null;
+    }[] | null) ?? []
+  ).map((c) => {
+    // Sans e-mail sur la fiche de l'interlocuteur, celui de la société (comme à l'envoi).
+    const societe = Array.isArray(c.company) ? c.company[0] : c.company;
+    return {
+      id: c.id,
+      nom: `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || 'Interlocuteur',
+      email: c.email?.trim() || societe?.contact_email?.trim() || null,
+    };
+  });
 
   return (
     <div className="space-y-10">
