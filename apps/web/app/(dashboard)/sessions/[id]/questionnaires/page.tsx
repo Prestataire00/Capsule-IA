@@ -25,7 +25,7 @@ import { QuestionnairesSeance, type LigneQuestionnaire } from './questionnaires-
 import { ReponsesRecues } from '@/app/(dashboard)/dossiers/[id]/questionnaires/reponses-recues';
 import { codeFicheDeSeance, estFicheDeSeance } from '@/features/questionnaire/fiche-de-seance';
 import { TestPositionnement } from './test-positionnement.client';
-import { derniereSeanceDuGroupe } from '@/features/sessions/derniere-seance-du-groupe';
+import { bornesDuGroupe } from '@/features/sessions/bornes-du-groupe';
 import { testsDePositionnement } from '@/features/questionnaire/test-positionnement';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
@@ -132,7 +132,7 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
   const { data: testRow } = testExistant
     ? await supabaseAdmin().schema('app').from('questionnaire_templates').select('schema').eq('id', testExistant.id).maybeSingle()
     : { data: null };
-  const derniere = await derniereSeanceDuGroupe(supabaseAdmin() as never, params.id);
+  const groupe = await bornesDuGroupe(supabaseAdmin() as never, params.id);
   const testPositionnement = testExistant
     ? { id: testExistant.id, questions: ((testRow as { schema?: { questions?: unknown[] } } | null)?.schema?.questions ?? []).length }
     : null;
@@ -174,7 +174,7 @@ export default async function SessionQuestionnairesTab({ params }: { params: { i
           sessionId={params.id}
           test={testPositionnement}
           gerer={gerer}
-          derniere={derniere.estLaDerniere ? null : derniere.derniere}
+          premiere={groupe.estLaPremiere ? null : groupe.premiere}
         />
       )}
       <ReponsesRecues sb={sb as never} dossierIds={dossierIds} sessionId={params.id} />

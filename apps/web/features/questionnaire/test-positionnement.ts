@@ -2,7 +2,8 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { anthropic, LEGAL_MODEL } from '@/shared/lib/ai/client';
 import { toRuntimeQuestion } from './template.schema';
-import { codeTestPositionnement, lireTestGenere, promptTestPositionnement, titreTestPositionnement } from './test-positionnement-contenu';
+import { codeTestPositionnement, lireProgramme, lireTestGenere, nombreAttendu, promptTestPositionnement, titreTestPositionnement, type ContenuFormation } from './test-positionnement-contenu';
+import { loadProgrammePourFormateur } from '@/features/formations/programme/load-for-trainer';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Sb = SupabaseClient<any, any, any>;
@@ -10,8 +11,8 @@ type Sb = SupabaseClient<any, any, any>;
 export type ErreurTest = 'formation_introuvable' | 'sans_objectifs' | 'ia_indisponible' | 'generation_echouee' | 'enregistrement_echoue';
 
 /**
- * Génère (ou régénère) le test de positionnement d'une formation, d'après les
- * objectifs de son programme. Enregistré comme questionnaire de l'organisme,
+ * Génère (ou régénère) le test de positionnement d'une formation, d'après son
+ * contenu pédagogique, son programme détaillé et ses modalités. Enregistré comme questionnaire de l'organisme,
  * rattaché à la formation : il se projette en QR code au démarrage de chaque
  * séance de cette formation, ou se saisit à la main. Il ne part par e-mail que
  * si on le programme : le test se passe en salle.
@@ -24,13 +25,38 @@ export async function genererTestPositionnement(
   const { data } = await sb
     .schema('app')
     .from('formations')
-    .select('title, objectives, organization_id')
+    .select('title, summary, description, objectives, organization_id, default_modality, default_duration_hours, pedagogical_method, evaluation_method')
     .eq('id', args.formationId)
     .maybeSingle();
-  const f = data as { title: string; objectives: string[] | null; organization_id: string } | null;
+  const f = data as {
+    title: string;
+    summary: string | null;
+    description: string | null;
+    objectives: string[] | null;
+    organization_id: string;
+    default_modality: string | null;
+    default_duration_hours: number | string | null;
+    pedagogical_method: string | null;
+    evaluation_method: string | null;
+  } | null;
   if (!f || f.organization_id !== args.organizationId) return { ok: false, error: 'formation_introuvable' };
-  const objectifs = (f.objectives ?? []).map((o) => o.trim()).filter(Boolean).slice(0, 20);
-  if (objectifs.length === 0) return { ok: false, error: 'sans_objectifs' };
+
+  // Le contenu pédagogique, le programme détaillé et les modalités (17/10/2026).
+  const programme = lireProgramme(await loadProgrammePourFormateur(args.formationId));
+  const contenu: ContenuFormation = {
+    titre: f.title,
+    resume: f.summary?.trim() || f.description?.trim().slice(0, 1500) || null,
+    modalite: f.default_modality,
+    dureeHeures: f.default_duration_hours == null ? null : Number(f.default_duration_hours),
+    methodePedagogique: f.pedagogical_method,
+    methodeEvaluation: f.evaluation_method,
+    objectifs: (f.objectives ?? []).map((o) => o.trim()).filter(Boolean).slice(0, 20),
+    modules: programme.modules.slice(0, 15),
+    programmeTexte: programme.texte,
+  };
+  if (contenu.modules.length === 0 && !contenu.programmeTexte && contenu.objectifs.length === 0 && !contenu.resume) {
+    return { ok: false, error: 'sans_objectifs' };
+  }
 
   const client = anthropic();
   if (!client) return { ok: false, error: 'ia_indisponible' };
@@ -43,7 +69,7 @@ export async function genererTestPositionnement(
         thinking: { type: 'adaptive' },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         output_config: { effort: 'medium' } as any,
-        messages: [{ role: 'user', content: promptTestPositionnement(f.title, objectifs) }],
+        messages: [{ role: 'user', content: promptTestPositionnement(contenu) }],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .finalMessage();
@@ -52,7 +78,7 @@ export async function genererTestPositionnement(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((b) => (b as any).text as string)
       .join('\n');
-    questions = lireTestGenere(texte, objectifs.length);
+    questions = lireTestGenere(texte, nombreAttendu(contenu));
   } catch (e) {
     console.error('[test de positionnement] génération impossible', e instanceof Error ? e.message : e);
   }
@@ -68,7 +94,7 @@ export async function genererTestPositionnement(
     kind: 'evaluation_acquis',
     audience: 'apprenant',
     title: titreTestPositionnement(f.title),
-    description: `Deux questions par objectif du programme, à passer au démarrage de la session.`,
+    description: 'Construit sur le programme, le contenu et les modalités de la formation ; passé au premier cours du groupe.',
     schema: { questions: questions.map(toRuntimeQuestion) },
     thank_you_message: 'Merci ! Votre formateur adaptera la formation à vos réponses.',
     is_active: true,

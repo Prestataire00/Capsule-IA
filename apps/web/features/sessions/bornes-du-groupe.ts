@@ -4,15 +4,20 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Sb = SupabaseClient<any, any, any>;
 
-export type DerniereSeance = { readonly estLaDerniere: boolean; readonly derniere: { id: string; debut: string } | null };
+export type DerniereSeance = {
+  readonly estLaDerniere: boolean;
+  readonly derniere: { id: string; debut: string } | null;
+  readonly estLaPremiere: boolean;
+  readonly premiere: { id: string; debut: string } | null;
+};
 
 /**
- * La dernière séance du groupe de cette séance : celles du même groupe, sinon
+ * La première et la dernière séance du groupe de cette séance : celles du même groupe, sinon
  * celles de ses dossiers sans groupe, sinon celles de la même formation pour
  * le même client. Annulées exclues. Chez Sandaya, les groupes A et B partagent
  * un dossier : la dernière du dossier n'est pas celle de chaque groupe.
  */
-export async function derniereSeanceDuGroupe(sb: Sb, sessionId: string): Promise<DerniereSeance> {
+export async function bornesDuGroupe(sb: Sb, sessionId: string): Promise<DerniereSeance> {
   const { data } = await sb
     .schema('app')
     .from('sessions')
@@ -29,7 +34,7 @@ export async function derniereSeanceDuGroupe(sb: Sb, sessionId: string): Promise
     company_id: string | null;
     organization_id: string;
   } | null;
-  if (!s) return { estLaDerniere: false, derniere: null };
+  if (!s) return { estLaDerniere: false, derniere: null, estLaPremiere: false, premiere: null };
 
   type Ligne = { id: string; starts_at: string; ends_at: string };
   let soeurs: Ligne[] = [];
@@ -61,6 +66,12 @@ export async function derniereSeanceDuGroupe(sb: Sb, sessionId: string): Promise
     }
   }
   const toutes = [...new Map([...soeurs, { id: s.id, starts_at: s.starts_at, ends_at: s.ends_at }].map((x) => [x.id, x])).values()];
-  const derniere = toutes.sort((a, b) => b.ends_at.localeCompare(a.ends_at))[0] ?? null;
-  return { estLaDerniere: derniere?.id === s.id, derniere: derniere ? { id: derniere.id, debut: derniere.starts_at } : null };
+  const derniere = [...toutes].sort((a, b) => b.ends_at.localeCompare(a.ends_at))[0] ?? null;
+  const premiere = [...toutes].sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0] ?? null;
+  return {
+    estLaDerniere: derniere?.id === s.id,
+    derniere: derniere ? { id: derniere.id, debut: derniere.starts_at } : null,
+    estLaPremiere: premiere?.id === s.id,
+    premiere: premiere ? { id: premiere.id, debut: premiere.starts_at } : null,
+  };
 }

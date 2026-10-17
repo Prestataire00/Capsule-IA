@@ -9,7 +9,7 @@ import { genererTestPositionnement, type ErreurTest } from '@/features/questionn
 
 const MESSAGES: Record<ErreurTest, string> = {
   formation_introuvable: 'Formation introuvable.',
-  sans_objectifs: 'Le programme de la formation n’a pas d’objectifs : renseignez-les d’abord.',
+  sans_objectifs: 'La formation n’a ni programme, ni contenu, ni objectifs : renseignez-les d’abord (menu Formations).',
   ia_indisponible: 'L’assistant IA n’est pas configuré.',
   generation_echouee: 'La génération n’a pas abouti. Réessayez.',
   enregistrement_echoue: 'Le test n’a pas pu être enregistré.',

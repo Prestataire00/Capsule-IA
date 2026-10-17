@@ -9,7 +9,7 @@ import { generateNeedsAnalysisToken } from '@/shared/lib/needs-analysis-token';
 import { lienStagiaire } from './lien-stagiaire';
 import { interlocuteurDuModele } from './cartographie';
 import { testsDePositionnement } from './test-positionnement';
-import { derniereSeanceDuGroupe } from '@/features/sessions/derniere-seance-du-groupe';
+import { bornesDuGroupe } from '@/features/sessions/bornes-du-groupe';
 
 /**
  * N'importe quel questionnaire de la séance, projeté en salle (demande
@@ -143,7 +143,7 @@ export async function lienQuestionnaireEnSalle(sessionId: string, templateId: st
 
 /**
  * Les questionnaires stagiaires prévus pour la séance (cochés ou déjà
- * envoyés), à projeter — et, au dernier cours du groupe, le test de
+ * envoyés), à projeter — et, au premier cours du groupe, le test de
  * positionnement de sa formation, sans qu'on ait à le cocher.
  */
 export async function questionnairesProjetables(sessionId: string): Promise<Array<{ id: string; titre: string }>> {
@@ -161,8 +161,9 @@ export async function questionnairesProjetables(sessionId: string): Promise<Arra
       const { data: d } = await sb.schema('app').from('dossiers').select('formation_id').eq('id', seance.dossier_id).maybeSingle();
       formationId = (d as { formation_id: string | null } | null)?.formation_id ?? null;
     }
-    // Le test se passe au dernier cours du groupe, pas à chaque séance.
-    if (formationId && (await derniereSeanceDuGroupe(sb, sessionId)).estLaDerniere) {
+    // Le test de positionnement se passe au premier cours du groupe, pas à
+    // chaque séance (17/10/2026) ; la fin a déjà sa satisfaction à chaud.
+    if (formationId && (await bornesDuGroupe(sb, sessionId)).estLaPremiere) {
       ids.push(...(await testsDePositionnement(sb, seance.organization_id, [formationId])).map((t) => t.id));
     }
   }

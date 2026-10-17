@@ -10,22 +10,22 @@ const jour = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long' });
 
 /**
- * Le test de positionnement de la formation : généré par l'IA à partir des
- * objectifs du programme (deux questions par objectif), une fois pour la
- * formation, puis projeté en QR code au dernier cours du groupe (17/10/2026 :
- * « pas par séance, à la fin de la formation »). `derniere` : la séance où il
+ * Le test de positionnement de la formation : généré par l'IA à partir du
+ * programme et du contenu pédagogique, une fois pour la formation, puis
+ * projeté en QR code au premier cours du groupe (17/10/2026 : « quand je
+ * commence mon premier cours avec le groupe »). `premiere` : la séance où il
  * se passe, quand ce n'est pas celle-ci.
  */
 export function TestPositionnement({
   sessionId,
   test,
   gerer,
-  derniere = null,
+  premiere = null,
 }: {
   sessionId: string;
   test: { id: string; questions: number } | null;
   gerer: boolean;
-  derniere?: { id: string; debut: string } | null;
+  premiere?: { id: string; debut: string } | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -50,24 +50,24 @@ export function TestPositionnement({
         <h3 className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">Test de positionnement</h3>
         <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
           {test
-            ? `${test.questions} questions, deux par objectif du programme, pour toute la formation.`
-            : 'Généré par l’IA à partir des objectifs du programme : deux questions par objectif, une fois pour toute la formation.'}{' '}
-          {derniere ? (
+            ? `${test.questions} questions tirées du programme, du contenu et des modalités de la formation.`
+            : 'Généré par l’IA à partir du programme, du contenu pédagogique et des modalités de la formation : deux questions par module, une fois pour toute la formation.'}{' '}
+          {premiere ? (
             <>
-              Il se passe au dernier cours du groupe, le{' '}
-              <Link href={`/sessions/${derniere.id}/questionnaires`} className="text-purple-700 dark:text-purple-300 underline">
-                {jour(derniere.debut)}
+              Il se passe au premier cours du groupe, le{' '}
+              <Link href={`/sessions/${premiere.id}/questionnaires`} className="text-purple-700 dark:text-purple-300 underline">
+                {jour(premiere.debut)}
               </Link>
               .
             </>
           ) : (
-            'C’est le dernier cours du groupe : à projeter en QR code, chaque stagiaire répond sur son téléphone, sans e-mail.'
+            'C’est le premier cours du groupe : à projeter en QR code au démarrage, chaque stagiaire répond sur son téléphone, sans e-mail.'
           )}
         </p>
         {erreur && <p className="text-[12px] text-red-600 dark:text-red-400 mt-1">{erreur}</p>}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        {test && !derniere && (
+        {test && !premiere && (
           <>
             <a
               href={`/projection/questionnaire/${sessionId}/${test.id}`}
