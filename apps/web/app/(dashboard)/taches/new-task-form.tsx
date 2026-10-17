@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Check, Loader2, Plus, X } from 'lucide-react';
 import { PRIORITY_LABELS, TASK_PRIORITIES, type TaskPriority } from '@/features/tasks/schemas';
 import type { TeamMember } from '@/features/tasks/load-tasks';
-import { createTask } from './actions';
+import { createTask, updateTask } from './actions';
 import { TaskDescriptionEditor } from './task-description-editor';
 
 const champ =
@@ -13,11 +13,30 @@ const champ =
 
 const VIDE = { title: '', description: '', assigneeUserId: '', priority: 'medium' as TaskPriority, dueDate: '' };
 
-/** Création d'une tâche : titre, personne, échéance, priorité, détail en texte riche. */
-export function NewTaskForm({ membres, moi }: { membres: TeamMember[]; moi: string | null }) {
+type Valeurs = typeof VIDE;
+
+/**
+ * Création d'une tâche : titre, personne, échéance, priorité, détail en texte
+ * riche. Avec `tache`, le même formulaire la modifie, ouvert d'emblée.
+ */
+export function NewTaskForm({
+  membres,
+  moi,
+  tache,
+  onFermer,
+}: {
+  membres: TeamMember[];
+  moi: string | null;
+  tache?: { id: string; valeurs: Valeurs };
+  onFermer?: () => void;
+}) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
-  const [f, setF] = useState({ ...VIDE, assigneeUserId: moi ?? '' });
+  const [ouvert, setOuvertBrut] = useState(Boolean(tache));
+  const setOuvert = (v: boolean) => {
+    setOuvertBrut(v);
+    if (!v) onFermer?.();
+  };
+  const [f, setF] = useState<Valeurs>(tache?.valeurs ?? { ...VIDE, assigneeUserId: moi ?? '' });
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -40,19 +59,19 @@ export function NewTaskForm({ membres, moi }: { membres: TeamMember[]; moi: stri
         e.preventDefault();
         setErreur(null);
         start(async () => {
-          const r = await createTask({ ...f, dossierId: '', sessionId: '' });
+          const r = tache ? await updateTask({ ...f, taskId: tache.id }) : await createTask({ ...f, dossierId: '', sessionId: '' });
           if (!r.ok) {
             setErreur(r.error);
             return;
           }
-          setF({ ...VIDE, assigneeUserId: moi ?? '' });
+          if (!tache) setF({ ...VIDE, assigneeUserId: moi ?? '' });
           setOuvert(false);
           router.refresh();
         });
       }}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">Nouvelle tâche</p>
+        <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">{tache ? 'Modifier la tâche' : 'Nouvelle tâche'}</p>
         <button type="button" onClick={() => setOuvert(false)} aria-label="Fermer" className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
           <X className="w-4 h-4" />
         </button>
@@ -130,7 +149,8 @@ export function NewTaskForm({ membres, moi }: { membres: TeamMember[]; moi: stri
           disabled={pending || f.title.trim() === ''}
           className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-semibold px-4 h-9 rounded-lg disabled:opacity-40"
         >
-          {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Créer la tâche
+          {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tache ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}{' '}
+          {tache ? 'Enregistrer' : 'Créer la tâche'}
         </button>
         <button type="button" onClick={() => setOuvert(false)} className="text-[13px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 px-2">
           Annuler

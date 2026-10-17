@@ -47,6 +47,10 @@ export const createTaskSchema = z.object({
 
 export type CreateTaskInput = z.input<typeof createTaskSchema>;
 
+/** Une tâche se modifie après coup : intitulé, détail, personne, échéance, priorité. */
+export const updateTaskSchema = createTaskSchema.omit({ dossierId: true, sessionId: true }).extend({ taskId: z.string().uuid() });
+export type UpdateTaskInput = z.input<typeof updateTaskSchema>;
+
 export const updateTaskStatusSchema = z.object({
   taskId: z.string().uuid(),
   status: z.enum(TASK_STATUSES),

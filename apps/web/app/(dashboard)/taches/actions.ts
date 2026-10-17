@@ -10,8 +10,10 @@ import {
   createTaskSchema,
   deleteTaskSchema,
   postponeTaskSchema,
+  updateTaskSchema,
   updateTaskStatusSchema,
   type CreateTaskInput,
+  type UpdateTaskInput,
   type PostponeTaskInput,
 } from '@/features/tasks/schemas';
 import { nettoyerDetail } from '@/features/tasks/rich-description';
@@ -147,6 +149,54 @@ export async function createTask(input: CreateTaskInput): Promise<Result> {
       assigneeUserId: v.assigneeUserId,
       auteurUserId: g.membre.userId,
       taskId: (data as { id: string }).id,
+      title: v.title,
+    });
+  }
+
+  revalidatePath('/taches');
+  return { ok: true };
+}
+
+/**
+ * Modifier une tâche existante (réunion avec Laurie, 16/10/2026 : une fois
+ * créée, elle ne se corrigeait plus). Mêmes droits que les autres actions ;
+ * la nouvelle personne assignée est prévenue.
+ */
+export async function updateTask(input: UpdateTaskInput): Promise<Result> {
+  const p = updateTaskSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'Saisie invalide.' };
+  const g = await garde();
+  if (!g.ok) return g;
+  const t = await tacheModifiable(p.data.taskId, g.membre);
+  if (!t.ok) return t;
+  const v = p.data;
+  if (v.assigneeUserId && !(await membreDeLOrganisation(v.assigneeUserId, g.membre.organizationId))) {
+    return { ok: false, error: 'Cette personne n’est pas membre de votre équipe.' };
+  }
+
+  const { error } = await admin()
+    .schema('app')
+    .from('tasks')
+    .update({
+      title: v.title,
+      description: v.description ? nettoyerDetail(v.description) || null : null,
+      assignee_user_id: v.assigneeUserId || null,
+      priority: v.priority,
+      due_date: v.dueDate || null,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq('id', v.taskId);
+  if (error) {
+    console.error('[tâches] modification impossible', error.message);
+    return { ok: false, error: 'La tâche n’a pas pu être modifiée.' };
+  }
+
+  if (v.assigneeUserId && v.assigneeUserId !== t.tache.assignee_user_id) {
+    await notifierAssignation({
+      organizationId: g.membre.organizationId,
+      assigneeUserId: v.assigneeUserId,
+      auteurUserId: g.membre.userId,
+      taskId: v.taskId,
       title: v.title,
     });
   }

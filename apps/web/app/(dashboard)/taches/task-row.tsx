@@ -3,13 +3,14 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarClock, CalendarPlus, Check, CheckCircle2, FolderOpen, Loader2, RotateCcw, Trash2, User } from 'lucide-react';
+import { CalendarClock, CalendarPlus, Check, CheckCircle2, FolderOpen, Loader2, Pencil, RotateCcw, Trash2, User } from 'lucide-react';
 import { ACCENTS } from '@/shared/ui/kpi-card';
 import { PRIORITY_LABELS, STATUS_LABELS, TASK_STATUSES, type TaskPriority, type TaskStatus } from '@/features/tasks/schemas';
 import type { Task, TeamMember } from '@/features/tasks/load-tasks';
 import { REPORTS_RAPIDES, ajouterJours, jourParis } from '@/features/tasks/dates';
 import { assignTask, deleteTask, postponeTask, updateTaskStatus } from './actions';
 import { CONTENU_RICHE } from './contenu-riche';
+import { NewTaskForm } from './new-task-form';
 
 const PRIORITE: Record<TaskPriority, string> = {
   high: ACCENTS.rose.soft,
@@ -45,6 +46,29 @@ export function TaskRow({
   const [erreur, setErreur] = useState<string | null>(null);
   const [reporter, setReporter] = useState(false);
   const [dateChoisie, setDateChoisie] = useState('');
+  const [modifier, setModifier] = useState(false);
+
+  if (modifier) {
+    return (
+      <li className="px-4 py-3">
+        <NewTaskForm
+          membres={membres}
+          moi={moi}
+          onFermer={() => setModifier(false)}
+          tache={{
+            id: task.id,
+            valeurs: {
+              title: task.title,
+              description: task.descriptionHtml ?? '',
+              assigneeUserId: task.assigneeUserId ?? '',
+              priority: task.priority,
+              dueDate: task.dueDate ?? '',
+            },
+          }}
+        />
+      </li>
+    );
+  }
 
   const agir = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => {
     setErreur(null);
@@ -173,6 +197,17 @@ export function TaskRow({
             </button>
           </>
         )}
+
+        <button
+          type="button"
+          aria-label="Modifier la tâche"
+          title="Modifier"
+          disabled={pending}
+          onClick={() => setModifier(true)}
+          className="text-zinc-400 hover:text-orange-600 dark:hover:text-orange-400 shrink-0 disabled:opacity-50"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
 
         <button
           type="button"
