@@ -2,12 +2,16 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 import { getCurrentMember } from '@/shared/lib/auth/current-member';
 import { can } from '@/shared/lib/auth/permissions';
+import { appareil, canal, changements, connexionVisio, horodatage } from '@/features/attendance/export/tracabilite';
 
 /**
  * Export des émargements en CSV — par apprenant, par entreprise, ou par séance.
  *
- * Une ligne par apprenant et par demi-journée : entrée, sortie, retard,
- * départ anticipé, motif d'absence, façon dont la présence a été recueillie.
+ * Une ligne par participant et par demi-journée — chaque stagiaire, ceux des
+ * dossiers de groupe compris, et le formateur — avec la preuve de chaque
+ * signature (12/11/2026, « on n'a pas la traçabilité ») : horodatage à la
+ * seconde, canal, qui a attesté, adresse IP, appareil, empreinte, connexion
+ * visio, et les corrections apportées depuis (journal d'audit).
  * La matrice inclut les **absents** et les demi-journées **non émargées** :
  * sans elles, un export afficherait 100 % de présence en toutes circonstances.
  *
@@ -28,8 +32,11 @@ type FeuilleRow = {
   session: Un<{ starts_at: string | null; title: string | null }>;
 };
 type SignatureRow = {
+  id: string;
   attendance_sheet_id: string;
+  participant_kind: 'learner' | 'trainer';
   learner_id: string | null;
+  trainer_id: string | null;
   status: string;
   signed_at: string | null;
   exit_signed_at: string | null;
@@ -38,6 +45,17 @@ type SignatureRow = {
   absence_reason: string | null;
   capture_mode: string | null;
   evidence_source: string | null;
+  evidence_payload: unknown;
+  signer_ip: string | null;
+  signer_user_agent: string | null;
+  signer_country: string | null;
+  signature_hash: string | null;
+  exit_signer_ip: string | null;
+  exit_signer_user_agent: string | null;
+  exit_signature_hash: string | null;
+  marked_by: string | null;
+  exit_attested_by: string | null;
+  created_at: string;
 };
 type DossierRow = {
   id: string;
@@ -58,20 +76,9 @@ const PRESENCE: Record<string, string> = {
   absent_justified: 'Absent excusé',
   remote: 'À distance',
 };
-const MODE: Record<string, string> = {
-  lien: 'Lien personnel',
-  qr: 'QR code',
-  tablette: 'Tablette',
-  visio: 'Visio',
-  grille: 'Attestée par l’équipe',
-  zoom: 'Zoom',
-};
-const SOURCE: Record<string, string> = { qr: 'Lien personnel', manual: 'Tablette', trainer_override: 'Attestée par l’équipe', zoom_csv: 'Zoom', zoom_api: 'Zoom' };
 
 const PARIS = 'Europe/Paris';
 const jour = (iso: string | null) => (iso ? new Intl.DateTimeFormat('fr-CA', { timeZone: PARIS }).format(new Date(iso)) : '');
-const heure = (iso: string | null) =>
-  iso ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: PARIS }).format(new Date(iso)) : '';
 
 /** Échappement CSV, et neutralisation des formules (=, +, -, @) à l'ouverture dans un tableur. */
 const cell = (v: string | number | null | undefined): string => {
@@ -157,55 +164,164 @@ export async function GET(req: Request) {
   ];
   if (feuilles.length === 0) return csv([]);
 
-  // 3. Les présences recueillies. Leur absence est une information : « non émargé ».
+  // 3. Les stagiaires de chaque dossier : le titulaire et les membres d'un
+  //    dossier de groupe — l'export ne sortait que le titulaire.
+  const { data: membresData } = await sb
+    .schema('app')
+    .from('dossier_learners' as never)
+    .select('dossier_id, learner_id')
+    .in('dossier_id' as never, dossierIds as never);
+  const stagiairesDuDossier = new Map<string, Set<string>>();
+  for (const d of dossiers) if (d.learner_id) stagiairesDuDossier.set(d.id, new Set([d.learner_id]));
+  for (const m of (membresData ?? []) as unknown as Array<{ dossier_id: string; learner_id: string }>) {
+    stagiairesDuDossier.set(m.dossier_id, new Set([...(stagiairesDuDossier.get(m.dossier_id) ?? []), m.learner_id]));
+  }
+  // Attendus de chaque séance : un groupe n'attend que les siens.
+  const seancesDesFeuilles = [...new Set(feuilles.map((f) => f.session_id))];
+  const { data: partsData } = await sb
+    .schema('app')
+    .from('session_participants')
+    .select('session_id, learner_id, source')
+    .in('session_id', seancesDesFeuilles)
+    .eq('participant_kind', 'learner');
+  const attendusDeLaSeance = new Map<string, Set<string>>();
+  for (const p of (partsData ?? []) as Array<{ session_id: string; learner_id: string | null; source: string | null }>) {
+    if (!p.learner_id || p.source === 'manual_remove') continue;
+    attendusDeLaSeance.set(p.session_id, new Set([...(attendusDeLaSeance.get(p.session_id) ?? []), p.learner_id]));
+  }
+
+  // 4. Les signatures, avec leur preuve.
   const { data: sigsData } = await sb
     .schema('app')
     .from('attendance_signatures')
     .select(
-      'attendance_sheet_id, learner_id, status, signed_at, exit_signed_at, late_arrival_time, early_departure_time, absence_reason, capture_mode, evidence_source',
+      'id, attendance_sheet_id, participant_kind, learner_id, trainer_id, status, signed_at, exit_signed_at, late_arrival_time, early_departure_time, absence_reason, capture_mode, evidence_source, evidence_payload, signer_ip, signer_user_agent, signer_country, signature_hash, exit_signer_ip, exit_signer_user_agent, exit_signature_hash, marked_by, exit_attested_by, created_at',
     )
     .eq('organization_id', org)
-    .eq('participant_kind', 'learner')
     .in(
       'attendance_sheet_id',
       feuilles.map((f) => f.id),
     );
+  const signatures = (sigsData ?? []) as unknown as SignatureRow[];
   const parFeuilleEtApprenant = new Map<string, SignatureRow>();
-  for (const s of (sigsData ?? []) as unknown as SignatureRow[]) {
-    parFeuilleEtApprenant.set(`${s.attendance_sheet_id}|${s.learner_id ?? ''}`, s);
+  for (const s of signatures) if (s.participant_kind === 'learner') parFeuilleEtApprenant.set(`${s.attendance_sheet_id}|${s.learner_id ?? ''}`, s);
+
+  // Noms : stagiaires, formateurs, et membres de l'équipe qui ont attesté.
+  const learnerIds = [...new Set([...[...stagiairesDuDossier.values()].flatMap((x) => [...x]), ...signatures.map((s) => s.learner_id).filter((x): x is string => Boolean(x))])];
+  const trainerIds = [...new Set(signatures.map((s) => s.trainer_id).filter((x): x is string => Boolean(x)))];
+  const userIds = [...new Set(signatures.flatMap((s) => [s.marked_by, s.exit_attested_by]).filter((x): x is string => Boolean(x)))];
+
+  // 5. Les corrections apportées depuis : le journal d'audit garde l'avant/après.
+  const [{ data: learnersData }, { data: trainersData }, { data: profilsData }, { data: auditData }] = await Promise.all([
+    learnerIds.length ? sb.schema('app').from('learners').select('id, first_name, last_name, email').in('id', learnerIds) : Promise.resolve({ data: [] }),
+    trainerIds.length ? sb.schema('app').from('trainers').select('id, first_name, last_name, email').in('id', trainerIds) : Promise.resolve({ data: [] }),
+    userIds.length ? sb.schema('app').from('profiles').select('user_id, full_name, email').in('user_id', userIds) : Promise.resolve({ data: [] }),
+    signatures.length
+      ? sb
+          .schema('audit')
+          .from('audit_log')
+          .select('row_id, actor_user_id, before, after, occurred_at')
+          .eq('table_name', 'attendance_signatures')
+          .eq('action', 'update')
+          .in('row_id', signatures.map((s) => s.id))
+          .order('occurred_at', { ascending: true })
+      : Promise.resolve({ data: [] }),
+  ]);
+  const personne = new Map(((learnersData ?? []) as Array<{ id: string; first_name: string; last_name: string; email: string | null }>).map((l) => [l.id, l]));
+  const formateur = new Map(((trainersData ?? []) as Array<{ id: string; first_name: string; last_name: string; email: string | null }>).map((t) => [t.id, t]));
+  const auteurs = (auditData ?? []) as Array<{ row_id: string; actor_user_id: string | null; before: unknown; after: unknown; occurred_at: string }>;
+  const autresActeurs = [...new Set(auteurs.map((a) => a.actor_user_id).filter((x): x is string => Boolean(x) && !userIds.includes(x as string)))];
+  const { data: profils2 } = autresActeurs.length ? await sb.schema('app').from('profiles').select('user_id, full_name, email').in('user_id', autresActeurs) : { data: [] };
+  const membreNom = new Map(
+    ([...(profilsData ?? []), ...(profils2 ?? [])] as Array<{ user_id: string; full_name: string | null; email: string | null }>).map((p) => [p.user_id, p.full_name?.trim() || p.email || 'Membre de l’équipe']),
+  );
+  const corrections = new Map<string, Array<{ quand: string; qui: string; quoi: string[] }>>();
+  for (const a of auteurs) {
+    const quoi = changements(a.before, a.after);
+    if (quoi.length === 0) continue;
+    corrections.set(a.row_id, [...(corrections.get(a.row_id) ?? []), { quand: a.occurred_at, qui: a.actor_user_id ? (membreNom.get(a.actor_user_id) ?? 'Membre de l’équipe') : 'Système', quoi }]);
   }
+
+  const preuve = (sig: SignatureRow | undefined) => {
+    const corr = sig ? (corrections.get(sig.id) ?? []) : [];
+    const derniere = corr[corr.length - 1];
+    return {
+      presence: sig ? (PRESENCE[sig.status] ?? sig.status) : 'Non émargé',
+      entree: horodatage(sig?.signed_at),
+      canal: sig ? canal(sig.capture_mode, sig.evidence_source) : '',
+      attestePar: sig?.marked_by ? (membreNom.get(sig.marked_by) ?? 'Membre de l’équipe') : '',
+      ip: sig?.signer_ip ?? '',
+      appareil: appareil(sig?.signer_user_agent),
+      pays: sig?.signer_country ?? '',
+      empreinte: sig?.signature_hash ?? '',
+      sortie: horodatage(sig?.exit_signed_at),
+      ipSortie: sig?.exit_signer_ip ?? '',
+      sortieAttesteePar: sig?.exit_attested_by ? (membreNom.get(sig.exit_attested_by) ?? 'Membre de l’équipe') : '',
+      arrivee: sig?.late_arrival_time?.slice(0, 5) ?? '',
+      depart: sig?.early_departure_time?.slice(0, 5) ?? '',
+      motif: sig?.absence_reason ?? '',
+      visio: connexionVisio(sig?.evidence_payload),
+      nbCorrections: corr.length ? String(corr.length) : '',
+      derniereCorrection: derniere ? `${horodatage(derniere.quand)} · ${derniere.qui} · ${derniere.quoi.join(', ')}` : '',
+    };
+  };
 
   const lignes: Ligne[] = [];
   for (const f of feuilles) {
+    const seance = un(f.session);
     const concernes = f.dossier_id ? [f.dossier_id] : [...(dossiersParSeance.get(f.session_id) ?? [])];
+    const attendus = attendusDeLaSeance.get(f.session_id);
+    const vus = new Set<string>();
     for (const id of concernes) {
       const d = parDossier.get(id);
       if (!d) continue;
-      const sig = parFeuilleEtApprenant.get(`${f.id}|${d.learner_id ?? ''}`);
-      const apprenant = un(d.learner);
-      const seance = un(f.session);
+      for (const learnerId of stagiairesDuDossier.get(id) ?? []) {
+        const sig = parFeuilleEtApprenant.get(`${f.id}|${learnerId}`);
+        // Un groupe n'attend que ses membres ; une signature, elle, se montre toujours.
+        if (!sig && attendus && attendus.size > 0 && !attendus.has(learnerId)) continue;
+        if (vus.has(learnerId)) continue;
+        vus.add(learnerId);
+        const p = personne.get(learnerId);
+        lignes.push({
+          date: jour(seance?.starts_at ?? null),
+          demiJournee: DEMI_JOURNEE[f.half_day ?? 'full'] ?? f.half_day ?? '',
+          seance: seance?.title ?? '',
+          formation: un(d.formation)?.title ?? '',
+          dossier: d.reference ?? '',
+          participant: p ? `${p.first_name} ${p.last_name}`.trim() : '',
+          role: 'Stagiaire',
+          email: p?.email ?? '',
+          client: un(d.company)?.name ?? 'Particulier',
+          ...preuve(sig),
+          feuilleClose: f.finalized_at ? horodatage(f.finalized_at) : 'non close',
+        });
+      }
+    }
+    // Le formateur signe aussi chaque demi-journée.
+    for (const sig of signatures.filter((x) => x.attendance_sheet_id === f.id && x.participant_kind === 'trainer')) {
+      const t = sig.trainer_id ? formateur.get(sig.trainer_id) : undefined;
+      const d = parDossier.get(concernes[0] ?? '');
       lignes.push({
         date: jour(seance?.starts_at ?? null),
         demiJournee: DEMI_JOURNEE[f.half_day ?? 'full'] ?? f.half_day ?? '',
         seance: seance?.title ?? '',
-        formation: un(d.formation)?.title ?? '',
-        dossier: d.reference ?? '',
-        apprenant: apprenant ? `${apprenant.first_name} ${apprenant.last_name}`.trim() : '',
-        email: apprenant?.email ?? '',
-        client: un(d.company)?.name ?? 'Particulier',
-        presence: sig ? (PRESENCE[sig.status] ?? sig.status) : 'Non émargé',
-        entree: heure(sig?.signed_at ?? null),
-        sortie: heure(sig?.exit_signed_at ?? null),
-        arrivee: sig?.late_arrival_time?.slice(0, 5) ?? '',
-        depart: sig?.early_departure_time?.slice(0, 5) ?? '',
-        motif: sig?.absence_reason ?? '',
-        mode: sig ? (sig.capture_mode ? (MODE[sig.capture_mode] ?? sig.capture_mode) : (SOURCE[sig.evidence_source ?? ''] ?? '')) : '',
-        feuilleClose: f.finalized_at ? 'oui' : 'non',
+        formation: d ? (un(d.formation)?.title ?? '') : '',
+        dossier: concernes.map((c) => parDossier.get(c)?.reference ?? '').filter(Boolean).join(' / '),
+        participant: t ? `${t.first_name} ${t.last_name}`.trim() : 'Formateur',
+        role: 'Formateur',
+        email: t?.email ?? '',
+        client: '',
+        ...preuve(sig),
+        feuilleClose: f.finalized_at ? horodatage(f.finalized_at) : 'non close',
       });
     }
   }
   lignes.sort(
-    (a, b) => a.date.localeCompare(b.date) || a.apprenant.localeCompare(b.apprenant, 'fr') || a.demiJournee.localeCompare(b.demiJournee, 'fr'),
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      a.demiJournee.localeCompare(b.demiJournee, 'fr') ||
+      (a.role === b.role ? 0 : a.role === 'Formateur' ? -1 : 1) ||
+      a.participant.localeCompare(b.participant, 'fr'),
   );
   return csv(lignes);
 }
@@ -216,43 +332,63 @@ type Ligne = {
   seance: string;
   formation: string;
   dossier: string;
-  apprenant: string;
+  participant: string;
+  role: string;
   email: string;
   client: string;
   presence: string;
   entree: string;
+  canal: string;
+  attestePar: string;
+  ip: string;
+  appareil: string;
+  pays: string;
+  empreinte: string;
   sortie: string;
+  ipSortie: string;
+  sortieAttesteePar: string;
   arrivee: string;
   depart: string;
   motif: string;
-  mode: string;
+  visio: string;
+  nbCorrections: string;
+  derniereCorrection: string;
   feuilleClose: string;
 };
 
+const COLONNES: Array<[keyof Ligne, string]> = [
+  ['date', 'Date'],
+  ['demiJournee', 'Demi-journée'],
+  ['seance', 'Séance'],
+  ['formation', 'Formation'],
+  ['dossier', 'Dossier'],
+  ['participant', 'Participant'],
+  ['role', 'Rôle'],
+  ['email', 'E-mail'],
+  ['client', 'Client'],
+  ['presence', 'Présence'],
+  ['entree', 'Signature d’entrée (horodatage)'],
+  ['canal', 'Canal'],
+  ['attestePar', 'Attestée par'],
+  ['ip', 'Adresse IP'],
+  ['appareil', 'Appareil'],
+  ['pays', 'Pays'],
+  ['empreinte', 'Empreinte de la signature'],
+  ['sortie', 'Signature de sortie (horodatage)'],
+  ['ipSortie', 'Adresse IP (sortie)'],
+  ['sortieAttesteePar', 'Sortie attestée par'],
+  ['arrivee', 'Arrivée (retard)'],
+  ['depart', 'Départ anticipé'],
+  ['motif', 'Motif d’absence'],
+  ['visio', 'Connexion visio'],
+  ['nbCorrections', 'Corrections'],
+  ['derniereCorrection', 'Dernière correction'],
+  ['feuilleClose', 'Feuille close le'],
+];
+
 function csv(lignes: Ligne[]): NextResponse {
-  const entetes = [
-    'Date',
-    'Demi-journée',
-    'Séance',
-    'Formation',
-    'Dossier',
-    'Apprenant',
-    'E-mail',
-    'Client',
-    'Présence',
-    'Entrée',
-    'Sortie',
-    'Arrivée (retard)',
-    'Départ anticipé',
-    'Motif d’absence',
-    'Recueil',
-    'Feuille close',
-  ];
-  const corps = lignes.map((l) =>
-    [l.date, l.demiJournee, l.seance, l.formation, l.dossier, l.apprenant, l.email, l.client, l.presence, l.entree, l.sortie, l.arrivee, l.depart, l.motif, l.mode, l.feuilleClose]
-      .map(cell)
-      .join(';'),
-  );
+  const entetes = COLONNES.map(([, libelle]) => libelle);
+  const corps = lignes.map((l) => COLONNES.map(([cle]) => cell(l[cle])).join(';'));
   // Séparateur « ; » et BOM : Excel en français ouvre le fichier en colonnes, accents compris.
   const contenu = `﻿${entetes.map(cell).join(';')}\n${corps.join('\n')}\n`;
   return new NextResponse(contenu, {
