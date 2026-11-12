@@ -11,6 +11,8 @@ import { SuiviPastilles } from '@/features/sessions/ui/suivi-pastilles';
 import { canManageSection } from '@/shared/lib/auth/require-access';
 import { ResultatToggle } from '@/features/dossier/resultat/resultat-toggle.client';
 import { resultatDe } from '@/features/dossier/resultat/resultat';
+import { acquisDeLApprenant, acquisDesObjectifs } from '@/features/documents/acquis-objectifs';
+import { AcquisDuStagiaire } from '@/features/documents/acquis/acquis-du-stagiaire.client';
 import { supabaseAdmin } from '@/shared/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -53,10 +55,28 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
     ...new Set([...learners.map((l) => l.dossierId), ...[...parStagiaire.values()].map((x) => x.dossierId)].filter((d): d is string => Boolean(d))),
   ];
   const { data: resultatsRows } = dossiersDesStagiaires.length
-    ? await supabaseAdmin().schema('app').from('dossiers').select('id, resultats' as never).in('id', dossiersDesStagiaires)
+    ? await supabaseAdmin()
+        .schema('app')
+        .from('dossiers')
+        .select('id, resultats, acquis_objectifs, acquis_par_apprenant, formation:formations(objectives)' as never)
+        .in('id', dossiersDesStagiaires)
     : { data: [] };
-  const resultatsDe = new Map(((resultatsRows ?? []) as unknown as Array<{ id: string; resultats: unknown }>).map((r) => [r.id, r.resultats]));
-  const resultat = (learnerId: string, dossierId: string | null) => (dossierId ? resultatDe(resultatsDe.get(dossierId), learnerId) : null);
+  type LigneEval = {
+    id: string;
+    resultats: unknown;
+    acquis_objectifs: unknown;
+    acquis_par_apprenant: unknown;
+    formation: { objectives: string[] | null } | Array<{ objectives: string[] | null }> | null;
+  };
+  const evalDe = new Map(((resultatsRows ?? []) as unknown as LigneEval[]).map((r) => [r.id, r]));
+  const resultat = (learnerId: string, dossierId: string | null) => (dossierId ? resultatDe(evalDe.get(dossierId)?.resultats, learnerId) : null);
+  // Les acquis de chaque stagiaire, objectif par objectif (0236).
+  const acquisDe = (learnerId: string, dossierId: string | null) => {
+    const e = dossierId ? evalDe.get(dossierId) : undefined;
+    if (!e) return [];
+    const f = Array.isArray(e.formation) ? e.formation[0] : e.formation;
+    return acquisDesObjectifs(f?.objectives ?? [], e.acquis_objectifs, acquisDeLApprenant(e.acquis_par_apprenant, learnerId));
+  };
 
   if (learners.length === 0 && directLearners.length === 0) {
     return (
@@ -135,6 +155,15 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                         gerer={gerer}
                       />
                     )}
+                    {parStagiaire.get(l.id)?.dossierId && acquisDe(l.id, parStagiaire.get(l.id)!.dossierId).length > 0 && (
+                      <AcquisDuStagiaire
+                        dossierId={parStagiaire.get(l.id)!.dossierId!}
+                        learnerId={l.id}
+                        sessionId={params.id}
+                        lignes={acquisDe(l.id, parStagiaire.get(l.id)!.dossierId)}
+                        modifiable={gerer}
+                      />
+                    )}
                   </div>
                 </div>
                 {parStagiaire.get(l.id)?.dossierId && (
@@ -202,6 +231,9 @@ export default async function SessionLearnersTab({ params }: { params: { id: str
                         modeles={modeles}
                         gerer={gerer}
                       />
+                    )}
+                    {l.dossierId && acquisDe(l.id, l.dossierId).length > 0 && (
+                      <AcquisDuStagiaire dossierId={l.dossierId} learnerId={l.id} sessionId={params.id} lignes={acquisDe(l.id, l.dossierId)} modifiable={gerer} />
                     )}
                   </div>
                 </div>

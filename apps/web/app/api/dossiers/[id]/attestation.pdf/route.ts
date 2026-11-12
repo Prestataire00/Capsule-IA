@@ -7,7 +7,7 @@ import { persistGeneratedDocument } from '@/features/documents/persist-document'
 
 import { canAccessDossier } from '@/features/documents/guard-dossier-access';
 import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
-import { acquisDesObjectifs } from '@/features/documents/acquis-objectifs';
+import { acquisDeLApprenant, acquisDesObjectifs } from '@/features/documents/acquis-objectifs';
 import { resultatDe } from '@/features/dossier/resultat/resultat';
 
 export const dynamic = 'force-dynamic';
@@ -79,9 +79,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const attendanceRate = await computeDossierAttendanceRate(sb, params.id);
   // Acquis par objectif (0234), lus à part : la colonne peut manquer avant la migration.
-  const { data: acquisRow } = await sb.schema('app').from('dossiers').select('acquis_objectifs, resultats' as never).eq('id', params.id).maybeSingle();
+  const { data: acquisRow } = await sb.schema('app').from('dossiers').select('acquis_objectifs, acquis_par_apprenant, resultats' as never).eq('id', params.id).maybeSingle();
   const resultat = d.learner_id ? resultatDe((acquisRow as { resultats?: unknown } | null)?.resultats, d.learner_id) : null;
-  const acquis = acquisDesObjectifs(d.formation?.objectives ?? [], (acquisRow as { acquis_objectifs?: unknown } | null)?.acquis_objectifs);
+  const acquis = acquisDesObjectifs(
+    d.formation?.objectives ?? [],
+    (acquisRow as { acquis_objectifs?: unknown } | null)?.acquis_objectifs,
+    acquisDeLApprenant((acquisRow as { acquis_par_apprenant?: unknown } | null)?.acquis_par_apprenant, d.learner_id),
+  );
 
   const orgId = d.organization_id;
   const branding = await loadOrgBranding(sb as never, orgId);

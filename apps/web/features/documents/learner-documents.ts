@@ -8,7 +8,7 @@ import { buildCertificatPdf } from './build-certificat-pdf';
 import { buildConvocationPdf } from './build-convocation-pdf';
 import { loadOrgBranding } from './load-org-branding';
 import { computeDossierAttendanceRate } from '@/features/attendance/attendance-rate';
-import { acquisDesObjectifs } from './acquis-objectifs';
+import { acquisDeLApprenant, acquisDesObjectifs } from './acquis-objectifs';
 import { resultatDe } from '@/features/dossier/resultat/resultat';
 
 /**
@@ -121,11 +121,15 @@ async function buildAttestationInput(
   const attendanceRate = variant === 'fin' ? await computeDossierAttendanceRate(sb as never, dossierId) : 0;
   // Acquis par objectif (0234), lus à part : la colonne peut manquer avant la migration.
   const { data: acquisRow } = variant === 'fin'
-    ? await sb.schema('app').from('dossiers').select('acquis_objectifs, resultats, learner_id' as never).eq('id', dossierId).maybeSingle()
+    ? await sb.schema('app').from('dossiers').select('acquis_objectifs, acquis_par_apprenant, resultats, learner_id' as never).eq('id', dossierId).maybeSingle()
     : { data: null };
-  const ligneAcquis = acquisRow as { resultats?: unknown; learner_id?: string } | null;
+  const ligneAcquis = acquisRow as { resultats?: unknown; learner_id?: string; acquis_par_apprenant?: unknown } | null;
   const resultat = ligneAcquis?.learner_id ? resultatDe(ligneAcquis.resultats, ligneAcquis.learner_id) : null;
-  const acquis = acquisDesObjectifs(d.formation?.objectives ?? [], (acquisRow as { acquis_objectifs?: unknown } | null)?.acquis_objectifs);
+  const acquis = acquisDesObjectifs(
+    d.formation?.objectives ?? [],
+    (acquisRow as { acquis_objectifs?: unknown } | null)?.acquis_objectifs,
+    acquisDeLApprenant(ligneAcquis?.acquis_par_apprenant, ligneAcquis?.learner_id),
+  );
 
   return {
     organizationId: d.organization_id,

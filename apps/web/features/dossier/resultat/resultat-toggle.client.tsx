@@ -66,7 +66,10 @@ export function ResultatToggle({
 
   return (
     <span className="inline-flex flex-col items-end gap-0.5">
-      <span role="radiogroup" aria-label="Résultat de la formation" className="inline-flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900">
+      <span className="text-[11px] text-zinc-500 dark:text-zinc-400" title="Le stagiaire a-t-il atteint les objectifs de la formation ? Le détail se règle objectif par objectif, sous son nom.">
+        Évaluation des acquis
+      </span>
+      <span role="radiogroup" aria-label="Évaluation des acquis : résultat global" className="inline-flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900">
         {bouton('reussite')}
         {bouton('echec')}
       </span>

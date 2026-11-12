@@ -21,10 +21,18 @@ export function AcquisObjectifs({
   dossierId,
   lignes,
   modifiable,
+  learnerId,
+  sessionId,
+  compact = false,
 }: {
   dossierId: string;
   lignes: ReadonlyArray<{ objectif: string; niveau: NiveauAcquis }>;
   modifiable: boolean;
+  /** Un apprenant précis ; sans lui, le réglage de tout le dossier. */
+  learnerId?: string;
+  sessionId?: string;
+  /** Sous un stagiaire, dans Participants : sans en-tête. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [valeurs, setValeurs] = useState(() => Object.fromEntries(lignes.map((l) => [l.objectif, l.niveau])) as Record<string, NiveauAcquis>);
@@ -36,7 +44,7 @@ export function AcquisObjectifs({
     setValeurs((v) => ({ ...v, [objectif]: niveau }));
     setErreur(null);
     start(async () => {
-      const r = await enregistrerAcquis({ dossierId, objectif, niveau });
+      const r = await enregistrerAcquis({ dossierId, objectif, niveau, ...(learnerId ? { learnerId } : {}), ...(sessionId ? { sessionId } : {}) });
       if (!r.ok) {
         setValeurs((v) => ({ ...v, [objectif]: avant ?? 'acquis' }));
         setErreur(r.error);
@@ -45,15 +53,16 @@ export function AcquisObjectifs({
   };
 
   return (
-    <section className="rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-4">
-      <div className="flex items-start gap-3 mb-3">
+    <section className={compact ? '' : 'rounded-xl border border-zinc-200/70 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-4'}>
+      <div className={compact ? 'hidden' : 'flex items-start gap-3 mb-3'}>
         <span className="w-8 h-8 rounded-lg grid place-items-center bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 shrink-0">
           <Target className="w-4 h-4" aria-hidden />
         </span>
         <div>
           <h3 className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">Acquis par objectif</h3>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-            Repris sur l’attestation de fin de formation. Tout est « Acquis » par défaut : signalez seulement l’exception.
+            Réglage de tout le dossier, repris sur l’attestation de fin de formation. Tout est « Acquis » par défaut : signalez seulement
+            l’exception. Pour un stagiaire en particulier : séance → Participants.
           </p>
         </div>
       </div>

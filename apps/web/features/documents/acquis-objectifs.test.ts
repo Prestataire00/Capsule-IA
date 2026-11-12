@@ -12,4 +12,12 @@ describe('acquis par objectif', () => {
     expect(acquisDesObjectifs(['A'], { A: 'peut-être' })).toEqual([{ objectif: 'A', niveau: 'acquis' }]);
     expect(acquisDesObjectifs(['A'], null)).toEqual([{ objectif: 'A', niveau: 'acquis' }]);
   });
+
+  it('le niveau de l’apprenant prime sur celui du dossier', () => {
+    expect(acquisDesObjectifs(['A', 'B', 'C'], { A: 'en_cours', B: 'en_cours' }, { B: 'non_acquis' })).toEqual([
+      { objectif: 'A', niveau: 'en_cours' },
+      { objectif: 'B', niveau: 'non_acquis' },
+      { objectif: 'C', niveau: 'acquis' },
+    ]);
+  });
 });

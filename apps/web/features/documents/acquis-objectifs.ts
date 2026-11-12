@@ -12,14 +12,29 @@ export const LIBELLE_ACQUIS: Record<NiveauAcquis, string> = {
 
 export const estNiveauAcquis = (v: unknown): v is NiveauAcquis => typeof v === 'string' && (NIVEAUX_ACQUIS as readonly string[]).includes(v);
 
-/** Le niveau de chaque objectif : « acquis » tant que le formateur n'a rien dit d'autre. */
-export function acquisDesObjectifs(objectifs: readonly string[], saisis: unknown): Array<{ objectif: string; niveau: NiveauAcquis }> {
-  const s = saisis && typeof saisis === 'object' ? (saisis as Record<string, unknown>) : {};
+const objet = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
+
+/**
+ * Le niveau de chaque objectif : celui de l'apprenant (0236), sinon celui du
+ * dossier (0234), sinon « acquis » — le formateur ne corrige que l'exception.
+ */
+export function acquisDesObjectifs(
+  objectifs: readonly string[],
+  saisisDossier: unknown,
+  saisisApprenant?: unknown,
+): Array<{ objectif: string; niveau: NiveauAcquis }> {
+  const dossier = objet(saisisDossier);
+  const apprenant = objet(saisisApprenant);
   return objectifs
     .map((o) => o.trim())
     .filter(Boolean)
     .map((objectif) => {
-      const v = s[objectif];
-      return { objectif, niveau: estNiveauAcquis(v) ? v : 'acquis' };
+      const a = apprenant[objectif];
+      const d = dossier[objectif];
+      return { objectif, niveau: estNiveauAcquis(a) ? a : estNiveauAcquis(d) ? d : 'acquis' };
     });
 }
+
+/** Les acquis d'un apprenant dans `acquis_par_apprenant`. */
+export const acquisDeLApprenant = (parApprenant: unknown, learnerId: string | null | undefined): unknown =>
+  learnerId ? objet(parApprenant)[learnerId] : undefined;

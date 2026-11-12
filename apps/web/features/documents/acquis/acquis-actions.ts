@@ -25,20 +25,35 @@ export async function enregistrerAcquis(brut: AcquisInput): Promise<{ ok: true }
   const { data } = await admin
     .schema('app')
     .from('dossiers')
-    .select('organization_id, acquis_objectifs' as never)
+    .select('organization_id, acquis_objectifs, acquis_par_apprenant' as never)
     .eq('id', p.data.dossierId)
     .maybeSingle();
-  const d = data as { organization_id: string; acquis_objectifs: Record<string, string> | null } | null;
+  const d = data as {
+    organization_id: string;
+    acquis_objectifs: Record<string, string> | null;
+    acquis_par_apprenant: Record<string, Record<string, string>> | null;
+  } | null;
   if (!d || (me && parLEquipe && d.organization_id !== me.organizationId)) return { ok: false, error: 'Dossier introuvable.' };
 
-  const acquis = { ...(d.acquis_objectifs ?? {}) };
-  if (p.data.niveau === 'acquis') delete acquis[p.data.objectif];
-  else acquis[p.data.objectif] = p.data.niveau;
+  let maj: Record<string, unknown>;
+  if (p.data.learnerId) {
+    // Pour un apprenant, la saisie s'enregistre telle quelle (« acquis »
+    // compris) : elle doit pouvoir contredire le réglage du dossier.
+    const parApprenant = { ...(d.acquis_par_apprenant ?? {}) };
+    parApprenant[p.data.learnerId] = { ...(parApprenant[p.data.learnerId] ?? {}), [p.data.objectif]: p.data.niveau };
+    maj = { acquis_par_apprenant: parApprenant };
+  } else {
+    const acquis = { ...(d.acquis_objectifs ?? {}) };
+    if (p.data.niveau === 'acquis') delete acquis[p.data.objectif];
+    else acquis[p.data.objectif] = p.data.niveau;
+    maj = { acquis_objectifs: acquis };
+  }
 
-  const { error } = await admin.schema('app').from('dossiers').update({ acquis_objectifs: acquis } as never).eq('id', p.data.dossierId);
+  const { error } = await admin.schema('app').from('dossiers').update(maj as never).eq('id', p.data.dossierId);
   if (error) return { ok: false, error: 'Le niveau n’a pas pu être enregistré.' };
 
   revalidatePath(`/dossiers/${p.data.dossierId}/documents`);
+  if (p.data.sessionId) revalidatePath(`/sessions/${p.data.sessionId}/apprenants`);
   revalidatePath(`/mes-dossiers/${p.data.dossierId}`);
   return { ok: true };
 }
