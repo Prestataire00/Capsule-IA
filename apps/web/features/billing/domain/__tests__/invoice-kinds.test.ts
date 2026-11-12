@@ -58,8 +58,10 @@ describe('reminderDue', () => {
   it('pas avant l’échéance', () => {
     expect(reminderDue({ dueAt: '2026-09-20', today: '2026-09-11', reminderCount: 0, lastReminderAt: null })).toBe(false);
   });
-  it('première relance le lendemain de l’échéance', () => {
-    expect(reminderDue({ dueAt: '2026-09-10', today: '2026-09-11', reminderCount: 0, lastReminderAt: null })).toBe(true);
+  it('première relance 5 jours après l’échéance, pas avant', () => {
+    expect(reminderDue({ dueAt: '2026-09-10', today: '2026-09-11', reminderCount: 0, lastReminderAt: null })).toBe(false);
+    expect(reminderDue({ dueAt: '2026-09-10', today: '2026-09-14', reminderCount: 0, lastReminderAt: null })).toBe(false);
+    expect(reminderDue({ dueAt: '2026-09-10', today: '2026-09-15', reminderCount: 0, lastReminderAt: null })).toBe(true);
   });
   it('15 jours entre deux relances, 3 au plus', () => {
     expect(

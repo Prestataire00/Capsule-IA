@@ -57,8 +57,9 @@ export function checkDeposit(
 }
 
 /**
- * Relance automatique due ? Première relance le lendemain de l'échéance, puis
- * tous les `intervalDays` jours, `max` relances au plus.
+ * Relance automatique due ? Première relance `premiereApresJours` jours après
+ * l'échéance (5 par défaut, demande du 12/11/2026 : on laisse au client le
+ * temps du virement), puis tous les `intervalDays` jours, `max` relances au plus.
  */
 export function reminderDue(args: {
   dueAt: string | null;
@@ -67,12 +68,14 @@ export function reminderDue(args: {
   lastReminderAt: string | null;
   intervalDays?: number;
   max?: number;
+  premiereApresJours?: number;
 }): boolean {
   const { dueAt, today, reminderCount, lastReminderAt } = args;
   const interval = args.intervalDays ?? 15;
   const max = args.max ?? 3;
+  const premiere = args.premiereApresJours ?? 5;
   if (!dueAt || dueAt >= today || reminderCount >= max) return false;
-  if (!lastReminderAt) return true;
+  if (!lastReminderAt) return (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${dueAt}T12:00:00Z`)) / 86_400_000 >= premiere;
   const elapsed = (Date.parse(`${today}T12:00:00Z`) - Date.parse(lastReminderAt)) / 86_400_000;
   return elapsed >= interval;
 }

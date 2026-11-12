@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BellRing, Loader2 } from 'lucide-react';
 import { setAutoPaymentReminders } from './actions';
 
-/** Relances automatiques : paiement (lendemain de l'échéance, puis tous les 15 j, 3 max) et signature des devis (J-3). */
+/** Relances automatiques : paiement (5 jours après l'échéance, puis tous les 15 j, 3 max) et signature des devis (J-3). */
 export function AutoRemindersToggle({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -15,7 +15,7 @@ export function AutoRemindersToggle({ enabled }: { enabled: boolean }) {
     if (
       next &&
       !window.confirm(
-        'Activer les relances automatiques ? Les payeurs recevront un e-mail le lendemain de l’échéance, puis tous les 15 jours (3 relances au plus), et les clients un rappel 3 jours avant l’expiration d’un devis non signé.',
+        'Activer les relances automatiques ? Les payeurs recevront un e-mail 5 jours après l’échéance si la facture n’est pas réglée, puis tous les 15 jours (3 relances au plus), et les clients un rappel 3 jours avant l’expiration d’un devis non signé.',
       )
     ) {
       return;

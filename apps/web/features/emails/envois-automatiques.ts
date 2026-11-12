@@ -233,7 +233,7 @@ export const ENVOIS_AUTOMATIQUES: readonly EnvoiAutomatique[] = [
     kind: 'invoice_reminder_auto',
     nom: 'Relance de paiement',
     moment: 'facturation',
-    declencheur: 'Le lendemain de l’échéance, puis tous les quinze jours, trois relances au plus.',
+    declencheur: 'Cinq jours après l’échéance si la facture n’est pas réglée, puis tous les quinze jours, trois relances au plus.',
     destinataires: 'Le payeur de la facture',
     coupureKey: null,
     obligatoire: 'Se règle avec les relances automatiques, sur la page Factures : un seul interrupteur pour les rappels de devis et les relances de paiement.',

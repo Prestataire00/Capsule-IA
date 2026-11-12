@@ -87,7 +87,7 @@ async function orgsWithAutoReminders(sb: Sb): Promise<string[]> {
 }
 
 /**
- * Tâche planifiée : relances de paiement (lendemain de l'échéance, puis tous
+ * Tâche planifiée : relances de paiement (5 jours après l'échéance, puis tous
  * les 15 jours, 3 au plus) et rappel de signature 3 jours avant l'expiration
  * d'un devis — pour les organismes qui les ont activées.
  */
