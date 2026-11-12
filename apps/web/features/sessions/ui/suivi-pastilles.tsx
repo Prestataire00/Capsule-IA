@@ -36,7 +36,6 @@ const jour = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '
 export function SuiviPastilles({
   suivi,
   avecAcquis,
-  avecTest = false,
   learnerId,
   nom,
   modeles,
@@ -44,7 +43,6 @@ export function SuiviPastilles({
 }: {
   suivi: SuiviStagiaire;
   avecAcquis: boolean;
-  avecTest?: boolean;
   learnerId: string;
   nom: string;
   modeles: Record<QuestionnaireSuivi, string | null>;
@@ -61,7 +59,8 @@ export function SuiviPastilles({
     attendues === 0 ? TON.aucun : signees === attendues ? TON.rempli : signees === 0 ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' : TON.envoye;
   const kinds: QuestionnaireSuivi[] = [
     'positionnement',
-    ...(avecTest ? (['test_positionnement'] as const) : []),
+    // Toujours affiché : le formateur voit en séance qui l'a passé, ou pas.
+    'test_positionnement',
     ...(avecAcquis ? (['evaluation_acquis'] as const) : []),
     'satisfaction_chaud',
     'satisfaction_froid',
@@ -144,7 +143,9 @@ export function SuiviPastilles({
                 ? `Répondu${detail?.reponduLe ? ` le ${jour.format(new Date(detail.reponduLe))}` : ''}`
                 : etatOuvert === 'envoye'
                   ? 'Envoyé, pas encore de réponse'
-                  : 'Pas encore envoyé'}
+                  : ouvert === 'test_positionnement'
+                    ? 'Pas encore passé'
+                    : 'Pas encore envoyé'}
             </span>
             <span className="ml-auto flex items-center gap-2">
               {detail?.reponseId && (
@@ -170,7 +171,11 @@ export function SuiviPastilles({
           </span>
           {etatOuvert !== 'rempli' && (!suivi.dossierId || !modele) && (
             <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
-              {!suivi.dossierId ? 'Inscrit sans dossier : passez par le QR projeté de la séance.' : 'Aucun questionnaire de ce type à envoyer.'}
+              {!suivi.dossierId
+                ? 'Inscrit sans dossier : passez par le QR projeté de la séance.'
+                : ouvert === 'test_positionnement'
+                  ? 'Pas encore de test pour cette formation : générez-le dans l’onglet Évaluations de la première séance du groupe, puis projetez-le en QR code.'
+                  : 'Aucun questionnaire de ce type à envoyer.'}
             </span>
           )}
           {retour && (

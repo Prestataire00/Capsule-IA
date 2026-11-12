@@ -48,7 +48,6 @@ export async function loadSuiviStagiaires(
 ): Promise<{
   parStagiaire: Map<string, SuiviStagiaire>;
   avecAcquis: boolean;
-  avecTest: boolean;
   modeles: Record<QuestionnaireSuivi, string | null>;
 }> {
   // Le dossier de chacun, apprenants des dossiers de groupe compris : la séance
@@ -136,8 +135,6 @@ export async function loadSuiviStagiaires(
   return {
     parStagiaire,
     avecAcquis: assignations.some((a) => a.kind === 'evaluation_acquis'),
-    // La pastille du test n'apparaît que si la formation en a un.
-    avecTest: Boolean(modeles.test_positionnement) || assignations.some((a) => a.kind === 'test_positionnement'),
     modeles,
   };
 }
